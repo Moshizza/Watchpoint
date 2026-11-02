@@ -63,6 +63,8 @@ Video never flows through the core process. Gateways can run on every node, on d
 - H.265 support varies by browser and hardware; the gateway falls back automatically.
   The desktop client (Electron/Chromium) is the most predictable environment.
 - Audio from cameras is optional (permission + browser/autoplay rules).
+- If transcoding is ever needed, go2rtc calls FFmpeg; only an **LGPL** build of FFmpeg is
+  bundled (a GPL build would conflict with a closed-source product).
 
 ## 4. Video walls (later)
 

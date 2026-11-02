@@ -70,7 +70,7 @@ break-glass account.
 | Updates | Signed update manifests with version, hashes, minimum source version; verified before install; staged rollout in clusters with automatic rollback on failed health checks |
 | Dependencies | Lock files, SBOM (CycloneDX) per release, automated vulnerability scanning (Dependabot / OSV), licence scanning |
 | Build | Reproducible CI builds, protected signing keys (HSM or cloud KMS), two-person release approval |
-| Secure development | Threat modelling per module, SAST (CodeQL), secret scanning, dependency review, penetration test before each major release |
+| Secure development | Threat modelling per module, SAST (Semgrep Community Edition + .NET analyzers + ESLint security rules), secret scanning, dependency review, penetration test before each major release |
 
 ## Processes and isolation
 

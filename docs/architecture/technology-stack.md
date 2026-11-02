@@ -28,7 +28,7 @@ All licences below must be re-checked by legal before the first commercial relea
 | Mobile app | **React Native + Expo** | MIT | Shares TypeScript code with the web app; iOS and Android from one codebase |
 | Synoptic canvas | **Konva** (react-konva) | MIT | High-performance 2D canvas with layers, transforms, hit detection; good for thousands of live symbols |
 | Plans import | pdf.js (PDF), dxf-parser (DXF), native SVG/PNG/JPEG | Apache-2 / MIT | Free, browser-side conversion of plans to backgrounds |
-| GIS maps | **MapLibre GL JS** + OpenStreetMap or offline PMTiles | BSD-3 / ODbL data | Free vector maps, works offline with a local tile file |
+| GIS maps | **MapLibre GL JS** + **PMTiles** generated from OpenStreetMap data (Planetiler/Protomaps tools), served by the node | BSD-3 / Apache-2 / ODbL data (attribution required) | Free vector maps that work offline; no dependency on public tile servers, whose usage policy forbids product use |
 | Automation editor | **React Flow** (xyflow) | MIT | Standard node-graph editor |
 | Code editor | **Monaco Editor** | MIT | The editor of VS Code: TypeScript diagnostics, completion, hover, refactoring in the browser |
 | Script runtime | **TypeScript** executed by **V8 via Microsoft ClearScript** in a sandbox process | MIT (ClearScript), BSD (V8) | Modern, popular language; V8 isolates with memory and time limits; runs on Windows/Linux/macOS x64 and arm64 |
@@ -40,8 +40,9 @@ All licences below must be re-checked by legal before the first commercial relea
 | Spreadsheet export | ClosedXML | MIT | Free XLSX generation |
 | E-mail | MailKit | MIT | Standard SMTP/IMAP library |
 | Translation | i18next + ICU message format (client), .NET resources + ICU (server), Weblate for translators | MIT / GPL (Weblate is a separate tool, not shipped) | Plurals, genders, RTL, numbers and dates per locale |
-| Installers | WiX Toolset (Windows MSI), .deb/.rpm with systemd units (Linux), OCI images (Docker/Podman/Kubernetes), electron-builder (clients) | MS-RL / MIT | Free, standard for each platform |
-| Tests | xUnit, Testcontainers (.NET); Vitest, Playwright (front-end) | Apache-2 / MIT | Popular, run in CI |
+| Installers | **Inno Setup** (Windows service setup, silent mode), nfpm (.deb/.rpm with systemd units), OCI images (Docker/Podman/Kubernetes), electron-builder with **NSIS** and MSIX (clients) | Inno Setup licence (free, commercial use allowed) / MIT / zlib | Free, widely used, scriptable for mass deployment; an MSI can be added later if enterprise customers require one |
+| Tests | xUnit, Testcontainers (.NET); Vitest, Playwright (front-end); **k6** (load tests) | Apache-2 / MIT / AGPL-3 (k6 is only used internally, not shipped) | Popular, run in CI |
+| Static analysis | .NET analyzers, **Semgrep Community Edition**, ESLint, TypeScript strict mode | MIT / LGPL-2.1 | Free security scanning for private repositories |
 
 ## 2. Key decisions explained
 
@@ -129,7 +130,38 @@ without transcoding when the codec allows (H.264, and H.265 where the client sup
 with sub-second latency. It is bundled and supervised by the node like NATS. It removes the
 need for vendor video players on operator PCs.
 
-## 3. Processes on a node
+## 3. Costs and licence conditions
+
+Everything shipped in the product is free and allows a closed commercial product. The
+remaining costs are services and memberships, not software licences.
+
+### 3.1 Unavoidable costs (company side)
+
+| Item | Why | Approximate cost |
+|---|---|---|
+| Windows code-signing certificate | Sign service, installers, clients | ~USD 200–700 / year |
+| Apple Developer Program | Sign and notarise the macOS client, publish the iOS app, send iOS push notifications | USD 99 / year |
+| Google Play developer account | Publish the Android app | USD 25 once |
+| Key protection for signing keys | Licence and package signing keys (cloud key vault, or hardware HSM later) | A few USD / month (cloud KMS) |
+| Hosting | Licensing portal, push relay, update repository | Infrastructure costs |
+| Vendor partner programmes | Salto (OEM licence for its HTTPS interface), Milestone (partner programme, full XProtect editions for API tests), Vanderbilt | Per vendor agreements |
+| SMS sending | Per-message provider fees | Usually paid by the customer |
+
+### 3.2 Free with conditions to respect
+
+| Item | Condition | How Watchpoint handles it |
+|---|---|---|
+| TimescaleDB compression and continuous aggregates | Free under the Timescale License, except offering it as a hosted database service (we don't). **Not available in most managed cloud databases** (AWS RDS, Azure Database for PostgreSQL) | Customer-hosted cloud installs run PostgreSQL + TimescaleDB on their own VM. History also works without these features (plain partitioned tables), with more storage and slower reports |
+| OpenStreetMap data | Free (ODbL) with attribution; public tile servers forbid product use | Tiles generated from OSM data and served by the node; attribution shown on maps |
+| FFmpeg (only if bundled for transcoding) | Must be an **LGPL** build to stay compatible with a closed product | Bundle an LGPL build only; prefer passthrough without transcoding |
+| k6 (AGPL-3) | AGPL obligations apply only if distributed or offered as a service | Used internally for load tests, never shipped |
+| OPC UA | The OPC Foundation .NET stack is GPL for non-members | Use open62541 (MPL-2.0) instead; MPL only requires publishing changes made to open62541's own files |
+| MIT / BSD / Apache / MPL / OFL libraries | Keep copyright and licence notices | A generated third-party notices file ships with every release (from the SBOM) |
+| Developer tools | Docker Desktop and Visual Studio need paid licences above company size/revenue thresholds | Team uses VS Code, Docker Engine or Podman (free); paid IDEs only by choice |
+
+Legal review of every licence remains a release requirement.
+
+## 4. Processes on a node
 
 From the operating system's point of view a node is **one service**. That service supervises
 helper processes it ships with:
@@ -147,7 +179,7 @@ Helper processes are restarted automatically, health-checked, and never exposed 
 to the network except where configured (NATS cluster ports between nodes, media gateway
 WebRTC ports).
 
-## 4. Supported platforms (target)
+## 5. Supported platforms (target)
 
 | Component | Windows | Linux | macOS | Container |
 |---|---|---|---|---|

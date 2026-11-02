@@ -6,7 +6,7 @@
 
 ## 1. Technology
 
-- **React Native + Expo**, iOS and Android, sharing TypeScript models, API clients,
+- **React Native + Expo** (open-source framework; app builds made in our own CI, not the paid Expo cloud build service), iOS and Android, sharing TypeScript models, API clients,
   translations and business rules with the web/desktop UI.
 - Live stream over SignalR (same protocol as other clients) while the app is open; push
   notifications for the background (see [Notifications](../modules/notifications.md)).

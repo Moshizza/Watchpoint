@@ -6,12 +6,12 @@
 
 | Platform | Artefact | Contents |
 |---|---|---|
-| Windows Server / Windows 10–11 | Signed **MSI** (WiX) | Watchpoint service, bundled NATS and go2rtc, `wpctl` tool, optional PostgreSQL + TimescaleDB installation, firewall rules, Windows service registration |
+| Windows Server / Windows 10–11 | Signed **setup** (Inno Setup; silent install supported for mass deployment) | Watchpoint service, bundled NATS and go2rtc, `wpctl` tool, optional PostgreSQL + TimescaleDB installation, firewall rules, Windows service registration |
 | Ubuntu/Debian | Signed **.deb** + APT repository | Service with systemd unit, helpers, `wpctl`; PostgreSQL/Timescale from official repositories as dependencies or external |
 | RHEL/Rocky/Alma | Signed **.rpm** + YUM repository | Same |
 | Containers | OCI images (`watchpoint`, `watchpoint-integration-host`), **Docker Compose** file (Watchpoint + PostgreSQL/Timescale), **Helm chart** for Kubernetes | Same software, configured by environment variables and mounted volumes |
-| Remote integration host | Small MSI / .deb / image | Host only, pairs with a cluster |
-| Desktop client | MSI/MSIX, .deb/.rpm/AppImage, .dmg | See [Desktop client](../clients/desktop-client.md) |
+| Remote integration host | Small setup / .deb / image | Host only, pairs with a cluster |
+| Desktop client | Setup (NSIS) and MSIX, .deb/.rpm/AppImage, .dmg | See [Desktop client](../clients/desktop-client.md) |
 
 ### 1.2 First-run wizard
 
@@ -38,7 +38,7 @@ automatically.
 
 ## 2. Upgrades
 
-- **Single node**: the update package (signed) is installed by the MSI/package manager or
+- **Single node**: the update package (signed) is installed by the setup/package manager or
   from the client (*System → Updates*, upload package). The service stops, migrations run,
   service starts, health check; automatic rollback (restore pre-upgrade snapshot) if the
   health check fails.

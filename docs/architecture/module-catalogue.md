@@ -14,7 +14,7 @@
 | **Bundled third-party processes** | Supervised binaries | `nats-server`, `go2rtc` | NATS JetStream, go2rtc |
 | **User interface** | TypeScript monorepo (pnpm workspaces) | `@watchpoint/<package>` | React 19, TypeScript, Vite |
 | **Desktop shell** | Electron app wrapping the UI | `watchpoint-desktop` | Electron, electron-builder |
-| **Mobile app** | React Native app | `watchpoint-mobile` | React Native, Expo |
+| **Mobile app** | React Native app | `watchpoint-mobile` | React Native, Expo (builds in our own CI) |
 | **Integration packages** | One .NET project per integration, packed as `.wpkg` | `Watchpoint.Integration.<Vendor>` | .NET 10, `Watchpoint.Integration.Abstractions` |
 | **Company-side services** | Separate products operated by the company | Licensing portal, push relay | ASP.NET Core, React, PostgreSQL |
 
@@ -96,7 +96,7 @@ flowchart TB
 | `Watchpoint.Integration.Mqtt` | MQTT topics as points | `MqttConnector`, `TopicMapping` | MQTTnet (MIT) |
 | `Watchpoint.Integration.Snmp` | SNMP polling and traps | `SnmpConnector`, `MibImporter` | Lextm.SharpSnmpLib (MIT) |
 | `Watchpoint.Integration.Bacnet` (phase 4) | BACnet/IP objects | `BacnetConnector`, `CovSubscriptionManager` | Open-source BACnet stack (to select) |
-| `Watchpoint.Integration.OpcUa` (phase 4) | OPC UA servers | `OpcUaConnector`, `AddressSpaceBrowser` | OPC Foundation .NET Standard stack (dual licence — check terms) |
+| `Watchpoint.Integration.OpcUa` (phase 4) | OPC UA servers | `OpcUaConnector`, `AddressSpaceBrowser` | **open62541** (C library, MPL-2.0) through a thin native wrapper, run in an isolated integration host |
 | `Watchpoint.Integration.Salto` | Salto Space access control | `SaltoSpaceConnector`, `ShipClient`, `ShipMessageSerializer`, `DoorStatusPoller`, `AuditTrailReader`, `SaltoCommandMapper`, `SaltoErrorMapper` | .NET, XML serializer, TCP/HTTPS | [Salto Space](../integrations/salto-space.md) |
 | `Watchpoint.Integration.Milestone` | Milestone XProtect video | `XProtectConnector`, `XProtectConfigurationReader`, `XProtectEventSubscriber`, `XProtectStreamProvider`, `XProtectPtzController`, `XProtectExportClient` | .NET, Milestone REST/API Gateway and/or MIP SDK (isolated, Windows) | [Milestone XProtect](../integrations/milestone-xprotect.md) |
 | `Watchpoint.Integration.VanderbiltSpc` | Vanderbilt SPC intrusion | `SpcPanelConnector`, `SpcEventReceiver`, `SpcCommandClient`, `SpcStateMapper` | .NET, interface per vendor documentation | [Vanderbilt SPC](../integrations/vanderbilt-spc.md) |
@@ -131,8 +131,8 @@ flowchart TB
 | `wpctl` | Local administration: status, logs, backup/restore, reset admin, maintenance mode, diagnostics, certificate renewal | .NET console app (System.CommandLine) |
 | Setup wizard | First-run configuration | Part of the UI (`@watchpoint/configuration`) + local-only setup endpoint |
 | Package builder (`wppack`) | Build, sign and validate `.wpkg` integration packages | .NET tool, Ed25519 signing via KMS/HSM |
-| Installers | MSI, .deb/.rpm, OCI images, Helm chart, client installers | WiX Toolset, nfpm (or dpkg/rpmbuild), Docker, Helm, electron-builder |
-| Load test kit | Device simulator + scenarios | .NET, NBomber or k6 |
+| Installers | MSI, .deb/.rpm, OCI images, Helm chart, client installers | Inno Setup, nfpm, Docker/Podman, Helm, electron-builder (NSIS, MSIX) |
+| Load test kit | Device simulator + scenarios | .NET device simulator + k6 |
 
 ## 8. Company-side services (outside the product)
 
@@ -152,7 +152,7 @@ flowchart TB
 | Validation of documents | JsonSchema.Net |
 | Time zones | NodaTime |
 | Testing | xUnit, Shouldly, Testcontainers (PostgreSQL, NATS), Playwright (UI), Vitest |
-| Static analysis | .NET analyzers, CodeQL, ESLint, TypeScript strict mode |
+| Static analysis | .NET analyzers, Semgrep Community Edition, ESLint, TypeScript strict mode |
 
 All licences must be re-checked by legal before the first commercial release (see
 [Technology stack](technology-stack.md)).

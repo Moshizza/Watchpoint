@@ -112,7 +112,7 @@ flowchart TB
 
 ## 5. Installation and updates
 
-- Installers: MSI/MSIX (Windows), `.deb`/`.rpm`/AppImage (Linux), `.dmg` notarised
+- Installers: NSIS setup and MSIX (Windows), `.deb`/`.rpm`/AppImage (Linux), `.dmg` notarised
   (macOS), built with electron-builder, all code-signed.
 - **Auto-update from the site's own nodes** (no internet needed): nodes host the client
   update packages matching their version; clients check at sign-in and download signed

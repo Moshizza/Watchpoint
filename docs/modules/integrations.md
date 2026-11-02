@@ -278,7 +278,7 @@ Details:
   Windows, cgroups on Linux); runaway hosts are restarted.
 - **Architecture mismatch**: if a vendor SDK is x86-only, the package ships an x86 host
   build and runs isolated.
-- **Remote host installation**: a small installer (MSI/.deb) and a one-time **pairing
+- **Remote host installation**: a small installer (Windows setup / .deb) and a one-time **pairing
   code** generated in the desktop client; the host then appears in *Integrations → Hosts*
   with its health. All packages are pushed to it automatically.
 - **Failover**: in a cluster, connections assigned to a failed node or host are restarted

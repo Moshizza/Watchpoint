@@ -21,7 +21,7 @@ The same renderer runs in the desktop client and the web client (React + Konva).
 | Kind | Background | Typical use |
 |---|---|---|
 | **Plan** | Floor plan (PDF, DXF, SVG, PNG/JPEG) | Building floors, car parks, technical rooms |
-| **Map** | Geographic map (MapLibre with OpenStreetMap online or an offline tile file) | Campus, city, perimeter, multi-site overview |
+| **Map** | Geographic map (MapLibre with map tiles generated from OpenStreetMap data and served by the node — works offline) | Campus, city, perimeter, multi-site overview |
 | **Diagram** | Blank canvas with shapes | Single-line diagrams of BMS, network overview, control panels with buttons |
 | **Dashboard** | Grid of widgets | Overview screens: counters per site, alarm lists, video tiles, charts |
 
