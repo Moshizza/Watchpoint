@@ -20,8 +20,9 @@ After installing, the first desktop client connection (or a local web page on
 runs the setup wizard:
 
 1. Language and site name, time zone.
-2. Database: use the bundled one or connect to an existing PostgreSQL (connection test,
-   TimescaleDB check).
+2. Database: use the bundled PostgreSQL + TimescaleDB (recommended) or connect to an
+   existing database server (PostgreSQL, SQL Server, or another supported provider), with a
+   connection test and a capability report — see [Data storage](../modules/data-storage.md#8-in-the-setup-wizard-and-the-client).
 3. Certificates: generate site CA (default) or import customer certificate.
 4. Administrator account (password + MFA enrolment recommended).
 5. Licence: start trial, or request activation (online/offline), or import a licence file.

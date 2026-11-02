@@ -45,6 +45,7 @@ flowchart TB
 | **Watchpoint.Rights** | Decide what each user may see and do; filter every list and live message | `User`, `UserGroup`, `RightGrant` (permission × scope × schedule × constraints), `PermissionCatalogue`, `ScopeResolver` (scopes → visible device sets), `RightsEvaluator`, `RightsCopyService` (copy/compare/re-apply/undo), `RightsDriftDetector` | .NET, PostgreSQL | [Users and rights](../modules/users-and-rights.md) |
 | **Watchpoint.Audit** | Immutable journal of all security-relevant actions | `AuditWriter`, `AuditRecord`, `HashChain` (tamper detection), `AuditQuery` | PostgreSQL / TimescaleDB | [Users and rights §7](../modules/users-and-rights.md#7-audit-trail) |
 | **Watchpoint.Configuration** | Drafts, validation, atomic publish, versions, rollback, import/export | `Draft`, `ChangeSet`, `ConfigurationVersion`, `Validator` (plain-language problems), `Publisher`, `RollbackService`, `SoftLockService`, `ImportExportService` | EF Core, JSON Schema validation (JsonSchema.Net), ClosedXML (XLSX) | [Configuration management](../modules/configuration-management.md) |
+| **Watchpoint.Storage** | All database access: store interfaces, database providers, store mapping, connection management, migration between databases | `IConfigurationStore`, `IStateStore`, `IHistoryStore`, `IAuditStore`, `StoreMapping`, `ProviderCapabilities`, `DatabaseConnectionManager` (vault, TLS, pooling, failover), `StorageHealth`, `StorageMigrator`; providers `PostgresProvider` (default, TimescaleDB), `SqlServerProvider`, later `MySqlProvider`, `OracleProvider`, `ClickHouseHistoryProvider` | EF Core, Npgsql, Microsoft.Data.SqlClient, Pomelo + MySqlConnector, ODP.NET, ClickHouse.Client | [Data storage](../modules/data-storage.md) |
 | **Watchpoint.Secrets** | Encrypted vault for passwords, keys and certificates | `SecretVault`, `MasterKeyProvider` (DPAPI, TPM, key file, KMS), `SecretAccessAudit`, `SiteCertificateAuthority` | .NET cryptography (AES-GCM), DPAPI, TPM 2.0 | [Security](../operations/security.md#secrets-vault) |
 | **Watchpoint.Licensing** | Footprint, licence verification, quotas, restricted mode, activation requests | `FootprintCollector`, `LicenceVerifier` (Ed25519), `QuotaCounter` (device units, seats), `ActivationRequestBuilder` (online/offline `.wprq`), `LicencePortalClient`, `EnforcementPolicy` | .NET cryptography (Ed25519 via NSec), WMI / `/sys` readers | [Licensing](../modules/licensing.md) |
 | **Watchpoint.Cluster** | Node membership, leases with fencing tokens, work placement | `ClusterMembership`, `LeaseManager`, `FencingToken`, `PlacementEngine` (connections and partitions to nodes), `DrainService` | NATS JetStream KV, gRPC | [Redundancy and multi-site](../modules/redundancy-and-multi-site.md) |
@@ -151,7 +152,7 @@ flowchart TB
 | Resilience | Polly |
 | Validation of documents | JsonSchema.Net |
 | Time zones | NodaTime |
-| Testing | xUnit, Shouldly, Testcontainers (PostgreSQL, NATS), Playwright (UI), Vitest |
+| Testing | xUnit, Shouldly, Testcontainers (PostgreSQL, SQL Server, NATS), Playwright (UI), Vitest |
 | Static analysis | .NET analyzers, Semgrep Community Edition, ESLint, TypeScript strict mode |
 
 All licences must be re-checked by legal before the first commercial release (see

@@ -31,7 +31,7 @@
 | Component | Redundancy mechanism |
 |---|---|
 | Event log (NATS JetStream) | 3-member NATS cluster (two nodes + witness, or three nodes); streams replicated ×3 with RAFT consensus — writes are acknowledged only once a majority has them |
-| Database (PostgreSQL) | Streaming replication primary → standby; automatic failover by a supervisor: Patroni (needs an etcd cluster, which can run on the same three members) or pg_auto_failover (a monitor process on the witness). The choice will be confirmed in a technical spike; both are free |
+| Database (default PostgreSQL; other providers use their own HA — e.g. SQL Server availability groups, see [Data storage](data-storage.md)) | Streaming replication primary → standby; automatic failover by a supervisor: Patroni (needs an etcd cluster, which can run on the same three members) or pg_auto_failover (a monitor process on the witness). The choice will be confirmed in a technical spike; both are free |
 | Connections | Each connection is owned by one node through a **lease** in the event log's key-value store (JetStream KV, consensus-backed). The owner renews the lease every 2 s; if it stops for 10 s the lease expires and another eligible node acquires it with a **higher fencing token**, starts the connection and resyncs |
 | Commands | Queued in the event log; the new connection owner continues the queue; commands carry the owner's fencing token, the dispatcher refuses tokens older than the current one |
 | Partitions of the pipeline | Partition ownership by lease, like connections; state rebuilt from snapshot + log replay |

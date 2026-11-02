@@ -87,7 +87,9 @@ flowchart TB
 
 ## 2. Data stores and what lives where
 
-Storage is split by **lifetime and access pattern**:
+Storage is split by **lifetime and access pattern**. Databases are reached only through the
+[storage module](../modules/data-storage.md), which supports several database technologies;
+the table shows the default (bundled PostgreSQL + TimescaleDB):
 
 | Store | Technology | Content | Written by | Lifetime |
 |---|---|---|---|---|
@@ -103,7 +105,9 @@ Rules:
 - The **event log is the source of truth for what happened**; state and history are
   projections of it. If a node crashes, it reloads the last state snapshot and replays the
   log from the snapshot's sequence number: nothing is lost.
-- Only nodes access PostgreSQL and NATS. Clients, integration hosts and the script host go
+- Each store can be placed on another supported database (e.g. the customer's SQL Server),
+  see [Data storage](../modules/data-storage.md).
+- Only nodes access the database and NATS. Clients, integration hosts and the script host go
   through the node's APIs.
 - Each integrated server's personal data (cardholder names, photos) reaching Watchpoint in
   events is stored only in history, under retention and privacy rules.

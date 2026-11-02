@@ -36,6 +36,7 @@ Architecture and module design of **Watchpoint**, a security hypervision platfor
 | [Events and alarms](modules/events-and-alarms.md) | Events, alarm rules, lifecycle, procedures, escalation, handover |
 | [Users and rights](modules/users-and-rights.md) | Users, user groups, rights, rights-copy tool, authentication, audit, privacy |
 | [Configuration management](modules/configuration-management.md) | Drafts, validation, publish, versions, import/export |
+| [Data storage](modules/data-storage.md) | Pluggable database providers (PostgreSQL default, SQL Server, others on demand), store mapping, migration |
 | [Synoptics](modules/synoptics.md) | No-code interactive screens |
 | [Automations](modules/automations.md) | No-code flows |
 | [Scripting](modules/scripting.md) | TypeScript scripts, sandbox, IDE |

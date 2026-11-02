@@ -1,5 +1,8 @@
 # History and Reports
 
+> Tables below are described with the default provider (TimescaleDB). Other databases use
+> the equivalent mechanisms listed in [Data storage §3.1](data-storage.md#31-how-each-database-covers-watchpoints-needs).
+
 ## 1. What is stored
 
 | Hypertable (TimescaleDB) | Content | Default retention |

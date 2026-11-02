@@ -22,7 +22,9 @@ estimated once the team size is known and the technical spikes are done.
 - Service host (Windows service, systemd), setup wizard, `wpctl`.
 - Configuration service (drafts/publish/versions), registry (servers, devices, locations,
   tags), type catalogue.
-- Event pipeline, live state, history writer (Timescale), event journal.
+- Storage module with store interfaces and the PostgreSQL + TimescaleDB provider; provider
+  certification suite.
+- Event pipeline, live state, history writer, event journal.
 - Commands with lifecycle and verification.
 - Alarm rules, lifecycle, console, procedures (basic), sounds.
 - Identity (local + LDAP), rights, user groups, rights-copy tool, audit trail.
@@ -45,6 +47,8 @@ estimated once the team size is known and the technical spikes are done.
 - Licensing: footprint, request files, licence verification, quotas, restricted mode; first
   version of the licensing portal (requests, review queue, issuance).
 - Reports v1 (alarm statistics, device availability, shift report).
+- SQL Server storage provider (Express, Standard, Enterprise, Azure SQL), store mapping and
+  `wpctl storage migrate`.
 
 ## Phase 3 — Automation, resilience, multi-site
 
@@ -66,6 +70,9 @@ estimated once the team size is known and the technical spikes are done.
 - Spanish, German, Turkish translations.
 
 ## Later
+
+MySQL/MariaDB and Oracle providers when projects require them; ClickHouse history provider
+for very large sites.
 
 Video walls, mobile commands and video, 3D/BIM views, dashboards builder, analytics, AI
 assistance in the script IDE, third-party integration SDK and partner certification.

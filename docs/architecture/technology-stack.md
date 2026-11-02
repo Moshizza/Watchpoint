@@ -12,10 +12,13 @@ All licences below must be re-checked by legal before the first commercial relea
 | Layer | Choice | Licence | Why |
 |---|---|---|---|
 | Service runtime | **.NET 10 (C#)**, ASP.NET Core | MIT | Plugin loading of DLLs with isolation (`AssemblyLoadContext`), most security vendors ship .NET SDKs, native Windows service / systemd / container hosting, high performance, long-term support |
-| Configuration and live-state database | **PostgreSQL 17+** | PostgreSQL (permissive) | Most popular open-source database, JSON support, runs everywhere, mature replication and HA tooling |
-| History (time series) | **TimescaleDB** (PostgreSQL extension) | Apache-2 core + Timescale License for compression/continuous aggregates (free to use; forbids offering it as a hosted database service, which we do not) | Time partitioning, compression, retention policies, fast aggregates, same database engine |
+| Database access | **`Watchpoint.Storage` module with pluggable providers** | — | Customers can use the database their IT already runs; see [Data storage](../modules/data-storage.md) |
+| Default database (bundled) | **PostgreSQL 16+** | PostgreSQL (permissive) | Most used database among professional developers, free with no size limits, runs everywhere, mature replication and HA tooling |
+| Supported alternative | **SQL Server 2019+** (Express, Standard, Enterprise, Azure SQL) | Microsoft (Express free, others paid by the customer) | The most common database in the security market; many customer IT teams require it |
+| On demand | MySQL / MariaDB, Oracle; ClickHouse for very large history | Various | Added when a project requires it, through the same provider contract |
+| History (time series), default | **TimescaleDB** (PostgreSQL extension) | Apache-2 core + Timescale License for compression/continuous aggregates (free to use; forbids offering it as a hosted database service, which we do not) | Time partitioning, compression, retention policies, fast aggregates, same database engine |
 | Event log / internal bus | **NATS with JetStream** | Apache-2 | Lightweight single binary, clustering, durable streams with replay, very low latency; fits single-machine and multi-node |
-| ORM / data access | EF Core 10 + Npgsql | MIT / PostgreSQL | Standard .NET data stack, versioned migrations |
+| ORM / data access | EF Core 10 + provider drivers (Npgsql, Microsoft.Data.SqlClient, Pomelo/MySqlConnector, ODP.NET) | MIT / PostgreSQL / Oracle free licence | Standard .NET data stack, versioned migrations per provider |
 | Client live protocol | **ASP.NET Core SignalR** (WebSocket, MessagePack) | MIT | Official clients for TypeScript, .NET, React Native-compatible JS, automatic transport fallback |
 | Public API | REST + OpenAPI 3.1 | — | Universal; TypeScript clients generated from the contract |
 | Node ↔ integration host / script host | **gRPC** over named pipes, Unix sockets or mTLS TCP | Apache-2 | Typed contracts, streaming, cross-language |
@@ -63,15 +66,21 @@ vendor SDKs), **Java/Kotlin** (good plugin story but few vendor SDKs, heavier ru
 **Node.js** (weak isolation of native SDKs, single-threaded CPU-bound processing),
 **Rust** (excellent but plugin ABI and SDK wrapping are costly, smaller hiring pool).
 
-### 2.2 Why PostgreSQL + TimescaleDB instead of SQL Server
+### 2.2 Why PostgreSQL + TimescaleDB by default, with SQL Server and others as options
 
 - Free on every platform; SQL Server Express has a 10 GB limit per database and SQL Server
   Standard is costly per core, which hurts small sites and price-sensitive markets.
 - TimescaleDB gives partitioning, compression (often 90%+ on event data) and retention
   policies for history out of the box.
-- If a customer's IT mandates SQL Server, the data-access layer is isolated (EF Core +
-  repository interfaces) so a SQL Server provider can be added later, without
-  TimescaleDB-specific features (history would use partitioned tables instead).
+- PostgreSQL is now the most used database among professional developers, so popularity
+  and hiring are not a concern.
+- SQL Server remains the most common database **in the security market**, and many
+  customer IT teams require it. All database access therefore goes through the
+  [storage module](../modules/data-storage.md): SQL Server is a fully supported provider
+  (phase 2), MySQL/MariaDB and Oracle can be added on demand, and each store
+  (configuration, state, history, audit) can be placed on a different database — e.g.
+  configuration on the customer's SQL Server and history on the bundled PostgreSQL to avoid
+  SQL Server Express size limits.
 
 ### 2.3 Why NATS JetStream as event log
 
