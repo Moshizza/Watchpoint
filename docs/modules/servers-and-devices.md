@@ -206,6 +206,7 @@ Types are grouped by category. Integrations may extend them or add vendor-specif
 | `video.analytics-rule` | Health, AnalyticsEvents (line crossing, intrusion, loitering, object left), Armable (enable/disable) |
 | `video.lpr-camera` | extends `video.camera` + PlateRecognition events |
 | `video.monitor` | VideoOutput (show camera on a physical monitor/decoder) |
+| `video.audio-source` | Health, AudioSource (microphone of a camera or standalone) |
 
 **Intrusion**
 
@@ -238,6 +239,7 @@ Types are grouped by category. Integrations may extend them or add vendor-specif
 | `comm.intercom-station` | Health, Call (call states, answer, hang up), Openable (door release), VideoSource (optional), Tamper |
 | `comm.pa-zone` | Health, Announcement (play message, live page), Volume |
 | `comm.emergency-point` | Health, Call |
+| `comm.speaker` | Health, Announcement, Volume |
 
 **Perimeter**
 
