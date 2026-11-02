@@ -9,8 +9,9 @@ Architecture and module design of **Watchpoint**, a security hypervision platfor
 3. [System architecture](architecture/system-architecture.md) — components, data stores,
    deployment shapes, main flows
 4. [Technology stack](architecture/technology-stack.md) — choices and why
-5. [Servers and devices](modules/servers-and-devices.md) — the universal model
-6. [Integrations](modules/integrations.md) — packages, connectors, connections, hosts
+5. [Module catalogue](architecture/module-catalogue.md) — every module and class at a glance
+6. [Servers and devices](modules/servers-and-devices.md) — the universal model
+7. [Integrations](modules/integrations.md) — packages, connectors, connections, hosts
 
 ## Architecture
 
@@ -20,6 +21,7 @@ Architecture and module design of **Watchpoint**, a security hypervision platfor
 | [Glossary](architecture/glossary.md) | Vocabulary |
 | [System architecture](architecture/system-architecture.md) | Components, data stores, deployments, flows |
 | [Technology stack](architecture/technology-stack.md) | Technologies, licences, rationale |
+| [Module catalogue](architecture/module-catalogue.md) | Every module and main class, its purpose and suggested technologies |
 | [Decision log](architecture/decisions.md) | Main decisions and their status |
 | [Roadmap](architecture/roadmap.md) | Phases |
 
