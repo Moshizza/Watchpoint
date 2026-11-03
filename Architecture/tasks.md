@@ -138,8 +138,8 @@ spec that must exist and pass.
 | T3.01 | Configuration: drafts, change sets, validation framework (plain-language problems) | CFG §4–§6 | T1.07 | CFG-U-001…CFG-U-030 | — | — | todo |
 | T3.02 | Configuration: publish, versions, rollback, propagation through the log | CFG §7–§8 | T3.01, T1.09 | CFG-U-031…CFG-U-050, CFG-I-001…CFG-I-008 | — | — | todo |
 | T3.03 | Configuration: import/export (JSON, CSV/XLSX), soft locks, optimistic merge | CFG §9–§10 | T3.02 | CFG-U-051…CFG-U-070 | — | — | todo |
-| T3.04 | Rights: permission catalogue, grants, scopes, schedules, constraints, evaluator, visible-set cache, API filtering | RGT §4–§7 | T1.18, T1.07, T2.08 | RGT-U-001…RGT-U-050, RGT-I-001…RGT-I-008 | — | — | todo |
-| T3.05 | Rights: user groups, template users, rights-copy (preview, apply, undo, re-apply), drift indicator, escalation protection | RGT §8–§10 | T3.04, T3.02 | RGT-U-051…RGT-U-090 | — | — | todo |
+| T3.04 | Rights: permission catalogue, grants, scopes, schedules, constraints, evaluator, visible-set cache, API filtering | RGT §4–§7 | T1.18, T1.07, T2.08, T3.01 | RGT-U-001…RGT-U-050, RGT-I-001…RGT-I-004, RGT-I-008 | — | — | todo |
+| T3.05 | Rights: user groups, template users, rights-copy (preview, apply, undo, re-apply), drift indicator, escalation protection | RGT §8–§10 | T3.04, T3.02 | RGT-U-051…RGT-U-090, RGT-I-005…RGT-I-007 | — | — | todo |
 | T3.06 | Audit trail: writer, hash chain, verification, query API | AUD | T2.13 | AUD-U-001…AUD-U-020, AUD-I-001…AUD-I-005 | — | — | todo |
 | T3.07 | Identity: LDAP/AD, OIDC sign-in, directory group → template mapping | IDN §8–§9 | T3.05 | IDN-U-031…IDN-U-050, IDN-I-007…IDN-I-012 | — | — | todo |
 | T3.08 | Identity: MFA (TOTP, WebAuthn), lockout, session management, break-glass, client kind binding | IDN §10–§12 | T1.18 | IDN-U-051…IDN-U-080 | — | — | todo |
