@@ -82,7 +82,7 @@ Grant patterns: a grant's permission may end with `.*` (all permissions under th
 | operation.alarms | `alarms.view` (Devices; constraint PriorityRange), `alarms.acknowledge`, `alarms.comment`, `alarms.transfer`, `alarms.shelve` (MaxDuration), `alarms.close`, `alarms.closeWithoutReport`, `alarms.mute` (None), `admin.systemEvents.view` (System) |
 | operation.commands | Generated: `commands.<capability>.<command>` for every capability command in MOD (Devices; constraints RequireReason, RequireFourEyes, RequireStepUp, ClientKinds), plus `commands.approve` (Devices), `commands.viewAll` (Devices), `commands.cancelAny` (Devices), `commands.priority.critical` (None) |
 | operation.video (M6) | `video.live`, `video.playback` (MaxLookback), `video.export`, `video.ptz`, `video.unmask` |
-| operation.workspace | `operate.workspaces.save` (None), `operate.workspaces.publish` (None) |
+| operation.workspace | `operate.workspaces.save` (None), `operate.workspaces.publish` (None), `operate.duringMaintenance` (None; Sensitive — operation side stays available during maintenance mode, MNT) |
 | configuration | `config.registry.view/edit`, `config.integrations.view/edit/install/operate`, `config.alarms.view/edit`, `config.calendars.edit`, `config.users.view/edit`, `config.rights.view/edit`, `config.synoptics.*` (M6), `config.automations.*` (M8), `config.scripts.*` (M8), `config.notifications.*` (M5), `config.system.*`, `config.publish` (publish drafts), `config.approve`, `config.locks.break`, `config.maintenance` (start/stop maintenance mode) — scope Locations for registry/alarms/synoptics, None otherwise |
 | administration | `admin.audit.view`, `admin.sessions.view`, `admin.sessions.manage`, `admin.health.view`, `admin.diagnostics.export`, `admin.privacy` (None) |
 
@@ -177,6 +177,9 @@ Performance:
   checks after the first computation; target p99 < 5 µs warm.
 - Caches invalidated on: grants change (user), registry change affecting scope membership
   (location moves, tags, server, type), calendar change, schedule edge (`ValidUntil`).
+- **Scope post-filters** (`IVisibleScopePostFilter`, registered by other modules — MNT location
+  maintenance in M3): applied after grant evaluation for non-administrators; a filter may remove
+  devices/locations and declares its own invalidation (`Changed` event).
 - Each invalidation that changes a user's effective rights publishes `rights.changed { userIds }`
   on `WP_SYS` (API re-filters live subscriptions, API §8.6).
 
