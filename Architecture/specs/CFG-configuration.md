@@ -151,6 +151,11 @@ public sealed record FixSuggestion(string Code, IReadOnlyDictionary<string, obje
 
 All draft endpoints are `ConfigurationEndpoint()` (desktop only) with the object types' permissions.
 
+Live topic `drafts` (registered through API `ILiveTopic`): filter `{ "ids": [...] }` (drafts the
+user owns or collaborates on, or awaiting the user's approval); snapshot = draft summary
+`{ id, name, status, entryCount, errors, warnings, version }`; deltas on entry changes,
+validation completion, status changes (publishing, published with version, failed).
+
 ### 6.2 Reading live configuration
 
 Module read endpoints (REG, ALM…) stay unchanged and return live objects. The UI shows draft

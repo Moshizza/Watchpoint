@@ -353,6 +353,8 @@ API:
 | `POST /api/v1/alarms/acknowledge` | `alarms.acknowledge` | `{ ids: [...] }` → per-id results |
 | `GET/POST/PATCH/DELETE /api/v1/alarm-rules…` | `config.alarms.view/edit` (M3 drafts) | rule CRUD with compile diagnostics |
 | `POST /api/v1/alarm-rules/validate` | `config.alarms.edit` | Compile without saving → diagnostics |
+| `POST /api/v1/alarm-rules/scope-preview` | `config.alarms.view` | `RuleScope` → `{ count, sample: DeviceSummary[≤50] }` (M3, used by UIF) |
+| `POST /api/v1/alarm-rules/test-condition` | `config.alarms.edit` | `{ expression, deviceId }` → `{ value, type, diagnostics }` evaluated with the device's current values (M3, used by UIF) |
 | `GET/POST/PATCH/DELETE /api/v1/alarm-rule-overrides…`, `/procedures…` | `config.alarms.edit` | |
 | `GET /api/v1/alarm-rule-templates` | `config.alarms.view` | Templates with "changed since rule creation" flags |
 | `GET/PUT /api/v1/alarm-settings` | `config.alarms.edit` | Priority bands, sounds per band |
