@@ -106,7 +106,7 @@ spec that must exist and pass.
 | T1.21 | UI core: generated API client, live connection client, model package | UIC §4–§6 | T1.20, T0.08 | UIC-U-004…UIC-U-030 | — | — | todo |
 | T1.22 | UI core: i18n (en/fr/ar, RTL, ICU), design system base (theme, layout, DataGrid, tree, state badges) | UIC §7–§9 | T0.08 | UIC-U-031…UIC-U-060 | — | — | todo |
 | T1.23 | UI operation part 1: app shell, sign-in, device explorer (locations/servers), device page (read-only), connection banner | UIO §4–§6 | T1.21, T1.22 | UIO-U-001…UIO-U-030 | — | — | todo |
-| T1.24 | Desktop shell part 1: Electron main/preload/renderer, connection profiles, secure token storage, packaging (dev) | DSK §4–§7 | T1.23 | DSK-U-001…DSK-U-020 | — | — | todo |
+| T1.24 | Desktop shell part 1: hardened Electron shell, site profiles, certificate pinning, token vault, preload bridge, UI hosting on the node, dev packaging | DSK §4–§8 | T1.23 | DSK-U-001…DSK-U-020 | — | — | todo |
 | T1.25 | E2E harness (compose stack, seeded node, Playwright for desktop and browser) + scenarios E-001…E-004 | tests/e2e-scenarios | T1.24, T1.17 | E-001…E-004 | — | — | todo |
 
 ### M2 — Act and react
@@ -128,7 +128,8 @@ spec that must exist and pass.
 | T2.13 | History part 1: writer (events, alarms, commands, property changes, audit placeholder), basic queries | HIS §4–§7 | T1.10 | HIS-U-001…HIS-U-020, HIS-I-001…HIS-I-010 | — | — | todo |
 | T2.14 | UI operation: alarm console, alarm details, procedures runner, sounds, pop-up rules | UIO §7–§9 | T2.10, T1.23 | UIO-U-031…UIO-U-070 | — | — | todo |
 | T2.15 | UI operation: event journal, command buttons with inline status, command journal | UIO §10–§11 | T2.04, T2.05 | UIO-U-071…UIO-U-095 | — | — | todo |
-| T2.16 | E2E scenarios E-010…E-016 | tests/e2e-scenarios | T2.14, T2.15, T2.12 | E-010…E-016 | — | — | todo |
+| T2.17 | Desktop shell part 2: multiple windows and monitors, undocked panels, bring to front, OS notifications, sound leadership, mDNS site discovery | DSK §9–§10 | T1.24, T2.14 | DSK-U-021…DSK-U-029 | — | — | todo |
+| T2.16 | E2E scenarios E-010…E-016 | tests/e2e-scenarios | T2.14, T2.15, T2.12, T2.17 | E-010…E-016 | — | — | todo |
 
 ### M3 — Configure safely, many users
 
@@ -148,6 +149,7 @@ spec that must exist and pass.
 | T3.12 | UI configuration: devices, locations, tags, links, bulk edit | UIF §8 | T3.10 | UIF-U-051…UIF-U-070 | — | — | todo |
 | T3.13 | UI configuration: alarm rules (with CEL editor), procedures editor | UIF §9 | T3.10, T2.11, T2.07 | UIF-U-071…UIF-U-090 | — | — | todo |
 | T3.14 | UI configuration: users, groups, rights editor, rights-copy wizard, sessions, maintenance dialog | UIF §10–§11 | T3.10, T3.05, T3.09 | UIF-U-091…UIF-U-120 | — | — | todo |
+| T3.16 | Desktop shell part 3: workstation enrolment and certificate sign-in, kiosk mode | DSK §11–§12 | T2.17, T3.08 | DSK-U-030…DSK-U-034 | — | — | todo |
 | T3.15 | E2E scenarios E-020…E-028 | tests/e2e-scenarios | T3.11…T3.14 | E-020…E-028 | — | — | todo |
 
 ### M4 — Real protocols
