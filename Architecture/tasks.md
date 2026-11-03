@@ -135,22 +135,22 @@ spec that must exist and pass.
 
 | ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| T3.01 | Configuration: drafts, change sets, validation framework (plain-language problems) | CFG §4–§6 | T1.07 | CFG-U-001…CFG-U-030 | — | — | todo |
-| T3.02 | Configuration: publish, versions, rollback, propagation through the log | CFG §7–§8 | T3.01, T1.09 | CFG-U-031…CFG-U-050, CFG-I-001…CFG-I-008 | — | — | todo |
-| T3.03 | Configuration: import/export (JSON, CSV/XLSX), soft locks, optimistic merge | CFG §9–§10 | T3.02 | CFG-U-051…CFG-U-070 | — | — | todo |
-| T3.04 | Rights: permission catalogue, grants, scopes, schedules, constraints, evaluator, visible-set cache, API filtering | RGT §4–§7 | T1.18, T1.07, T2.08, T3.01 | RGT-U-001…RGT-U-050, RGT-I-001…RGT-I-004, RGT-I-008 | — | — | todo |
-| T3.05 | Rights: user groups, template users, rights-copy (preview, apply, undo, re-apply), drift indicator, escalation protection | RGT §8–§10 | T3.04, T3.02 | RGT-U-051…RGT-U-090, RGT-I-005…RGT-I-007 | — | — | todo |
-| T3.06 | Audit trail: writer, hash chain, verification, query API | AUD | T2.13 | AUD-U-001…AUD-U-020, AUD-I-001…AUD-I-005 | — | — | todo |
-| T3.07 | Identity: LDAP/AD, OIDC sign-in, directory group → template mapping | IDN §8–§9 | T3.05 | IDN-U-031…IDN-U-050, IDN-I-007…IDN-I-012 | — | — | todo |
-| T3.08 | Identity: MFA (TOTP, WebAuthn), lockout, session management, break-glass, client kind binding | IDN §10–§12 | T1.18 | IDN-U-051…IDN-U-080 | — | — | todo |
-| T3.09 | Maintenance mode (site and location scope, session gate, auto-end, notifications hook) | MNT | T3.08, T3.04 | MNT-U-001…MNT-U-020, MNT-I-001…MNT-I-004 | — | — | todo |
-| T3.10 | UI configuration: shell, side switch, draft bar, schema-generated forms, validation panel | UIF §4–§6 | T3.02, T1.23 | UIF-U-001…UIF-U-030 | — | — | todo |
-| T3.11 | UI configuration: integrations catalogue, connection wizard (test, discovery, import), connection details | UIF §7 | T3.10, T1.16 | UIF-U-031…UIF-U-050 | — | — | todo |
-| T3.12 | UI configuration: devices, locations, tags, links, bulk edit | UIF §8 | T3.10 | UIF-U-051…UIF-U-070 | — | — | todo |
-| T3.13 | UI configuration: alarm rules (with CEL editor), procedures editor | UIF §9 | T3.10, T2.11, T2.07 | UIF-U-071…UIF-U-090 | — | — | todo |
-| T3.14 | UI configuration: users, groups, rights editor, rights-copy wizard, sessions, maintenance dialog | UIF §10–§11 | T3.10, T3.05, T3.09 | UIF-U-091…UIF-U-120 | — | — | todo |
-| T3.16 | Desktop shell part 3: workstation enrolment and certificate sign-in, kiosk mode | DSK §11–§12 | T2.17, T3.08 | DSK-U-030…DSK-U-034 | — | — | todo |
-| T3.15 | E2E scenarios E-020…E-028 | tests/e2e-scenarios | T3.11…T3.14 | E-020…E-028 | — | — | todo |
+| T3.01 | Configuration: drafts, change sets, validation framework (plain-language problems) | CFG §4–§6 | T1.07 | CFG-U-001…CFG-U-030 | [#54](https://github.com/Moshizza/Watchpoint/issues/54) | — | todo |
+| T3.02 | Configuration: publish, versions, rollback, propagation through the log | CFG §7–§8 | T3.01, T1.09 | CFG-U-031…CFG-U-050, CFG-I-001…CFG-I-008 | [#55](https://github.com/Moshizza/Watchpoint/issues/55) | — | todo |
+| T3.03 | Configuration: import/export (JSON, CSV/XLSX), soft locks, optimistic merge | CFG §9–§10 | T3.02 | CFG-U-051…CFG-U-070 | [#56](https://github.com/Moshizza/Watchpoint/issues/56) | — | todo |
+| T3.04 | Rights: permission catalogue, grants, scopes, schedules, constraints, evaluator, visible-set cache, API filtering | RGT §4–§7 | T1.18, T1.07, T2.08, T3.01 | RGT-U-001…RGT-U-050, RGT-I-001…RGT-I-004, RGT-I-008 | [#57](https://github.com/Moshizza/Watchpoint/issues/57) | — | todo |
+| T3.05 | Rights: user groups, template users, rights-copy (preview, apply, undo, re-apply), drift indicator, escalation protection | RGT §8–§10 | T3.04, T3.02 | RGT-U-051…RGT-U-090, RGT-I-005…RGT-I-007 | [#58](https://github.com/Moshizza/Watchpoint/issues/58) | — | todo |
+| T3.06 | Audit trail: writer, hash chain, verification, query API | AUD | T2.13 | AUD-U-001…AUD-U-020, AUD-I-001…AUD-I-005 | [#59](https://github.com/Moshizza/Watchpoint/issues/59) | — | todo |
+| T3.07 | Identity: LDAP/AD, OIDC sign-in, directory group → template mapping | IDN §8–§9 | T3.05 | IDN-U-031…IDN-U-050, IDN-I-007…IDN-I-012 | [#60](https://github.com/Moshizza/Watchpoint/issues/60) | — | todo |
+| T3.08 | Identity: MFA (TOTP, WebAuthn), lockout, session management, break-glass, client kind binding | IDN §10–§12 | T1.18 | IDN-U-051…IDN-U-080 | [#61](https://github.com/Moshizza/Watchpoint/issues/61) | — | todo |
+| T3.09 | Maintenance mode (site and location scope, session gate, auto-end, notifications hook) | MNT | T3.08, T3.04 | MNT-U-001…MNT-U-020, MNT-I-001…MNT-I-004 | [#62](https://github.com/Moshizza/Watchpoint/issues/62) | — | todo |
+| T3.10 | UI configuration: shell, side switch, draft bar, schema-generated forms, validation panel | UIF §4–§6 | T3.02, T1.23 | UIF-U-001…UIF-U-030 | [#63](https://github.com/Moshizza/Watchpoint/issues/63) | — | todo |
+| T3.11 | UI configuration: integrations catalogue, connection wizard (test, discovery, import), connection details | UIF §7 | T3.10, T1.16 | UIF-U-031…UIF-U-050 | [#64](https://github.com/Moshizza/Watchpoint/issues/64) | — | todo |
+| T3.12 | UI configuration: devices, locations, tags, links, bulk edit | UIF §8 | T3.10 | UIF-U-051…UIF-U-070 | [#65](https://github.com/Moshizza/Watchpoint/issues/65) | — | todo |
+| T3.13 | UI configuration: alarm rules (with CEL editor), procedures editor | UIF §9 | T3.10, T2.11, T2.07 | UIF-U-071…UIF-U-090 | [#66](https://github.com/Moshizza/Watchpoint/issues/66) | — | todo |
+| T3.14 | UI configuration: users, groups, rights editor, rights-copy wizard, sessions, maintenance dialog | UIF §10–§11 | T3.10, T3.05, T3.09, T3.06 | UIF-U-091…UIF-U-120 | [#67](https://github.com/Moshizza/Watchpoint/issues/67) | — | todo |
+| T3.16 | Desktop shell part 3: workstation enrolment and certificate sign-in, kiosk mode | DSK §11–§12 | T2.17, T3.08 | DSK-U-030…DSK-U-034 | [#69](https://github.com/Moshizza/Watchpoint/issues/69) | — | todo |
+| T3.15 | E2E scenarios E-020…E-028 | tests/e2e-scenarios | T3.11…T3.14 | E-020…E-028 | [#68](https://github.com/Moshizza/Watchpoint/issues/68) | — | todo |
 
 ### M4 — Real protocols
 
@@ -265,5 +265,5 @@ spec that must exist and pass.
 | D.02 | M0 specs (K, TST, SCM) | done |
 | D.03 | M1 specs | done |
 | D.04 | Cross-module tests (integration matrix, e2e scenarios) — grows with each milestone | M1 done |
-| D.05 | M2–M11 specs | in progress (M2 done) |
+| D.05 | M2–M11 specs | in progress (M2, M3 done) |
 | D.06 | M12 specs | blocked (vendor docs) |
