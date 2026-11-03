@@ -47,7 +47,7 @@ Rules:
 | Step | Action | Expected |
 |---|---|---|
 | 1 | Seed `m1-sim-scenario.json`: simulator with scenario timeline (door-0001 opens at +10 s, closes at +20 s, is forced at +40 s; `ana-0001` 35.2 at +60 s) | Connection `Connected` in `GET /connections` |
-| 2 | Open explorer Floor 0 | 20 doors, 20 readers, 2 areas, 10 zones, 4 inputs, 4 outputs, 2 analogs listed (52 + 10 = per profile counts) |
+| 2 | Open explorer Floor 0 | 62 devices listed: 20 doors, 20 readers, 2 areas, 10 zones, 4 inputs, 4 outputs, 2 analogs (office profile) |
 | 3 | Open door-0001 device page | Position `closed` |
 | 4 | Wait for +10 s | Position becomes `open` on the page within 3 s of the simulator change; state badge `normalActive` |
 | 5 | Wait for +40 s | Position `forced`, overall state `alarm` with cause shown; Floor 0 tree node shows 1 alarm |
