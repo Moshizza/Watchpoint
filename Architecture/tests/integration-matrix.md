@@ -278,9 +278,17 @@ Run the generated client and live client against a real node (compose stack).
 | X-FED-RGT-C-001 | Site scopes on central and federation identity on child agree with RGT evaluator for all request kinds |
 | X-FED-ALM-C-001 | Ownership changes recorded in child alarm state and mirrored at central |
 
-## 11. Later milestones (rows to add when their specs are written)
+## 11. Contract tests (M10)
+
+| Id | Test |
+|---|---|
+| X-MOB-API-C-001 | Mobile endpoint allow-list: every endpoint used by the app is marked `MobileEndpoint()`; others refuse mobile tokens (generated over the endpoint catalogue) |
+| X-MOB-LIVE-C-001 | Shared live client works under React Native (Hermes) against the real hub |
+| X-PSH-NOT-C-001 | Node push channel ↔ relay API contract (signatures, batching, results) |
+| X-PSH-PRIV-C-001 | Push payloads contain no personal data for every notification kind (property test) |
+
+## 12. Later milestones (rows to add when their specs are written)
 
 | Milestone | Pairs to cover |
 |---|---|
-| M10 | MOB↔API, PSH↔NOT |
 | M11 | STO-MS certification suite, DEP update protocol ↔ nodes and clients |

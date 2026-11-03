@@ -586,9 +586,42 @@ decision, Toxiproxy between all members; simulator remote mode (2,000 devices); 
 | 1 | HQ site map → site → location tree → device page | Remote states shown live; synoptic fetched read-only |
 | 2 | Proxied video of a site camera | Plays through the link with bitrate cap |
 
-## 11. Later milestones (to be detailed with their specs)
+## 11. M10 scenarios — "Mobile"
+
+Stack: node (simulator office), push relay with fake APNs/FCM servers (records requests), Android
+emulator running the app (Maestro), operator `op1` with mobile access and licence.
+
+### E-090 — Enrol, sign in, acknowledge
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | `op1` shows "Connect mobile app" QR on the web; app scans it (image injection) | Site profile created after CA fingerprint match |
+| 2 | Sign in with password + TOTP; enable biometric lock | Alarm list shows active alarms within rights |
+| 3 | Acknowledge an alarm, tick a procedure step, comment | Changes visible on desktop console immediately |
+
+### E-091 — Push and deep link
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | App in background; Critical alarm raised | Node → relay → fake FCM request contains only ids and title key (assert no names/personal data) |
+| 2 | Tap the notification (simulated) | App unlocks, opens the alarm details fetched from the site |
+
+### E-092 — On-site network only
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | Relay unreachable from the node | Push channel unavailable in health; e-mail fallback per user preferences |
+| 2 | App in foreground on the site network | Live alarm notices still delivered in-app |
+
+### E-093 — Lost phone
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | Admin revokes `op1`'s mobile device | Next app contact wipes local data and returns to enrolment |
+| 2 | Relay token for that device | Unregistered; further pushes not sent |
+
+## 12. Later milestones (to be detailed with their specs)
 
 | Id | Milestone | Scenario |
 |---|---|---|
-| E-090…E-093 | M10 | Mobile push and acknowledgement; on-site in-app alerts without internet |
 | E-100…E-105 | M11 | Fresh install on Windows and Linux with setup wizard; SQL Server provider end-to-end; store migration; signed update and rollback |
