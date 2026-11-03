@@ -295,6 +295,8 @@ public interface IInboundEndpoints
         Func<InboundRequest, CancellationToken, ValueTask<InboundResponse>> handler, CancellationToken ct);
     ValueTask<InboundRegistration> RegisterTcpAsync(int port, IPAddress bindAddress,
         Func<Stream, CancellationToken, ValueTask> handler, CancellationToken ct);   // needs manifest permission "inboundTcp"
+    ValueTask<InboundRegistration> RegisterUdpAsync(int port, IPAddress bindAddress, string? shareKey,
+        Func<UdpDatagram, CancellationToken, ValueTask> handler, CancellationToken ct);   // M4 (C-SNMP): permission "inboundUdp"; same shareKey → one socket fanned out
 }
 public abstract record InboundAuth
 {
