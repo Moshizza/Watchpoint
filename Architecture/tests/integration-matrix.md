@@ -192,11 +192,24 @@ Run the generated client and live client against a real node (compose stack).
 | X-UIF-CFG-C-001 | UI draft flow (create draft, edit device, diff, publish) against the compose stack (Playwright component test) |
 | X-UIF-RGT-C-001 | UI rights-copy wizard preview equals API preview for the same request |
 
-## 5. Later milestones (rows to add when their specs are written)
+## 5. Contract tests (M4)
+
+| Id | Test |
+|---|---|
+| X-IHO-IRT-C-001 | Every `IConnectionHost` implementation (in-process, isolated, remote over in-memory transport) passes the same host contract test set: start/stop/describe/test/execute/refresh/diagnostic, faults, features |
+| X-IHO-IRT-C-002 | Conformance suite INT-C-001…040 for C-SIM passes identically in the three host modes |
+| X-IHO-PIP-C-001 | Observations acked to the host only after PIP durability; host-side FlushAsync semantics preserved (S4) |
+| X-IHO-SEC-C-001 | Pairing issues a site-CA client certificate; revoked host refused at handshake |
+| X-IHO-CMD-C-001 | Command lost reply on link drop → CMD `Unverified`/failed per rules; never resent |
+| X-IHO-ALM-C-001 | Replayed events beyond cutoff do not raise event alarms; state alarms follow current state |
+| X-CONN-INT-C-001 | C-PING, C-MODBUS, C-MQTT, C-SNMP each pass the conformance suite (applicable cases) in-process and isolated |
+| X-CONN-MOD-C-001 | Package types, capabilities and rule templates of the four connectors load in MOD and validate against the standard library (`knownTypes.json` generated from the same build) |
+| X-SNMP-IRT-C-001 | Shared UDP trap port fan-out across two SNMP connections in-process; separate sockets per isolated host |
+
+## 6. Later milestones (rows to add when their specs are written)
 
 | Milestone | Pairs to cover |
 |---|---|
-| M4 | IHO↔IRT (gRPC host protocol), remote host pairing ↔ SEC, each connector ↔ conformance suite |
 | M5 | NOT↔ALM, RPT↔HIS, FIL↔API, HIS retention ↔ STO |
 | M6 | VID↔IRT (video provider), VID↔go2rtc, SYN↔STA/REG, WEB↔API |
 | M7 | LIC↔REG (units), LIC↔IRT (feature keys), LIC↔IDN (seats), LIC↔LPT (activation protocol) |

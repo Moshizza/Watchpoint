@@ -159,10 +159,10 @@ spec that must exist and pass.
 | T4.01 | Isolated integration host process, gRPC protocol, resource limits, restart policy | IHO §4–§7 | T1.16, T0.11 | IHO-U-001…IHO-U-030, IHO-I-001…IHO-I-008 | — | — | todo |
 | T4.02 | Remote integration host: pairing, mTLS, outbound connection, package push, buffering | IHO §8–§10 | T4.01, T1.05 | IHO-U-031…IHO-U-050, IHO-I-009…IHO-I-014, ALM-U-126 | — | — | todo |
 | T4.03 | Connector conformance suite (`Watchpoint.Integration.Testing`) applied to C-SIM | INT §12 | T1.17 | INT-C-001…INT-C-040 | — | — | todo |
-| T4.04 | Ping / HTTP check connector | C-PING | T4.03 | PING-U-*, PING-I-*, conformance | — | — | todo |
-| T4.05 | Modbus TCP connector with mapping templates | C-MODBUS | T4.03 | MODB-U-*, MODB-I-*, conformance | — | — | todo |
-| T4.06 | MQTT connector | C-MQTT | T4.03 | MQTT-U-*, MQTT-I-*, conformance | — | — | todo |
-| T4.07 | SNMP connector (polling, traps, MIB import) | C-SNMP | T4.03 | SNMP-U-*, SNMP-I-*, conformance | — | — | todo |
+| T4.04 | Ping / HTTP check connector | C-PING | T4.03 | PING-U-001…PING-U-020, PING-I-001…PING-I-004, conformance | — | — | todo |
+| T4.05 | Modbus TCP connector with mapping templates | C-MODBUS | T4.03 | MODB-U-001…MODB-U-030, MODB-I-001…MODB-I-006, conformance | — | — | todo |
+| T4.06 | MQTT connector | C-MQTT | T4.03 | MQTT-U-001…MQTT-U-022, MQTT-I-001…MQTT-I-006, conformance | — | — | todo |
+| T4.07 | SNMP connector (polling, traps, MIB import, inbound UDP contract) | C-SNMP | T4.03 | SNMP-U-001…SNMP-U-022, SNMP-I-001…SNMP-I-006, conformance | — | — | todo |
 | T4.09 | Package upgrades per connection: settings migrations, canary, automatic rollback, bulk upgrade | IRT §11 | T4.01 | IRT-U-061…IRT-U-063 | — | — | todo |
 | T4.08 | E2E scenarios E-030…E-034 | tests/e2e-scenarios | T4.01…T4.07 | E-030…E-034 | — | — | todo |
 

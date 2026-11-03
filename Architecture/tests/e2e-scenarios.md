@@ -233,11 +233,65 @@ Building C; default alarm rule templates; users `admin` (administrator), `config
 | 3 | Same with a mobile token | Same results |
 | 4 | Desktop token of `op4` (no config permissions) | `403 common.forbidden` |
 
-## 5. Later milestones (to be detailed with their specs)
+## 5. M4 scenarios — "Real protocols"
+
+Seed `m4-site.json`: admin, operator; compose stack adds containers: Mosquitto (TLS, user/pass),
+`ModbusTestServer` (as a small container image built from the test project), net-snmp `snmpd`
+with trap sender, a second "remote" machine container with the integration host installed, and
+Toxiproxy between them and the node.
+
+### E-030 — Network checks with Ping connector
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | Admin adds Ping connection with 20 targets (CSV import in wizard): 18 reachable containers, 1 unroutable, 1 HTTP endpoint with a certificate expiring in 10 days | Test passes with 1 unreachable warning; import 20 devices |
+| 2 | Wait 2 rounds | 18 up, 1 down → `std.net.unreachable` alarm after `alarmAfter`; certificate warning event and alarm |
+| 3 | Stop a container that is parent of 2 targets | Parent down alarm; children `unknown` (parentDown), no alarms for them |
+| 4 | Restart container | Alarm resolves; children back up |
+
+### E-031 — Modbus I/O and analog thresholds
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | Add Modbus connection to the test server with template `generic-io-8di-8do` and `generic-analog-4ai` (unit 1, 2) | 20 devices imported |
+| 2 | Test server toggles DI 3; sets AI 1 above `alarmAbove` | Binary input state change within 2 s; analog alarm `std.analog.threshold` raised |
+| 3 | Operator switches DO 5 on | Command succeeded and verified (read-back) |
+| 4 | Pulse DO 6 for 2 s | Coil on then off; command succeeded after second write |
+| 5 | Test server returns exception 02 for AI 4 | AI 4 quality Bad; other points fine; warning in connection details |
+
+### E-032 — MQTT sensors discovered dynamically
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | Add MQTT connection with rule `site/{building}/{deviceId}/temperature`, auto-import off | Test shows messages received on the rule |
+| 2 | Publisher starts 50 sensors in 2 buildings | Discovery review lists 50 devices with suggested locations; import all |
+| 3 | One sensor publishes 45 °C | Alarm raised |
+| 4 | Sensor stops publishing for `staleAfter` | Quality Uncertain shown (stale marker) |
+| 5 | Broker restarted while a sensor publishes QoS 1 | No message lost after reconnect (persistent session) |
+
+### E-033 — Isolated host crash and recovery
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | Set the simulator connection to host mode Isolated (draft, publish) | Connection restarts in an isolated host; Hosts page shows it Ready |
+| 2 | Kill the host process (test hook) | Within 5 s the host restarts, connection reconnects; event `hostRestarted` in timeline; no acked events lost (simulator event counter = journal count) |
+| 3 | Enable test failure "crash on start" 5 times | Crash loop → host Faulted, connections Faulted, system alarm `integrations.hostCrashLoop` |
+| 4 | Disable failure, "restart host" | Recovered |
+
+### E-034 — Remote host pairing, WAN cut and buffering
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | Admin creates pairing code; on the remote container run `pair <code> <address>` with CA fingerprint | Host appears Ready in Hosts page |
+| 2 | Create SNMP connection on the remote host (agent = `snmpd` reachable only from the remote container) | Package pushed; ports devices imported; traps received from the remote network |
+| 3 | Toxiproxy cuts node↔remote link for 10 min; `snmptrap` sends 20 linkDown/linkUp traps | Devices shown with host unavailable (unknown); nothing lost on the remote side |
+| 4 | Link restored | 20 events replayed with original times in the journal; no alarms raised for replayed events older than the cutoff; current states correct |
+| 5 | Delete remote host while connection assigned | Refused; after reassigning the connection, delete works and host cannot reconnect |
+
+## 6. Later milestones (to be detailed with their specs)
 
 | Id | Milestone | Scenario |
 |---|---|---|
-| E-030…E-034 | M4 | Ping, Modbus simulator, MQTT broker supervision with thresholds; isolated host crash and auto-restart; remote host pairing |
 | E-040…E-044 | M5 | Alarm e-mail notification; SMS via fake provider; scheduled PDF shift report; retention purge; privacy pseudonymisation |
 | E-050…E-056 | M6 | Plan import and symbol placement; alarm focus on plan; RTSP camera live in alarm details (desktop and web); PTZ; web client operation-only |
 | E-060…E-064 | M7 | Offline activation round-trip with the portal; quota enforcement; restricted mode keeps alarms working |
