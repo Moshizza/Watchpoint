@@ -133,7 +133,7 @@ Rules:
 | `CapabilityId` | `^[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9]*)?$` | 64 | `doorPosition`, `vendor.saltoDnd` |
 | `MemberId` (property/command/event name inside a capability) | `^[a-z][a-zA-Z0-9]*$` | 64 | `position`, `gotoPreset` |
 | `PackageId` | `^[a-z][a-z0-9]*(\.[a-z][a-z0-9-]*){1,5}$` | 128 | `watchpoint.integration.salto` |
-| `PermissionCode` | `^[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9*]*){1,5}$` | 128 | `alarms.acknowledge`, `commands.openable.open` |
+| `PermissionCode` | `^[a-z][a-zA-Z0-9]*(\.([a-z][a-zA-Z0-9]*\|\*)){1,5}$` | 128 | `alarms.acknowledge`, `commands.openable.open`, `commands.openable.*` (`*` only as a whole segment) |
 | `ErrorCode` | `^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*){1,4}$` | 128 | `registry.device.not_found` |
 
 Each is a `readonly record struct` with `Value`, `static Result<T> Parse(string)`,
