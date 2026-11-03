@@ -60,9 +60,9 @@ in parallel when their dependencies are done (see [tasks.md](tasks.md)).
 | PSH | Push relay (company side) | [specs/PSH-push-relay.md](specs/PSH-push-relay.md) | M10 |
 | STO-MS | SQL Server storage provider and store migration | [specs/STO-MS-sqlserver.md](specs/STO-MS-sqlserver.md) | M11 |
 | DEP | Installers, deployment, wpctl, updates | [specs/DEP-deployment.md](specs/DEP-deployment.md) | M11 |
-| C-SALTO | Salto Space connector | [specs/C-SALTO-salto-space.md](specs/C-SALTO-salto-space.md) | M12 |
-| C-MILE | Milestone XProtect connector | [specs/C-MILE-milestone.md](specs/C-MILE-milestone.md) | M12 |
-| C-SPC | Vanderbilt SPC connector | [specs/C-SPC-vanderbilt-spc.md](specs/C-SPC-vanderbilt-spc.md) | M12 |
+| C-SALTO | Salto Space connector | `specs/C-SALTO-salto-space.md` — pending vendor documentation (D.06) | M12 |
+| C-MILE | Milestone XProtect connector | `specs/C-MILE-milestone.md` — pending vendor documentation (D.06) | M12 |
+| C-SPC | Vanderbilt SPC connector | `specs/C-SPC-vanderbilt-spc.md` — pending vendor documentation (D.06) | M12 |
 
 Cross-module tests: [tests/integration-matrix.md](tests/integration-matrix.md) (contracts
 between modules) and [tests/e2e-scenarios.md](tests/e2e-scenarios.md) (end-to-end).

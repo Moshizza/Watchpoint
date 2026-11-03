@@ -241,13 +241,13 @@ spec that must exist and pass.
 
 | ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| T11.01 | SQL Server provider (all four stores), certification suite on SQL Server | STO-MS §4–§8 | T5.02 | STO-MS-I-001…STO-MS-I-030 | — | — | todo |
-| T11.02 | Store mapping and `wpctl storage migrate` | STO-MS §9–§10 | T11.01 | STO-MS-U-001…STO-MS-U-020, STO-MS-I-031…STO-MS-I-040 | — | — | todo |
-| T11.03 | Installers: Inno Setup (Windows), .deb/.rpm (nfpm), OCI images, Helm chart, client installers | DEP §4–§6 | T9.03 | DEP-I-001…DEP-I-015 | — | — | todo |
-| T11.04 | Setup wizard (first run) | DEP §7 | T11.03, T7.02 | DEP-U-001…DEP-U-020 | — | — | todo |
-| T11.05 | Signed updates (node, clients, packages), backups and restore, `wpctl` commands | DEP §8–§10 | T11.03 | DEP-U-021…DEP-U-050, DEP-I-016…DEP-I-025 | — | — | todo |
-| T11.06 | Security hardening checklist, SBOM and third-party notices generation, penetration test preparation | tests/security-tests | T11.05 | S-001…S-030 | — | — | todo |
-| T11.07 | E2E scenarios E-100…E-105 | tests/e2e-scenarios | T11.02, T11.05 | E-100…E-105 | — | — | todo |
+| T11.01 | SQL Server provider (all four stores), certification suite on SQL Server | STO-MS §4–§8 | T5.02 | STO-MS-I-001…STO-MS-I-030 | [#120](https://github.com/Moshizza/Watchpoint/issues/120) | — | todo |
+| T11.02 | Store mapping and `wpctl storage migrate` | STO-MS §9–§10 | T11.01 | STO-MS-U-001…STO-MS-U-020, STO-MS-I-031…STO-MS-I-040 | [#121](https://github.com/Moshizza/Watchpoint/issues/121) | — | todo |
+| T11.03 | Installers: Inno Setup (Windows), .deb/.rpm (nfpm), OCI images, Helm chart, client installers | DEP §3–§6 | T9.03 | DEP-I-001…DEP-I-015 | [#122](https://github.com/Moshizza/Watchpoint/issues/122) | — | todo |
+| T11.04 | Setup wizard (first run) | DEP §7 | T11.03, T7.02 | DEP-U-001…DEP-U-020 | [#123](https://github.com/Moshizza/Watchpoint/issues/123) | — | todo |
+| T11.05 | Signed updates (node, clients, packages), backups and restore, `wpctl` commands | DEP §8–§10 | T11.03 | DEP-U-021…DEP-U-050, DEP-I-016…DEP-I-025 | [#124](https://github.com/Moshizza/Watchpoint/issues/124) | — | todo |
+| T11.06 | Security hardening checklist, SBOM and third-party notices generation, penetration test preparation | tests/security-tests | T11.05 | S-001…S-030 | [#125](https://github.com/Moshizza/Watchpoint/issues/125) | — | todo |
+| T11.07 | E2E scenarios E-100…E-105 | tests/e2e-scenarios | T11.02, T11.05 | E-100…E-105 | [#126](https://github.com/Moshizza/Watchpoint/issues/126) | — | todo |
 
 ### M12 — Vendor integrations (specs completed when vendor documentation is available)
 
@@ -264,6 +264,6 @@ spec that must exist and pass.
 | D.01 | Architecture README, build order, task sheet | done |
 | D.02 | M0 specs (K, TST, SCM) | done |
 | D.03 | M1 specs | done |
-| D.04 | Cross-module tests (integration matrix, e2e scenarios) — grows with each milestone | M1 done |
-| D.05 | M2–M11 specs | in progress (M2–M10 done) |
+| D.04 | Cross-module tests (integration matrix, e2e scenarios, performance, security) | done for M1–M11 (M12 with vendor specs) |
+| D.05 | M2–M11 specs | done |
 | D.06 | M12 specs | blocked (vendor docs) |

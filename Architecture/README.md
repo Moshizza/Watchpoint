@@ -16,7 +16,7 @@ for implementation, and the discrepancy must be reported (issue labelled `docs-m
 | [build-order.md](build-order.md) | Milestones in build order; each ends with something runnable |
 | [tasks.md](tasks.md) | Task sheet: every task, dependencies, specs, tests, owner, status |
 | [specs/](specs/) | One specification per module or connector |
-| [tests/](tests/) | Cross-module test specifications: integration between modules and end-to-end scenarios |
+| [tests/](tests/) | Cross-module test specifications: [integration matrix](tests/integration-matrix.md), [end-to-end scenarios](tests/e2e-scenarios.md), [performance tests](tests/performance-tests.md), [security tests](tests/security-tests.md) |
 
 ## 2. How to read a spec
 
@@ -273,7 +273,8 @@ SignalR hub at `/hub/v1`, MessagePack protocol. Message envelope and subscriptio
 | Integration | `I` | A module with its real infrastructure (PostgreSQL, NATS via Testcontainers) | `tests/service/Watchpoint.IntegrationTests/<Module>` | Every push |
 | Contract | `C` | The agreement between two modules or processes (interface behaviour, API schema, gRPC messages), run against the real provider | `tests/service/Watchpoint.ContractTests` | Every push |
 | End-to-end | `E` | Full node + client scenarios | `tests/e2e` | Nightly and before merge of milestone branches |
-| Performance | `P` | Throughput, latency, capacity | `tests/performance` | Nightly on reference hardware |
+| Performance | `P` | Throughput, latency, capacity ([P-001…P-012](tests/performance-tests.md)) | `tests/perf` | Weekly and before releases on reference hardware |
+| Security | `S` | Hardening and security checks ([S-001…S-030](tests/security-tests.md)) | `tests/security` + CI scanners | Every push (scanners), before releases (full) |
 | Security | `S` | Authorisation, injection, secrets in logs | Mixed | Every push (automated parts) |
 
 ### 9.2 Test ids
