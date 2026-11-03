@@ -233,9 +233,9 @@ spec that must exist and pass.
 
 | ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| T10.01 | Mobile app (sign-in, alarms, details, events, notifications settings, profile) | MOB | T2.14, T3.08 | MOB-U-001…MOB-U-050 | — | — | todo |
-| T10.02 | Push relay service + node push channel | PSH | T5.04 | PSH-U-001…PSH-U-025, PSH-I-001…PSH-I-004 | — | — | todo |
-| T10.03 | E2E scenarios E-090…E-093 | tests/e2e-scenarios | T10.01, T10.02 | E-090…E-093 | — | — | todo |
+| T10.01 | Mobile app (sign-in, alarms, details, events, notifications settings, profile) | MOB | T2.14, T3.08, T5.04 | MOB-U-001…MOB-U-050 | [#117](https://github.com/Moshizza/Watchpoint/issues/117) | — | todo |
+| T10.02 | Push relay service + node push channel | PSH | T5.04 | PSH-U-001…PSH-U-025, PSH-I-001…PSH-I-004 | [#118](https://github.com/Moshizza/Watchpoint/issues/118) | — | todo |
+| T10.03 | E2E scenarios E-090…E-093 | tests/e2e-scenarios | T10.01, T10.02 | E-090…E-093 | [#119](https://github.com/Moshizza/Watchpoint/issues/119) | — | todo |
 
 ### M11 — Fit any IT, ship it
 
@@ -265,5 +265,5 @@ spec that must exist and pass.
 | D.02 | M0 specs (K, TST, SCM) | done |
 | D.03 | M1 specs | done |
 | D.04 | Cross-module tests (integration matrix, e2e scenarios) — grows with each milestone | M1 done |
-| D.05 | M2–M11 specs | in progress (M2–M9 done) |
+| D.05 | M2–M11 specs | in progress (M2–M10 done) |
 | D.06 | M12 specs | blocked (vendor docs) |
