@@ -268,7 +268,7 @@ public interface ISupervisedProcessHandle
     int RestartCount { get; }
     DateTimeOffset? LastStartedAt { get; }
     string? LastExitReason { get; }
-    IObservable<SupervisedProcessState> StateChanges { get; }   // System.Reactive not required: a simple event
+    event EventHandler<SupervisedProcessState>? StateChanged;
     Task StopAsync(CancellationToken ct);       // graceful then kill
     Task RestartAsync(CancellationToken ct);
 }

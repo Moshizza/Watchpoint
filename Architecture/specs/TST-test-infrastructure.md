@@ -192,7 +192,7 @@ Rules (NetArchTest), each a test:
 | ARCH-2 | No assembly depends on `Watchpoint.Host` |
 | ARCH-3 | A module assembly may depend on another module only through types in namespaces ending with `.Contracts` or assemblies ending with `.Abstractions` |
 | ARCH-4 | Types in `*.Internal` namespaces are not public |
-| ARCH-5 | Only `Watchpoint.Storage*` assemblies reference `Microsoft.EntityFrameworkCore.*` providers (`Npgsql.EntityFrameworkCore.*`, `Microsoft.EntityFrameworkCore.SqlServer`…) |
+| ARCH-5 | Only `Watchpoint.Storage*` assemblies (and the design-time tool `tools/Watchpoint.MigrationsDesign`) reference EF Core **provider** packages (`Npgsql.EntityFrameworkCore.*`, `Microsoft.EntityFrameworkCore.SqlServer`…); modules may reference `Microsoft.EntityFrameworkCore.Relational` (see STO §3) |
 | ARCH-6 | `Watchpoint.Integration.Abstractions` depends only on `Watchpoint.Kernel` and BCL |
 | ARCH-7 | Connector assemblies (`Watchpoint.Integration.<Name>`) do not reference `Watchpoint.*` service modules (only Abstractions, Sdk, Kernel) |
 | ARCH-8 | No type named `*Controller` (minimal APIs only) |
