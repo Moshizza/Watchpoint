@@ -62,7 +62,7 @@ tools/wpsim/
 | `seed` | integer | 1 | deterministic generation |
 | `activity` | enum `calm`, `normal`, `busy`, `stress` | `normal` | rates in §6.2 |
 | `commandLatency` | duration PT0S–PT30S | PT0.2S | |
-| `failures` | array of `{ command: string, mode: refuse|timeout|error, probability: number 0–1 }` | [] | |
+| `failures` | array of `{ command: string, mode: refuse|timeout|error|noEffect, probability: number 0–1 }` | [] | |
 | `scenario` | string (JSON timeline, §6.5) | empty | |
 | `timeZone` | string IANA | `Europe/Paris` | simulated site's local time (arming schedules) |
 
@@ -147,7 +147,8 @@ Random draws use `System.Random(seed ^ deviceIndex)` per device so runs are repr
 
 `failures` settings override outcomes with the given probability: `refuse` →
 `Failed(RefusedBySystem, "sim.errors.refused")`; `timeout` → never answers (until deadline);
-`error` → throws (tests connector fault handling). Batch execution supported for `openable.open`,
+`error` → throws (tests connector fault handling); `noEffect` → returns `Succeeded` but does not change
+the device state (tests command verification → `Unverified`). Batch execution supported for `openable.open`,
 `lockable.*`, `doorMode.setMode`, `switchable.*`.
 
 ### 6.5 Scenario timeline
