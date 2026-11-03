@@ -5,7 +5,7 @@
 | Spec id | K |
 | Projects | `src/service/Watchpoint.Kernel`, `src/service/Watchpoint.Kernel.Testing` |
 | Milestone | M0 |
-| Tasks | T0.03 (§4–§6), T0.04 (§7–§9) |
+| Tasks | T0.03 (§4–§7), T0.04 (§7–§11) |
 | Design docs | [Architecture README §5](../README.md#5-coding-conventions--net), [API conventions §6](../README.md#6-conventions--api) |
 
 ## 1. Purpose and scope
@@ -384,7 +384,49 @@ escape `~` and `/` in segment names.
 `Guard.NotNull`, `NotEmpty`, `InRange` — throw `ArgumentException` family; only for
 programming errors (parameters from code, not from users).
 
-## 10. Observability
+## 10. Values (`WpValue`)
+
+The single representation of a property value, command argument or event payload field,
+used by MOD, PIP, STA, CMD, ALM, EXP and by connectors (through the integration contract).
+
+```csharp
+public enum WpValueKind { Null, Bool, Int, Decimal, Enum, String, Timestamp, Duration, Geo, List, Object }
+
+public readonly struct WpValue : IEquatable<WpValue>
+{
+    public WpValueKind Kind { get; }
+    public static readonly WpValue Null;
+    public static WpValue Bool(bool v);
+    public static WpValue Int(long v);
+    public static WpValue Decimal(decimal v);
+    public static WpValue Enum(string code);                // code pattern ^[a-z][a-zA-Z0-9]*$
+    public static WpValue String(string v);
+    public static WpValue Timestamp(DateTimeOffset utc);    // converted to UTC, ms precision
+    public static WpValue Duration(TimeSpan v);
+    public static WpValue Geo(double lat, double lon, double? alt = null);
+    public static WpValue List(IReadOnlyList<WpValue> items);
+    public static WpValue Object(JsonElement value);        // cloned, immutable
+
+    public bool AsBool(); public long AsInt(); public decimal AsDecimal(); public string AsEnum();
+    public string AsString(); public DateTimeOffset AsTimestamp(); public TimeSpan AsDuration();
+    public GeoPoint AsGeo(); public IReadOnlyList<WpValue> AsList(); public JsonElement AsObject();
+    // As*() throw InvalidOperationException on kind mismatch; TryAs*() variants return bool.
+}
+public readonly record struct GeoPoint(double Latitude, double Longitude, double? Altitude);
+```
+
+- Equality: same kind and equal value (`Decimal` compared numerically: `1.0 == 1.00`;
+  `Object` compared by canonical JSON; `List` element-wise).
+- JSON form (`WpValueJsonConverter`), used in the event log, API and documents:
+  `{"k":"bool","v":true}`, `{"k":"int","v":5}`, `{"k":"dec","v":"21.5"}` (decimal as string to
+  keep precision), `{"k":"enum","v":"open"}`, `{"k":"str","v":"text"}`,
+  `{"k":"ts","v":"2026-11-03T09:00:00.000Z"}`, `{"k":"dur","v":"PT10S"}`,
+  `{"k":"geo","v":[48.85,2.35]}`, `{"k":"list","v":[…]}`, `{"k":"obj","v":{…}}`, `{"k":"null"}`.
+  A **compact form** without kind (plain JSON value) is accepted where the target type is known
+  (API inputs validated against a property definition); MOD converts it.
+- Size limits: strings 16 KB, lists 1,000 items, objects 16 KB serialised, depth 8.
+
+## 11. Observability
 
 `KernelLog` (source-generated `LoggerMessage`):
 
@@ -395,16 +437,16 @@ programming errors (parameters from code, not from users).
 
 No metrics, no health checks.
 
-## 11. Security
+## 12. Security
 
 - `CursorCodec.Decode` limits input length (2 KB) and JSON depth (8) to avoid abuse.
 - `DeveloperDetail` of errors is never serialised by API (enforced by API tests).
 
-## 12. Tests
+## 13. Tests
 
 All tests are unit tests in `tests/service/Watchpoint.Kernel.Tests`.
 
-### 12.1 Identifiers (T0.03)
+### 13.1 Identifiers (T0.03)
 
 | Id | Test | Given / When / Then |
 |---|---|---|
@@ -424,7 +466,7 @@ All tests are unit tests in `tests/service/Watchpoint.Kernel.Tests`.
 | K-U-014 | `PackageId`, `PermissionCode`, `ErrorCode` patterns | valid/invalid tables, including `commands.openable.*` allowed for permissions |
 | K-U-015 | `PropertyPath.Parse` | `doorPosition.position` → (doorPosition, position); `position` → invalid |
 
-### 12.2 Results and errors (T0.03)
+### 13.2 Results and errors (T0.03)
 
 | Id | Test | Given / When / Then |
 |---|---|---|
@@ -441,7 +483,7 @@ All tests are unit tests in `tests/service/Watchpoint.Kernel.Tests`.
 | K-U-026 | Async extensions | `Task<Result<int>>.Map(...)` works and propagates failures |
 | K-U-027 | `WithArg` returns a new error | original unchanged |
 
-### 12.3 Time and paging (T0.03)
+### 13.3 Time and paging (T0.03)
 
 | Id | Test | Given / When / Then |
 |---|---|---|
@@ -449,7 +491,7 @@ All tests are unit tests in `tests/service/Watchpoint.Kernel.Tests`.
 | K-U-029 | `PageRequest.Create` limits | null → 100; 0 → invalid; 1001 → `common.value.out_of_range` with min 1, max 1000 |
 | K-U-030 | `SortSpec.Parse` | `"name,-createdAt"` → two fields; unknown field → `common.sort.invalid_field` with allowed list; null → default |
 
-### 12.4 Cursors, time zones, JSON, texts, validation (T0.04)
+### 13.4 Cursors, time zones, JSON, texts, validation (T0.04)
 
 | Id | Test | Given / When / Then |
 |---|---|---|
@@ -478,10 +520,17 @@ All tests are unit tests in `tests/service/Watchpoint.Kernel.Tests`.
 | K-U-053 | JSON Pointer escaping | segment `a/b~c` → `/a~1b~0c` |
 | K-U-054 | `Guard` throws argument exceptions | null → `ArgumentNullException` with parameter name |
 | K-U-055 | Public API snapshot | the public API of `Watchpoint.Kernel` matches `PublicAPI.Shipped.txt` (Microsoft.CodeAnalysis.PublicApiAnalyzers) — additive changes only |
+| K-U-056 | `WpValue` factories and accessors | each kind created and read back; wrong accessor → `InvalidOperationException`; `TryAs` false |
+| K-U-057 | `WpValue` equality | `Decimal(1.0) == Decimal(1.00)`; `Int(1) != Decimal(1)`; lists and objects by content |
+| K-U-058 | `WpValue` JSON round-trip for every kind | serialise → deserialise → equal; decimal written as string |
+| K-U-059 | `WpValue` timestamp normalisation | +02:00 input → UTC, ms precision |
+| K-U-060 | `WpValue` enum code validation | `Enum("Open")` → `ArgumentException` |
+| K-U-061 | `WpValue` size and depth limits | 17 KB string, 1,001 items, depth 9 → rejected when reading JSON |
+| K-U-062 | Compact JSON form accepted only with a target hint | `ReadCompact(json, WpValueKind.Decimal)` of `21.5` → `Decimal(21.5)`; without hint → error |
 
-## 13. Tasks
+## 14. Tasks
 
 | Task | Sections | Tests |
 |---|---|---|
 | T0.03 | §4, §5, §6, §7 (except cursors) | K-U-001…K-U-030 |
-| T0.04 | §7 cursors, §8, §9, §10, `Watchpoint.Kernel.Testing` | K-U-031…K-U-055 |
+| T0.04 | §7 cursors, §8, §9, §10, §11, `Watchpoint.Kernel.Testing` | K-U-031…K-U-062 |

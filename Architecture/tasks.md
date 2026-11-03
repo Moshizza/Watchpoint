@@ -70,7 +70,7 @@ spec that must exist and pass.
 | T0.01 | Repository skeleton: `src/` tree, `Watchpoint.slnx`, `Directory.Build.props`, `Directory.Packages.props`, `global.json`, `.editorconfig`, `.gitignore`, pnpm workspace, `.nvmrc` | README §3–§7 | — | CI-001 (solution builds empty), CI-002 (workspace installs) | — | — | todo |
 | T0.02 | CI workflow `ci.yml`, issue and pull-request templates, Dependabot config, Semgrep and secret-scan jobs | README §10–§11 | T0.01 | CI-003 (workflow runs on PR), CI-004 (failing test fails CI) | — | — | todo |
 | T0.03 | Kernel: typed ids, `Result`/`Error`/`ErrorKind`, `IClock`, paging and cursors | K §4–§6 | T0.01 | K-U-001…K-U-030 | — | — | todo |
-| T0.04 | Kernel: JSON options and source-gen context, translatable messages, validation helpers, `Watchpoint.Kernel.Testing` | K §7–§9 | T0.03 | K-U-031…K-U-055 | — | — | todo |
+| T0.04 | Kernel: JSON options and source-gen context, translatable messages, validation helpers, `Watchpoint.Kernel.Testing` | K §7–§11 | T0.03 | K-U-031…K-U-062 | — | — | todo |
 | T0.05 | Test infrastructure: `Watchpoint.Testing`, Testcontainers fixtures (PostgreSQL + TimescaleDB, NATS), architecture tests, test naming analyzer | TST | T0.03 | TST-U-001…TST-I-010 | — | — | todo |
 | T0.06 | JSON Schemas: capability, device type, integration manifest; schema versioning | SCM §3–§5 | T0.01 | SCM-U-001…SCM-U-020 | — | — | todo |
 | T0.07 | Standard type library v0 + `wptypes` validator CLI | SCM §6–§8 | T0.06 | SCM-U-021…SCM-U-040 | — | — | todo |
