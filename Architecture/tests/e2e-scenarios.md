@@ -288,11 +288,62 @@ Toxiproxy between them and the node.
 | 4 | Link restored | 20 events replayed with original times in the journal; no alarms raised for replayed events older than the cutoff; current states correct |
 | 5 | Delete remote host while connection assigned | Refused; after reassigning the connection, delete works and host cannot reconnect |
 
-## 6. Later milestones (to be detailed with their specs)
+## 6. M5 scenarios — "History, reports, notifications"
+
+Seed `m5-site.json`: simulator (office), users admin, `mgr` (manager: `reports.run`,
+`reports.schedule`, `admin.audit.view`), operators `op1`, `op2` with verified e-mail and phone;
+external contact "Security company"; Mailpit container (SMTP + API), fake SMS provider (generic
+HTTP provider pointing at a test receiver container that records requests and posts delivery
+callbacks); history pre-filled with 30 days of simulator data (`tools/wpseed history`); fake
+clock control on the node.
+
+### E-040 — Alarm e-mail notification with timeline status
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | Admin configures SMTP channel (Mailpit) and adds a Notify action (e-mail to group Operators, Critical alarms) on the forced-door rule; test message | Test e-mail arrives |
+| 2 | Door forced (Critical) | Within 10 s, e-mails to op1/op2 in their languages (op2 Arabic RTL), link to the web client alarm page |
+| 3 | Open alarm details | Timeline shows "e-mail sent to op1", "…op2" |
+| 4 | Stop Mailpit, raise another alarm | Messages retried; after the last retry dead-lettered; visible in System → Notifications; retry after Mailpit restarts delivers |
+
+### E-041 — SMS via provider with flood summary and quota
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | Configure fake SMS provider; roster "Night duty" with op1 22:00–06:00, fallback op2; escalation step at 2 min → roster | — |
+| 2 | Fake clock 23:00; raise an alarm, do not acknowledge | After 2 min SMS to op1 (provider received request, callback → delivered in timeline) |
+| 3 | Raise 15 alarms in 1 min | op1 gets 5 individual SMS then one summary SMS ("10 new alarms…") |
+| 4 | SMS quota set to 8/h | Further SMS suppressed; system event "quota reached" once |
+
+### E-042 — Scheduled PDF shift report
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | `mgr` schedules `std.shiftReport` at the end of calendar "Day shift", range previousCalendarPeriod, PDF + XLSX, to `mgr` and external contact | Schedule saved; warning that the external contact will not receive personal data templates (shift report includes holder names → refused for the contact, kept for `mgr`) |
+| 2 | Fake clock to the end of the shift | Report run; e-mail to `mgr` with PDF attachment; PDF text contains the shift's alarms and events; XLSX opens with typed cells |
+| 3 | `mgr` loses `operate.events.view` | Next run fails with owner-rights error; `mgr` and configurators notified |
+
+### E-043 — Retention purge and aggregates
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | Set events retention to 7 days (minimum allowed for the test profile) | Setting accepted with warning |
+| 2 | Run the retention job (fake clock + job trigger) | Events older than 7 days gone from the journal; `alarms_daily` and `events_hourly` aggregates still give 30-day statistics in `std.alarmStatistics` |
+| 3 | Audit trail unaffected (separate retention) | Audit entries of day 1 still present |
+
+### E-044 — Privacy: subject search, export, pseudonymisation
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | Admin searches person reference "Holder 0042" | Events across 30 days listed |
+| 2 | Export (JSON) | File in FIL `export.events`, download audited |
+| 3 | Erase with reason | Events now show a pseudonym; counts per holder still group; audit `privacy.subjectErased`; audit chain still verifies |
+| 4 | Operator without personal data permission views events | Names masked ("Cardholder #…") |
+
+## 7. Later milestones (to be detailed with their specs)
 
 | Id | Milestone | Scenario |
 |---|---|---|
-| E-040…E-044 | M5 | Alarm e-mail notification; SMS via fake provider; scheduled PDF shift report; retention purge; privacy pseudonymisation |
 | E-050…E-056 | M6 | Plan import and symbol placement; alarm focus on plan; RTSP camera live in alarm details (desktop and web); PTZ; web client operation-only |
 | E-060…E-064 | M7 | Offline activation round-trip with the portal; quota enforcement; restricted mode keeps alarms working |
 | E-070…E-075 | M8 | Fire evacuation automation; script reacting to events with dry-run test; script limits breach isolated |

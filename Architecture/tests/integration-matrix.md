@@ -206,11 +206,26 @@ Run the generated client and live client against a real node (compose stack).
 | X-CONN-MOD-C-001 | Package types, capabilities and rule templates of the four connectors load in MOD and validate against the standard library (`knownTypes.json` generated from the same build) |
 | X-SNMP-IRT-C-001 | Shared UDP trap port fan-out across two SNMP connections in-process; separate sockets per isolated host |
 
-## 6. Later milestones (rows to add when their specs are written)
+## 6. Contract tests (M5)
+
+| Id | Test |
+|---|---|
+| X-NOT-ALM-C-001 | Notify action and escalation steps produce notification requests; delivery status records land in the alarm timeline (HIS) in order |
+| X-NOT-RGT-C-001 | Users never receive alarm notifications for alarms outside their scope or priority range (generated over rules × users fixture) |
+| X-NOT-MNT-C-001 | Maintenance notification modes Suppress/CriticalOnly applied by the router |
+| X-NOT-SCH-C-001 | Rosters and quiet hours with real SCH calendars across DST |
+| X-RPT-HIS-C-001 | Every data source query runs against the real HIS schema (PostgreSQL + TimescaleDB and plain-PostgreSQL fallback) with identical results |
+| X-RPT-RGT-C-001 | Report data sources filter by the identity's visible scope |
+| X-RPT-FIL-C-001 | Report outputs stored and downloadable with category rules |
+| X-RPT-NOT-C-001 | Scheduled delivery with attachment/link rules |
+| X-FIL-API-C-001 | Upload/download/signed URL flows through the real API pipeline (auth, permission policies, range requests) |
+| X-FIL-CFG-C-001 | File references follow CFG publish/rollback |
+| X-HIS-STO-C-001 | Retention, compression and aggregates jobs on PostgreSQL with and without TimescaleDB |
+
+## 7. Later milestones (rows to add when their specs are written)
 
 | Milestone | Pairs to cover |
 |---|---|
-| M5 | NOT↔ALM, RPT↔HIS, FIL↔API, HIS retention ↔ STO |
 | M6 | VID↔IRT (video provider), VID↔go2rtc, SYN↔STA/REG, WEB↔API |
 | M7 | LIC↔REG (units), LIC↔IRT (feature keys), LIC↔IDN (seats), LIC↔LPT (activation protocol) |
 | M8 | AUT↔CMD/ALM, SCR↔script host gRPC, SCR↔RGT (script identities) |
