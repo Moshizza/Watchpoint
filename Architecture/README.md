@@ -52,11 +52,12 @@ a documented reason), **may** (optional).
 /                                   repository root
 ├── Architecture/                   implementation specs (this folder)
 ├── docs/                           product and design documentation
+├── global.json, Directory.Build.props, Directory.Packages.props   .NET SDK pin, shared build settings, central package versions (root, so tests/ and tools/ inherit them)
+├── package.json, pnpm-workspace.yaml, .npmrc, .nvmrc            pnpm workspace root (src/ui and src/mobile), Node pin
+├── .editorconfig, .gitattributes, .gitignore, CLAUDE.md          style, line endings, ignores, rules for AI agents
 ├── src/
 │   ├── service/                    the node (.NET)
 │   │   ├── Watchpoint.slnx         solution (XML solution format)
-│   │   ├── Directory.Build.props   shared build settings
-│   │   ├── Directory.Packages.props central package versions
 │   │   ├── Watchpoint.Kernel/      shared primitives (ids, results, errors, clock, paging)
 │   │   ├── Watchpoint.<Module>/    one project per module (e.g. Watchpoint.Registry)
 │   │   ├── Watchpoint.<Module>.Abstractions/  public contract when other processes need it
@@ -81,7 +82,7 @@ a documented reason), **may** (optional).
 │   ├── service/                    Watchpoint.<Module>.Tests (unit) and Watchpoint.IntegrationTests
 │   ├── integrations/               connector tests
 │   ├── e2e/                        end-to-end scenarios (Playwright + test harness)
-│   └── performance/                k6 scripts and load scenarios
+│   └── perf/                       k6 scripts, load scenarios and perf orchestrator
 ├── tools/                          wppack (package builder), dev scripts, code generators
 ├── deploy/                         docker compose, Helm chart, installer definitions
 └── .github/                        workflows, issue and pull-request templates
@@ -324,9 +325,15 @@ desktop client run on release and nightly only.
 ## 11. Git workflow
 
 - `main` is the reference branch; it must always build and pass `ci.yml`.
-- **One branch per task**: `<task-id>-<short-slug>`, e.g. `T1.04-registry-core`.
+- **One branch per task**: `<owner>/<task-id>-<short-slug>`, where `<owner>` is the agent name
+  (agent registry in [tasks.md](tasks.md#agent-registry)) or the GitHub username, e.g.
+  `claude-atlas/T1.04-registry-core`. The task's **Owner** column holds that branch name.
+- AI agents follow [`CLAUDE.md`](../CLAUDE.md): push after every logical step, update the pull
+  request checklist only when opening, half way and ready for review, one task per session,
+  never merge without approval of the person responsible.
 - Commit messages: Conventional Commits (`feat(registry): …`, `fix(pipeline): …`,
-  `test(…)`, `docs(…)`), body explaining why, reference the task id.
+  `test(…)`, `docs(…)`, `wip(…)` for unfinished steps), body explaining why, reference the
+  task id; agents add `Agent: <agent-name>`.
 - Pull request per task: title `<task-id> <title>`; description lists implemented test ids;
   at least **one approval** from another team member and green CI before merge; **squash
   merge**; delete the branch after merge.

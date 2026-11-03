@@ -1,0 +1,15 @@
+<!--
+  Central package versions for every .NET project (Architecture/README.md §4).
+  Projects reference packages without a version: <PackageReference Include="Name" />.
+  Adding or upgrading a package is reviewed like code; versions are exact (no ranges).
+-->
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <!-- Package versions are added by the tasks that first need them (T0.03 onwards). -->
+  <ItemGroup>
+  </ItemGroup>
+</Project>

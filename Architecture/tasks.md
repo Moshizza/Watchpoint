@@ -13,9 +13,13 @@ Each task has a GitHub issue (column **Issue**) once its milestone is opened.
 1. Pick a task whose status is `todo` and whose dependencies are all `done`.
 2. Open its issue and **assign yourself** (right panel → Assignees). Assignment is instant
    and visible to everyone; if someone is already assigned, pick another task.
-3. Create the branch `<task-id>-<short-slug>` from `main` (e.g. `T1.07-registry-core`).
-4. In this file, set **Owner** to your name and **Status** to `in progress` in your
-   branch; the change reaches `main` with your pull request. The issue assignment is the
+3. Create the branch `<owner>/<task-id>-<short-slug>` from `main`, where `<owner>` is your
+   agent name from the [agent registry](#agent-registry) (e.g.
+   `claude-atlas/T1.07-registry-core`) or your GitHub username if you work without an agent
+   (e.g. `moshizza/T1.07-registry-core`). Never work on `main`.
+4. In your first commit on that branch, set the task's **Owner** to that exact branch name and
+   **Status** to `in progress`; push it and open a **draft** pull request. Agents also comment
+   on the issue (they cannot be assigned on GitHub). The issue assignment or comment is the
    source of truth while the task is in progress.
 5. Open a pull request titled `<task-id> <title>` with `Closes #<issue>` in the
    description, and the list of test ids implemented.
@@ -26,7 +30,7 @@ Each task has a GitHub issue (column **Issue**) once its milestone is opened.
 
 If issues are not available (or a task has no issue yet):
 
-1. Edit the task row on `main`: put your name in **Owner**, today's date in the status
+1. Edit the task row on `main`: put your branch name in **Owner**, today's date in the status
    (`in progress (2026-11-03)`), and push that single change **before** starting work.
 2. If your push is rejected because `main` moved, pull, check the row again: if someone else
    claimed it first, it is theirs.
@@ -58,6 +62,16 @@ project lead (owner removed, status back to `todo`) after asking the owner.
 6. Labels used on issues: `task`, `milestone:M0`…`milestone:M12`, `spec:<ID>`, `spike`,
    `e2e`, `docs-mismatch`.
 
+### 1.5 Agent registry
+
+<a id="agent-registry"></a>
+Every AI agent working on the project has a unique name, used as its branch prefix and in the
+**Owner** column. Rules for agents: [`CLAUDE.md`](../CLAUDE.md).
+
+| Agent name | Person responsible | Added |
+|---|---|---|
+| `claude-atlas` | Mohcine (Moshizza) | 2026-11-03 |
+
 ## 2. Tasks
 
 Columns: **Deps** = tasks that must be `done` first. **Tests** = test ids (or ranges) from the
@@ -67,7 +81,7 @@ spec that must exist and pass.
 
 | ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| T0.01 | Repository skeleton: `src/` tree, `Watchpoint.slnx`, `Directory.Build.props`, `Directory.Packages.props`, `global.json`, `.editorconfig`, `.gitignore`, pnpm workspace, `.nvmrc` | README §3–§7 | — | CI-001 (solution builds empty), CI-002 (workspace installs) | [#1](https://github.com/Moshizza/Watchpoint/issues/1) | — | todo |
+| T0.01 | Repository skeleton: `src/` tree, `Watchpoint.slnx`, `Directory.Build.props`, `Directory.Packages.props`, `global.json`, `.editorconfig`, `.gitignore`, pnpm workspace, `.nvmrc` | README §3–§7 | — | CI-001 (solution builds empty), CI-002 (workspace installs) | [#1](https://github.com/Moshizza/Watchpoint/issues/1) | claude-atlas/T0.01-repository-skeleton | done |
 | T0.02 | CI workflow `ci.yml`, issue and pull-request templates, Dependabot config, Semgrep and secret-scan jobs | README §10–§11 | T0.01 | CI-003 (workflow runs on PR), CI-004 (failing test fails CI) | [#2](https://github.com/Moshizza/Watchpoint/issues/2) | — | todo |
 | T0.03 | Kernel: typed ids, `Result`/`Error`/`ErrorKind`, `TimeProvider` helpers, paging and sorting | K §4–§7 | T0.01 | K-U-001…K-U-030 | [#3](https://github.com/Moshizza/Watchpoint/issues/3) | — | todo |
 | T0.04 | Kernel: cursors, JSON options and converters, translatable texts, validation helpers, `WpValue`, `Watchpoint.Kernel.Testing` | K §7–§11 | T0.03 | K-U-031…K-U-062 | [#4](https://github.com/Moshizza/Watchpoint/issues/4) | — | todo |
