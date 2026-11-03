@@ -114,6 +114,7 @@ package. Nested JSON objects (i18next format): key segments are object levels.
 | `history` | object | `mode`: `everyChange` (default), `deadband` (`absolute` or `percent`, numbers only), `periodic` (`interval`), `none` |
 | `staleAfter` | duration | Optional; value becomes `stale` if not refreshed within it |
 | `default` | value | Optional initial value before first observation (else `unknown`) |
+| `booleanSeverity` | `{ "true": severity, "false": severity }` | `boolean` only; default both `normal` |
 
 ### 4.2 Command fields
 
@@ -125,7 +126,8 @@ package. Nested JSON objects (i18next format): key segments are object levels.
 | `timeout` | duration | Default `PT30S`; max `PT10M` |
 | `idempotent` | bool | Default false |
 | `batchable` | bool | Default false |
-| `expectedEffect` | object | Optional: `{ "property": "<capId>.<propId>", "equals": <value> | "in": [<values>], "within": duration }`; property must exist in the same capability or in `health` |
+| `riskByArgument` | object | Optional: `{ "<param>": { "<enumValue>": risk } }` raising the risk for given argument values; the highest applicable risk wins |
+| `expectedEffect` | object | Optional: `{ "property": "<capId>.<propId>", "equals": <value> | "in": [<values>], "within": duration }`. The property may belong to another capability; the cross-document validator checks that **every type using this capability** also has that property (`scm.command.effect_property_unknown` otherwise) |
 
 ### 4.3 Event fields
 
