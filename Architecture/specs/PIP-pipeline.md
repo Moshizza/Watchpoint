@@ -292,6 +292,15 @@ public interface IPartitionSubscriber
     void OnTouched(PartitionContext context, TouchInfo touch) { }
     void OnRecoveryStarting(int partition) { }
     void OnRecoveryCompleted(int partition, long lastSequence) { }
+    void OnTick(PartitionContext context) { }                     // every Ingest:TickInterval (1 s), on the worker thread
+}
+
+// Runs work on a partition's worker thread, serialised with record processing.
+// Used for registry changes (STA membership updates), snapshots, timers of modules.
+public interface IPartitionDispatcher
+{
+    ValueTask PostAsync(int partition, Func<PartitionContext, ValueTask> work, CancellationToken ct);
+    ValueTask<T> InvokeAsync<T>(int partition, Func<PartitionContext, ValueTask<T>> work, CancellationToken ct);
 }
 
 public sealed class PartitionContext
@@ -308,6 +317,11 @@ public sealed class PartitionContext
 - Follow-up records emitted during a batch are appended as a new batch **before** the worker
   reads new input, so causality is preserved; follow-up depth limited to 4 (a 5th level is
   dropped with log 1640 Error — indicates a rule loop).
+- Posted work items (`IPartitionDispatcher`) are queued in the worker's control queue, which
+  has priority over the input channel; they may emit follow-up records like subscribers.
+- `OnTick` is called every `Ingest:TickInterval` (default 1 s) when no batch is in progress
+  for longer than the interval, so modules can run time-based logic (staleness, delays)
+  without their own threads.
 - A subscriber throwing is a bug: the exception is logged (1641 Error) with the record id, the
   subscriber is skipped for that batch, processing continues (one faulty module must not stop
   supervision); metric `watchpoint.pipeline.subscriber.errors`.
@@ -373,6 +387,7 @@ public interface ISideEffectQueue
 | `Ingest:Linger` | `PT0.002S` | 0–PT0.1S |
 | `Ingest:ConnectionRate` / `ConnectionBurst` | 2000 / 20000 | |
 | `Ingest:MaxFutureSkew` | `PT5M` | |
+| `Ingest:TickInterval` | `PT1S` | PT0.1S–PT10S |
 | `SideEffects:Capacity:<Class>`, `SideEffects:Workers:<Class>` | see §9 | |
 
 ## 11. Errors
@@ -477,6 +492,8 @@ with real NATS (Testcontainers, scoped prefixes).
 | PIP-U-043 | U | Recovery after retention | Checkpoint older than first available → log 1650, continue |
 | PIP-U-044 | U | Side-effect classes isolated | Background queue full and blocked → AlarmAction effects still run |
 | PIP-U-045 | U | Side-effect timeout and retry | Effect hanging → cancelled at timeout; MaxAttempts 3 → 3 runs with back-off (TestClock) |
+| PIP-U-046 | U | Posted work runs on the partition worker, before queued input | Post work while 100 inputs queued → work runs before them; serialised with records |
+| PIP-U-047 | U | `OnTick` cadence | TestClock advancing 5 s with idle worker → 5 ticks; during a long batch ticks are not concurrent |
 | PIP-I-001 | I | Streams provisioned on real NATS | Start module → three streams with expected subjects/retention |
 | PIP-I-002 | I | Provisioning idempotent | Restart → no error, configs unchanged |
 | PIP-I-003 | I | Append and replay one partition | 1,000 records over 4 partitions → replay of p returns its records in order |
@@ -498,4 +515,4 @@ with real NATS (Testcontainers, scoped prefixes).
 | Task | Sections | Tests |
 |---|---|---|
 | T1.09 | §4, §5, §6 (contracts), §10 (log settings), §11, §12 (log part) | PIP-U-001…PIP-U-020, PIP-I-001…PIP-I-008 |
-| T1.10 | §7, §8, §9, §10 (ingest settings), §12 (ingest part), §13 | PIP-U-021…PIP-U-045, PIP-I-009…PIP-I-015 |
+| T1.10 | §7, §8, §9, §10 (ingest settings), §12 (ingest part), §13 | PIP-U-021…PIP-U-047, PIP-I-009…PIP-I-015 |

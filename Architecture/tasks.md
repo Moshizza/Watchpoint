@@ -89,10 +89,10 @@ spec that must exist and pass.
 | T1.04 | Storage: configuration store base (EF context per module, versioning column), state store (snapshot upserts) | STO §7–§8 | T1.03 | STO-U-016…STO-U-025, STO-I-007…STO-I-015 | — | — | todo |
 | T1.05 | Secrets vault: master key providers (file, DPAPI), AES-GCM, secret API, access audit hook | SEC | T1.04 | SEC-U-001…SEC-U-020, SEC-I-001…SEC-I-005 | — | — | todo |
 | T1.06 | Model: type catalogue (load standard library and package types, resolve `extends`, validate, query) | MOD | T0.07, T1.04 | MOD-U-001…MOD-U-035, MOD-I-001…MOD-I-004 | — | — | todo |
-| T1.07 | Registry: servers, devices, locations, tags, links — entities, persistence, queries | REG §4–§7 | T1.06 | REG-U-001…REG-U-030, REG-I-001…REG-I-010 | — | — | todo |
-| T1.08 | Registry: inventory reconciliation (rediscovery by native id, orphans, vendor names) | REG §8 | T1.07 | REG-U-031…REG-U-045 | — | — | todo |
+| T1.07 | Registry: servers, devices, locations, tags, links — entities, persistence, queries | REG §4–§7 | T1.06 | REG-U-001…REG-U-030, REG-I-001…REG-I-006, REG-I-008…REG-I-010 | — | — | todo |
+| T1.08 | Registry: inventory reconciliation (rediscovery by native id, orphans, vendor names) | REG §8 | T1.07 | REG-U-031…REG-U-045, REG-I-007 | — | — | todo |
 | T1.09 | Pipeline: event log streams, envelope, partition router, log writer/reader, consumer helpers | PIP §4–§6 | T1.02, T0.09 | PIP-U-001…PIP-U-020, PIP-I-001…PIP-I-008 | — | — | todo |
-| T1.10 | Pipeline: ingest (type validation, units, dedup, deadband, enrichment), back-pressure, side-effect dispatcher | PIP §7–§9 | T1.09, T1.07 | PIP-U-021…PIP-U-045, PIP-I-009…PIP-I-015 | — | — | todo |
+| T1.10 | Pipeline: ingest (type validation, units, dedup, deadband, enrichment), back-pressure, side-effect dispatcher | PIP §7–§9 | T1.09, T1.07 | PIP-U-021…PIP-U-047, PIP-I-009…PIP-I-015 | — | — | todo |
 | T1.11 | State: live store, overall state computation, aggregates, queries, change feed | STA §4–§7 | T1.10 | STA-U-001…STA-U-035 | — | — | todo |
 | T1.12 | State: snapshotter and recovery (snapshot + replay) | STA §8 | T1.11 | STA-U-036…STA-U-045, STA-I-001…STA-I-006 | — | — | todo |
 | T1.13 | Integration contract (`Watchpoint.Integration.Abstractions`) | INT §4–§8 | T0.03 | INT-U-001…INT-U-010 | — | — | todo |
