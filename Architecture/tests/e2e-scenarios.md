@@ -620,8 +620,55 @@ emulator running the app (Maestro), operator `op1` with mobile access and licenc
 | 1 | Admin revokes `op1`'s mobile device | Next app contact wipes local data and returns to enrolment |
 | 2 | Relay token for that device | Unregistered; further pushes not sent |
 
-## 12. Later milestones (to be detailed with their specs)
+## 12. M11 scenarios — "Fit any IT, ship it"
+
+Run on clean VMs/containers per platform (Windows Server 2022 runner, Ubuntu 24.04, Rocky 9),
+SQL Server 2022 container (Developer edition, tests only), signed test release keys.
+
+### E-100 — Fresh install on Windows with the setup wizard
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | Silent install with bundled PostgreSQL | Service running; setup page reachable only on loopback |
+| 2 | Wizard: language French, site, bundled DB, generate CA, admin with TOTP, trial, single node | Summary checks green; service in normal mode |
+| 3 | Desktop client connects (CA fingerprint), admin signs in with MFA | Configuration side available; simulator connection can be added |
+
+### E-101 — Fresh install on Linux with an external PostgreSQL
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | `.deb` install; wizard with remote PostgreSQL + TimescaleDB, import customer certificate | Health ready; TimescaleDB capability reported |
+
+### E-102 — SQL Server provider end-to-end
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | Wizard with SQL Server (Express edition simulated by the probe override) | Warning about 10 GB limit and suggestion to map History to PostgreSQL; accept mapping |
+| 2 | Run the M2 scenarios E-010/E-011/E-016 on this site | Pass identically |
+
+### E-103 — Store migration online
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | Site on SQL Server (all stores) with 30 days of history; start `wpctl storage migrate --store history --to pg --background` while the simulator runs | New history written to PostgreSQL immediately; journal queries span both; copy completes; verification passes; mapping switched; audit entry |
+
+### E-104 — Signed update and automatic rollback
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | Upload update N+1 in System → Updates | Signature verified; snapshot; update; health OK; version shown |
+| 2 | Upload a tampered package | Refused (signature) |
+| 3 | Upload a test build whose health check fails | Automatic rollback to N+1; data intact; event and notification |
+| 4 | Desktop client signs in after node update | Prompted update installed at a safe moment; signature verified |
+
+### E-105 — Backup and restore to a new machine
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | Scheduled backup to an SMB share and S3 (MinIO) | Bundles signed, retention applied |
+| 2 | Restore on a new VM with the recovery passphrase | Site restored (configuration, history, files, users); licence state FootprintMismatch with re-host request prepared |
+
+## 13. Later milestones (to be detailed with their specs)
 
 | Id | Milestone | Scenario |
 |---|---|---|
-| E-100…E-105 | M11 | Fresh install on Windows and Linux with setup wizard; SQL Server provider end-to-end; store migration; signed update and rollback |

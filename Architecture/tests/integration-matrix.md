@@ -287,8 +287,17 @@ Run the generated client and live client against a real node (compose stack).
 | X-PSH-NOT-C-001 | Node push channel ↔ relay API contract (signatures, batching, results) |
 | X-PSH-PRIV-C-001 | Push payloads contain no personal data for every notification kind (property test) |
 
-## 12. Later milestones (rows to add when their specs are written)
+## 12. Contract tests (M11)
+
+| Id | Test |
+|---|---|
+| X-STO-CERT-C-001 | Provider certification suite passes for PostgreSQL (with and without TimescaleDB) and SQL Server (STO-MS §7) |
+| X-STO-MIG-C-001 | Every module has migrations for every provider for the current model snapshot (CI generated check) |
+| X-DEP-UPD-C-001 | Update package format shared by the build pipeline, node updater and desktop updater (golden packages) |
+| X-DEP-BKP-C-001 | Backup bundle produced by one release restores on the same and the next release |
+| X-DEP-LIC-C-001 | Updater honours LIC support window for perpetual licences |
+
+## 13. Later milestones (rows to add when their specs are written)
 
 | Milestone | Pairs to cover |
 |---|---|
-| M11 | STO-MS certification suite, DEP update protocol ↔ nodes and clients |

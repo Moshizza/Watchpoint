@@ -246,7 +246,7 @@ spec that must exist and pass.
 | T11.03 | Installers: Inno Setup (Windows), .deb/.rpm (nfpm), OCI images, Helm chart, client installers | DEP §4–§6 | T9.03 | DEP-I-001…DEP-I-015 | — | — | todo |
 | T11.04 | Setup wizard (first run) | DEP §7 | T11.03, T7.02 | DEP-U-001…DEP-U-020 | — | — | todo |
 | T11.05 | Signed updates (node, clients, packages), backups and restore, `wpctl` commands | DEP §8–§10 | T11.03 | DEP-U-021…DEP-U-050, DEP-I-016…DEP-I-025 | — | — | todo |
-| T11.06 | Security hardening checklist, SBOM and third-party notices generation, penetration test preparation | docs/operations/security | T11.05 | S-001…S-030 | — | — | todo |
+| T11.06 | Security hardening checklist, SBOM and third-party notices generation, penetration test preparation | tests/security-tests | T11.05 | S-001…S-030 | — | — | todo |
 | T11.07 | E2E scenarios E-100…E-105 | tests/e2e-scenarios | T11.02, T11.05 | E-100…E-105 | — | — | todo |
 
 ### M12 — Vendor integrations (specs completed when vendor documentation is available)
