@@ -161,6 +161,7 @@ spec that must exist and pass.
 | T4.05 | Modbus TCP connector with mapping templates | C-MODBUS | T4.03 | MODB-U-*, MODB-I-*, conformance | — | — | todo |
 | T4.06 | MQTT connector | C-MQTT | T4.03 | MQTT-U-*, MQTT-I-*, conformance | — | — | todo |
 | T4.07 | SNMP connector (polling, traps, MIB import) | C-SNMP | T4.03 | SNMP-U-*, SNMP-I-*, conformance | — | — | todo |
+| T4.09 | Package upgrades per connection: settings migrations, canary, automatic rollback, bulk upgrade | IRT §11 | T4.01 | IRT-U-061…IRT-U-063 | — | — | todo |
 | T4.08 | E2E scenarios E-030…E-034 | tests/e2e-scenarios | T4.01…T4.07 | E-030…E-034 | — | — | todo |
 
 ### M5 — History, reports, notifications
