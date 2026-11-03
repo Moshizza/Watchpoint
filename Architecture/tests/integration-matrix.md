@@ -222,11 +222,24 @@ Run the generated client and live client against a real node (compose stack).
 | X-FIL-CFG-C-001 | File references follow CFG publish/rollback |
 | X-HIS-STO-C-001 | Retention, compression and aggregates jobs on PostgreSQL with and without TimescaleDB |
 
-## 7. Later milestones (rows to add when their specs are written)
+## 7. Contract tests (M6)
+
+| Id | Test |
+|---|---|
+| X-VID-IRT-C-001 | `IVideoProvider` calls through in-process and isolated hosts give identical results (C-RTSP with test device) |
+| X-VID-GW-C-001 | Stream registration, ticketed proxy and WebRTC signalling against the real go2rtc binary of the release (pinned version) |
+| X-VID-RGT-C-001 | Live/playback/PTZ/export permissions and lookback constraints with real grants |
+| X-VID-ALM-C-001 | ALM Snapshot/Bookmark actions produce attachments and timeline entries |
+| X-SYN-CFG-C-001 | Synoptic publish/rollback with file references through real CFG and FIL |
+| X-SYN-REG-C-001 | Binding validation reacts to registry deletions (warnings) and moves |
+| X-SYN-STA-C-001 | Viewer viewport subscriptions receive the same states as the device list for the same devices |
+| X-SYN-TS-CS-C-001 | Document migrations C# and TS produce identical outputs on shared fixtures |
+| X-WEB-API-C-001 | Web cookie authentication, CSRF, allowed networks and client-kind refusals across all configuration endpoints (generated over the endpoint catalogue) |
+
+## 8. Later milestones (rows to add when their specs are written)
 
 | Milestone | Pairs to cover |
 |---|---|
-| M6 | VID↔IRT (video provider), VID↔go2rtc, SYN↔STA/REG, WEB↔API |
 | M7 | LIC↔REG (units), LIC↔IRT (feature keys), LIC↔IDN (seats), LIC↔LPT (activation protocol) |
 | M8 | AUT↔CMD/ALM, SCR↔script host gRPC, SCR↔RGT (script identities) |
 | M9 | CLU↔PIP/IRT/CMD (leases, fencing), FED link protocol between two clusters |

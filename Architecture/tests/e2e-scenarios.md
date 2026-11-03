@@ -340,11 +340,76 @@ clock control on the node.
 | 3 | Erase with reason | Events now show a pseudonym; counts per holder still group; audit `privacy.subjectErased`; audit chain still verifies |
 | 4 | Operator without personal data permission views events | Names masked ("Cardholder #…") |
 
-## 7. Later milestones (to be detailed with their specs)
+## 7. M6 scenarios — "Synoptics, video, web"
+
+Seed `m6-site.json`: simulator (campus) with locations Building A (levels 1–2) and site geo
+coordinates; `OnvifTestDevice` cameras (2 fixed, 1 PTZ) streaming from `mediamtx` test
+patterns, linked to doors of Building A Level 1 (`camera-for` links); offline PMTiles extract of
+a small test area; users admin, `config1`, operators `op1` (desktop) and `op2` (web, Chromium and
+Firefox).
+
+### E-050 — Plan import and device placement
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | `config1` creates synoptic "Building A – L1" (plan), imports a 2-page PDF, picks page 2 at 150 DPI, sets scale by two points (10 m) | Background job completes; tiles displayed |
+| 2 | Devices panel "unplaced devices of this location" → drag 20 doors and 2 cameras; draw zones for 3 rooms bound to child locations | Symbols bound with type defaults; camera cones from geometry |
+| 3 | Add a command button "Lock down" (doorMode.setMode lockedDown on a group) and an appearance rule with an invalid CEL expression | Validation panel shows plain-language error; fix; publish |
+| 4 | Delete one placed door in the registry (draft, publish) | Synoptic shows a grey "no longer exists" symbol; warning in the synoptic's validation |
+
+### E-051 — Alarm focus on plan
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | `op1` has the plan open zoomed out (zones only) | Zone colours reflect aggregated states |
+| 2 | Door forced in room 2 | Room 2 zone turns alarm colour; console shows alarm |
+| 3 | "Show on plan" from the alarm | Plan centres on the door, zooms to labels level, pulses 5 s |
+| 4 | Zoom/pan around 1,000 simulated symbols (campus plan fixture) | Viewport subscription ≤ visible devices; frame time within budget |
+
+### E-052 — Linked camera in alarm details (desktop)
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | Door with linked camera forced | Alarm details show live video within 2 s (WebRTC) |
+| 2 | "Play from alarm time − 10 s" | Timeline missing (camera has no recordings) → button disabled with explanation ("This camera has no recordings") |
+| 3 | Snapshot | Snapshot stored as alarm attachment, visible in the timeline |
+
+### E-053 — PTZ with arbitration and joystick
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | `op1` moves the PTZ camera with on-screen pad and goes to preset 2 | Test device receives ContinuousMove/Stop/GotoPreset |
+| 2 | `op2` (lower PTZ priority) tries to move within hold time | Refused: "controlled by op1, 25 s" |
+| 3 | Virtual gamepad (Playwright gamepad emulation) on `op1` | Moves throttled ≤ 10/s; release stops within 1 s |
+
+### E-054 — Map synoptic offline
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | `config1` creates a map synoptic, places devices from geo-coordinates, building zone linked to the L1 plan | Offline basemap tiles loaded from the node (no internet in the test network) |
+| 2 | `op1` opens the map; clusters at low zoom show aggregated state; clicks the building | L1 plan opens |
+
+### E-055 — Web client operation only
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | `op2` signs in on the web (Chromium and Firefox) | Operation UI; enables sounds and browser notifications |
+| 2 | Alarm raised while tab hidden | Browser notification; click returns to the alarm; acknowledge works |
+| 3 | Opens synoptic and a camera tile | Plan renders; video plays (WebRTC or MSE fallback) |
+| 4 | `config1` signs in on the web | No configuration UI; direct config API calls → 403 |
+| 5 | Admin sets `Web:AllowedNetworks` excluding the test client network | Next web request → 403; sign-in refused |
+
+### E-056 — Video under load and gateway restart
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | 16 tiles (desktop) + 10 web viewers of the same camera | One source connection per camera/profile at the gateway |
+| 2 | Kill the go2rtc process | Gateway restarts; players reconnect within 10 s; streams re-registered |
+
+## 8. Later milestones (to be detailed with their specs)
 
 | Id | Milestone | Scenario |
 |---|---|---|
-| E-050…E-056 | M6 | Plan import and symbol placement; alarm focus on plan; RTSP camera live in alarm details (desktop and web); PTZ; web client operation-only |
 | E-060…E-064 | M7 | Offline activation round-trip with the portal; quota enforcement; restricted mode keeps alarms working |
 | E-070…E-075 | M8 | Fire evacuation automation; script reacting to events with dry-run test; script limits breach isolated |
 | E-080…E-088 | M9 | Failover of a redundant pair under load (< 30 s, no lost events); split-brain prevention; rolling upgrade; federation link with WAN cut and resume; handover schedule |
