@@ -79,7 +79,7 @@ Grant patterns: a grant's permission may end with `.*` (all permissions under th
 | Family | Codes (scope kind) |
 |---|---|
 | operation.devices | `operate.devices.view` (Devices), `operate.personalData.view` (Devices), `operate.history.view` (Devices), `operate.events.view` (Devices), `operate.events.export` (Devices), `operate.notes.create` (Locations) |
-| operation.alarms | `alarms.view` (Devices; constraint PriorityRange), `alarms.acknowledge`, `alarms.comment`, `alarms.transfer`, `alarms.shelve` (MaxDuration), `alarms.close`, `alarms.closeWithoutReport`, `alarms.mute` (None), `admin.systemEvents.view` (System) |
+| operation.alarms | `alarms.view` (Devices; constraint PriorityRange), `alarms.acknowledge`, `alarms.comment`, `alarms.transfer`, `alarms.shelve` (MaxDuration), `alarms.close`, `alarms.closeWithoutReport`, `alarms.mute` (None), `admin.systemEvents.view` (System), `operate.notifications.subscribe` (None, M5) |
 | operation.commands | Generated: `commands.<capability>.<command>` for every capability command in MOD (Devices; constraints RequireReason, RequireFourEyes, RequireStepUp, ClientKinds), plus `commands.approve` (Devices), `commands.viewAll` (Devices), `commands.cancelAny` (Devices), `commands.priority.critical` (None) |
 | operation.video (M6) | `video.live`, `video.playback` (MaxLookback), `video.export`, `video.ptz`, `video.unmask` |
 | operation.workspace | `operate.workspaces.save` (None), `operate.workspaces.publish` (None), `operate.duringMaintenance` (None; Sensitive — operation side stays available during maintenance mode, MNT) |
