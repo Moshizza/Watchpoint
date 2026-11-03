@@ -1,0 +1,21 @@
+name: Spec mismatch
+description: A spec is wrong, incomplete or contradicts another spec or the code.
+labels: [docs-mismatch]
+body:
+  - type: input
+    id: where
+    attributes:
+      label: Where
+      placeholder: "Architecture/specs/CMD-commands.md §5"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
