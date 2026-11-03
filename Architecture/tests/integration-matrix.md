@@ -171,11 +171,31 @@ Run the generated client and live client against a real node (compose stack).
 | X-API-CMD-C-001 | Live `commands` topic delivers every transition of a REST-requested command in order |
 | X-UIO-ALM-C-001 | UI alarm console (real API, FakeLiveHub disabled) shows a simulator alarm and acknowledges it (Playwright component test against compose stack) |
 
-## 4. Later milestones (rows to add when their specs are written)
+## 4. Contract tests (M3)
+
+| Id | Test |
+|---|---|
+| X-CFG-REG-C-001 | Publish of devices/locations/tags drafts through the real REG object types: one transaction, `config.published` on WP_CFG, REG caches reloaded |
+| X-CFG-IRT-C-001 | Publishing a connection settings change restarts only that connection with the new settings; draft secrets moved to the connection's secret |
+| X-CFG-ALM-C-001 | Publishing alarm rules swaps the rule set atomically; alarms of removed rules follow the configured policy |
+| X-CFG-RGT-C-001 | `rights.grants` publish triggers `rights.changed` and evaluator cache invalidation on every node |
+| X-CFG-AUD-C-001 | Every publish/rollback produces an audit record with version, diff and actor |
+| X-RGT-API-C-001 | For every list/read endpoint and live topic registered by M1–M3 modules, a user scoped to Building A never receives Building B items (generated test over the endpoint catalogue) |
+| X-RGT-CMD-C-001 | Command authorizer constraints from real grants: reason, four-eyes, step-up, client kinds, outside schedule |
+| X-RGT-ALM-C-001 | Alarm visibility with priority ranges and scope with real grants |
+| X-RGT-IDN-C-001 | Directory mapping applies template grants through the copy engine (Merge, DirectoryMapping source) and removes them on group loss |
+| X-RGT-REG-C-001 | Location move and tag changes update visible scopes and emit `rights.changed` for affected users only |
+| X-AUD-ALL-C-001 | Each action in the AUD catalogue v1 is produced by its module in at least one test (catalogue coverage) and chain verifies |
+| X-MNT-IDN-C-001 | Site maintenance revokes operation sessions and refuses operation sign-in; configuration sessions untouched |
+| X-MNT-API-C-001 | Live connections receive `Closing("maintenance")`; `system` topic and `/system/status` reflect start/end |
+| X-MNT-RGT-C-001 | Location maintenance post-filter removes suspended subtrees from visible scopes and restores them on end |
+| X-UIF-CFG-C-001 | UI draft flow (create draft, edit device, diff, publish) against the compose stack (Playwright component test) |
+| X-UIF-RGT-C-001 | UI rights-copy wizard preview equals API preview for the same request |
+
+## 5. Later milestones (rows to add when their specs are written)
 
 | Milestone | Pairs to cover |
 |---|---|
-| M3 | CFG↔REG/IRT/ALM (publish), RGT↔API (filtering everywhere), RGT↔IDN (templates, directory mappings), AUD↔all writers, MNT↔IDN/API, UIF↔CFG |
 | M4 | IHO↔IRT (gRPC host protocol), remote host pairing ↔ SEC, each connector ↔ conformance suite |
 | M5 | NOT↔ALM, RPT↔HIS, FIL↔API, HIS retention ↔ STO |
 | M6 | VID↔IRT (video provider), VID↔go2rtc, SYN↔STA/REG, WEB↔API |

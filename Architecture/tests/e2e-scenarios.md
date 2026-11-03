@@ -134,19 +134,109 @@ rule templates installed, admin and an operator user, desktop client.
 | 2 | History mode last 10 minutes with filter `accessEvents.denied` | Only denied events; paging through > 200 events |
 | 3 | Export CSV | File downloaded with same rows; holder names masked for the operator without personal-data permission (M3: permission; M2: masked for non-admins) |
 
-## 4. Later milestones (to be detailed with their specs)
+## 4. M3 scenarios — "Configure safely, many users"
+
+All use seed `m3-site.json`: simulator (campus, seed 7) with locations Building A, Building B,
+Building C; default alarm rule templates; users `admin` (administrator), `config1` and `config2`
+(configuration permissions incl. `config.rights.edit`, `config.maintenance`), template user
+`tpl-operator-a` (operation grants scoped to Building A, `commands.openable.*` with
+`RequireReason`), user group `Night shift` with operators `op1`…`op3` (no grants), operator
+`op4` (grants on whole site). OpenLDAP container for E-026 (`tests/e2e/fixtures/ldap/seed.ldif`).
+
+### E-020 — Template rights copied to a group
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | `config1` opens Rights copy, source `tpl-operator-a`, target group `Night shift`, Replace, no translation | Preview: 3 targets, each +N grants, warning-free; `config1` itself not in targets |
+| 2 | Apply with reason | Operation in history; users grid shows drift badge "in sync" for op1…op3 |
+| 3 | `op1` signs in on desktop operation side | Navigator shows only Building A; device search for a Building B door returns nothing |
+| 4 | `op1` opens a Building A door with reason | Command succeeds (reason dialog required) |
+| 5 | `op1` calls `POST /commands` on a Building B door through the API | `403 common.forbidden` (device outside scope) |
+| 6 | Building B door forced (timeline) | No alarm shown to `op1`; `op4` sees it |
+| 7 | `config1` undoes the operation | op1…op3 have no grants; `op1` session re-filtered: navigator empty |
+
+### E-021 — Rights reduced while connected
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | `op4` signed in, device list of Building B open with live values, alarm console open | Values update |
+| 2 | `config1` quick-edits `op4` grants: scope Building A only | Within 2 s `op4`'s Building B list empties (live resync), Building B alarms disappear from console, open Building B device tab shows "no longer available" |
+| 3 | `op4` REST call for a Building B device | `403` |
+| 4 | `config1` restores grant | Building B reappears without sign-in |
+
+### E-022 — Draft, plain-language validation, publish, rollback
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | `config1` creates draft "Night rules", edits forced-door rule priority to Critical and adds condition `prop("door.statee") == "open"` | Problem shown in plain language at the field ("Property 'door.statee' does not exist. Did you mean 'door.state'?") with Fix button |
+| 2 | Click Fix | Expression corrected; problems 0 |
+| 3 | Delete location Building C in the draft | Error "Building C still contains 24 devices" with fix "move contents to parent" |
+| 4 | Revert that entry, Publish with comment | Version v(n+1); rule effective: next forced door alarm is Critical |
+| 5 | Versions page → roll back v(n+1) → publish | Rule priority back to High; both versions in audit viewer with diffs |
+
+### E-023 — Soft lock, concurrent drafts and merge
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | `config1` opens device door-0005 in draft D1 | Soft lock acquired |
+| 2 | `config2` opens door-0005 in draft D2 | Editor read-only: "being edited by config1 since …"; no take-over button (no `config.locks.break`) |
+| 3 | `config1` changes tags, saves into D1, closes the editor | Lock released; `config2`'s editor becomes editable after refresh prompt |
+| 4 | `config2` changes the name, saves into D2 | Entry with base version = live version |
+| 5 | `config1` publishes D1, then `config2` publishes D2 | D2 auto-merged (different fields); both changes live |
+| 6 | Both change the location in new drafts (sequentially, lock released between); `config1` publishes first, then `config2` | `config2` gets a conflict; ConflictResolver shows base/live/mine; picks mine; publish succeeds |
+
+### E-024 — Connection wizard with discovery and import
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | `config1` adds connection: type Simulator, settings (scenario campus-2, seed 9), Test | Test passes with steps listed |
+| 2 | Placement: default location Building C, auto-import off; discovery | Job progress then review tree with ~120 devices |
+| 3 | Select only subtree "Floor 1", set tag `new`, import | Devices created in the draft with Building C and tag `new`; publish |
+| 4 | Operation side (admin) | New devices live with states; others not imported |
+| 5 | Stop connection | Imported devices offline; connection status Stopped in details |
+
+### E-025 — Site maintenance mode
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | `op4` on desktop operation and on web; `config1` opens Maintenance dialog (site, reason, end in 10 min, auto-end on) | Impact lists op4 sessions (2) to close, op4 locked out, config1/config2 keep access |
+| 2 | Confirm and start | `op4` desktop shows full-page message with initiator, reason, end; web session closed; `config1` sees banner |
+| 3 | `op4` tries to sign in on web | Refused with the same message |
+| 4 | Door forced during maintenance | Alarm recorded (visible later in history), notification mode Continue |
+| 5 | Fake clock +10 min | Reminder at −5 min to `config1`; auto-end; `op4` desktop returns to sign-in automatically and signs in |
+| 6 | Audit viewer | `maintenance.started`, `maintenance.autoEnded` entries |
+
+### E-026 — LDAP sign-in with group mapping
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | `admin` configures LDAP provider (OpenLDAP container) with mapping group `cn=guards` → template `tpl-operator-a`, user group `Night shift`; test connection | Test OK |
+| 2 | LDAP user `guard7` (member of guards) signs in | JIT user created, source Directory, member of Night shift, grants copied from template (source DirectoryMapping), sees Building A only |
+| 3 | Remove `guard7` from `cn=guards` in LDAP; sign in again | Mapped grants removed; operation side shows no devices |
+| 4 | LDAP container stopped; `guard7` sign-in | Refused (`identity.directory.unavailable`); local `admin` still signs in |
+
+### E-027 — MFA and step-up for a critical command
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | `op4` enrols TOTP (test reads the secret from the QR payload) | MFA active; recovery codes shown once |
+| 2 | Sign out/in | TOTP step required; wrong code refused; correct code accepted |
+| 3 | `op4` grant for `commands.armable.disarm` has `RequireStepUp`; disarms Area 1 | Step-up dialog; TOTP accepted; command succeeds; audit shows step-up |
+| 4 | Disarm again within 5 min | No new prompt (step-up proof valid) |
+
+### E-028 — Configuration endpoints refuse non-desktop clients (security)
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | `config1` signs in on the web client | Operation only; no side switch; bundle has no configuration module |
+| 2 | With the web access token call `PUT /api/v1/drafts/{id}/entries`, `POST /api/v1/rights-copy/apply`, `POST /api/v1/maintenance` | `403 api.client_kind.not_allowed` for each; audit records `Denied` |
+| 3 | Same with a mobile token | Same results |
+| 4 | Desktop token of `op4` (no config permissions) | `403 common.forbidden` |
+
+## 5. Later milestones (to be detailed with their specs)
 
 | Id | Milestone | Scenario |
 |---|---|---|
-| E-020 | M3 | Template user → copy rights to a group → operator sees only Building A, cannot command Building B |
-| E-021 | M3 | Rights reduced while operator connected → screens and live data re-filtered immediately |
-| E-022 | M3 | Configurator edits rules in a draft, validation errors in plain language, publish, rollback |
-| E-023 | M3 | Two configurators edit the same device → merge view |
-| E-024 | M3 | Connection wizard: test, discover, import selected devices with locations |
-| E-025 | M3 | Maintenance mode (site): operators locked out with message, configurator continues, alarms still recorded, auto-end |
-| E-026 | M3 | LDAP sign-in with group mapping to a template (OpenLDAP container) |
-| E-027 | M3 | MFA TOTP enrolment and sign-in; critical command requiring step-up |
-| E-028 | M3 | Web/mobile token cannot call configuration endpoints (security scenario) |
 | E-030…E-034 | M4 | Ping, Modbus simulator, MQTT broker supervision with thresholds; isolated host crash and auto-restart; remote host pairing |
 | E-040…E-044 | M5 | Alarm e-mail notification; SMS via fake provider; scheduled PDF shift report; retention purge; privacy pseudonymisation |
 | E-050…E-056 | M6 | Plan import and symbol placement; alarm focus on plan; RTSP camera live in alarm details (desktop and web); PTZ; web client operation-only |
