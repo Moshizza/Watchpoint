@@ -52,11 +52,12 @@ a documented reason), **may** (optional).
 /                                   repository root
 ├── Architecture/                   implementation specs (this folder)
 ├── docs/                           product and design documentation
+├── global.json, Directory.Build.props, Directory.Packages.props   .NET SDK pin, shared build settings, central package versions (root, so tests/ and tools/ inherit them)
+├── package.json, pnpm-workspace.yaml, .npmrc, .nvmrc            pnpm workspace root (src/ui and src/mobile), Node pin
+├── .editorconfig, .gitattributes, .gitignore, CLAUDE.md          style, line endings, ignores, rules for AI agents
 ├── src/
 │   ├── service/                    the node (.NET)
 │   │   ├── Watchpoint.slnx         solution (XML solution format)
-│   │   ├── Directory.Build.props   shared build settings
-│   │   ├── Directory.Packages.props central package versions
 │   │   ├── Watchpoint.Kernel/      shared primitives (ids, results, errors, clock, paging)
 │   │   ├── Watchpoint.<Module>/    one project per module (e.g. Watchpoint.Registry)
 │   │   ├── Watchpoint.<Module>.Abstractions/  public contract when other processes need it
@@ -81,7 +82,7 @@ a documented reason), **may** (optional).
 │   ├── service/                    Watchpoint.<Module>.Tests (unit) and Watchpoint.IntegrationTests
 │   ├── integrations/               connector tests
 │   ├── e2e/                        end-to-end scenarios (Playwright + test harness)
-│   └── performance/                k6 scripts and load scenarios
+│   └── perf/                       k6 scripts, load scenarios and perf orchestrator
 ├── tools/                          wppack (package builder), dev scripts, code generators
 ├── deploy/                         docker compose, Helm chart, installer definitions
 └── .github/                        workflows, issue and pull-request templates

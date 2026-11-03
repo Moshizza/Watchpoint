@@ -1,0 +1,8 @@
+# pnpm workspace for every TypeScript package and app (Architecture/README.md §3, §7).
+packages:
+  - "src/ui/packages/*"
+  - "src/ui/apps/*"
+  - "src/mobile/*"
+
+# Supply-chain safety: dependency install scripts run only for packages listed here.
+onlyBuiltDependencies: []
