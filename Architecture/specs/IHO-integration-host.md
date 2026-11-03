@@ -311,8 +311,8 @@ known, enabled and not revoked (revocation list = deleted hosts, checked per han
   ordered by source time; STA applies its normal rule (older observations do not overwrite newer
   values) so states converge to the latest values. Replayed events older than
   `Hosts:ReplayAlarmCutoff` (default 15 min) are flagged `replayed` in their payload metadata
-  and ALM does not raise new alarms for them (they appear in the event journal; ALM spec gains
-  this rule in T4.02).
+  and ALM does not raise new event-type alarms for them (they appear in the event journal;
+  ALM §5, test ALM-U-126).
 
 ## 11. Settings
 
@@ -441,4 +441,4 @@ Unit tests use an in-memory gRPC transport (`Grpc.Net.Client` with `TestServer`)
 | Task | Sections | Tests |
 |---|---|---|
 | T4.01 | §4–§7, §11–§14 (isolated parts) | IHO-U-001…IHO-U-030, IHO-I-001…IHO-I-008 |
-| T4.02 | §8–§10 | IHO-U-031…IHO-U-050, IHO-I-009…IHO-I-014 |
+| T4.02 | §8–§10 | IHO-U-031…IHO-U-050, IHO-I-009…IHO-I-014, ALM-U-126 |

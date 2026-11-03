@@ -217,6 +217,11 @@ System-scope rules (no device) are evaluated by a small dedicated worker consumi
 `sysevent` records; their alarms live in partition `Partitioning.Of(rule.Id)` (records posted
 through `IPartitionDispatcher`).
 
+Replayed records (M4, IHO §10): event records flagged `replayed` (buffered by a remote host and
+older than `Hosts:ReplayAlarmCutoff`) do not produce raise requests for `OnEvent`, `OnCount` and
+`OnSequence` triggers; state-based triggers still evaluate the resulting current state. Test
+ALM-U-126 (added by T4.02).
+
 Determinism: evaluation only uses the record, current state (STA) and time from the context; the
 same log replay yields the same alarms (recovery replays without re-running actions — §15).
 
@@ -590,6 +595,7 @@ Unit: `tests/service/Watchpoint.Alarms.Tests` (fake STA/REG, real EXP, TestClock
 | ALM-U-123 | `std.*` templates validate against the standard library |
 | ALM-U-124 | Unverified command alarm template |
 | ALM-U-125 | Break-glass system alarm template |
+| ALM-U-126 | Replayed event records (flag `replayed`) do not raise event-type alarms; state triggers evaluate (T4.02) |
 | ALM-I-001 | Simulator forced door → alarm raised, ack, resolved, auto-closed — records in log and history |
 | ALM-I-002 | Restart with open alarms → identical after recovery |
 | ALM-I-003 | Crash during alarm actions → no duplicate actions |
