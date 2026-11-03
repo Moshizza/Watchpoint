@@ -7,6 +7,8 @@
   </Folder>
   <Folder Name="/src/" />
   <Folder Name="/integrations/" />
-  <Folder Name="/tests/" />
+  <Folder Name="/tests/">
+    <Project Path="../../tests/service/Watchpoint.CiProbe.Tests/Watchpoint.CiProbe.Tests.csproj" />
+  </Folder>
   <Folder Name="/tools/" />
 </Solution>
