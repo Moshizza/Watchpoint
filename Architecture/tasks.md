@@ -207,12 +207,12 @@ spec that must exist and pass.
 
 | ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| T8.01 | Automations engine: triggers, conditions, steps, persisted runs, concurrency policies, dry run | AUT §4–§8 | T2.12, T2.07 | AUT-U-001…AUT-U-060, AUT-I-001…AUT-I-008 | — | — | todo |
+| T8.01 | Automations engine: triggers, conditions, steps, persisted runs, concurrency policies, dry run | AUT §4–§8 | T2.12, T2.07, T3.02 | AUT-U-001…AUT-U-060, AUT-I-001…AUT-I-008 | — | — | todo |
 | T8.02 | Automations editor (React Flow) and runs panel | AUT §9–§10 | T8.01, T3.10 | AUT-U-061…AUT-U-085 | — | — | todo |
-| T8.03 | Script host process: V8 isolates (ClearScript), limits, gRPC protocol, restart | SCR §4–§6 | T4.01 | SCR-U-001…SCR-U-030, SCR-I-001…SCR-I-006 | — | — | todo |
+| T8.03 | Script host process: V8 isolates (ClearScript), limits, gRPC protocol, restart | SCR §4–§6 | T4.01, T3.02 | SCR-U-001…SCR-U-030, SCR-I-001…SCR-I-006 | — | — | todo |
 | T8.04 | Script API (service side gateway, triggers, devices, commands, alarms, virtual devices, storage, fetch allow-list) | SCR §7–§9 | T8.03, T8.01 | SCR-U-031…SCR-U-070 | — | — | todo |
 | T8.05 | Script IDE: Monaco, generated site typings, diagnostics, versions | SCR §10–§11 | T8.04, T3.10 | SCR-U-071…SCR-U-090 | — | — | todo |
-| T8.06 | Script test mode and debugging (simulated events, dry-run commands, inspector bridge) | SCR §12 | T8.05 | SCR-U-091…SCR-U-105 | — | — | todo |
+| T8.06 | Script test mode and debugging (simulated events, dry-run commands, inspector bridge) | SCR §12–§13 | T8.05 | SCR-U-091…SCR-U-105 | — | — | todo |
 | T8.07 | E2E scenarios E-070…E-075 | tests/e2e-scenarios | T8.02, T8.06 | E-070…E-075 | — | — | todo |
 
 ### M9 — Cluster, health, federation
