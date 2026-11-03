@@ -147,8 +147,8 @@ Exact versions are pinned in `global.json`, `Directory.Packages.props`, `package
 - **Errors**: `Error(string Code, string MessageKey, IReadOnlyDictionary<string, object?> Args, ErrorKind Kind)`.
   Codes are lowercase dotted: `<module>.<entity>.<problem>`, e.g. `registry.device.not_found`.
   The translation key is `errors.<code>`. `ErrorKind` maps to HTTP status (§6.2).
-- **Time**: `IClock` (wraps `TimeProvider`); always UTC `DateTimeOffset`; NodaTime for
-  time zones and calendars.
+- **Time**: inject .NET `TimeProvider` (tests use `FakeTimeProvider`); always UTC
+  `DateTimeOffset` with millisecond precision; NodaTime for time zones and calendars.
 - **Paging**: `PageRequest(int Limit, string? Cursor)`, `Page<T>(IReadOnlyList<T> Items, string? NextCursor)`;
   default limit 100, maximum 1,000.
 
