@@ -78,8 +78,9 @@ break-glass account.
   `watchpoint` user), not as Administrator/root.
 - Integration hosts and the script host run with even fewer rights (no write access outside
   their working folders), with OS resource limits.
-- The Electron client uses context isolation, sandboxed renderers, no remote content, strict
-  CSP.
+- The Electron client is a thin shell: it loads the UI only from the pinned site origin (no other
+  remote content), with context isolation, sandboxed renderers, a minimal origin-checked preload
+  bridge and strict CSP (see `Architecture/specs/DSK-desktop-shell.md`).
 - The web client has no third-party scripts and no CDN dependencies.
 
 ## Logging and privacy in logs

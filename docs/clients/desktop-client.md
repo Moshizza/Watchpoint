@@ -14,8 +14,10 @@
   kiosk mode.
 - Renderer processes run the UI with context isolation, sandboxing, no Node integration, a
   strict Content Security Policy, and only a narrow IPC bridge exposed by a preload script.
-- Same UI code as the web client; configuration modules are **only bundled in the desktop
-  build**.
+- Same UI code as the web client; configuration modules are **only included in the desktop
+  UI bundle**. That bundle is served by the node itself (`/app/desktop/`) and loaded by the
+  shell, so the client UI always has the node's version; the Electron shell only adds secure
+  storage, certificate pinning, windows and OS integration.
 
 ## 2. Two sides, one application
 
