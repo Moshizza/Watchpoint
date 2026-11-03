@@ -1,0 +1,266 @@
+# Task Sheet
+
+Every unit of work for Watchpoint is a task listed here. Tasks are sized for **1 to 5 days**
+of work by one person. Each task names the spec sections to implement and the tests that
+must pass (see [README §12 — definition of done](README.md#12-definition-of-done-every-task)).
+
+## 1. How to take a task
+
+### 1.1 With GitHub issues (normal way)
+
+Each task has a GitHub issue (column **Issue**) once its milestone is opened.
+
+1. Pick a task whose status is `todo` and whose dependencies are all `done`.
+2. Open its issue and **assign yourself** (right panel → Assignees). Assignment is instant
+   and visible to everyone; if someone is already assigned, pick another task.
+3. Create the branch `<task-id>-<short-slug>` from `main` (e.g. `T1.07-registry-core`).
+4. In this file, set **Owner** to your name and **Status** to `in progress` in your
+   branch; the change reaches `main` with your pull request. The issue assignment is the
+   source of truth while the task is in progress.
+5. Open a pull request titled `<task-id> <title>` with `Closes #<issue>` in the
+   description, and the list of test ids implemented.
+6. After approval and green CI, squash-merge. The issue closes automatically. Set the task
+   **Status** to `done` in the same pull request.
+
+### 1.2 Without GitHub issues (fallback)
+
+If issues are not available (or a task has no issue yet):
+
+1. Edit the task row on `main`: put your name in **Owner**, today's date in the status
+   (`in progress (2026-11-03)`), and push that single change **before** starting work.
+2. If your push is rejected because `main` moved, pull, check the row again: if someone else
+   claimed it first, it is theirs.
+
+### 1.3 Statuses
+
+| Status | Meaning |
+|---|---|
+| `todo` | Not started; available when dependencies are done |
+| `blocked` | Waiting for something outside the task list (say what in the issue) |
+| `in progress` | Someone is working on it |
+| `in review` | Pull request open |
+| `done` | Merged into `main` |
+
+A task with no visible activity (commits or comments) for **7 days** may be released by the
+project lead (owner removed, status back to `todo`) after asking the owner.
+
+### 1.4 GitHub Project board (set up once by the project owner)
+
+1. GitHub → your profile or the repository → **Projects → New project → Board**, name it
+   "Watchpoint".
+2. Columns (Status field): `Todo`, `In progress`, `In review`, `Done`.
+3. Add custom fields: **Milestone** (single select M0…M12), **Spec** (text), **Task id**
+   (text).
+4. Project settings → **Workflows**: enable "Item added → Todo", "Item reopened → Todo",
+   "Pull request merged → Done", "Item closed → Done".
+5. Repository → Issues → filter `label:task` → select all → "Projects" → add to
+   "Watchpoint".
+6. Labels used on issues: `task`, `milestone:M0`…`milestone:M12`, `spec:<ID>`, `spike`,
+   `e2e`, `docs-mismatch`.
+
+## 2. Tasks
+
+Columns: **Deps** = tasks that must be `done` first. **Tests** = test ids (or ranges) from the
+spec that must exist and pass.
+
+### M0 — Foundations
+
+| ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
+|---|---|---|---|---|---|---|---|
+| T0.01 | Repository skeleton: `src/` tree, `Watchpoint.slnx`, `Directory.Build.props`, `Directory.Packages.props`, `global.json`, `.editorconfig`, `.gitignore`, pnpm workspace, `.nvmrc` | README §3–§7 | — | CI-001 (solution builds empty), CI-002 (workspace installs) | — | — | todo |
+| T0.02 | CI workflow `ci.yml`, issue and pull-request templates, Dependabot config, Semgrep and secret-scan jobs | README §10–§11 | T0.01 | CI-003 (workflow runs on PR), CI-004 (failing test fails CI) | — | — | todo |
+| T0.03 | Kernel: typed ids, `Result`/`Error`/`ErrorKind`, `IClock`, paging and cursors | K §4–§6 | T0.01 | K-U-001…K-U-030 | — | — | todo |
+| T0.04 | Kernel: JSON options and source-gen context, translatable messages, validation helpers, `Watchpoint.Kernel.Testing` | K §7–§9 | T0.03 | K-U-031…K-U-055 | — | — | todo |
+| T0.05 | Test infrastructure: `Watchpoint.Testing`, Testcontainers fixtures (PostgreSQL + TimescaleDB, NATS), architecture tests, test naming analyzer | TST | T0.03 | TST-U-001…TST-I-010 | — | — | todo |
+| T0.06 | JSON Schemas: capability, device type, integration manifest; schema versioning | SCM §3–§5 | T0.01 | SCM-U-001…SCM-U-020 | — | — | todo |
+| T0.07 | Standard type library v0 + `wptypes` validator CLI | SCM §6–§8 | T0.06 | SCM-U-021…SCM-U-040 | — | — | todo |
+| T0.08 | UI workspace skeleton: package scaffolds, TypeScript strict, ESLint, Prettier, Vitest, Tailwind preset | README §7, UIC §3 | T0.01 | UIC-U-001…UIC-U-003 | — | — | todo |
+| T0.09 | Spike: NATS JetStream as event log and KV lease store (throughput, replay, KV CAS) → decision record | PIP §5, CLU §4 | T0.05 | Spike report | — | — | todo |
+| T0.10 | Spike: go2rtc RTSP → WebRTC in Electron on Windows, Linux, macOS (H.264, H.265) → decision record | VID §4 | T0.01 | Spike report | — | — | todo |
+| T0.11 | Spike: connector isolation — `AssemblyLoadContext` in-process vs gRPC isolated host (latency, crash behaviour) → decision record | IRT §5, IHO §4 | T0.03 | Spike report | — | — | todo |
+
+### M1 — First device on screen
+
+| ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
+|---|---|---|---|---|---|---|---|
+| T1.01 | Host: generic host, node settings, module registration, Windows service / systemd hosting, health endpoints | HST §4–§6 | T0.04 | HST-U-001…HST-U-015, HST-I-001…HST-I-004 | — | — | todo |
+| T1.02 | Host: process supervisor, bundled NATS start/stop, dev compose stack | HST §7–§8 | T1.01 | HST-U-016…HST-U-025, HST-I-005…HST-I-008 | — | — | todo |
+| T1.03 | Storage: store contracts, provider model, connection manager, migration runner, PostgreSQL provider skeleton | STO §4–§6 | T0.05 | STO-U-001…STO-U-015, STO-I-001…STO-I-006 | — | — | todo |
+| T1.04 | Storage: configuration store base (EF context per module, versioning column), state store (snapshot upserts) | STO §7–§8 | T1.03 | STO-U-016…STO-U-025, STO-I-007…STO-I-015 | — | — | todo |
+| T1.05 | Secrets vault: master key providers (file, DPAPI), AES-GCM, secret API, access audit hook | SEC | T1.04 | SEC-U-001…SEC-U-020, SEC-I-001…SEC-I-005 | — | — | todo |
+| T1.06 | Model: type catalogue (load standard library and package types, resolve `extends`, validate, query) | MOD | T0.07, T1.04 | MOD-U-001…MOD-U-035, MOD-I-001…MOD-I-004 | — | — | todo |
+| T1.07 | Registry: servers, devices, locations, tags, links — entities, persistence, queries | REG §4–§7 | T1.06 | REG-U-001…REG-U-030, REG-I-001…REG-I-010 | — | — | todo |
+| T1.08 | Registry: inventory reconciliation (rediscovery by native id, orphans, vendor names) | REG §8 | T1.07 | REG-U-031…REG-U-045 | — | — | todo |
+| T1.09 | Pipeline: event log streams, envelope, partition router, log writer/reader, consumer helpers | PIP §4–§6 | T1.02, T0.09 | PIP-U-001…PIP-U-020, PIP-I-001…PIP-I-008 | — | — | todo |
+| T1.10 | Pipeline: ingest (type validation, units, dedup, deadband, enrichment), back-pressure, side-effect dispatcher | PIP §7–§9 | T1.09, T1.07 | PIP-U-021…PIP-U-045, PIP-I-009…PIP-I-015 | — | — | todo |
+| T1.11 | State: live store, overall state computation, aggregates, queries, change feed | STA §4–§7 | T1.10 | STA-U-001…STA-U-035 | — | — | todo |
+| T1.12 | State: snapshotter and recovery (snapshot + replay) | STA §8 | T1.11 | STA-U-036…STA-U-045, STA-I-001…STA-I-006 | — | — | todo |
+| T1.13 | Integration contract (`Watchpoint.Integration.Abstractions`) | INT §4–§8 | T0.03 | INT-U-001…INT-U-010 | — | — | todo |
+| T1.14 | Integration SDK helpers (polling scheduler, resilience, device map, connection store client, secure HTTP, redacting logger) | INT §9–§11 | T1.13 | INT-U-011…INT-U-040 | — | — | todo |
+| T1.15 | Integration runtime: package folder watcher, manifest reader, verifier (dev mode), package catalogue, load contexts | IRT §4–§6 | T1.13, T1.06 | IRT-U-001…IRT-U-025, IRT-I-001…IRT-I-004 | — | — | todo |
+| T1.16 | Integration runtime: connection manager, connection state machine, watchdog, connector context implementation, connection store | IRT §7–§10 | T1.15, T1.10, T1.08, T1.05 | IRT-U-026…IRT-U-060, IRT-I-005…IRT-I-012 | — | — | todo |
+| T1.17 | Simulator connector (types, scenarios, random and scripted changes, commands with configurable outcomes) | C-SIM | T1.14 | SIM-U-001…SIM-U-030, SIM-I-001…SIM-I-005 | — | — | todo |
+| T1.18 | Identity minimal: local users, Argon2id, sign-in, access/refresh tokens, bootstrap admin, session registry | IDN §4–§7 | T1.04 | IDN-U-001…IDN-U-030, IDN-I-001…IDN-I-006 | — | — | todo |
+| T1.19 | API: REST framework (problem details, paging, ETag, idempotency, permission filter, OpenAPI) + endpoints for registry, state, connections, types, dev seed | API §4–§7 | T1.11, T1.16, T1.18 | API-U-001…API-U-030, API-I-001…API-I-015 | — | — | todo |
+| T1.20 | API: live hub (subscriptions, snapshots + deltas, sequences, resume, coalescing, limits) | API §8–§10 | T1.19 | API-U-031…API-U-055, API-I-016…API-I-025 | — | — | todo |
+| T1.21 | UI core: generated API client, live connection client, model package | UIC §4–§6 | T1.20, T0.08 | UIC-U-004…UIC-U-030 | — | — | todo |
+| T1.22 | UI core: i18n (en/fr/ar, RTL, ICU), design system base (theme, layout, DataGrid, tree, state badges) | UIC §7–§9 | T0.08 | UIC-U-031…UIC-U-060 | — | — | todo |
+| T1.23 | UI operation part 1: app shell, sign-in, device explorer (locations/servers), device page (read-only), connection banner | UIO §4–§6 | T1.21, T1.22 | UIO-U-001…UIO-U-030 | — | — | todo |
+| T1.24 | Desktop shell part 1: Electron main/preload/renderer, connection profiles, secure token storage, packaging (dev) | DSK §4–§7 | T1.23 | DSK-U-001…DSK-U-020 | — | — | todo |
+| T1.25 | E2E harness (compose stack, seeded node, Playwright for desktop and browser) + scenarios E-001…E-004 | tests/e2e-scenarios | T1.24, T1.17 | E-001…E-004 | — | — | todo |
+
+### M2 — Act and react
+
+| ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
+|---|---|---|---|---|---|---|---|
+| T2.01 | Commands: model, validation (schema, rights hook, state), lifecycle state machine, log records | CMD §4–§6 | T1.16 | CMD-U-001…CMD-U-030 | — | — | todo |
+| T2.02 | Commands: per-connection priority queues, per-device serialisation, idempotency, timeouts, failover-safe queue | CMD §7–§8 | T2.01 | CMD-U-031…CMD-U-050, CMD-I-001…CMD-I-008 | — | — | todo |
+| T2.03 | Commands: verification and group commands | CMD §9–§10 | T2.02 | CMD-U-051…CMD-U-065 | — | — | todo |
+| T2.04 | Commands: REST + live messages, command journal queries | CMD §11 | T2.03, T1.20 | CMD-I-009…CMD-I-015 | — | — | todo |
+| T2.05 | Events: model, event type registry, operator notes, journal query API | EVT | T1.10, T1.19 | EVT-U-001…EVT-U-020, EVT-I-001…EVT-I-008 | — | — | todo |
+| T2.06 | Expressions: CEL subset in C# (parser, type checker against the model, cost-limited evaluator) | EXP §4–§7 | T1.06 | EXP-U-001…EXP-U-040 | — | — | todo |
+| T2.07 | Expressions: CEL subset in TypeScript + shared conformance vectors | EXP §8–§9 | T2.06, T1.21 | EXP-U-041…EXP-U-060, EXP-C-001 | — | — | todo |
+| T2.08 | Scheduling: calendars, holiday sets (ICS import), time triggers, site time zones | SCH | T1.04 | SCH-U-001…SCH-U-030 | — | — | todo |
+| T2.09 | Alarms: rule model, rule index, trigger evaluation (event, state, health, expression) | ALM §4–§6 | T2.05, T2.06 | ALM-U-001…ALM-U-035 | — | — | todo |
+| T2.10 | Alarms: alarm lifecycle state machine, partition-safe transitions, store, REST + live | ALM §7–§9 | T2.09 | ALM-U-036…ALM-U-070, ALM-I-001…ALM-I-010 | — | — | todo |
+| T2.11 | Alarms: start/end delays, composite rules, escalation, procedures, audience | ALM §10–§13 | T2.10, T2.08 | ALM-U-071…ALM-U-110 | — | — | todo |
+| T2.12 | Alarms: default rules from device types, alarm actions (commands, pop-ups; notification hook) | ALM §14–§15 | T2.11, T2.03 | ALM-U-111…ALM-U-125, ALM-I-011…ALM-I-014 | — | — | todo |
+| T2.13 | History part 1: writer (events, alarms, commands, property changes, audit placeholder), basic queries | HIS §4–§7 | T1.10 | HIS-U-001…HIS-U-020, HIS-I-001…HIS-I-010 | — | — | todo |
+| T2.14 | UI operation: alarm console, alarm details, procedures runner, sounds, pop-up rules | UIO §7–§9 | T2.10, T1.23 | UIO-U-031…UIO-U-070 | — | — | todo |
+| T2.15 | UI operation: event journal, command buttons with inline status, command journal | UIO §10–§11 | T2.04, T2.05 | UIO-U-071…UIO-U-095 | — | — | todo |
+| T2.16 | E2E scenarios E-010…E-016 | tests/e2e-scenarios | T2.14, T2.15, T2.12 | E-010…E-016 | — | — | todo |
+
+### M3 — Configure safely, many users
+
+| ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
+|---|---|---|---|---|---|---|---|
+| T3.01 | Configuration: drafts, change sets, validation framework (plain-language problems) | CFG §4–§6 | T1.07 | CFG-U-001…CFG-U-030 | — | — | todo |
+| T3.02 | Configuration: publish, versions, rollback, propagation through the log | CFG §7–§8 | T3.01, T1.09 | CFG-U-031…CFG-U-050, CFG-I-001…CFG-I-008 | — | — | todo |
+| T3.03 | Configuration: import/export (JSON, CSV/XLSX), soft locks, optimistic merge | CFG §9–§10 | T3.02 | CFG-U-051…CFG-U-070 | — | — | todo |
+| T3.04 | Rights: permission catalogue, grants, scopes, schedules, constraints, evaluator, visible-set cache, API filtering | RGT §4–§7 | T1.18, T1.07, T2.08 | RGT-U-001…RGT-U-050, RGT-I-001…RGT-I-008 | — | — | todo |
+| T3.05 | Rights: user groups, template users, rights-copy (preview, apply, undo, re-apply), drift indicator, escalation protection | RGT §8–§10 | T3.04, T3.02 | RGT-U-051…RGT-U-090 | — | — | todo |
+| T3.06 | Audit trail: writer, hash chain, verification, query API | AUD | T2.13 | AUD-U-001…AUD-U-020, AUD-I-001…AUD-I-005 | — | — | todo |
+| T3.07 | Identity: LDAP/AD, OIDC sign-in, directory group → template mapping | IDN §8–§9 | T3.05 | IDN-U-031…IDN-U-050, IDN-I-007…IDN-I-012 | — | — | todo |
+| T3.08 | Identity: MFA (TOTP, WebAuthn), lockout, session management, break-glass, client kind binding | IDN §10–§12 | T1.18 | IDN-U-051…IDN-U-080 | — | — | todo |
+| T3.09 | Maintenance mode (site and location scope, session gate, auto-end, notifications hook) | MNT | T3.08, T3.04 | MNT-U-001…MNT-U-020, MNT-I-001…MNT-I-004 | — | — | todo |
+| T3.10 | UI configuration: shell, side switch, draft bar, schema-generated forms, validation panel | UIF §4–§6 | T3.02, T1.23 | UIF-U-001…UIF-U-030 | — | — | todo |
+| T3.11 | UI configuration: integrations catalogue, connection wizard (test, discovery, import), connection details | UIF §7 | T3.10, T1.16 | UIF-U-031…UIF-U-050 | — | — | todo |
+| T3.12 | UI configuration: devices, locations, tags, links, bulk edit | UIF §8 | T3.10 | UIF-U-051…UIF-U-070 | — | — | todo |
+| T3.13 | UI configuration: alarm rules (with CEL editor), procedures editor | UIF §9 | T3.10, T2.11, T2.07 | UIF-U-071…UIF-U-090 | — | — | todo |
+| T3.14 | UI configuration: users, groups, rights editor, rights-copy wizard, sessions, maintenance dialog | UIF §10–§11 | T3.10, T3.05, T3.09 | UIF-U-091…UIF-U-120 | — | — | todo |
+| T3.15 | E2E scenarios E-020…E-028 | tests/e2e-scenarios | T3.11…T3.14 | E-020…E-028 | — | — | todo |
+
+### M4 — Real protocols
+
+| ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
+|---|---|---|---|---|---|---|---|
+| T4.01 | Isolated integration host process, gRPC protocol, resource limits, restart policy | IHO §4–§7 | T1.16, T0.11 | IHO-U-001…IHO-U-030, IHO-I-001…IHO-I-008 | — | — | todo |
+| T4.02 | Remote integration host: pairing, mTLS, outbound connection, package push, buffering | IHO §8–§10 | T4.01, T1.05 | IHO-U-031…IHO-U-050, IHO-I-009…IHO-I-014 | — | — | todo |
+| T4.03 | Connector conformance suite (`Watchpoint.Integration.Testing`) applied to C-SIM | INT §12 | T1.17 | INT-C-001…INT-C-040 | — | — | todo |
+| T4.04 | Ping / HTTP check connector | C-PING | T4.03 | PING-U-*, PING-I-*, conformance | — | — | todo |
+| T4.05 | Modbus TCP connector with mapping templates | C-MODBUS | T4.03 | MODB-U-*, MODB-I-*, conformance | — | — | todo |
+| T4.06 | MQTT connector | C-MQTT | T4.03 | MQTT-U-*, MQTT-I-*, conformance | — | — | todo |
+| T4.07 | SNMP connector (polling, traps, MIB import) | C-SNMP | T4.03 | SNMP-U-*, SNMP-I-*, conformance | — | — | todo |
+| T4.08 | E2E scenarios E-030…E-034 | tests/e2e-scenarios | T4.01…T4.07 | E-030…E-034 | — | — | todo |
+
+### M5 — History, reports, notifications
+
+| ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
+|---|---|---|---|---|---|---|---|
+| T5.01 | History part 2: retention policies, compression, continuous aggregates / aggregation jobs | HIS §8–§10 | T2.13 | HIS-U-021…HIS-U-040, HIS-I-011…HIS-I-020 | — | — | todo |
+| T5.02 | History: archive export (Parquet), privacy purge and pseudonymisation | HIS §11–§12 | T5.01 | HIS-U-041…HIS-U-055 | — | — | todo |
+| T5.03 | File store (local + replication interface), file references, quotas | FIL | T1.04 | FIL-U-001…FIL-U-020, FIL-I-001…FIL-I-005 | — | — | todo |
+| T5.04 | Notifications core: router, recipients, templates, delivery queue, e-mail and webhook channels | NOT §4–§8 | T2.12 | NOT-U-001…NOT-U-040, NOT-I-001…NOT-I-006 | — | — | todo |
+| T5.05 | Notifications: SMS providers, GSM modem, on-call rosters, flood summariser, quotas | NOT §9–§11 | T5.04, T2.08 | NOT-U-041…NOT-U-070 | — | — | todo |
+| T5.06 | Reports: template model, HTML rendering, PDF (headless Chromium), XLSX, CSV, standard templates | RPT §4–§7 | T5.01, T5.03 | RPT-U-001…RPT-U-030, RPT-I-001…RPT-I-005 | — | — | todo |
+| T5.07 | Reports: scheduling and delivery; UI for reports | RPT §8–§9 | T5.06, T5.04 | RPT-U-031…RPT-U-045 | — | — | todo |
+| T5.08 | E2E scenarios E-040…E-044 | tests/e2e-scenarios | T5.02…T5.07 | E-040…E-044 | — | — | todo |
+
+### M6 — Synoptics, video, web
+
+| ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
+|---|---|---|---|---|---|---|---|
+| T6.01 | Synoptics service: document schema, storage, binding validation, migrations of documents | SYN §4–§6 | T3.02, T5.03 | SYN-U-001…SYN-U-025 | — | — | todo |
+| T6.02 | Synoptic viewer (Konva, viewport subscriptions, level of detail, alarm focus) | SYN §7–§8 | T6.01, T2.14 | SYN-U-026…SYN-U-055 | — | — | todo |
+| T6.03 | Synoptic editor (canvas, layers, import backgrounds, device drag-and-drop, smart symbols, validation, simulation mode) | SYN §9–§11 | T6.02, T3.10 | SYN-U-056…SYN-U-100 | — | — | todo |
+| T6.04 | Map synoptics (MapLibre, PMTiles served by the node) | SYN §12 | T6.02 | SYN-U-101…SYN-U-115 | — | — | todo |
+| T6.05 | Video module: go2rtc supervision, stream requests, tickets, rights, PTZ arbiter | VID §4–§7 | T0.10, T1.16 | VID-U-001…VID-U-035, VID-I-001…VID-I-006 | — | — | todo |
+| T6.06 | Video UI: tiles, layouts, playback timeline, PTZ controls, joystick | VID §8–§9 | T6.05, T2.14 | VID-U-036…VID-U-060 | — | — | todo |
+| T6.07 | Generic RTSP/ONVIF camera connector | C-RTSP | T4.03, T6.05 | RTSP-U-*, RTSP-I-*, conformance | — | — | todo |
+| T6.08 | Web client app (operation-only build, session kind, hosting by the node) | WEB | T2.15, T6.02, T6.06 | WEB-U-001…WEB-U-020 | — | — | todo |
+| T6.09 | E2E scenarios E-050…E-056 | tests/e2e-scenarios | T6.03, T6.04, T6.07, T6.08 | E-050…E-056 | — | — | todo |
+
+### M7 — Licensing
+
+| ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
+|---|---|---|---|---|---|---|---|
+| T7.01 | Footprint collector (Windows, Linux, VM, container host-id), licence file verification, quotas | LIC §4–§7 | T1.07 | LIC-U-001…LIC-U-045 | — | — | todo |
+| T7.02 | Activation requests (online, offline file), licence import, enforcement and restricted mode, UI panel | LIC §8–§11 | T7.01, T3.10 | LIC-U-046…LIC-U-080, LIC-I-001…LIC-I-006 | — | — | todo |
+| T7.03 | Licensing portal backend: accounts, orders, requests, review queue, issuance with signing key, check-in API | LPT §4–§8 | T0.04 | LPT-U-001…LPT-U-050, LPT-I-001…LPT-I-010 | — | — | todo |
+| T7.04 | Licensing portal UI (customers, partners, licensing team) | LPT §9 | T7.03 | LPT-U-051…LPT-U-070 | — | — | todo |
+| T7.05 | E2E scenarios E-060…E-064 | tests/e2e-scenarios | T7.02, T7.04 | E-060…E-064 | — | — | todo |
+
+### M8 — Automate
+
+| ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
+|---|---|---|---|---|---|---|---|
+| T8.01 | Automations engine: triggers, conditions, steps, persisted runs, concurrency policies, dry run | AUT §4–§8 | T2.12, T2.07 | AUT-U-001…AUT-U-060, AUT-I-001…AUT-I-008 | — | — | todo |
+| T8.02 | Automations editor (React Flow) and runs panel | AUT §9–§10 | T8.01, T3.10 | AUT-U-061…AUT-U-085 | — | — | todo |
+| T8.03 | Script host process: V8 isolates (ClearScript), limits, gRPC protocol, restart | SCR §4–§6 | T4.01 | SCR-U-001…SCR-U-030, SCR-I-001…SCR-I-006 | — | — | todo |
+| T8.04 | Script API (service side gateway, triggers, devices, commands, alarms, virtual devices, storage, fetch allow-list) | SCR §7–§9 | T8.03, T8.01 | SCR-U-031…SCR-U-070 | — | — | todo |
+| T8.05 | Script IDE: Monaco, generated site typings, diagnostics, versions | SCR §10–§11 | T8.04, T3.10 | SCR-U-071…SCR-U-090 | — | — | todo |
+| T8.06 | Script test mode and debugging (simulated events, dry-run commands, inspector bridge) | SCR §12 | T8.05 | SCR-U-091…SCR-U-105 | — | — | todo |
+| T8.07 | E2E scenarios E-070…E-075 | tests/e2e-scenarios | T8.02, T8.06 | E-070…E-075 | — | — | todo |
+
+### M9 — Cluster, health, federation
+
+| ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
+|---|---|---|---|---|---|---|---|
+| T9.01 | Cluster membership, node roles, lease manager with fencing tokens | CLU §4–§6 | T0.09, T1.09 | CLU-U-001…CLU-U-035, CLU-I-001…CLU-I-006 | — | — | todo |
+| T9.02 | Failover of connections, pipeline partitions, command queues, timers | CLU §7–§8 | T9.01, T2.03 | CLU-U-036…CLU-U-060, CLU-I-007…CLU-I-015 | — | — | todo |
+| T9.03 | Placement engine, drain, rolling upgrade support, client node lists | CLU §9–§10 | T9.02 | CLU-U-061…CLU-U-080 | — | — | todo |
+| T9.04 | Spike + integration: PostgreSQL HA (Patroni vs pg_auto_failover), witness packaging | CLU §11 | T9.01 | Spike report, CLU-I-016…CLU-I-020 | — | — | todo |
+| T9.05 | System health dashboard: collectors, thresholds, capacity advisor, diagnostic bundle | HLT | T9.01 | HLT-U-001…HLT-U-030 | — | — | todo |
+| T9.06 | Federation links: mTLS gRPC, filters, resume cursors, federation identity | FED §4–§7 | T9.02, T3.04 | FED-U-001…FED-U-040, FED-I-001…FED-I-008 | — | — | todo |
+| T9.07 | Federation: central console, remote commands, handover schedules, remote queries | FED §8–§10 | T9.06, T2.11 | FED-U-041…FED-U-070 | — | — | todo |
+| T9.08 | Load-test programme (k6 + device simulator), capacity sheet | docs/operations/performance-and-capacity | T9.03 | P-001…P-012 | — | — | todo |
+| T9.09 | E2E scenarios E-080…E-088 | tests/e2e-scenarios | T9.04, T9.07 | E-080…E-088 | — | — | todo |
+
+### M10 — Mobile
+
+| ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
+|---|---|---|---|---|---|---|---|
+| T10.01 | Mobile app (sign-in, alarms, details, events, notifications settings, profile) | MOB | T2.14, T3.08 | MOB-U-001…MOB-U-050 | — | — | todo |
+| T10.02 | Push relay service + node push channel | PSH | T5.04 | PSH-U-001…PSH-U-025, PSH-I-001…PSH-I-004 | — | — | todo |
+| T10.03 | E2E scenarios E-090…E-093 | tests/e2e-scenarios | T10.01, T10.02 | E-090…E-093 | — | — | todo |
+
+### M11 — Fit any IT, ship it
+
+| ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
+|---|---|---|---|---|---|---|---|
+| T11.01 | SQL Server provider (all four stores), certification suite on SQL Server | STO-MS §4–§8 | T5.02 | STO-MS-I-001…STO-MS-I-030 | — | — | todo |
+| T11.02 | Store mapping and `wpctl storage migrate` | STO-MS §9–§10 | T11.01 | STO-MS-U-001…STO-MS-U-020, STO-MS-I-031…STO-MS-I-040 | — | — | todo |
+| T11.03 | Installers: Inno Setup (Windows), .deb/.rpm (nfpm), OCI images, Helm chart, client installers | DEP §4–§6 | T9.03 | DEP-I-001…DEP-I-015 | — | — | todo |
+| T11.04 | Setup wizard (first run) | DEP §7 | T11.03, T7.02 | DEP-U-001…DEP-U-020 | — | — | todo |
+| T11.05 | Signed updates (node, clients, packages), backups and restore, `wpctl` commands | DEP §8–§10 | T11.03 | DEP-U-021…DEP-U-050, DEP-I-016…DEP-I-025 | — | — | todo |
+| T11.06 | Security hardening checklist, SBOM and third-party notices generation, penetration test preparation | docs/operations/security | T11.05 | S-001…S-030 | — | — | todo |
+| T11.07 | E2E scenarios E-100…E-105 | tests/e2e-scenarios | T11.02, T11.05 | E-100…E-105 | — | — | todo |
+
+### M12 — Vendor integrations (specs completed when vendor documentation is available)
+
+| ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
+|---|---|---|---|---|---|---|---|
+| T12.01 | Salto Space connector | C-SALTO | T4.03 | SALTO-*, conformance | — | — | blocked (vendor docs) |
+| T12.02 | Milestone XProtect connector | C-MILE | T4.03, T6.05, T4.01 | MILE-*, conformance | — | — | blocked (vendor docs) |
+| T12.03 | Vanderbilt SPC connector | C-SPC | T4.03 | SPC-*, conformance | — | — | blocked (vendor docs) |
+
+## 3. Documentation tasks (done by the documentation author)
+
+| ID | Task | Status |
+|---|---|---|
+| D.01 | Architecture README, build order, task sheet | done |
+| D.02 | M0 specs (K, TST, SCM) | todo |
+| D.03 | M1 specs | todo |
+| D.04 | Cross-module tests (integration matrix, e2e scenarios) — grows with each milestone | todo |
+| D.05 | M2–M11 specs | todo |
+| D.06 | M12 specs | blocked (vendor docs) |
