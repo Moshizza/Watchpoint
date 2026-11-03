@@ -156,15 +156,15 @@ spec that must exist and pass.
 
 | ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| T4.01 | Isolated integration host process, gRPC protocol, resource limits, restart policy | IHO §4–§7 | T1.16, T0.11 | IHO-U-001…IHO-U-030, IHO-I-001…IHO-I-008 | — | — | todo |
-| T4.02 | Remote integration host: pairing, mTLS, outbound connection, package push, buffering | IHO §8–§10 | T4.01, T1.05 | IHO-U-031…IHO-U-050, IHO-I-009…IHO-I-014, ALM-U-126 | — | — | todo |
-| T4.03 | Connector conformance suite (`Watchpoint.Integration.Testing`) applied to C-SIM | INT §12 | T1.17 | INT-C-001…INT-C-040 | — | — | todo |
-| T4.04 | Ping / HTTP check connector | C-PING | T4.03 | PING-U-001…PING-U-020, PING-I-001…PING-I-004, conformance | — | — | todo |
-| T4.05 | Modbus TCP connector with mapping templates | C-MODBUS | T4.03 | MODB-U-001…MODB-U-030, MODB-I-001…MODB-I-006, conformance | — | — | todo |
-| T4.06 | MQTT connector | C-MQTT | T4.03 | MQTT-U-001…MQTT-U-022, MQTT-I-001…MQTT-I-006, conformance | — | — | todo |
-| T4.07 | SNMP connector (polling, traps, MIB import, inbound UDP contract) | C-SNMP | T4.03 | SNMP-U-001…SNMP-U-022, SNMP-I-001…SNMP-I-006, conformance | — | — | todo |
-| T4.09 | Package upgrades per connection: settings migrations, canary, automatic rollback, bulk upgrade | IRT §11 | T4.01 | IRT-U-061…IRT-U-063 | — | — | todo |
-| T4.08 | E2E scenarios E-030…E-034 | tests/e2e-scenarios | T4.01…T4.07 | E-030…E-034 | — | — | todo |
+| T4.01 | Isolated integration host process, gRPC protocol, resource limits, restart policy | IHO §4–§7 | T1.16, T0.11 | IHO-U-001…IHO-U-030, IHO-I-001…IHO-I-008 | [#70](https://github.com/Moshizza/Watchpoint/issues/70) | — | todo |
+| T4.02 | Remote integration host: pairing, mTLS, outbound connection, package push, buffering | IHO §8–§10 | T4.01, T1.05 | IHO-U-031…IHO-U-050, IHO-I-009…IHO-I-014, ALM-U-126 | [#71](https://github.com/Moshizza/Watchpoint/issues/71) | — | todo |
+| T4.03 | Connector conformance suite (`Watchpoint.Integration.Testing`) applied to C-SIM | INT §12 | T1.17 | INT-C-001…INT-C-040 | [#72](https://github.com/Moshizza/Watchpoint/issues/72) | — | todo |
+| T4.04 | Ping / HTTP check connector | C-PING | T4.03 | PING-U-001…PING-U-020, PING-I-001…PING-I-004, conformance | [#73](https://github.com/Moshizza/Watchpoint/issues/73) | — | todo |
+| T4.05 | Modbus TCP connector with mapping templates | C-MODBUS | T4.03 | MODB-U-001…MODB-U-030, MODB-I-001…MODB-I-006, conformance | [#74](https://github.com/Moshizza/Watchpoint/issues/74) | — | todo |
+| T4.06 | MQTT connector | C-MQTT | T4.03 | MQTT-U-001…MQTT-U-022, MQTT-I-001…MQTT-I-006, conformance | [#75](https://github.com/Moshizza/Watchpoint/issues/75) | — | todo |
+| T4.07 | SNMP connector (polling, traps, MIB import, inbound UDP contract) | C-SNMP | T4.03 | SNMP-U-001…SNMP-U-022, SNMP-I-001…SNMP-I-006, conformance | [#76](https://github.com/Moshizza/Watchpoint/issues/76) | — | todo |
+| T4.09 | Package upgrades per connection: settings migrations, canary, automatic rollback, bulk upgrade | IRT §11 | T4.01 | IRT-U-061…IRT-U-063 | [#78](https://github.com/Moshizza/Watchpoint/issues/78) | — | todo |
+| T4.08 | E2E scenarios E-030…E-034 | tests/e2e-scenarios | T4.01…T4.07 | E-030…E-034 | [#77](https://github.com/Moshizza/Watchpoint/issues/77) | — | todo |
 
 ### M5 — History, reports, notifications
 
@@ -265,5 +265,5 @@ spec that must exist and pass.
 | D.02 | M0 specs (K, TST, SCM) | done |
 | D.03 | M1 specs | done |
 | D.04 | Cross-module tests (integration matrix, e2e scenarios) — grows with each milestone | M1 done |
-| D.05 | M2–M11 specs | in progress (M2, M3 done) |
+| D.05 | M2–M11 specs | in progress (M2, M3, M4 done) |
 | D.06 | M12 specs | blocked (vendor docs) |
