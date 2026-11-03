@@ -152,11 +152,29 @@ Run the generated client and live client against a real node (compose stack).
 | X-DSK-API-C-002 | Shell pinning with the real site CA from SEC: accepts node, rejects another CA |
 | X-DSK-API-C-003 | Desktop token (`ck=desktop`) can call configuration endpoints; web token cannot |
 
-## 3. Later milestones (rows to add when their specs are written)
+## 3. Contract tests (M2)
+
+| Id | Test |
+|---|---|
+| X-CMD-IRT-C-001 | Command dispatch through the real IRT channel to the simulator: result categories mapped for every simulator failure mode |
+| X-CMD-STA-C-001 | Verification uses real STA records: verified when the simulator reports the effect; unverified at deadline |
+| X-CMD-MOD-C-001 | Every standard command definition's arguments schema accepted by MOD validation with defaults |
+| X-CMD-PIP-C-001 | Command records ordered with the device's observations in its partition |
+| X-ALM-PIP-C-001 | Alarm follow-up records appended before the next input record of the partition |
+| X-ALM-STA-C-001 | State rules evaluated on real STA values for each standard type template |
+| X-ALM-EXP-C-001 | Every standard rule template compiles with the real expression compiler against the standard library |
+| X-ALM-SCH-C-001 | Rule with ActiveCalendar switches at calendar edges with real SCH triggers |
+| X-ALM-CMD-C-001 | Alarm action Command creates a CMD command with AlarmAction issuer and correlation |
+| X-EVT-HIS-C-001 | Events written by HIS are returned by EVT journal queries with identical DTOs as the live topic |
+| X-HIS-PIP-C-001 | HIS durable consumers resume after node restart without loss or duplicates |
+| X-API-ALM-C-001 | Live `alarms` topic snapshot equals `GET /alarms` for the same filter |
+| X-API-CMD-C-001 | Live `commands` topic delivers every transition of a REST-requested command in order |
+| X-UIO-ALM-C-001 | UI alarm console (real API, FakeLiveHub disabled) shows a simulator alarm and acknowledges it (Playwright component test against compose stack) |
+
+## 4. Later milestones (rows to add when their specs are written)
 
 | Milestone | Pairs to cover |
 |---|---|
-| M2 | CMD↔IRT (dispatch, results), CMD↔STA (verification), ALM↔PIP (follow-up records), ALM↔STA (state rules), ALM↔EXP, ALM↔SCH, ALM↔CMD (actions), HIS↔PIP (durable consumer), EVT↔HIS, API↔ALM/CMD/EVT topics, UIO↔ALM/CMD/EVT |
 | M3 | CFG↔REG/IRT/ALM (publish), RGT↔API (filtering everywhere), RGT↔IDN (templates, directory mappings), AUD↔all writers, MNT↔IDN/API, UIF↔CFG |
 | M4 | IHO↔IRT (gRPC host protocol), remote host pairing ↔ SEC, each connector ↔ conformance suite |
 | M5 | NOT↔ALM, RPT↔HIS, FIL↔API, HIS retention ↔ STO |
