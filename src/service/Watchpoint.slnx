@@ -5,8 +5,12 @@
     <File Path="../../global.json" />
     <File Path="../../.editorconfig" />
   </Folder>
-  <Folder Name="/src/" />
+  <Folder Name="/src/">
+    <Project Path="Watchpoint.Kernel/Watchpoint.Kernel.csproj" />
+  </Folder>
   <Folder Name="/integrations/" />
-  <Folder Name="/tests/" />
+  <Folder Name="/tests/">
+    <Project Path="../../tests/service/Watchpoint.Kernel.Tests/Watchpoint.Kernel.Tests.csproj" />
+  </Folder>
   <Folder Name="/tools/" />
 </Solution>

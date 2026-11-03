@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Watchpoint.Kernel</RootNamespace>
+    <Description>Shared primitives of Watchpoint: identifiers, results and errors, time helpers, paging.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Watchpoint.Kernel.Tests" />
+  </ItemGroup>
+
+</Project>
