@@ -189,7 +189,7 @@ spec that must exist and pass.
 | T6.04 | Map synoptics (MapLibre, PMTiles served by the node) | SYN §12 | T6.02 | SYN-U-101…SYN-U-115 | — | — | todo |
 | T6.05 | Video module: go2rtc supervision, stream requests, tickets, rights, PTZ arbiter | VID §4–§7 | T0.10, T1.16 | VID-U-001…VID-U-035, VID-I-001…VID-I-006 | — | — | todo |
 | T6.06 | Video UI: tiles, layouts, playback timeline, PTZ controls, joystick | VID §8–§9 | T6.05, T2.14 | VID-U-036…VID-U-060 | — | — | todo |
-| T6.07 | Generic RTSP/ONVIF camera connector | C-RTSP | T4.03, T6.05 | RTSP-U-*, RTSP-I-*, conformance | — | — | todo |
+| T6.07 | Generic RTSP/ONVIF camera connector | C-RTSP | T4.03, T6.05 | RTSP-U-001…RTSP-U-020, RTSP-I-001…RTSP-I-006, conformance | — | — | todo |
 | T6.08 | Web client app (operation-only build, session kind, hosting by the node) | WEB | T2.15, T6.02, T6.06 | WEB-U-001…WEB-U-020 | — | — | todo |
 | T6.09 | E2E scenarios E-050…E-056 | tests/e2e-scenarios | T6.03, T6.04, T6.07, T6.08 | E-050…E-056 | — | — | todo |
 
