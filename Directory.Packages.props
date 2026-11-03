@@ -11,6 +11,5 @@
 
   <!-- Package versions are added by the tasks that first need them (T0.03 onwards). -->
   <ItemGroup>
-    <PackageVersion Include="xunit.v3" Version="4.0.2" />
   </ItemGroup>
 </Project>

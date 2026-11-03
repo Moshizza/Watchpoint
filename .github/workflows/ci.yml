@@ -47,12 +47,18 @@ jobs:
       - name: Build (warnings as errors)
         run: dotnet build "$SOLUTION" --no-restore --configuration Release
 
-          # contract and architecture tests. Filters per category are added when the test
-      # projects exist (T0.05).
+      # Unit, integration (Testcontainers; Docker is available on the Linux runner), contract and
+      # architecture tests. Filters per category are added when the test projects exist (T0.05).
+      # The .NET 10 test runner fails on a solution without projects, so the step is skipped
+      # until the first project is added (T0.03).
       - name: Test
-        run: >
-          dotnet test --solution "$SOLUTION" --no-build --configuration Release
-          --results-directory "$GITHUB_WORKSPACE/TestResults"
+        run: |
+          if ! grep -q '<Project ' "$SOLUTION"; then
+            echo "No projects in $SOLUTION yet; nothing to test."
+            exit 0
+          fi
+          dotnet test --solution "$SOLUTION" --no-build --configuration Release \
+            --results-directory "$GITHUB_WORKSPACE/TestResults"
 
       - name: Upload test results
         if: always()
