@@ -263,10 +263,24 @@ Run the generated client and live client against a real node (compose stack).
 | X-SCR-VIRT-C-001 | Virtual devices flow through IRT/REG/PIP like real devices (states, alarms, history) |
 | X-SCR-TS-C-001 | Server compiler and IDE TypeScript versions identical; same diagnostics on a shared corpus |
 
-## 10. Later milestones (rows to add when their specs are written)
+## 10. Contract tests (M9)
+
+| Id | Test |
+|---|---|
+| X-CLU-PIP-C-001 | Partition ownership gain/loss with real PIP workers: no record processed twice, no gap (sequence audit over a run with forced moves) |
+| X-CLU-IRT-C-001 | Connection ownership moves with cursors in the replicated connection store; catch-up after move |
+| X-CLU-CMD-C-001 | Stale fencing token dispatch rejected by IRT channel; pending commands reconciled on new owner |
+| X-CLU-API-C-001 | Tokens and live stream resume across nodes |
+| X-CLU-FIL-C-001 | File replication through Object Store visible on all nodes |
+| X-CLU-LIC-C-001 | Node footprints licensing: unlicensed node Standby, then refused after grace |
+| X-HLT-ALL-C-001 | Every module exposes its health items/metrics expected by HLT collectors (catalogue test) |
+| X-FED-PIP-C-001 | Outbound durable consumer acks only after peer ack; resume exactness over 1,000 random cuts (property test) |
+| X-FED-RGT-C-001 | Site scopes on central and federation identity on child agree with RGT evaluator for all request kinds |
+| X-FED-ALM-C-001 | Ownership changes recorded in child alarm state and mirrored at central |
+
+## 11. Later milestones (rows to add when their specs are written)
 
 | Milestone | Pairs to cover |
 |---|---|
-| M9 | CLU↔PIP/IRT/CMD (leases, fencing), FED link protocol between two clusters |
 | M10 | MOB↔API, PSH↔NOT |
 | M11 | STO-MS certification suite, DEP update protocol ↔ nodes and clients |

@@ -514,10 +514,81 @@ script" (read Building A, virtual devices), a test HTTP endpoint (allow-listed) 
 | 2 | Other scripts and automations meanwhile | Unaffected (E-074 counter keeps updating) |
 | 3 | Kill the script host process | Restarted; scripts redeployed; buffered events delivered |
 
-## 10. Later milestones (to be detailed with their specs)
+## 10. M9 scenarios — "Cluster, health, federation"
+
+Topology `m9-cluster`: nodes A and B (containers) + witness W + PostgreSQL HA per the T9.04
+decision, Toxiproxy between all members; simulator remote mode (2,000 devices); second cluster
+"HQ" (single node) for federation; desktop and web test clients.
+
+### E-080 — Failover under load
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | Simulator 200 events/s; operators connected to A and B | Leases split; health dashboard shows both nodes |
+| 2 | Kill node A | Within 30 s B owns all partitions and connections; clients on A reconnect to B; simulator event counter = journal count; no duplicate command in the journal |
+| 3 | Restart A | A rejoins; rebalance moves some work back (≤ 2 moves/min) |
+
+### E-081 — Split-brain prevention
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | Toxiproxy isolates A from B and W | A becomes Isolated within 6 s (banner, connections stopped, commands refused); B takes over |
+| 2 | Operator connected to A tries a command | Refused `cluster.no_quorum` |
+| 3 | Heal the network | A regains quorum; no conflicting writes; fencing rejections logged only for stale attempts |
+
+### E-082 — Database failover
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | Stop the PostgreSQL primary | Standby promoted; nodes reconnect; writes resume < 30 s; health shows replication state |
+
+### E-083 — Rolling upgrade
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | Drain A (UI) | Leases handed to B with zero gap; A Drained |
+| 2 | Upgrade A to version N+1 (test build), undrain | A Active with N+1; mixed-version window; singletons needing new schema stay on old node until both upgraded |
+| 3 | Repeat for B | Both N+1; no lost events throughout |
+
+### E-084 — Health dashboard and diagnostic bundle
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | Fill A's data disk to 96 % (test volume) | Health Error for disk; system event; alarm via `std.system.health.error` |
+| 2 | Create diagnostic bundle | Preview lists contents; zip contains logs of both nodes, no secrets (scanner test over the zip) |
+
+### E-085 — Federation link with WAN cut and resume
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | Pair site (child) with HQ (central); filters: priority ≥ 300, Building A | HQ console shows site alarms with site column |
+| 2 | Cut WAN 30 min; 50 alarms and 500 events at the site | Site works normally |
+| 3 | Restore | HQ receives all in order with original times; lag returns to ~0 |
+
+### E-086 — Remote actions with double rights check
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | HQ operator acknowledges a site alarm | Acknowledged at the site; site timeline "M. … @ HQ via federation link" |
+| 2 | HQ operator opens a Building B door (not in the federation identity's grants) | Refused, "denied by the site" |
+
+### E-087 — Handover schedule
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | Ownership mode schedule "Opening hours" (fake clock) | During hours site consoles handle; outside, HQ owns (sounds at HQ only) |
+| 2 | Fallback mode: site alarm not acknowledged for 2 min | Ownership moves to HQ automatically, both timelines show it |
+
+### E-088 — Central drill-down
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | HQ site map → site → location tree → device page | Remote states shown live; synoptic fetched read-only |
+| 2 | Proxied video of a site camera | Plays through the link with bitrate cap |
+
+## 11. Later milestones (to be detailed with their specs)
 
 | Id | Milestone | Scenario |
 |---|---|---|
-| E-080…E-088 | M9 | Failover of a redundant pair under load (< 30 s, no lost events); split-brain prevention; rolling upgrade; federation link with WAN cut and resume; handover schedule |
 | E-090…E-093 | M10 | Mobile push and acknowledgement; on-site in-app alerts without internet |
 | E-100…E-105 | M11 | Fresh install on Windows and Linux with setup wizard; SQL Server provider end-to-end; store migration; signed update and rollback |
