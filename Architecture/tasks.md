@@ -170,14 +170,14 @@ spec that must exist and pass.
 
 | ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| T5.01 | History part 2: retention policies, compression, continuous aggregates / aggregation jobs | HIS §8–§10 | T2.13 | HIS-U-021…HIS-U-040, HIS-I-011…HIS-I-020 | — | — | todo |
-| T5.02 | History: archive export (Parquet), privacy purge and pseudonymisation | HIS §11–§12 | T5.01 | HIS-U-041…HIS-U-055 | — | — | todo |
-| T5.03 | File store (local + replication interface), file references, quotas | FIL | T1.04 | FIL-U-001…FIL-U-020, FIL-I-001…FIL-I-005 | — | — | todo |
-| T5.04 | Notifications core: router, recipients, templates, delivery queue, e-mail and webhook channels | NOT §4–§8 | T2.12 | NOT-U-001…NOT-U-040, NOT-I-001…NOT-I-006 | — | — | todo |
-| T5.05 | Notifications: SMS providers, GSM modem, on-call rosters, flood summariser, quotas | NOT §9–§11 | T5.04, T2.08 | NOT-U-041…NOT-U-070 | — | — | todo |
-| T5.06 | Reports: template model, HTML rendering, PDF (headless Chromium), XLSX, CSV, standard templates | RPT §4–§7 | T5.01, T5.03 | RPT-U-001…RPT-U-030, RPT-I-001…RPT-I-003 | — | — | todo |
-| T5.07 | Reports: scheduling and delivery; UI for reports | RPT §8 | T5.06, T5.04 | RPT-U-031…RPT-U-045, RPT-I-004, RPT-I-005 | — | — | todo |
-| T5.08 | E2E scenarios E-040…E-044 | tests/e2e-scenarios | T5.02…T5.07 | E-040…E-044 | — | — | todo |
+| T5.01 | History part 2: retention policies, compression, continuous aggregates / aggregation jobs | HIS §8–§10 | T2.13 | HIS-U-021…HIS-U-040, HIS-I-011…HIS-I-020 | [#79](https://github.com/Moshizza/Watchpoint/issues/79) | — | todo |
+| T5.02 | History: archive export (Parquet), privacy purge and pseudonymisation | HIS §11–§12 | T5.01 | HIS-U-041…HIS-U-055 | [#80](https://github.com/Moshizza/Watchpoint/issues/80) | — | todo |
+| T5.03 | File store (local + replication interface), file references, quotas | FIL | T1.04, T1.19 | FIL-U-001…FIL-U-020, FIL-I-001…FIL-I-005 | [#81](https://github.com/Moshizza/Watchpoint/issues/81) | — | todo |
+| T5.04 | Notifications core: router, recipients, templates, delivery queue, e-mail and webhook channels | NOT §4–§8 | T2.12, T3.02, T3.04 | NOT-U-001…NOT-U-040, NOT-I-001…NOT-I-006 | [#82](https://github.com/Moshizza/Watchpoint/issues/82) | — | todo |
+| T5.05 | Notifications: SMS providers, GSM modem, on-call rosters, flood summariser, quotas | NOT §9–§11 | T5.04, T2.08 | NOT-U-041…NOT-U-070 | [#83](https://github.com/Moshizza/Watchpoint/issues/83) | — | todo |
+| T5.06 | Reports: template model, HTML rendering, PDF (headless Chromium), XLSX, CSV, standard templates | RPT §4–§7 | T5.01, T5.03, T3.02 | RPT-U-001…RPT-U-030, RPT-I-001…RPT-I-003 | [#84](https://github.com/Moshizza/Watchpoint/issues/84) | — | todo |
+| T5.07 | Reports: scheduling and delivery; UI for reports | RPT §8 | T5.06, T5.04 | RPT-U-031…RPT-U-045, RPT-I-004, RPT-I-005 | [#85](https://github.com/Moshizza/Watchpoint/issues/85) | — | todo |
+| T5.08 | E2E scenarios E-040…E-044 | tests/e2e-scenarios | T5.02…T5.07 | E-040…E-044 | [#86](https://github.com/Moshizza/Watchpoint/issues/86) | — | todo |
 
 ### M6 — Synoptics, video, web
 
@@ -265,5 +265,5 @@ spec that must exist and pass.
 | D.02 | M0 specs (K, TST, SCM) | done |
 | D.03 | M1 specs | done |
 | D.04 | Cross-module tests (integration matrix, e2e scenarios) — grows with each milestone | M1 done |
-| D.05 | M2–M11 specs | in progress (M2, M3, M4 done) |
+| D.05 | M2–M11 specs | in progress (M2–M5 done) |
 | D.06 | M12 specs | blocked (vendor docs) |
