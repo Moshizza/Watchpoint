@@ -236,11 +236,22 @@ Run the generated client and live client against a real node (compose stack).
 | X-SYN-TS-CS-C-001 | Document migrations C# and TS produce identical outputs on shared fixtures |
 | X-WEB-API-C-001 | Web cookie authentication, CSRF, allowed networks and client-kind refusals across all configuration endpoints (generated over the endpoint catalogue) |
 
-## 8. Later milestones (rows to add when their specs are written)
+## 8. Contract tests (M7)
+
+| Id | Test |
+|---|---|
+| X-LIC-LPT-C-001 | Licence and request documents round-trip between portal and product through the shared `Licensing.Format` (golden documents committed in `tests/vectors/licensing/`) |
+| X-LIC-LPT-C-002 | Site-facing portal API (requests, status poll, check-in) contract: product client vs portal server in compose |
+| X-LIC-REG-C-001 | Device units computed from the real registry and type licence classes (enabled/orphaned rules) |
+| X-LIC-CFG-C-001 | Publish quota gate on real drafts (create, enable, delete devices) |
+| X-LIC-IDN-C-001 | Seat admission with real sessions per client kind; never closes existing sessions |
+| X-LIC-IRT-C-001 | Feature gate on connection creation for packages by licence class |
+| X-LIC-HIS-C-001 | Restricted mode history window across every HIS query endpoint |
+
+## 9. Later milestones (rows to add when their specs are written)
 
 | Milestone | Pairs to cover |
 |---|---|
-| M7 | LIC↔REG (units), LIC↔IRT (feature keys), LIC↔IDN (seats), LIC↔LPT (activation protocol) |
 | M8 | AUT↔CMD/ALM, SCR↔script host gRPC, SCR↔RGT (script identities) |
 | M9 | CLU↔PIP/IRT/CMD (leases, fencing), FED link protocol between two clusters |
 | M10 | MOB↔API, PSH↔NOT |

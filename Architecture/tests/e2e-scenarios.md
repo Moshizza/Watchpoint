@@ -406,11 +406,63 @@ Firefox).
 | 1 | 16 tiles (desktop) + 10 web viewers of the same camera | One source connection per camera/profile at the gateway |
 | 2 | Kill the go2rtc process | Gateway restarts; players reconnect within 10 s; streams re-registered |
 
-## 8. Later milestones (to be detailed with their specs)
+## 8. M7 scenarios — "Licensing"
+
+Compose stack adds the LPT portal (API, signer with SoftHSM2, PostgreSQL, Mailpit) on a
+network reachable from the "online" node; a second "offline" node has no route to the portal.
+Portal seeded with partner "Integrator SA", customer "Example Bank", an order (Professional, 100
+units, 3 desktop seats, 2 web seats, `int.simulator` included, `int.modbus` included) and its
+activation code. FakeTimeProvider control on nodes; portal time real.
+
+### E-060 — Online activation with review
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | Fresh online node starts | Trial state, watermark banner, 30 days |
+| 2 | Admin requests activation with the code (online) | Request "pending review" in the UI; portal review queue shows it with no anomaly |
+| 3 | Licensing staff approves | Within one poll interval (test: 30 s) the node imports the licence; banner gone; audit `licence.activated`; configurators notified |
+| 4 | Licence panel | Edition Professional, 5/5 components match, usage vs quotas |
+
+### E-061 — Offline activation by files
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | Offline node: save request file | `.wprq` downloaded |
+| 2 | Partner uploads it in the portal; staff approves; partner downloads `.wplic` | Licence issued |
+| 3 | Admin imports `.wplic` on the offline node | Licensed |
+| 4 | Import the same licence on the online node | Refused: footprint 0/5 match / installation mismatch with plain message |
+
+### E-062 — Quota enforcement
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | Simulator connection importing 120 full-class devices in a draft | Publish refused: "120 units requested, 100 licensed" with numbers; forecast line in licence panel |
+| 2 | Import only 90 | Publish succeeds |
+| 3 | Fourth desktop session | Refused with seats message; existing sessions unaffected; admin emergency seat works |
+
+### E-063 — Expiry, grace and restricted mode keep alarms working
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | Subscription licence ending tomorrow; fake clock +2 days | Grace: daily banners and notifications |
+| 2 | Fake clock +31 days | Restricted mode banner |
+| 3 | Door forced; operator acknowledges | Alarm raised, notified and acknowledged normally |
+| 4 | Configurator publishes a change | Refused (restricted); licence import still possible |
+| 5 | Journal query 10 days back | Refused with restricted-history message; last 7 days OK |
+| 6 | Import renewed licence | Back to Licensed immediately |
+
+### E-064 — Hardware change (re-host) and clock rollback
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | Change 3 footprint components (test hook replacing collector values) | FootprintMismatch: 14-day grace in full mode with banner |
+| 2 | Re-host request online; portal shows "2/5 components match previous licence" anomaly; staff approves | New licence imported; banner gone |
+| 3 | Move node clock back 3 days | Clock rollback banner; after 3 days grace (fake clock forward from the rolled-back time) restricted |
+
+## 9. Later milestones (to be detailed with their specs)
 
 | Id | Milestone | Scenario |
 |---|---|---|
-| E-060…E-064 | M7 | Offline activation round-trip with the portal; quota enforcement; restricted mode keeps alarms working |
 | E-070…E-075 | M8 | Fire evacuation automation; script reacting to events with dry-run test; script limits breach isolated |
 | E-080…E-088 | M9 | Failover of a redundant pair under load (< 30 s, no lost events); split-brain prevention; rolling upgrade; federation link with WAN cut and resume; handover schedule |
 | E-090…E-093 | M10 | Mobile push and acknowledgement; on-site in-app alerts without internet |

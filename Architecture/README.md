@@ -261,7 +261,7 @@ SignalR hub at `/hub/v1`, MessagePack protocol. Message envelope and subscriptio
 | API | 2000–2199 | Licensing | 3400–3499 |
 | Secrets | 2200–2299 | Cluster/Federation | 3500–3699 |
 | Files/Scheduling | 2300–2399 | Health/Maintenance | 3700–3799 |
-| Connectors | 5000+ (100 per package, assigned in each connector spec) | | |
+| Connectors | 5000–5999 (100 per package, assigned in each connector spec) | Licensing portal (separate product) | 6000–6099 |
 
 ## 9. Testing conventions
 
