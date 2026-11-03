@@ -18,7 +18,7 @@ Short records of the main decisions. Status: **Accepted** (agreed with the produ
 | D11 | System maintenance mode suspends operation sessions; processing and alarms continue | Accepted (behaviour details proposed) | User requirement with safety rules | [Desktop client §6](../clients/desktop-client.md#6-suspending-operation-maintenance-mode) |
 | D12 | No profiles: rights on users, user groups for organisation, rights-copy tool with template users, preview, re-apply and drift indicator | Accepted | User requirement | [Users and rights](../modules/users-and-rights.md) |
 | D13 | Synoptics are declarative documents rendered by a fixed engine (Konva); no compilation | Accepted | No code errors for non-developers | [Synoptics](../modules/synoptics.md) |
-| D14 | CEL for expressions, one TypeScript evaluator shared by clients and server sandbox | Spike | Safe, bounded, consistent | [Technology stack §2.6](technology-stack.md#26-why-cel-for-expressions) |
+| D14 | CEL subset for expressions, C# evaluator on the server and TypeScript evaluator in clients, one shared conformance corpus | Accepted | Safe, bounded, consistent, fast on the server | [Technology stack §2.6](technology-stack.md#26-why-cel-for-expressions) |
 | D15 | Scripting in TypeScript, Monaco IDE, V8 isolates (ClearScript) in a separate process | Proposed | Modern IDE experience and real sandbox | [Scripting](../modules/scripting.md) |
 | D16 | Commands are first-class objects with lifecycle, results and verification | Accepted | Main weakness of legacy PSIMs | [Commands](../modules/commands.md) |
 | D17 | Alarm rules are separate entities; device types ship default rules | Proposed | Flexibility and zero-config start | [Events and alarms](../modules/events-and-alarms.md) |

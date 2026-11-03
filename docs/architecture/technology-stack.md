@@ -35,7 +35,7 @@ All licences below must be re-checked by legal before the first commercial relea
 | Automation editor | **React Flow** (xyflow) | MIT | Standard node-graph editor |
 | Code editor | **Monaco Editor** | MIT | The editor of VS Code: TypeScript diagnostics, completion, hover, refactoring in the browser |
 | Script runtime | **TypeScript** executed by **V8 via Microsoft ClearScript** in a sandbox process | MIT (ClearScript), BSD (V8) | Modern, popular language; V8 isolates with memory and time limits; runs on Windows/Linux/macOS x64 and arm64 |
-| Expression language (conditions, synoptic bindings) | **CEL** (Common Expression Language) syntax, one TypeScript implementation used both in clients and in the server sandbox | Apache-2 (spec) | Safe by design (no loops, no side effects, bounded cost), familiar C-like syntax, used by Kubernetes and Google Cloud |
+| Expression language (conditions, synoptic bindings) | **CEL** (Common Expression Language) subset, implemented twice (C# on the server, TypeScript in clients) and validated by one shared conformance test corpus | Apache-2 (spec) | Safe by design (no loops, no side effects, bounded cost), familiar C-like syntax, used by Kubernetes and Google Cloud; native C# keeps alarm evaluation fast |
 | Video gateway | **go2rtc** (primary candidate), MediaMTX (alternative) | MIT | RTSP/RTMP/HTTP sources in, WebRTC/MSE/HLS out, passthrough without transcoding, small single binary |
 | Logging | Serilog (structured, with redaction) | Apache-2 | Standard .NET structured logging |
 | Metrics and traces | OpenTelemetry, Prometheus endpoint | Apache-2 | Industry standard; plugs into any monitoring |
@@ -128,9 +128,10 @@ Synoptic bindings ("colour red when door forced"), alarm conditions and automati
 conditions need a tiny expression language that can never hang, never have side effects and
 never "crash". CEL (Common Expression Language, by Google) is designed exactly for that, is
 documented and has a familiar syntax (`door.position == "open" && door.lock == "unlocked"`).
-One TypeScript evaluator is used by clients and by the server sandbox, so an expression
-behaves identically everywhere. Library choice (existing open-source CEL implementation vs.
-our own small interpreter of the CEL subset we need) will be decided at implementation.
+Watchpoint implements a **subset** of CEL twice: in C# for the server (alarm conditions are
+evaluated on the hot path, so no interop) and in TypeScript for clients (synoptics, editors).
+Both implementations pass the same shared set of conformance test vectors, so an expression
+behaves identically everywhere (see `Architecture/specs/EXP-expressions.md`).
 
 ### 2.7 Why a media gateway
 
