@@ -1,0 +1,142 @@
+# Main CI workflow (Architecture/README.md §10). Required check for merging into main: "ci-ok".
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "true"
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+  SOLUTION: src/service/Watchpoint.slnx
+
+jobs:
+  dotnet:
+    name: .NET build and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+
+      - name: Cache NuGet packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/packages.lock.json', 'Directory.Packages.props') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      # CI=true (set by GitHub) turns on locked-mode restore and CI builds (Directory.Build.props).
+      - name: Restore
+        run: dotnet restore "$SOLUTION"
+
+      - name: Build (warnings as errors)
+        run: dotnet build "$SOLUTION" --no-restore --configuration Release
+
+      # Unit, integration (Testcontainers; Docker is available on the Linux runner),
+      # contract and architecture tests. Filters per category are added when the test
+      # projects exist (T0.05).
+      - name: Test
+        run: >
+          dotnet test "$SOLUTION" --no-build --configuration Release
+          --logger "trx;LogFilePrefix=results"
+          --results-directory TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dotnet-test-results
+          path: TestResults
+          if-no-files-found: ignore
+          retention-days: 7
+
+  ui:
+    name: UI lint, type-check, tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@d9184bf108216479bc5a137cc391f4d7b14c870b # v6.1.0
+        # version comes from "packageManager" in package.json
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Type-check
+        run: pnpm run typecheck
+
+      - name: Unit tests
+        run: pnpm run test
+
+      - name: Build
+        run: pnpm run build
+
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      # gitleaks CLI (MIT) from its official image; scans the full history.
+      - name: gitleaks
+        run: >
+          docker run --rm -v "$PWD:/repo" -w /repo
+          ghcr.io/gitleaks/gitleaks:v8.30.1
+          git --redact --verbose --exit-code 1 --config .gitleaks.toml /repo
+
+  semgrep:
+    name: Static analysis (Semgrep CE)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    container:
+      image: semgrep/semgrep:1.183.0
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Semgrep
+        run: >
+          semgrep scan
+          --config p/csharp
+          --config p/typescript
+          --config p/secrets
+          --config tools/semgrep/watchpoint.yml
+          --error
+          --metrics off
+
+  ci-ok:
+    name: ci-ok
+    if: always()
+    needs: [dotnet, ui, secret-scan, semgrep]
+    runs-on: ubuntu-latest
+    steps:
+      - name: All jobs succeeded
+        run: |
+          echo '${{ toJSON(needs) }}'
+          test "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}" = "false"

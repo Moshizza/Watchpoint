@@ -1,0 +1,49 @@
+# Watchpoint-specific Semgrep rules (Architecture/README.md §5, docs/operations/security.md).
+rules:
+  - id: wp-no-sync-over-async
+    languages: [csharp]
+    severity: ERROR
+    message: "Blocking on a task (.Wait() / GetAwaiter().GetResult()) is forbidden; use await (README §5.4)."
+    paths: { exclude: ["tests/**"] }
+    pattern-either:
+      - pattern: $T.Wait()
+      - pattern: $T.GetAwaiter().GetResult()
+
+  - id: wp-no-console-write
+    languages: [csharp]
+    severity: ERROR
+    message: "Use ILogger with EventIds instead of Console output in service code (README §8)."
+    paths: { include: ["src/**"], exclude: ["src/service/Watchpoint.Ctl/**", "tools/**"] }
+    pattern-either:
+      - pattern: Console.WriteLine(...)
+      - pattern: Console.Write(...)
+
+  - id: wp-no-newtonsoft-type-names
+    languages: [csharp]
+    severity: ERROR
+    message: "Polymorphic type names from input are forbidden (README §5.5)."
+    pattern-either:
+      - pattern: TypeNameHandling.$X
+      - pattern: new BinaryFormatter()
+
+  - id: wp-no-tls-bypass
+    languages: [csharp]
+    severity: ERROR
+    message: "Never disable certificate validation; use pinning or a custom CA (security.md)."
+    pattern-either:
+      - pattern: "ServerCertificateCustomValidationCallback = (...) => true"
+      - pattern: HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+
+  - id: wp-no-dangerous-html
+    languages: [typescript]
+    severity: ERROR
+    message: "dangerouslySetInnerHTML is forbidden; render text or use the sanitised Markdown component."
+    pattern: <$EL dangerouslySetInnerHTML={...} />
+
+  - id: wp-no-eval
+    languages: [typescript]
+    severity: ERROR
+    message: "eval / new Function are forbidden."
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
