@@ -67,47 +67,47 @@ spec that must exist and pass.
 
 | ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| T0.01 | Repository skeleton: `src/` tree, `Watchpoint.slnx`, `Directory.Build.props`, `Directory.Packages.props`, `global.json`, `.editorconfig`, `.gitignore`, pnpm workspace, `.nvmrc` | README §3–§7 | — | CI-001 (solution builds empty), CI-002 (workspace installs) | — | — | todo |
-| T0.02 | CI workflow `ci.yml`, issue and pull-request templates, Dependabot config, Semgrep and secret-scan jobs | README §10–§11 | T0.01 | CI-003 (workflow runs on PR), CI-004 (failing test fails CI) | — | — | todo |
-| T0.03 | Kernel: typed ids, `Result`/`Error`/`ErrorKind`, `TimeProvider` helpers, paging and sorting | K §4–§7 | T0.01 | K-U-001…K-U-030 | — | — | todo |
-| T0.04 | Kernel: cursors, JSON options and converters, translatable texts, validation helpers, `WpValue`, `Watchpoint.Kernel.Testing` | K §7–§11 | T0.03 | K-U-031…K-U-062 | — | — | todo |
-| T0.05 | Test infrastructure: `Watchpoint.Testing`, Testcontainers fixtures (PostgreSQL + TimescaleDB, NATS), architecture tests, test naming analyzer | TST | T0.03 | TST-U-001…TST-I-010 | — | — | todo |
-| T0.06 | JSON Schemas: capability, device type, integration manifest; schema versioning | SCM §3–§5 | T0.01 | SCM-U-001…SCM-U-020 | — | — | todo |
-| T0.07 | Standard type library v0 + `wptypes` validator CLI | SCM §6–§8 | T0.06 | SCM-U-021…SCM-U-040 | — | — | todo |
-| T0.08 | UI workspace skeleton: package scaffolds, TypeScript strict, ESLint, Prettier, Vitest, Tailwind preset | README §7, UIC §3 | T0.01 | UIC-U-001…UIC-U-003 | — | — | todo |
-| T0.09 | Spike: NATS JetStream as event log and KV lease store (throughput, replay, KV CAS) → decision record | PIP §5, CLU §4 | T0.05 | Spike report | — | — | todo |
-| T0.10 | Spike: go2rtc RTSP → WebRTC in Electron on Windows, Linux, macOS (H.264, H.265) → decision record | VID §4 | T0.01 | Spike report | — | — | todo |
-| T0.11 | Spike: connector isolation — `AssemblyLoadContext` in-process vs gRPC isolated host (latency, crash behaviour) → decision record | IRT §5, IHO §4 | T0.03 | Spike report | — | — | todo |
+| T0.01 | Repository skeleton: `src/` tree, `Watchpoint.slnx`, `Directory.Build.props`, `Directory.Packages.props`, `global.json`, `.editorconfig`, `.gitignore`, pnpm workspace, `.nvmrc` | README §3–§7 | — | CI-001 (solution builds empty), CI-002 (workspace installs) | [#1](https://github.com/Moshizza/Watchpoint/issues/1) | — | todo |
+| T0.02 | CI workflow `ci.yml`, issue and pull-request templates, Dependabot config, Semgrep and secret-scan jobs | README §10–§11 | T0.01 | CI-003 (workflow runs on PR), CI-004 (failing test fails CI) | [#2](https://github.com/Moshizza/Watchpoint/issues/2) | — | todo |
+| T0.03 | Kernel: typed ids, `Result`/`Error`/`ErrorKind`, `TimeProvider` helpers, paging and sorting | K §4–§7 | T0.01 | K-U-001…K-U-030 | [#3](https://github.com/Moshizza/Watchpoint/issues/3) | — | todo |
+| T0.04 | Kernel: cursors, JSON options and converters, translatable texts, validation helpers, `WpValue`, `Watchpoint.Kernel.Testing` | K §7–§11 | T0.03 | K-U-031…K-U-062 | [#4](https://github.com/Moshizza/Watchpoint/issues/4) | — | todo |
+| T0.05 | Test infrastructure: `Watchpoint.Testing`, Testcontainers fixtures (PostgreSQL + TimescaleDB, NATS), architecture tests, test naming analyzer | TST | T0.03 | TST-U-001…TST-I-010 | [#5](https://github.com/Moshizza/Watchpoint/issues/5) | — | todo |
+| T0.06 | JSON Schemas: capability, device type, integration manifest; schema versioning | SCM §3–§5 | T0.01 | SCM-U-001…SCM-U-020 | [#6](https://github.com/Moshizza/Watchpoint/issues/6) | — | todo |
+| T0.07 | Standard type library v0 + `wptypes` validator CLI | SCM §6–§8 | T0.06 | SCM-U-021…SCM-U-040 | [#7](https://github.com/Moshizza/Watchpoint/issues/7) | — | todo |
+| T0.08 | UI workspace skeleton: package scaffolds, TypeScript strict, ESLint, Prettier, Vitest, Tailwind preset | README §7, UIC §3 | T0.01 | UIC-U-001…UIC-U-003 | [#8](https://github.com/Moshizza/Watchpoint/issues/8) | — | todo |
+| T0.09 | Spike: NATS JetStream as event log and KV lease store (throughput, replay, KV CAS) → decision record | PIP §5, CLU §4 | T0.05 | Spike report | [#9](https://github.com/Moshizza/Watchpoint/issues/9) | — | todo |
+| T0.10 | Spike: go2rtc RTSP → WebRTC in Electron on Windows, Linux, macOS (H.264, H.265) → decision record | VID §4 | T0.01 | Spike report | [#10](https://github.com/Moshizza/Watchpoint/issues/10) | — | todo |
+| T0.11 | Spike: connector isolation — `AssemblyLoadContext` in-process vs gRPC isolated host (latency, crash behaviour) → decision record | IRT §5, IHO §4 | T0.03 | Spike report | [#11](https://github.com/Moshizza/Watchpoint/issues/11) | — | todo |
 
 ### M1 — First device on screen
 
 | ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| T1.01 | Host: generic host, node settings, module registration, Windows service / systemd hosting, health endpoints | HST §4–§6 | T0.04 | HST-U-001…HST-U-015, HST-I-001…HST-I-004 | — | — | todo |
-| T1.02 | Host: process supervisor, bundled NATS start/stop, dev compose stack | HST §7–§8 | T1.01 | HST-U-016…HST-U-025, HST-I-005…HST-I-008 | — | — | todo |
-| T1.03 | Storage: store contracts, provider model, connection manager, migration runner, PostgreSQL provider skeleton | STO §4–§6 | T0.05 | STO-U-001…STO-U-015, STO-I-001…STO-I-006 | — | — | todo |
-| T1.04 | Storage: configuration store base (EF context per module, versioning column), state store (snapshot upserts) | STO §7–§8 | T1.03 | STO-U-016…STO-U-025, STO-I-007…STO-I-015 | — | — | todo |
-| T1.05 | Secrets vault: master key providers (file, DPAPI), AES-GCM, secret API, access audit hook | SEC | T1.04 | SEC-U-001…SEC-U-020, SEC-I-001…SEC-I-005 | — | — | todo |
-| T1.06 | Model: type catalogue (load standard library and package types, resolve `extends`, validate, query) | MOD | T0.07, T1.04 | MOD-U-001…MOD-U-035, MOD-I-001…MOD-I-004 | — | — | todo |
-| T1.07 | Registry: servers, devices, locations, tags, links — entities, persistence, queries | REG §4–§7 | T1.06 | REG-U-001…REG-U-030, REG-I-001…REG-I-006, REG-I-008…REG-I-010 | — | — | todo |
-| T1.08 | Registry: inventory reconciliation (rediscovery by native id, orphans, vendor names) | REG §8 | T1.07 | REG-U-031…REG-U-045, REG-I-007 | — | — | todo |
-| T1.09 | Pipeline: event log streams, envelope, partition router, log writer/reader, consumer helpers | PIP §4–§6 | T1.02, T0.09 | PIP-U-001…PIP-U-020, PIP-I-001…PIP-I-008 | — | — | todo |
-| T1.10 | Pipeline: ingest (type validation, units, dedup, deadband, enrichment), back-pressure, side-effect dispatcher | PIP §7–§9 | T1.09, T1.07 | PIP-U-021…PIP-U-047, PIP-I-009…PIP-I-015 | — | — | todo |
-| T1.11 | State: live store, overall state computation, aggregates, queries, change feed | STA §4–§7 | T1.10 | STA-U-001…STA-U-035 | — | — | todo |
-| T1.12 | State: snapshotter and recovery (snapshot + replay) | STA §8 | T1.11 | STA-U-036…STA-U-045, STA-I-001…STA-I-006 | — | — | todo |
-| T1.13 | Integration contract (`Watchpoint.Integration.Abstractions`) | INT §4–§8 | T0.03 | INT-U-001…INT-U-010 | — | — | todo |
-| T1.14 | Integration SDK helpers (polling scheduler, resilience, device map, connection store client, secure HTTP, redacting logger) | INT §9–§11 | T1.13 | INT-U-011…INT-U-040 | — | — | todo |
-| T1.15 | Integration runtime: package folder watcher, manifest reader, verifier (dev mode), package catalogue, load contexts | IRT §4–§6 | T1.13, T1.06 | IRT-U-001…IRT-U-025, IRT-I-001…IRT-I-004 | — | — | todo |
-| T1.16 | Integration runtime: connection manager, connection state machine, watchdog, connector context implementation, connection store | IRT §7–§10 | T1.15, T1.10, T1.08, T1.05 | IRT-U-026…IRT-U-060, IRT-I-005…IRT-I-012 | — | — | todo |
-| T1.17 | Simulator connector (types, scenarios, random and scripted changes, commands with configurable outcomes) | C-SIM | T1.14 | SIM-U-001…SIM-U-030, SIM-I-001…SIM-I-005 | — | — | todo |
-| T1.18 | Identity minimal: local users, Argon2id, sign-in, access/refresh tokens, bootstrap admin, session registry | IDN §4–§7 | T1.04 | IDN-U-001…IDN-U-030, IDN-I-001…IDN-I-006 | — | — | todo |
-| T1.19 | API: REST framework (problem details, paging, ETag, idempotency, permission filter, OpenAPI) + endpoints for registry, state, connections, types, dev seed | API §4–§7 | T1.11, T1.16, T1.18 | API-U-001…API-U-030, API-I-001…API-I-015 | — | — | todo |
-| T1.20 | API: live hub (subscriptions, snapshots + deltas, sequences, resume, coalescing, limits) | API §8–§10 | T1.19 | API-U-031…API-U-055, API-I-016…API-I-025 | — | — | todo |
-| T1.21 | UI core: generated API client, live connection client, model package | UIC §4–§6 | T1.20, T0.08 | UIC-U-004…UIC-U-030 | — | — | todo |
-| T1.22 | UI core: i18n (en/fr/ar, RTL, ICU), design system base (theme, layout, DataGrid, tree, state badges) | UIC §7–§9 | T0.08 | UIC-U-031…UIC-U-060 | — | — | todo |
-| T1.23 | UI operation part 1: app shell, sign-in, device explorer (locations/servers), device page (read-only), connection banner | UIO §4–§6 | T1.21, T1.22 | UIO-U-001…UIO-U-030 | — | — | todo |
-| T1.24 | Desktop shell part 1: hardened Electron shell, site profiles, certificate pinning, token vault, preload bridge, UI hosting on the node, dev packaging | DSK §4–§8 | T1.23 | DSK-U-001…DSK-U-020 | — | — | todo |
-| T1.25 | E2E harness (compose stack, seeded node, Playwright for desktop and browser) + scenarios E-001…E-004 | tests/e2e-scenarios | T1.24, T1.17 | E-001…E-004 | — | — | todo |
+| T1.01 | Host: generic host, node settings, module registration, Windows service / systemd hosting, health endpoints | HST §4–§6 | T0.04 | HST-U-001…HST-U-015, HST-I-001…HST-I-004 | [#12](https://github.com/Moshizza/Watchpoint/issues/12) | — | todo |
+| T1.02 | Host: process supervisor, bundled NATS start/stop, dev compose stack | HST §7–§8 | T1.01 | HST-U-016…HST-U-025, HST-I-005…HST-I-008 | [#13](https://github.com/Moshizza/Watchpoint/issues/13) | — | todo |
+| T1.03 | Storage: store contracts, provider model, connection manager, migration runner, PostgreSQL provider skeleton | STO §4–§6 | T0.05 | STO-U-001…STO-U-015, STO-I-001…STO-I-006 | [#14](https://github.com/Moshizza/Watchpoint/issues/14) | — | todo |
+| T1.04 | Storage: configuration store base (EF context per module, versioning column), state store (snapshot upserts) | STO §7–§8 | T1.03 | STO-U-016…STO-U-025, STO-I-007…STO-I-015 | [#15](https://github.com/Moshizza/Watchpoint/issues/15) | — | todo |
+| T1.05 | Secrets vault: master key providers (file, DPAPI), AES-GCM, secret API, access audit hook | SEC | T1.04 | SEC-U-001…SEC-U-020, SEC-I-001…SEC-I-005 | [#16](https://github.com/Moshizza/Watchpoint/issues/16) | — | todo |
+| T1.06 | Model: type catalogue (load standard library and package types, resolve `extends`, validate, query) | MOD | T0.07, T1.04 | MOD-U-001…MOD-U-035, MOD-I-001…MOD-I-004 | [#17](https://github.com/Moshizza/Watchpoint/issues/17) | — | todo |
+| T1.07 | Registry: servers, devices, locations, tags, links — entities, persistence, queries | REG §4–§7 | T1.06 | REG-U-001…REG-U-030, REG-I-001…REG-I-006, REG-I-008…REG-I-010 | [#18](https://github.com/Moshizza/Watchpoint/issues/18) | — | todo |
+| T1.08 | Registry: inventory reconciliation (rediscovery by native id, orphans, vendor names) | REG §8 | T1.07 | REG-U-031…REG-U-045, REG-I-007 | [#19](https://github.com/Moshizza/Watchpoint/issues/19) | — | todo |
+| T1.09 | Pipeline: event log streams, envelope, partition router, log writer/reader, consumer helpers | PIP §4–§6 | T1.02, T0.09 | PIP-U-001…PIP-U-020, PIP-I-001…PIP-I-008 | [#20](https://github.com/Moshizza/Watchpoint/issues/20) | — | todo |
+| T1.10 | Pipeline: ingest (type validation, units, dedup, deadband, enrichment), back-pressure, side-effect dispatcher | PIP §7–§9 | T1.09, T1.07 | PIP-U-021…PIP-U-047, PIP-I-009…PIP-I-015 | [#21](https://github.com/Moshizza/Watchpoint/issues/21) | — | todo |
+| T1.11 | State: live store, overall state computation, aggregates, queries, change feed | STA §4–§7 | T1.10 | STA-U-001…STA-U-035 | [#22](https://github.com/Moshizza/Watchpoint/issues/22) | — | todo |
+| T1.12 | State: snapshotter and recovery (snapshot + replay) | STA §8 | T1.11 | STA-U-036…STA-U-045, STA-I-001…STA-I-006 | [#23](https://github.com/Moshizza/Watchpoint/issues/23) | — | todo |
+| T1.13 | Integration contract (`Watchpoint.Integration.Abstractions`) | INT §4–§8 | T0.03 | INT-U-001…INT-U-010 | [#24](https://github.com/Moshizza/Watchpoint/issues/24) | — | todo |
+| T1.14 | Integration SDK helpers (polling scheduler, resilience, device map, connection store client, secure HTTP, redacting logger) | INT §9–§11 | T1.13 | INT-U-011…INT-U-040 | [#25](https://github.com/Moshizza/Watchpoint/issues/25) | — | todo |
+| T1.15 | Integration runtime: package folder watcher, manifest reader, verifier (dev mode), package catalogue, load contexts | IRT §4–§6 | T1.13, T1.06 | IRT-U-001…IRT-U-025, IRT-I-001…IRT-I-004 | [#26](https://github.com/Moshizza/Watchpoint/issues/26) | — | todo |
+| T1.16 | Integration runtime: connection manager, connection state machine, watchdog, connector context implementation, connection store | IRT §7–§10 | T1.15, T1.10, T1.08, T1.05 | IRT-U-026…IRT-U-060, IRT-I-005…IRT-I-012 | [#27](https://github.com/Moshizza/Watchpoint/issues/27) | — | todo |
+| T1.17 | Simulator connector (types, scenarios, random and scripted changes, commands with configurable outcomes) | C-SIM | T1.14 | SIM-U-001…SIM-U-030, SIM-I-001…SIM-I-005 | [#28](https://github.com/Moshizza/Watchpoint/issues/28) | — | todo |
+| T1.18 | Identity minimal: local users, Argon2id, sign-in, access/refresh tokens, bootstrap admin, session registry | IDN §4–§7 | T1.04 | IDN-U-001…IDN-U-030, IDN-I-001…IDN-I-006 | [#29](https://github.com/Moshizza/Watchpoint/issues/29) | — | todo |
+| T1.19 | API: REST framework (problem details, paging, ETag, idempotency, permission filter, OpenAPI) + endpoints for registry, state, connections, types, dev seed | API §4–§7 | T1.11, T1.16, T1.18 | API-U-001…API-U-030, API-I-001…API-I-015 | [#30](https://github.com/Moshizza/Watchpoint/issues/30) | — | todo |
+| T1.20 | API: live hub (subscriptions, snapshots + deltas, sequences, resume, coalescing, limits) | API §8–§10 | T1.19 | API-U-031…API-U-055, API-I-016…API-I-025 | [#31](https://github.com/Moshizza/Watchpoint/issues/31) | — | todo |
+| T1.21 | UI core: generated API client, live connection client, model package | UIC §4–§6 | T1.20, T0.08 | UIC-U-004…UIC-U-030 | [#32](https://github.com/Moshizza/Watchpoint/issues/32) | — | todo |
+| T1.22 | UI core: i18n (en/fr/ar, RTL, ICU), design system base (theme, layout, DataGrid, tree, state badges) | UIC §7–§9 | T0.08 | UIC-U-031…UIC-U-060 | [#33](https://github.com/Moshizza/Watchpoint/issues/33) | — | todo |
+| T1.23 | UI operation part 1: app shell, sign-in, device explorer (locations/servers), device page (read-only), connection banner | UIO §4–§6 | T1.21, T1.22 | UIO-U-001…UIO-U-030 | [#34](https://github.com/Moshizza/Watchpoint/issues/34) | — | todo |
+| T1.24 | Desktop shell part 1: hardened Electron shell, site profiles, certificate pinning, token vault, preload bridge, UI hosting on the node, dev packaging | DSK §4–§8 | T1.23 | DSK-U-001…DSK-U-020 | [#35](https://github.com/Moshizza/Watchpoint/issues/35) | — | todo |
+| T1.25 | E2E harness (compose stack, seeded node, Playwright for desktop and browser) + scenarios E-001…E-004 | tests/e2e-scenarios | T1.24, T1.17 | E-001…E-004 | [#36](https://github.com/Moshizza/Watchpoint/issues/36) | — | todo |
 
 ### M2 — Act and react
 
@@ -262,8 +262,8 @@ spec that must exist and pass.
 | ID | Task | Status |
 |---|---|---|
 | D.01 | Architecture README, build order, task sheet | done |
-| D.02 | M0 specs (K, TST, SCM) | todo |
-| D.03 | M1 specs | todo |
-| D.04 | Cross-module tests (integration matrix, e2e scenarios) — grows with each milestone | todo |
+| D.02 | M0 specs (K, TST, SCM) | done |
+| D.03 | M1 specs | done |
+| D.04 | Cross-module tests (integration matrix, e2e scenarios) — grows with each milestone | M1 done |
 | D.05 | M2–M11 specs | todo |
 | D.06 | M12 specs | blocked (vendor docs) |
