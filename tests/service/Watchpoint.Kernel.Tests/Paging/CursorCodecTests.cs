@@ -1,15 +1,17 @@
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using Shouldly;
 using Watchpoint.Kernel.Paging;
 using Watchpoint.Kernel.Results;
+using Watchpoint.Kernel.Testing;
 using Xunit;
 
 namespace Watchpoint.Kernel.Tests.Paging;
 
 public sealed class CursorCodecTests
 {
-    private static readonly Guid _id = Guid.Parse("0192f3a4-5b6c-7d8e-9f01-23456789abcd");
+    private static readonly Guid _id = TestIds.Uuid(1);
 
     [Fact]
     public void K_U_031_Cursor_round_trip()
@@ -20,7 +22,7 @@ public sealed class CursorCodecTests
         cursor.ShouldNotContain("+");
         cursor.ShouldNotContain("/");
 
-        var decoded = CursorCodec.Decode(cursor, 1).Value;
+        var decoded = CursorCodec.Decode(cursor, 1).ShouldBeSuccess();
         decoded.LastId.ShouldBe(_id);
         decoded.KeyValues.Count.ShouldBe(2);
         decoded.KeyValues[0].GetString().ShouldBe("Lobby");
@@ -41,11 +43,11 @@ public sealed class CursorCodecTests
     {
         var cursor = CursorCodec.Encode(1, ["Lobby", 3], _id);
 
-        var result = CursorCodec.Decode(cursor, 2);
+        var logger = new ListLogger();
+        var result = CursorCodec.Decode(cursor, 2, logger);
 
-        result.IsSuccess.ShouldBeFalse();
-        result.Error.Code.ShouldBe(CommonErrorCodes.CursorInvalid);
-        result.Error.Kind.ShouldBe(ErrorKind.Validation);
+        result.ShouldFailWith(CommonErrorCodes.CursorInvalid).Kind.ShouldBe(ErrorKind.Validation);
+        logger.Entries.ShouldBe([(1001, LogLevel.Warning, "Invalid cursor received: version mismatch")]);
     }
 
     [Fact]

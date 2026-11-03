@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using Shouldly;
 using Watchpoint.Kernel.Results;
+using Watchpoint.Kernel.Testing;
 using Watchpoint.Kernel.Validation;
 using Xunit;
 
@@ -21,8 +22,7 @@ public sealed partial class ValidationTests
             .Custom("/items", () => [CommonErrors.DuplicateAt("/1/name", "a")])
             .Build();
 
-        result.IsSuccess.ShouldBeFalse();
-        result.Error.Code.ShouldBe(CommonErrorCodes.ValidationFailed);
+        result.ShouldFailWith(CommonErrorCodes.ValidationFailed).ShouldHaveFieldError("/code", CommonErrorCodes.ValueInvalidFormat);
         result.Error.Kind.ShouldBe(ErrorKind.Validation);
         result.Error.FieldErrors.Select(e => (e.Path, e.Code.Value)).ShouldBe(
         [
@@ -55,6 +55,7 @@ public sealed partial class ValidationTests
 
         builder.IsValid.ShouldBeTrue();
         builder.Build().ShouldBe(Result.Success());
+        builder.Build().ShouldBeSuccess();
     }
 
     [Fact]
@@ -90,17 +91,4 @@ public sealed partial class ValidationTests
 
     [GeneratedRegex("^[a-z]+$")]
     private static partial Regex CodePattern();
-
-    private sealed class ListLogger : ILogger
-    {
-        public List<(int Id, LogLevel Level, string Message)> Entries { get; } = [];
-
-        public IDisposable? BeginScope<TState>(TState state)
-            where TState : notnull => null;
-
-        public bool IsEnabled(LogLevel logLevel) => true;
-
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
-            Entries.Add((eventId.Id, logLevel, formatter(state, exception)));
-    }
 }
