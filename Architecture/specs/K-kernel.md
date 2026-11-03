@@ -114,6 +114,8 @@ written by hand):
 | `DraftId` | `draft` | `LicenceId` | `lic` |
 | `ChangeSetId` | `chg` | `FederationLinkId` | `fed` |
 | `CustomFieldId` | `cf` | `ObservationId` | `obs` |
+| `HolidaySetId` | `hol` | `JobId` | `job` |
+| `WorkstationId` | `wks` | `IncidentId` | `inc` |
 
 Rules:
 
