@@ -113,23 +113,23 @@ spec that must exist and pass.
 
 | ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| T2.01 | Commands: model, validation (schema, rights hook, state), lifecycle state machine, log records | CMD §4–§6 | T1.16 | CMD-U-001…CMD-U-030 | — | — | todo |
-| T2.02 | Commands: per-connection priority queues, per-device serialisation, idempotency, timeouts, failover-safe queue | CMD §7–§8 | T2.01 | CMD-U-031…CMD-U-050, CMD-I-001…CMD-I-008 | — | — | todo |
-| T2.03 | Commands: verification and group commands | CMD §9–§10 | T2.02 | CMD-U-051…CMD-U-065 | — | — | todo |
-| T2.04 | Commands: REST + live messages, command journal queries | CMD §11 | T2.03, T1.20 | CMD-I-009…CMD-I-015 | — | — | todo |
-| T2.05 | Events: model, event type registry, operator notes, journal query API | EVT | T1.10, T1.19 | EVT-U-001…EVT-U-020, EVT-I-001…EVT-I-008 | — | — | todo |
-| T2.06 | Expressions: CEL subset in C# (parser, type checker against the model, cost-limited evaluator) | EXP §4–§7 | T1.06 | EXP-U-001…EXP-U-040 | — | — | todo |
-| T2.07 | Expressions: CEL subset in TypeScript + shared conformance vectors | EXP §8–§9 | T2.06, T1.21 | EXP-U-041…EXP-U-060, EXP-C-001 | — | — | todo |
-| T2.08 | Scheduling: calendars, holiday sets (ICS import), time triggers, site time zones | SCH | T1.04 | SCH-U-001…SCH-U-030 | — | — | todo |
-| T2.09 | Alarms: rule model, rule index, trigger evaluation (event, state, health, expression) | ALM §4–§6 | T2.05, T2.06 | ALM-U-001…ALM-U-035 | — | — | todo |
-| T2.10 | Alarms: alarm lifecycle state machine, partition-safe transitions, store, REST + live | ALM §7–§9 | T2.09 | ALM-U-036…ALM-U-070, ALM-I-001…ALM-I-010 | — | — | todo |
-| T2.11 | Alarms: start/end delays, composite rules, escalation, procedures, audience | ALM §10–§13 | T2.10, T2.08 | ALM-U-071…ALM-U-110 | — | — | todo |
-| T2.12 | Alarms: default rules from device types, alarm actions (commands, pop-ups; notification hook) | ALM §14–§15 | T2.11, T2.03 | ALM-U-111…ALM-U-125, ALM-I-011…ALM-I-014 | — | — | todo |
-| T2.13 | History part 1: writer (events, alarms, commands, property changes, audit placeholder), basic queries | HIS §4–§7 | T1.10 | HIS-U-001…HIS-U-020, HIS-I-001…HIS-I-010 | — | — | todo |
-| T2.14 | UI operation: alarm console, alarm details, procedures runner, sounds, pop-up rules | UIO §7–§9 | T2.10, T1.23 | UIO-U-031…UIO-U-070 | — | — | todo |
-| T2.15 | UI operation: event journal, command buttons with inline status, command journal | UIO §10–§11 | T2.04, T2.05 | UIO-U-071…UIO-U-095 | — | — | todo |
-| T2.17 | Desktop shell part 2: multiple windows and monitors, undocked panels, bring to front, OS notifications, sound leadership, mDNS site discovery | DSK §9–§10 | T1.24, T2.14 | DSK-U-021…DSK-U-029 | — | — | todo |
-| T2.16 | E2E scenarios E-010…E-016 | tests/e2e-scenarios | T2.14, T2.15, T2.12, T2.17 | E-010…E-016 | — | — | todo |
+| T2.01 | Commands: model, validation (schema, rights hook, state), lifecycle state machine, log records | CMD §4–§6 | T1.16 | CMD-U-001…CMD-U-030 | [#37](https://github.com/Moshizza/Watchpoint/issues/37) | — | todo |
+| T2.02 | Commands: per-connection priority queues, per-device serialisation, idempotency, timeouts, failover-safe queue | CMD §7–§8 | T2.01 | CMD-U-031…CMD-U-050, CMD-I-001…CMD-I-008 | [#38](https://github.com/Moshizza/Watchpoint/issues/38) | — | todo |
+| T2.03 | Commands: verification and group commands | CMD §9–§10 | T2.02 | CMD-U-051…CMD-U-065 | [#39](https://github.com/Moshizza/Watchpoint/issues/39) | — | todo |
+| T2.04 | Commands: REST + live messages, command journal queries | CMD §11 | T2.03, T1.20 | CMD-I-009…CMD-I-015 | [#40](https://github.com/Moshizza/Watchpoint/issues/40) | — | todo |
+| T2.05 | Events: model, event type registry, operator notes, journal query API | EVT | T1.10, T1.19 | EVT-U-001…EVT-U-020, EVT-I-001…EVT-I-008 | [#41](https://github.com/Moshizza/Watchpoint/issues/41) | — | todo |
+| T2.06 | Expressions: CEL subset in C# (parser, type checker against the model, cost-limited evaluator) | EXP §4–§7 | T1.06 | EXP-U-001…EXP-U-040 | [#42](https://github.com/Moshizza/Watchpoint/issues/42) | — | todo |
+| T2.07 | Expressions: CEL subset in TypeScript + shared conformance vectors | EXP §8–§9 | T2.06, T1.21 | EXP-U-041…EXP-U-060, EXP-C-001 | [#43](https://github.com/Moshizza/Watchpoint/issues/43) | — | todo |
+| T2.08 | Scheduling: calendars, holiday sets (ICS import), time triggers, site time zones | SCH | T1.04 | SCH-U-001…SCH-U-030 | [#44](https://github.com/Moshizza/Watchpoint/issues/44) | — | todo |
+| T2.09 | Alarms: rule model, rule index, trigger evaluation (event, state, health, expression) | ALM §4–§6 | T2.05, T2.06 | ALM-U-001…ALM-U-035 | [#45](https://github.com/Moshizza/Watchpoint/issues/45) | — | todo |
+| T2.10 | Alarms: alarm lifecycle state machine, partition-safe transitions, store, REST + live | ALM §7–§9 | T2.09 | ALM-U-036…ALM-U-070, ALM-I-001…ALM-I-010 | [#46](https://github.com/Moshizza/Watchpoint/issues/46) | — | todo |
+| T2.11 | Alarms: start/end delays, composite rules, escalation, procedures, audience | ALM §10–§13 | T2.10, T2.08 | ALM-U-071…ALM-U-110 | [#47](https://github.com/Moshizza/Watchpoint/issues/47) | — | todo |
+| T2.12 | Alarms: default rules from device types, alarm actions (commands, pop-ups; notification hook) | ALM §14–§15 | T2.11, T2.03 | ALM-U-111…ALM-U-125, ALM-I-011…ALM-I-014 | [#48](https://github.com/Moshizza/Watchpoint/issues/48) | — | todo |
+| T2.13 | History part 1: writer (events, alarms, commands, property changes, audit placeholder), basic queries | HIS §4–§7 | T1.10 | HIS-U-001…HIS-U-020, HIS-I-001…HIS-I-010 | [#49](https://github.com/Moshizza/Watchpoint/issues/49) | — | todo |
+| T2.14 | UI operation: alarm console, alarm details, procedures runner, sounds, pop-up rules | UIO §7–§9 | T2.10, T1.23 | UIO-U-031…UIO-U-070 | [#50](https://github.com/Moshizza/Watchpoint/issues/50) | — | todo |
+| T2.15 | UI operation: event journal, command buttons with inline status, command journal | UIO §10–§11 | T2.04, T2.05 | UIO-U-071…UIO-U-095 | [#51](https://github.com/Moshizza/Watchpoint/issues/51) | — | todo |
+| T2.16 | E2E scenarios E-010…E-016 | tests/e2e-scenarios | T2.14, T2.15, T2.12, T2.17 | E-010…E-016 | [#52](https://github.com/Moshizza/Watchpoint/issues/52) | — | todo |
+| T2.17 | Desktop shell part 2: multiple windows and monitors, undocked panels, bring to front, OS notifications, sound leadership, mDNS site discovery | DSK §9–§10 | T1.24, T2.14 | DSK-U-021…DSK-U-029 | [#53](https://github.com/Moshizza/Watchpoint/issues/53) | — | todo |
 
 ### M3 — Configure safely, many users
 
@@ -265,5 +265,5 @@ spec that must exist and pass.
 | D.02 | M0 specs (K, TST, SCM) | done |
 | D.03 | M1 specs | done |
 | D.04 | Cross-module tests (integration matrix, e2e scenarios) — grows with each milestone | M1 done |
-| D.05 | M2–M11 specs | todo |
+| D.05 | M2–M11 specs | in progress (M2 done) |
 | D.06 | M12 specs | blocked (vendor docs) |
