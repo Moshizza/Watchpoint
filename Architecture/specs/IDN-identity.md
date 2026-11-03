@@ -154,9 +154,10 @@ Sign-in algorithm:
 1. Rate limit per remote IP (`Identity:SignInRatePerIp`, default 20 per minute) and per login
    (10 per minute) → `common.rate_limited`.
 2. Find user; if not found / template / script → dummy hash verify → `identity.signin.invalid_credentials`.
-3. If lockout active → `identity.signin.locked` (args `until`) — **only after** a correct
-   password? No: return `invalid_credentials` for wrong passwords during lockout, `locked` only if
-   the password is correct (prevents lockout probing revealing valid passwords).
+3. If a lockout is active: verify the password anyway; wrong password →
+   `identity.signin.invalid_credentials`; correct password → `identity.signin.locked` (args
+   `until`). Lockout status is therefore never revealed to someone who does not know the
+   password.
 4. Verify password; on failure increment failure count (§6.4), audit `signInFailed`, return
    `invalid_credentials`.
 5. Status checks: disabled → `identity.signin.disabled`; expired → `identity.signin.expired`;
@@ -251,10 +252,10 @@ maintenance mode (MNT), explicit sign-out.
 | `Identity:BootstrapAdmin:PasswordEnv` | `WATCHPOINT_BOOTSTRAP_ADMIN_PASSWORD` |
 
 **Bootstrap administrator** (startup phase `Configuration`): if no Person administrator exists,
-create `admin` with the password from the environment variable (Production) — if the variable
-is absent, the node starts but logs 2701 Critical ("no administrator; run `wpctl reset-admin`")
-and readiness stays true (operators may still be served by other means? No users exist, so no
-one can sign in until the command is run). Development: the dev seed creates users (HST §9).
+create `admin` with the password from the environment variable (Production). If the variable
+is absent, the node still starts (supervision of connections works) but logs 2701 Critical
+("no administrator; run `wpctl reset-admin`"); nobody can sign in until the command is run.
+Development: the dev seed creates users (HST §9).
 The created admin has `MustChangePassword = true` in Production.
 
 ### 7.2 API
