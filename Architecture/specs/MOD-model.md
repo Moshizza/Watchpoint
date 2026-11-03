@@ -168,7 +168,7 @@ public interface IDeviceStateView
     bool TryGet(PropertyPath path, out PropertyValueView value);   // value + quality
 }
 public readonly record struct PropertyValueView(WpValue? Value, Quality Quality);
-public enum Quality { Good, Uncertain, Bad, Stale }
+// Quality is defined in the Kernel (K §10).
 public readonly record struct DeviceFlags(bool Disabled, bool Maintenance);
 public sealed record StateSummary(OverallState State, OverallState UnderlyingState,
     PropertyPath? Cause, IReadOnlyDictionary<PropertyPath, Severity> MeasurementSeverities);

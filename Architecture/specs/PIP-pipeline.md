@@ -212,7 +212,7 @@ public sealed record Observation
     public CommandId? CorrelatedCommand { get; init; }
 }
 public sealed record HealthReport(Connectivity Connectivity, IReadOnlyList<string> Faults, string? Reason);
-public enum Connectivity { Online, Degraded, Offline, Unknown }
+// Connectivity and Quality are defined in the Kernel (K §10).
 
 public interface IObservationIngest
 {

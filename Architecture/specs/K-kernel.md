@@ -413,6 +413,10 @@ public readonly struct WpValue : IEquatable<WpValue>
     // As*() throw InvalidOperationException on kind mismatch; TryAs*() variants return bool.
 }
 public readonly record struct GeoPoint(double Latitude, double Longitude, double? Altitude);
+
+// Shared by MOD, PIP, STA and the integration contract (which may only depend on the Kernel):
+public enum Quality { Good, Uncertain, Bad, Stale }
+public enum Connectivity { Online, Degraded, Offline, Unknown }
 ```
 
 - Equality: same kind and equal value (`Decimal` compared numerically: `1.0 == 1.00`;
