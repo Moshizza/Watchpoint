@@ -324,9 +324,15 @@ desktop client run on release and nightly only.
 ## 11. Git workflow
 
 - `main` is the reference branch; it must always build and pass `ci.yml`.
-- **One branch per task**: `<task-id>-<short-slug>`, e.g. `T1.04-registry-core`.
+- **One branch per task**: `<owner>/<task-id>-<short-slug>`, where `<owner>` is the agent name
+  (agent registry in [tasks.md](tasks.md#agent-registry)) or the GitHub username, e.g.
+  `claude-atlas/T1.04-registry-core`. The task's **Owner** column holds that branch name.
+- AI agents follow [`CLAUDE.md`](../CLAUDE.md): push after every logical step, update the pull
+  request checklist only when opening, half way and ready for review, one task per session,
+  never merge without approval of the person responsible.
 - Commit messages: Conventional Commits (`feat(registry): …`, `fix(pipeline): …`,
-  `test(…)`, `docs(…)`), body explaining why, reference the task id.
+  `test(…)`, `docs(…)`, `wip(…)` for unfinished steps), body explaining why, reference the
+  task id; agents add `Agent: <agent-name>`.
 - Pull request per task: title `<task-id> <title>`; description lists implemented test ids;
   at least **one approval** from another team member and green CI before merge; **squash
   merge**; delete the branch after merge.
