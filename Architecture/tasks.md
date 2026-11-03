@@ -183,15 +183,15 @@ spec that must exist and pass.
 
 | ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| T6.01 | Synoptics service: document schema, storage, binding validation, migrations of documents | SYN §4–§6 | T3.02, T5.03 | SYN-U-001…SYN-U-025 | — | — | todo |
-| T6.02 | Synoptic viewer (Konva, viewport subscriptions, level of detail, alarm focus) | SYN §7–§8 | T6.01, T2.14 | SYN-U-026…SYN-U-055 | — | — | todo |
-| T6.03 | Synoptic editor (canvas, layers, import backgrounds, device drag-and-drop, smart symbols, validation, simulation mode) | SYN §9–§11 | T6.02, T3.10 | SYN-U-056…SYN-U-100 | — | — | todo |
-| T6.04 | Map synoptics (MapLibre, PMTiles served by the node) | SYN §12 | T6.02 | SYN-U-101…SYN-U-115 | — | — | todo |
-| T6.05 | Video module: go2rtc supervision, stream requests, tickets, rights, PTZ arbiter | VID §4–§7 | T0.10, T1.16 | VID-U-001…VID-U-035, VID-I-001…VID-I-006 | — | — | todo |
-| T6.06 | Video UI: tiles, layouts, playback timeline, PTZ controls, joystick | VID §8–§9 | T6.05, T2.14 | VID-U-036…VID-U-060 | — | — | todo |
-| T6.07 | Generic RTSP/ONVIF camera connector | C-RTSP | T4.03, T6.05 | RTSP-U-001…RTSP-U-020, RTSP-I-001…RTSP-I-006, conformance | — | — | todo |
-| T6.08 | Web client app (operation-only build, session kind, hosting by the node) | WEB | T2.15, T6.02, T6.06 | WEB-U-001…WEB-U-020 | — | — | todo |
-| T6.09 | E2E scenarios E-050…E-056 | tests/e2e-scenarios | T6.03, T6.04, T6.07, T6.08 | E-050…E-056 | — | — | todo |
+| T6.01 | Synoptics service: document schema, storage, binding validation, migrations of documents | SYN §4–§6 | T3.02, T5.03 | SYN-U-001…SYN-U-025 | [#87](https://github.com/Moshizza/Watchpoint/issues/87) | — | todo |
+| T6.02 | Synoptic viewer (Konva, viewport subscriptions, level of detail, alarm focus) | SYN §7–§8 | T6.01, T2.14 | SYN-U-026…SYN-U-055 | [#88](https://github.com/Moshizza/Watchpoint/issues/88) | — | todo |
+| T6.03 | Synoptic editor (canvas, layers, import backgrounds, device drag-and-drop, smart symbols, validation, simulation mode) | SYN §9–§11 | T6.02, T3.10 | SYN-U-056…SYN-U-100 | [#89](https://github.com/Moshizza/Watchpoint/issues/89) | — | todo |
+| T6.04 | Map synoptics (MapLibre, PMTiles served by the node) | SYN §12 | T6.02 | SYN-U-101…SYN-U-115 | [#90](https://github.com/Moshizza/Watchpoint/issues/90) | — | todo |
+| T6.05 | Video module: go2rtc supervision, stream requests, tickets, rights, PTZ arbiter | VID §4–§7 | T0.10, T1.16, T4.01, T5.03 | VID-U-001…VID-U-035, VID-I-001…VID-I-006 | [#91](https://github.com/Moshizza/Watchpoint/issues/91) | — | todo |
+| T6.06 | Video UI: tiles, layouts, playback timeline, PTZ controls, joystick | VID §8–§9 | T6.05, T2.14 | VID-U-036…VID-U-060 | [#92](https://github.com/Moshizza/Watchpoint/issues/92) | — | todo |
+| T6.07 | Generic RTSP/ONVIF camera connector | C-RTSP | T4.03, T6.05 | RTSP-U-001…RTSP-U-020, RTSP-I-001…RTSP-I-006, conformance | [#93](https://github.com/Moshizza/Watchpoint/issues/93) | — | todo |
+| T6.08 | Web client app (operation-only build, session kind, hosting by the node) | WEB | T2.15, T6.02, T6.06 | WEB-U-001…WEB-U-020 | [#94](https://github.com/Moshizza/Watchpoint/issues/94) | — | todo |
+| T6.09 | E2E scenarios E-050…E-056 | tests/e2e-scenarios | T6.03, T6.04, T6.07, T6.08 | E-050…E-056 | [#95](https://github.com/Moshizza/Watchpoint/issues/95) | — | todo |
 
 ### M7 — Licensing
 
@@ -265,5 +265,5 @@ spec that must exist and pass.
 | D.02 | M0 specs (K, TST, SCM) | done |
 | D.03 | M1 specs | done |
 | D.04 | Cross-module tests (integration matrix, e2e scenarios) — grows with each milestone | M1 done |
-| D.05 | M2–M11 specs | in progress (M2–M5 done) |
+| D.05 | M2–M11 specs | in progress (M2–M6 done) |
 | D.06 | M12 specs | blocked (vendor docs) |
