@@ -175,8 +175,8 @@ spec that must exist and pass.
 | T5.03 | File store (local + replication interface), file references, quotas | FIL | T1.04 | FIL-U-001…FIL-U-020, FIL-I-001…FIL-I-005 | — | — | todo |
 | T5.04 | Notifications core: router, recipients, templates, delivery queue, e-mail and webhook channels | NOT §4–§8 | T2.12 | NOT-U-001…NOT-U-040, NOT-I-001…NOT-I-006 | — | — | todo |
 | T5.05 | Notifications: SMS providers, GSM modem, on-call rosters, flood summariser, quotas | NOT §9–§11 | T5.04, T2.08 | NOT-U-041…NOT-U-070 | — | — | todo |
-| T5.06 | Reports: template model, HTML rendering, PDF (headless Chromium), XLSX, CSV, standard templates | RPT §4–§7 | T5.01, T5.03 | RPT-U-001…RPT-U-030, RPT-I-001…RPT-I-005 | — | — | todo |
-| T5.07 | Reports: scheduling and delivery; UI for reports | RPT §8–§9 | T5.06, T5.04 | RPT-U-031…RPT-U-045 | — | — | todo |
+| T5.06 | Reports: template model, HTML rendering, PDF (headless Chromium), XLSX, CSV, standard templates | RPT §4–§7 | T5.01, T5.03 | RPT-U-001…RPT-U-030, RPT-I-001…RPT-I-003 | — | — | todo |
+| T5.07 | Reports: scheduling and delivery; UI for reports | RPT §8 | T5.06, T5.04 | RPT-U-031…RPT-U-045, RPT-I-004, RPT-I-005 | — | — | todo |
 | T5.08 | E2E scenarios E-040…E-044 | tests/e2e-scenarios | T5.02…T5.07 | E-040…E-044 | — | — | todo |
 
 ### M6 — Synoptics, video, web

@@ -84,6 +84,7 @@ Grant patterns: a grant's permission may end with `.*` (all permissions under th
 | operation.video (M6) | `video.live`, `video.playback` (MaxLookback), `video.export`, `video.ptz`, `video.unmask` |
 | operation.workspace | `operate.workspaces.save` (None), `operate.workspaces.publish` (None), `operate.duringMaintenance` (None; Sensitive — operation side stays available during maintenance mode, MNT) |
 | configuration | `config.registry.view/edit`, `config.integrations.view/edit/install/operate`, `config.alarms.view/edit`, `config.calendars.edit`, `config.users.view/edit`, `config.rights.view/edit`, `config.synoptics.*` (M6), `config.automations.*` (M8), `config.scripts.*` (M8), `config.notifications.*` (M5), `config.system.*`, `config.publish` (publish drafts), `config.approve`, `config.locks.break`, `config.maintenance` (start/stop maintenance mode) — scope Locations for registry/alarms/synoptics, None otherwise |
+| reports (M5) | `reports.run`, `reports.schedule`, `reports.schedule.manage`, `config.reports.view/edit`, `admin.bi.manage` (all None) |
 | administration | `admin.audit.view`, `admin.sessions.view`, `admin.sessions.manage`, `admin.health.view`, `admin.diagnostics.export`, `admin.privacy` (None) |
 
 `CommandPermissionGenerator` regenerates command permissions when MOD's catalogue changes
