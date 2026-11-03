@@ -219,15 +219,15 @@ spec that must exist and pass.
 
 | ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| T9.01 | Cluster membership, node roles, lease manager with fencing tokens | CLU §4–§6 | T0.09, T1.09 | CLU-U-001…CLU-U-035, CLU-I-001…CLU-I-006 | — | — | todo |
-| T9.02 | Failover of connections, pipeline partitions, command queues, timers | CLU §7–§8 | T9.01, T2.03 | CLU-U-036…CLU-U-060, CLU-I-007…CLU-I-015 | — | — | todo |
-| T9.03 | Placement engine, drain, rolling upgrade support, client node lists | CLU §9–§10 | T9.02 | CLU-U-061…CLU-U-080 | — | — | todo |
-| T9.04 | Spike + integration: PostgreSQL HA (Patroni vs pg_auto_failover), witness packaging | CLU §11 | T9.01 | Spike report, CLU-I-016…CLU-I-020 | — | — | todo |
-| T9.05 | System health dashboard: collectors, thresholds, capacity advisor, diagnostic bundle | HLT | T9.01 | HLT-U-001…HLT-U-030 | — | — | todo |
-| T9.06 | Federation links: mTLS gRPC, filters, resume cursors, federation identity | FED §4–§7 | T9.02, T3.04 | FED-U-001…FED-U-040, FED-I-001…FED-I-004 | — | — | todo |
-| T9.07 | Federation: central console, remote commands, handover schedules, remote queries | FED §8–§10 | T9.06, T2.11 | FED-U-041…FED-U-070, FED-I-005…FED-I-008 | — | — | todo |
-| T9.08 | Load-test programme (k6 + device simulator), capacity sheet | tests/performance-tests | T9.03 | P-001…P-012 | — | — | todo |
-| T9.09 | E2E scenarios E-080…E-088 | tests/e2e-scenarios | T9.04, T9.07 | E-080…E-088 | — | — | todo |
+| T9.01 | Cluster membership, node roles, lease manager with fencing tokens | CLU §4–§6 | T0.09, T1.09 | CLU-U-001…CLU-U-035, CLU-I-001…CLU-I-006 | [#108](https://github.com/Moshizza/Watchpoint/issues/108) | — | todo |
+| T9.02 | Failover of connections, pipeline partitions, command queues, timers | CLU §7–§8 | T9.01, T2.03 | CLU-U-036…CLU-U-060, CLU-I-007…CLU-I-015 | [#109](https://github.com/Moshizza/Watchpoint/issues/109) | — | todo |
+| T9.03 | Placement engine, drain, rolling upgrade support, client node lists | CLU §9–§10 | T9.02 | CLU-U-061…CLU-U-080 | [#110](https://github.com/Moshizza/Watchpoint/issues/110) | — | todo |
+| T9.04 | Spike + integration: PostgreSQL HA (Patroni vs pg_auto_failover), witness packaging | CLU §11 | T9.01 | Spike report, CLU-I-016…CLU-I-020 | [#111](https://github.com/Moshizza/Watchpoint/issues/111) | — | todo |
+| T9.05 | System health dashboard: collectors, thresholds, capacity advisor, diagnostic bundle | HLT | T9.01 | HLT-U-001…HLT-U-030 | [#112](https://github.com/Moshizza/Watchpoint/issues/112) | — | todo |
+| T9.06 | Federation links: mTLS gRPC, filters, resume cursors, federation identity | FED §4–§7 | T9.02, T3.04 | FED-U-001…FED-U-040, FED-I-001…FED-I-004 | [#113](https://github.com/Moshizza/Watchpoint/issues/113) | — | todo |
+| T9.07 | Federation: central console, remote commands, handover schedules, remote queries | FED §8–§10 | T9.06, T2.11 | FED-U-041…FED-U-070, FED-I-005…FED-I-008 | [#114](https://github.com/Moshizza/Watchpoint/issues/114) | — | todo |
+| T9.08 | Load-test programme (k6 + device simulator), capacity sheet | tests/performance-tests | T9.03 | P-001…P-012 | [#115](https://github.com/Moshizza/Watchpoint/issues/115) | — | todo |
+| T9.09 | E2E scenarios E-080…E-088 | tests/e2e-scenarios | T9.04, T9.07 | E-080…E-088 | [#116](https://github.com/Moshizza/Watchpoint/issues/116) | — | todo |
 
 ### M10 — Mobile
 
@@ -265,5 +265,5 @@ spec that must exist and pass.
 | D.02 | M0 specs (K, TST, SCM) | done |
 | D.03 | M1 specs | done |
 | D.04 | Cross-module tests (integration matrix, e2e scenarios) — grows with each milestone | M1 done |
-| D.05 | M2–M11 specs | in progress (M2–M8 done) |
+| D.05 | M2–M11 specs | in progress (M2–M9 done) |
 | D.06 | M12 specs | blocked (vendor docs) |
