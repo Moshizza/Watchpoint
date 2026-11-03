@@ -1,0 +1,12 @@
+# gitleaks configuration: default rules plus project allow-list.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Documentation examples and test fixtures"
+paths = [
+  '''(^|/)docs/''',
+  '''(^|/)Architecture/''',
+  '''(^|/)testdata/''',
+  '''pnpm-lock\.yaml$''',
+]

@@ -217,6 +217,10 @@ Each analyzer ships with a code-fix where obvious (WP0003 → inject `TimeProvid
 - One test project per module: `tests/service/Watchpoint.<Module>.Tests` (unit).
 - Integration tests: `tests/service/Watchpoint.IntegrationTests` with one folder per module;
   contract tests: `tests/service/Watchpoint.ContractTests`.
+- Test runner: **Microsoft.Testing.Platform** (opted in via `global.json` `test.runner`; the .NET 10
+  SDK no longer runs VSTest through `dotnet test`). Test projects are executables
+  (`<OutputType>Exe</OutputType>`) referencing only `xunit.v3` (no `Microsoft.NET.Test.Sdk` or
+  `xunit.runner.visualstudio`); run with `dotnet test --solution src/service/Watchpoint.slnx`.
 - xUnit v3 with `[assembly: CollectionBehavior(MaxParallelThreads = -1)]`; tests must be
   safe in parallel (no shared static state, separate databases/prefixes).
 - Traits: `[Trait("layer", "U|I|C|E|P|S")]`, `[Trait("spec", "REG")]` — CI filters by layer.

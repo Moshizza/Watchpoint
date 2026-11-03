@@ -1,0 +1,3 @@
+# Findings reviewed and accepted (one fingerprint per line, with the reason above it).
+# Dummy secret_key in a test fixture of the prototype code deleted at project start (commit 727b60b).
+727b60b3f6119697671007bcf25b0f203499df96:tests/conftest.py:generic-api-key:15

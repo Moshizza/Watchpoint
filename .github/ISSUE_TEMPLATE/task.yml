@@ -1,0 +1,43 @@
+name: Task
+description: A unit of work from Architecture/tasks.md (normally created by the project lead).
+title: "T<x.yy> <title>"
+labels: [task]
+body:
+  - type: input
+    id: task
+    attributes:
+      label: Task id
+      placeholder: T1.07
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Task
+      description: Copy of the task description from tasks.md.
+    validations:
+      required: true
+  - type: input
+    id: spec
+    attributes:
+      label: Spec sections
+      placeholder: "REG §4–§7 — Architecture/specs/REG-registry.md"
+    validations:
+      required: true
+  - type: input
+    id: deps
+    attributes:
+      label: Depends on
+      placeholder: "T1.04, T1.05"
+  - type: input
+    id: tests
+    attributes:
+      label: Tests to implement and pass
+      placeholder: "REG-U-001…REG-U-030"
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: |
+        **How to take this task:** follow [tasks.md §1](../blob/main/Architecture/tasks.md#1-how-to-take-a-task)
+        (AI agents: [CLAUDE.md](../blob/main/CLAUDE.md)). Branch `<owner>/<task-id>-<slug>`.
