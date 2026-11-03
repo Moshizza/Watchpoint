@@ -459,11 +459,65 @@ activation code. FakeTimeProvider control on nodes; portal time real.
 | 2 | Re-host request online; portal shows "2/5 components match previous licence" anomaly; staff approves | New licence imported; banner gone |
 | 3 | Move node clock back 3 days | Clock rollback banner; after 3 days grace (fake clock forward from the rolled-back time) restricted |
 
-## 9. Later milestones (to be detailed with their specs)
+## 9. M8 scenarios — "Automate"
+
+Seed `m8-site.json`: simulator (campus) with fire category devices in Building A, linked cameras
+(C-RTSP test devices), a "video-wall" workstation group with one desktop client, Script-kind
+identities "Fire robot" (grants: doorMode on Building A, notify, alarms raise) and "Counter
+script" (read Building A, virtual devices), a test HTTP endpoint (allow-listed) recording requests.
+
+### E-070 — Fire evacuation automation
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | `config1` instantiates the "Fire alarm: unlock doors and show cameras" template for Building A with identity "Fire robot"; dry-run with a sample fire alarm | Trace lists 20 door commands (not sent), wall notice, notification; publish |
+| 2 | Simulator fire alarm in Building A | Doors set to emergencyOpen and verified; wall workstation shows exit cameras; security team e-mail |
+| 3 | One door refuses (simulator failure mode) | "Exit door not open" Critical alarm raised by the automation |
+| 4 | Runs panel | Run timeline with steps and outcomes |
+
+### E-071 — Run continues after node restart
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | Automation: trigger manual → command → wait 60 s → command | Started manually |
+| 2 | Kill the node during the wait; restart | Run resumes at the wait; second command sent once; first not repeated (CMD journal shows one each) |
+
+### E-072 — Operator task
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | "Night arming check" at calendar edge (fake clock) with Building B disarmed | Task "Arm Building B?" shown to operators (desktop and web) |
+| 2 | Operator answers Yes on the web | Area armed by the automation identity; task closed for others |
+| 3 | Next day, nobody answers within 10 min | Default (No) path taken; run succeeded with note |
+
+### E-073 — Script reacting to events with test mode
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | `config1` writes a script in the IDE (forced door → PTZ preset + custom alarm); a typo in a device name | Red underline with "did you mean 'Main entrance'?" quick fix |
+| 2 | Test mode: pick a recent forced-door event from history | Console: "would send ptz.gotoPreset to Camera 3", alarm described; nothing sent |
+| 3 | Set a breakpoint in the handler and fire again | Debugger pauses; variables visible; continue |
+| 4 | Publish; real forced door | PTZ preset command sent with issuer Script; custom alarm raised |
+
+### E-074 — Virtual device and HTTP
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | "Counter script" defines virtual device "Building A occupancy" (analog input) and updates it from access granted events; posts the count to the allow-listed endpoint every minute | Virtual device appears in lists, synoptic value element and alarm rule (threshold) work |
+| 2 | Script tries `fetch` to a non-listed host | Error `scr.http.endpoint_not_allowed` in console; script keeps running |
+
+### E-075 — Script limits isolation
+
+| Step | Action | Expected |
+|---|---|---|
+| 1 | Publish a script with an infinite loop in a handler and one allocating 1 GB | Invocations aborted (CPU/heap limits); after 10 failures the script is suspended with system alarm |
+| 2 | Other scripts and automations meanwhile | Unaffected (E-074 counter keeps updating) |
+| 3 | Kill the script host process | Restarted; scripts redeployed; buffered events delivered |
+
+## 10. Later milestones (to be detailed with their specs)
 
 | Id | Milestone | Scenario |
 |---|---|---|
-| E-070…E-075 | M8 | Fire evacuation automation; script reacting to events with dry-run test; script limits breach isolated |
 | E-080…E-088 | M9 | Failover of a redundant pair under load (< 30 s, no lost events); split-brain prevention; rolling upgrade; federation link with WAN cut and resume; handover schedule |
 | E-090…E-093 | M10 | Mobile push and acknowledgement; on-site in-app alerts without internet |
 | E-100…E-105 | M11 | Fresh install on Windows and Linux with setup wizard; SQL Server provider end-to-end; store migration; signed update and rollback |

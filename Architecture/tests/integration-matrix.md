@@ -248,11 +248,25 @@ Run the generated client and live client against a real node (compose stack).
 | X-LIC-IRT-C-001 | Feature gate on connection creation for packages by licence class |
 | X-LIC-HIS-C-001 | Restricted mode history window across every HIS query endpoint |
 
-## 9. Later milestones (rows to add when their specs are written)
+## 9. Contract tests (M8)
+
+| Id | Test |
+|---|---|
+| X-AUT-PIP-C-001 | Run records in the automation partition rebuild identical run state after replay (snapshot + tail) |
+| X-AUT-CMD-C-001 | Automation commands carry issuer Automation and ClientCommandId; resume queries outcomes without duplicates |
+| X-AUT-ALM-C-001 | ALM Automation action starts runs; automation-raised alarms idempotent by key |
+| X-AUT-RGT-C-001 | Identity rights validation (publish) and enforcement (run) agree for every block kind |
+| X-AUT-SCH-C-001 | Cron, calendar edge and sun time triggers with real SCH |
+| X-SCR-HOST-C-001 | Script host gRPC protocol: every message type round-trips; version mismatch refused |
+| X-SCR-GW-C-001 | Every script API method declared in `watchpoint.d.ts` has a gateway handler and schema (generated check) |
+| X-SCR-RGT-C-001 | Script API calls denied outside identity scope with `scr.api.forbidden` |
+| X-SCR-VIRT-C-001 | Virtual devices flow through IRT/REG/PIP like real devices (states, alarms, history) |
+| X-SCR-TS-C-001 | Server compiler and IDE TypeScript versions identical; same diagnostics on a shared corpus |
+
+## 10. Later milestones (rows to add when their specs are written)
 
 | Milestone | Pairs to cover |
 |---|---|
-| M8 | AUT↔CMD/ALM, SCR↔script host gRPC, SCR↔RGT (script identities) |
 | M9 | CLU↔PIP/IRT/CMD (leases, fencing), FED link protocol between two clusters |
 | M10 | MOB↔API, PSH↔NOT |
 | M11 | STO-MS certification suite, DEP update protocol ↔ nodes and clients |
