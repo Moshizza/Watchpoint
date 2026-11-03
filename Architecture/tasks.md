@@ -224,9 +224,9 @@ spec that must exist and pass.
 | T9.03 | Placement engine, drain, rolling upgrade support, client node lists | CLU §9–§10 | T9.02 | CLU-U-061…CLU-U-080 | — | — | todo |
 | T9.04 | Spike + integration: PostgreSQL HA (Patroni vs pg_auto_failover), witness packaging | CLU §11 | T9.01 | Spike report, CLU-I-016…CLU-I-020 | — | — | todo |
 | T9.05 | System health dashboard: collectors, thresholds, capacity advisor, diagnostic bundle | HLT | T9.01 | HLT-U-001…HLT-U-030 | — | — | todo |
-| T9.06 | Federation links: mTLS gRPC, filters, resume cursors, federation identity | FED §4–§7 | T9.02, T3.04 | FED-U-001…FED-U-040, FED-I-001…FED-I-008 | — | — | todo |
-| T9.07 | Federation: central console, remote commands, handover schedules, remote queries | FED §8–§10 | T9.06, T2.11 | FED-U-041…FED-U-070 | — | — | todo |
-| T9.08 | Load-test programme (k6 + device simulator), capacity sheet | docs/operations/performance-and-capacity | T9.03 | P-001…P-012 | — | — | todo |
+| T9.06 | Federation links: mTLS gRPC, filters, resume cursors, federation identity | FED §4–§7 | T9.02, T3.04 | FED-U-001…FED-U-040, FED-I-001…FED-I-004 | — | — | todo |
+| T9.07 | Federation: central console, remote commands, handover schedules, remote queries | FED §8–§10 | T9.06, T2.11 | FED-U-041…FED-U-070, FED-I-005…FED-I-008 | — | — | todo |
+| T9.08 | Load-test programme (k6 + device simulator), capacity sheet | tests/performance-tests | T9.03 | P-001…P-012 | — | — | todo |
 | T9.09 | E2E scenarios E-080…E-088 | tests/e2e-scenarios | T9.04, T9.07 | E-080…E-088 | — | — | todo |
 
 ### M10 — Mobile
