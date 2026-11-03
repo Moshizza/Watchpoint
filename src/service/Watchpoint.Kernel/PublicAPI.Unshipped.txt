@@ -1109,7 +1109,7 @@ Watchpoint.Kernel.Text.LocalizedName.Deconstruct(out string! Default, out System
 Watchpoint.Kernel.Text.LocalizedName.Default.get -> string!
 Watchpoint.Kernel.Text.LocalizedName.Default.init -> void
 Watchpoint.Kernel.Text.LocalizedName.Equals(Watchpoint.Kernel.Text.LocalizedName? other) -> bool
-Watchpoint.Kernel.Text.LocalizedName.LocalizedName(string! default) -> void
+static Watchpoint.Kernel.Text.LocalizedName.Of(string! default) -> Watchpoint.Kernel.Text.LocalizedName!
 Watchpoint.Kernel.Text.LocalizedName.LocalizedName(string! Default, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Translations) -> void
 Watchpoint.Kernel.Text.LocalizedName.Resolve(string! culture) -> string!
 Watchpoint.Kernel.Text.LocalizedName.Translations.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!

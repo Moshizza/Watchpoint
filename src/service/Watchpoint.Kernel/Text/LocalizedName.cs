@@ -12,12 +12,10 @@ namespace Watchpoint.Kernel.Text;
 /// <param name="Translations">Translations by culture (keys in <see cref="SupportedCultures.All"/>); may be empty.</param>
 public sealed record LocalizedName(string Default, IReadOnlyDictionary<string, string> Translations)
 {
-    /// <summary>Initialises a name without translations.</summary>
+    /// <summary>Creates a name without translations.</summary>
     /// <param name="default">The text.</param>
-    public LocalizedName(string @default)
-        : this(@default, FrozenDictionary<string, string>.Empty)
-    {
-    }
+    /// <returns>The name.</returns>
+    public static LocalizedName Of(string @default) => new(@default, FrozenDictionary<string, string>.Empty);
 
     /// <summary>Gets the text shown when no translation matches.</summary>
     public string Default { get; init; } = Default ?? throw new ArgumentNullException(nameof(Default));
