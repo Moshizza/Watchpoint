@@ -2,8 +2,19 @@
 
   <PropertyGroup>
     <RootNamespace>Watchpoint.Kernel</RootNamespace>
-    <Description>Shared primitives of Watchpoint: identifiers, results and errors, time helpers, paging.</Description>
+    <Description>Shared primitives of Watchpoint: identifiers, results and errors, time helpers, paging, JSON settings, texts, validation helpers, values.</Description>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NodaTime" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Include="PublicAPI.Shipped.txt" />
+    <AdditionalFiles Include="PublicAPI.Unshipped.txt" />
+  </ItemGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="Watchpoint.Kernel.Tests" />

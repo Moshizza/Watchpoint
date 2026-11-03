@@ -1,0 +1,1201 @@
+#nullable enable
+const Watchpoint.Kernel.Ids.CapabilityId.MaxLength = 64 -> int
+const Watchpoint.Kernel.Ids.CapabilityId.Pattern = "^[a-z][a-zA-Z0-9]*(\\.[a-z][a-zA-Z0-9]*)?$" -> string!
+const Watchpoint.Kernel.Ids.ErrorCode.MaxLength = 128 -> int
+const Watchpoint.Kernel.Ids.ErrorCode.Pattern = "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*){1,4}$" -> string!
+const Watchpoint.Kernel.Ids.MemberId.MaxLength = 64 -> int
+const Watchpoint.Kernel.Ids.MemberId.Pattern = "^[a-z][a-zA-Z0-9]*$" -> string!
+const Watchpoint.Kernel.Ids.PackageId.MaxLength = 128 -> int
+const Watchpoint.Kernel.Ids.PackageId.Pattern = "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9-]*){1,5}$" -> string!
+const Watchpoint.Kernel.Ids.PermissionCode.MaxLength = 128 -> int
+const Watchpoint.Kernel.Ids.PermissionCode.Pattern = "^[a-z][a-zA-Z0-9]*(\\.([a-z][a-zA-Z0-9]*|\\*)){1,5}$" -> string!
+const Watchpoint.Kernel.Ids.TypeId.MaxLength = 100 -> int
+const Watchpoint.Kernel.Ids.TypeId.Pattern = "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9-]*){1,4}$" -> string!
+const Watchpoint.Kernel.Json.WatchpointJson.MaxDepth = 64 -> int
+const Watchpoint.Kernel.Paging.CursorCodec.MaxDepth = 8 -> int
+const Watchpoint.Kernel.Paging.CursorCodec.MaxLength = 2048 -> int
+const Watchpoint.Kernel.Paging.PageRequest.DefaultLimit = 100 -> int
+const Watchpoint.Kernel.Paging.PageRequest.MaxLimit = 1000 -> int
+const Watchpoint.Kernel.Text.Message.KeyPattern = "^[a-z][a-zA-Z0-9_]*(\\.[a-z][a-zA-Z0-9_]*)+$" -> string!
+const Watchpoint.Kernel.Text.NameRules.MaxLength = 200 -> int
+const Watchpoint.Kernel.Text.NameRules.MinLength = 1 -> int
+const Watchpoint.Kernel.Text.SupportedCultures.Default = "en" -> string!
+override Watchpoint.Kernel.Ids.AlarmId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.AlarmId.ToString() -> string!
+override Watchpoint.Kernel.Ids.AlarmRuleId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.AlarmRuleId.ToString() -> string!
+override Watchpoint.Kernel.Ids.AutomationId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.AutomationId.ToString() -> string!
+override Watchpoint.Kernel.Ids.AutomationRunId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.AutomationRunId.ToString() -> string!
+override Watchpoint.Kernel.Ids.CalendarId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.CalendarId.ToString() -> string!
+override Watchpoint.Kernel.Ids.CapabilityId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.CapabilityId.ToString() -> string!
+override Watchpoint.Kernel.Ids.ChangeSetId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.ChangeSetId.ToString() -> string!
+override Watchpoint.Kernel.Ids.CommandId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.CommandId.ToString() -> string!
+override Watchpoint.Kernel.Ids.ConnectionId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.ConnectionId.ToString() -> string!
+override Watchpoint.Kernel.Ids.CustomFieldId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.CustomFieldId.ToString() -> string!
+override Watchpoint.Kernel.Ids.DeviceId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.DeviceId.ToString() -> string!
+override Watchpoint.Kernel.Ids.DraftId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.DraftId.ToString() -> string!
+override Watchpoint.Kernel.Ids.EntityIdJsonConverter<TId>.Read(ref System.Text.Json.Utf8JsonReader reader, System.Type! typeToConvert, System.Text.Json.JsonSerializerOptions! options) -> TId
+override Watchpoint.Kernel.Ids.EntityIdJsonConverter<TId>.ReadAsPropertyName(ref System.Text.Json.Utf8JsonReader reader, System.Type! typeToConvert, System.Text.Json.JsonSerializerOptions! options) -> TId
+override Watchpoint.Kernel.Ids.EntityIdJsonConverter<TId>.Write(System.Text.Json.Utf8JsonWriter! writer, TId value, System.Text.Json.JsonSerializerOptions! options) -> void
+override Watchpoint.Kernel.Ids.EntityIdJsonConverter<TId>.WriteAsPropertyName(System.Text.Json.Utf8JsonWriter! writer, TId value, System.Text.Json.JsonSerializerOptions! options) -> void
+override Watchpoint.Kernel.Ids.ErrorCode.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.ErrorCode.ToString() -> string!
+override Watchpoint.Kernel.Ids.EventRecordId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.EventRecordId.ToString() -> string!
+override Watchpoint.Kernel.Ids.FederationLinkId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.FederationLinkId.ToString() -> string!
+override Watchpoint.Kernel.Ids.FileId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.FileId.ToString() -> string!
+override Watchpoint.Kernel.Ids.HolidaySetId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.HolidaySetId.ToString() -> string!
+override Watchpoint.Kernel.Ids.HostId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.HostId.ToString() -> string!
+override Watchpoint.Kernel.Ids.IncidentId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.IncidentId.ToString() -> string!
+override Watchpoint.Kernel.Ids.JobId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.JobId.ToString() -> string!
+override Watchpoint.Kernel.Ids.LicenceId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.LicenceId.ToString() -> string!
+override Watchpoint.Kernel.Ids.LinkId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.LinkId.ToString() -> string!
+override Watchpoint.Kernel.Ids.LocationId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.LocationId.ToString() -> string!
+override Watchpoint.Kernel.Ids.MemberId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.MemberId.ToString() -> string!
+override Watchpoint.Kernel.Ids.NodeId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.NodeId.ToString() -> string!
+override Watchpoint.Kernel.Ids.NotificationId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.NotificationId.ToString() -> string!
+override Watchpoint.Kernel.Ids.ObservationId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.ObservationId.ToString() -> string!
+override Watchpoint.Kernel.Ids.PackageId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.PackageId.ToString() -> string!
+override Watchpoint.Kernel.Ids.PermissionCode.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.PermissionCode.ToString() -> string!
+override Watchpoint.Kernel.Ids.ProcedureId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.ProcedureId.ToString() -> string!
+override Watchpoint.Kernel.Ids.PropertyPath.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.PropertyPath.ToString() -> string!
+override Watchpoint.Kernel.Ids.ReportId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.ReportId.ToString() -> string!
+override Watchpoint.Kernel.Ids.RightGrantId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.RightGrantId.ToString() -> string!
+override Watchpoint.Kernel.Ids.ScriptId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.ScriptId.ToString() -> string!
+override Watchpoint.Kernel.Ids.SecretId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.SecretId.ToString() -> string!
+override Watchpoint.Kernel.Ids.ServerId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.ServerId.ToString() -> string!
+override Watchpoint.Kernel.Ids.SessionId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.SessionId.ToString() -> string!
+override Watchpoint.Kernel.Ids.SiteId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.SiteId.ToString() -> string!
+override Watchpoint.Kernel.Ids.SynopticId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.SynopticId.ToString() -> string!
+override Watchpoint.Kernel.Ids.TagFamilyId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.TagFamilyId.ToString() -> string!
+override Watchpoint.Kernel.Ids.TagId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.TagId.ToString() -> string!
+override Watchpoint.Kernel.Ids.TypeId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.TypeId.ToString() -> string!
+override Watchpoint.Kernel.Ids.UserGroupId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.UserGroupId.ToString() -> string!
+override Watchpoint.Kernel.Ids.UserId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.UserId.ToString() -> string!
+override Watchpoint.Kernel.Ids.WorkstationId.GetHashCode() -> int
+override Watchpoint.Kernel.Ids.WorkstationId.ToString() -> string!
+override Watchpoint.Kernel.Paging.DecodedCursor.Equals(object? obj) -> bool
+override Watchpoint.Kernel.Paging.DecodedCursor.GetHashCode() -> int
+override Watchpoint.Kernel.Paging.DecodedCursor.ToString() -> string!
+override Watchpoint.Kernel.Paging.Page<T>.Equals(object? obj) -> bool
+override Watchpoint.Kernel.Paging.Page<T>.GetHashCode() -> int
+override Watchpoint.Kernel.Paging.Page<T>.ToString() -> string!
+override Watchpoint.Kernel.Paging.PageRequest.Equals(object? obj) -> bool
+override Watchpoint.Kernel.Paging.PageRequest.GetHashCode() -> int
+override Watchpoint.Kernel.Paging.PageRequest.ToString() -> string!
+override Watchpoint.Kernel.Paging.SortField.Equals(object? obj) -> bool
+override Watchpoint.Kernel.Paging.SortField.GetHashCode() -> int
+override Watchpoint.Kernel.Paging.SortField.ToString() -> string!
+override Watchpoint.Kernel.Paging.SortSpec.Equals(object? obj) -> bool
+override Watchpoint.Kernel.Paging.SortSpec.GetHashCode() -> int
+override Watchpoint.Kernel.Paging.SortSpec.ToString() -> string!
+override Watchpoint.Kernel.Results.Error.Equals(object? obj) -> bool
+override Watchpoint.Kernel.Results.Error.GetHashCode() -> int
+override Watchpoint.Kernel.Results.Error.ToString() -> string!
+override Watchpoint.Kernel.Results.FieldError.Equals(object? obj) -> bool
+override Watchpoint.Kernel.Results.FieldError.GetHashCode() -> int
+override Watchpoint.Kernel.Results.FieldError.ToString() -> string!
+override Watchpoint.Kernel.Results.Result.Equals(object? obj) -> bool
+override Watchpoint.Kernel.Results.Result.GetHashCode() -> int
+override Watchpoint.Kernel.Results.Result.ToString() -> string!
+override Watchpoint.Kernel.Results.Result<T>.Equals(object? obj) -> bool
+override Watchpoint.Kernel.Results.Result<T>.GetHashCode() -> int
+override Watchpoint.Kernel.Results.Result<T>.ToString() -> string!
+override Watchpoint.Kernel.Text.LocalizedName.Equals(object? obj) -> bool
+override Watchpoint.Kernel.Text.LocalizedName.GetHashCode() -> int
+override Watchpoint.Kernel.Text.LocalizedName.ToString() -> string!
+override Watchpoint.Kernel.Text.Message.Equals(object? obj) -> bool
+override Watchpoint.Kernel.Text.Message.GetHashCode() -> int
+override Watchpoint.Kernel.Text.Message.ToString() -> string!
+override Watchpoint.Kernel.Time.Iso8601DurationConverter.Read(ref System.Text.Json.Utf8JsonReader reader, System.Type! typeToConvert, System.Text.Json.JsonSerializerOptions! options) -> System.TimeSpan
+override Watchpoint.Kernel.Time.Iso8601DurationConverter.Write(System.Text.Json.Utf8JsonWriter! writer, System.TimeSpan value, System.Text.Json.JsonSerializerOptions! options) -> void
+override Watchpoint.Kernel.Time.SiteTimeZone.ToString() -> string!
+override Watchpoint.Kernel.Time.UtcDateTimeOffsetConverter.Read(ref System.Text.Json.Utf8JsonReader reader, System.Type! typeToConvert, System.Text.Json.JsonSerializerOptions! options) -> System.DateTimeOffset
+override Watchpoint.Kernel.Time.UtcDateTimeOffsetConverter.Write(System.Text.Json.Utf8JsonWriter! writer, System.DateTimeOffset value, System.Text.Json.JsonSerializerOptions! options) -> void
+static readonly Watchpoint.Kernel.Results.CommonErrorCodes.CursorInvalid -> Watchpoint.Kernel.Ids.ErrorCode
+static readonly Watchpoint.Kernel.Results.CommonErrorCodes.Forbidden -> Watchpoint.Kernel.Ids.ErrorCode
+static readonly Watchpoint.Kernel.Results.CommonErrorCodes.Internal -> Watchpoint.Kernel.Ids.ErrorCode
+static readonly Watchpoint.Kernel.Results.CommonErrorCodes.NotFound -> Watchpoint.Kernel.Ids.ErrorCode
+static readonly Watchpoint.Kernel.Results.CommonErrorCodes.RateLimited -> Watchpoint.Kernel.Ids.ErrorCode
+static readonly Watchpoint.Kernel.Results.CommonErrorCodes.SortInvalidField -> Watchpoint.Kernel.Ids.ErrorCode
+static readonly Watchpoint.Kernel.Results.CommonErrorCodes.TimeInvalidLocal -> Watchpoint.Kernel.Ids.ErrorCode
+static readonly Watchpoint.Kernel.Results.CommonErrorCodes.Unauthenticated -> Watchpoint.Kernel.Ids.ErrorCode
+static readonly Watchpoint.Kernel.Results.CommonErrorCodes.Unavailable -> Watchpoint.Kernel.Ids.ErrorCode
+static readonly Watchpoint.Kernel.Results.CommonErrorCodes.ValidationFailed -> Watchpoint.Kernel.Ids.ErrorCode
+static readonly Watchpoint.Kernel.Results.CommonErrorCodes.ValueDuplicate -> Watchpoint.Kernel.Ids.ErrorCode
+static readonly Watchpoint.Kernel.Results.CommonErrorCodes.ValueInvalidFormat -> Watchpoint.Kernel.Ids.ErrorCode
+static readonly Watchpoint.Kernel.Results.CommonErrorCodes.ValueNotAllowed -> Watchpoint.Kernel.Ids.ErrorCode
+static readonly Watchpoint.Kernel.Results.CommonErrorCodes.ValueOutOfRange -> Watchpoint.Kernel.Ids.ErrorCode
+static readonly Watchpoint.Kernel.Results.CommonErrorCodes.ValueRequired -> Watchpoint.Kernel.Ids.ErrorCode
+static readonly Watchpoint.Kernel.Results.CommonErrorCodes.ValueTooLong -> Watchpoint.Kernel.Ids.ErrorCode
+static readonly Watchpoint.Kernel.Results.CommonErrorCodes.ValueTooShort -> Watchpoint.Kernel.Ids.ErrorCode
+static readonly Watchpoint.Kernel.Results.CommonErrorCodes.VersionConflict -> Watchpoint.Kernel.Ids.ErrorCode
+static Watchpoint.Kernel.Ids.AlarmId.From(System.Guid value) -> Watchpoint.Kernel.Ids.AlarmId
+static Watchpoint.Kernel.Ids.AlarmId.New() -> Watchpoint.Kernel.Ids.AlarmId
+static Watchpoint.Kernel.Ids.AlarmId.operator !=(Watchpoint.Kernel.Ids.AlarmId left, Watchpoint.Kernel.Ids.AlarmId right) -> bool
+static Watchpoint.Kernel.Ids.AlarmId.operator <(Watchpoint.Kernel.Ids.AlarmId left, Watchpoint.Kernel.Ids.AlarmId right) -> bool
+static Watchpoint.Kernel.Ids.AlarmId.operator <=(Watchpoint.Kernel.Ids.AlarmId left, Watchpoint.Kernel.Ids.AlarmId right) -> bool
+static Watchpoint.Kernel.Ids.AlarmId.operator ==(Watchpoint.Kernel.Ids.AlarmId left, Watchpoint.Kernel.Ids.AlarmId right) -> bool
+static Watchpoint.Kernel.Ids.AlarmId.operator >(Watchpoint.Kernel.Ids.AlarmId left, Watchpoint.Kernel.Ids.AlarmId right) -> bool
+static Watchpoint.Kernel.Ids.AlarmId.operator >=(Watchpoint.Kernel.Ids.AlarmId left, Watchpoint.Kernel.Ids.AlarmId right) -> bool
+static Watchpoint.Kernel.Ids.AlarmId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.AlarmId.TryParse(string? s, out Watchpoint.Kernel.Ids.AlarmId id) -> bool
+static Watchpoint.Kernel.Ids.AlarmRuleId.From(System.Guid value) -> Watchpoint.Kernel.Ids.AlarmRuleId
+static Watchpoint.Kernel.Ids.AlarmRuleId.New() -> Watchpoint.Kernel.Ids.AlarmRuleId
+static Watchpoint.Kernel.Ids.AlarmRuleId.operator !=(Watchpoint.Kernel.Ids.AlarmRuleId left, Watchpoint.Kernel.Ids.AlarmRuleId right) -> bool
+static Watchpoint.Kernel.Ids.AlarmRuleId.operator <(Watchpoint.Kernel.Ids.AlarmRuleId left, Watchpoint.Kernel.Ids.AlarmRuleId right) -> bool
+static Watchpoint.Kernel.Ids.AlarmRuleId.operator <=(Watchpoint.Kernel.Ids.AlarmRuleId left, Watchpoint.Kernel.Ids.AlarmRuleId right) -> bool
+static Watchpoint.Kernel.Ids.AlarmRuleId.operator ==(Watchpoint.Kernel.Ids.AlarmRuleId left, Watchpoint.Kernel.Ids.AlarmRuleId right) -> bool
+static Watchpoint.Kernel.Ids.AlarmRuleId.operator >(Watchpoint.Kernel.Ids.AlarmRuleId left, Watchpoint.Kernel.Ids.AlarmRuleId right) -> bool
+static Watchpoint.Kernel.Ids.AlarmRuleId.operator >=(Watchpoint.Kernel.Ids.AlarmRuleId left, Watchpoint.Kernel.Ids.AlarmRuleId right) -> bool
+static Watchpoint.Kernel.Ids.AlarmRuleId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.AlarmRuleId.TryParse(string? s, out Watchpoint.Kernel.Ids.AlarmRuleId id) -> bool
+static Watchpoint.Kernel.Ids.AutomationId.From(System.Guid value) -> Watchpoint.Kernel.Ids.AutomationId
+static Watchpoint.Kernel.Ids.AutomationId.New() -> Watchpoint.Kernel.Ids.AutomationId
+static Watchpoint.Kernel.Ids.AutomationId.operator !=(Watchpoint.Kernel.Ids.AutomationId left, Watchpoint.Kernel.Ids.AutomationId right) -> bool
+static Watchpoint.Kernel.Ids.AutomationId.operator <(Watchpoint.Kernel.Ids.AutomationId left, Watchpoint.Kernel.Ids.AutomationId right) -> bool
+static Watchpoint.Kernel.Ids.AutomationId.operator <=(Watchpoint.Kernel.Ids.AutomationId left, Watchpoint.Kernel.Ids.AutomationId right) -> bool
+static Watchpoint.Kernel.Ids.AutomationId.operator ==(Watchpoint.Kernel.Ids.AutomationId left, Watchpoint.Kernel.Ids.AutomationId right) -> bool
+static Watchpoint.Kernel.Ids.AutomationId.operator >(Watchpoint.Kernel.Ids.AutomationId left, Watchpoint.Kernel.Ids.AutomationId right) -> bool
+static Watchpoint.Kernel.Ids.AutomationId.operator >=(Watchpoint.Kernel.Ids.AutomationId left, Watchpoint.Kernel.Ids.AutomationId right) -> bool
+static Watchpoint.Kernel.Ids.AutomationId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.AutomationId.TryParse(string? s, out Watchpoint.Kernel.Ids.AutomationId id) -> bool
+static Watchpoint.Kernel.Ids.AutomationRunId.From(System.Guid value) -> Watchpoint.Kernel.Ids.AutomationRunId
+static Watchpoint.Kernel.Ids.AutomationRunId.New() -> Watchpoint.Kernel.Ids.AutomationRunId
+static Watchpoint.Kernel.Ids.AutomationRunId.operator !=(Watchpoint.Kernel.Ids.AutomationRunId left, Watchpoint.Kernel.Ids.AutomationRunId right) -> bool
+static Watchpoint.Kernel.Ids.AutomationRunId.operator <(Watchpoint.Kernel.Ids.AutomationRunId left, Watchpoint.Kernel.Ids.AutomationRunId right) -> bool
+static Watchpoint.Kernel.Ids.AutomationRunId.operator <=(Watchpoint.Kernel.Ids.AutomationRunId left, Watchpoint.Kernel.Ids.AutomationRunId right) -> bool
+static Watchpoint.Kernel.Ids.AutomationRunId.operator ==(Watchpoint.Kernel.Ids.AutomationRunId left, Watchpoint.Kernel.Ids.AutomationRunId right) -> bool
+static Watchpoint.Kernel.Ids.AutomationRunId.operator >(Watchpoint.Kernel.Ids.AutomationRunId left, Watchpoint.Kernel.Ids.AutomationRunId right) -> bool
+static Watchpoint.Kernel.Ids.AutomationRunId.operator >=(Watchpoint.Kernel.Ids.AutomationRunId left, Watchpoint.Kernel.Ids.AutomationRunId right) -> bool
+static Watchpoint.Kernel.Ids.AutomationRunId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.AutomationRunId.TryParse(string? s, out Watchpoint.Kernel.Ids.AutomationRunId id) -> bool
+static Watchpoint.Kernel.Ids.CalendarId.From(System.Guid value) -> Watchpoint.Kernel.Ids.CalendarId
+static Watchpoint.Kernel.Ids.CalendarId.New() -> Watchpoint.Kernel.Ids.CalendarId
+static Watchpoint.Kernel.Ids.CalendarId.operator !=(Watchpoint.Kernel.Ids.CalendarId left, Watchpoint.Kernel.Ids.CalendarId right) -> bool
+static Watchpoint.Kernel.Ids.CalendarId.operator <(Watchpoint.Kernel.Ids.CalendarId left, Watchpoint.Kernel.Ids.CalendarId right) -> bool
+static Watchpoint.Kernel.Ids.CalendarId.operator <=(Watchpoint.Kernel.Ids.CalendarId left, Watchpoint.Kernel.Ids.CalendarId right) -> bool
+static Watchpoint.Kernel.Ids.CalendarId.operator ==(Watchpoint.Kernel.Ids.CalendarId left, Watchpoint.Kernel.Ids.CalendarId right) -> bool
+static Watchpoint.Kernel.Ids.CalendarId.operator >(Watchpoint.Kernel.Ids.CalendarId left, Watchpoint.Kernel.Ids.CalendarId right) -> bool
+static Watchpoint.Kernel.Ids.CalendarId.operator >=(Watchpoint.Kernel.Ids.CalendarId left, Watchpoint.Kernel.Ids.CalendarId right) -> bool
+static Watchpoint.Kernel.Ids.CalendarId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.CalendarId.TryParse(string? s, out Watchpoint.Kernel.Ids.CalendarId id) -> bool
+static Watchpoint.Kernel.Ids.CapabilityId.FromTrusted(string! value) -> Watchpoint.Kernel.Ids.CapabilityId
+static Watchpoint.Kernel.Ids.CapabilityId.operator !=(Watchpoint.Kernel.Ids.CapabilityId left, Watchpoint.Kernel.Ids.CapabilityId right) -> bool
+static Watchpoint.Kernel.Ids.CapabilityId.operator ==(Watchpoint.Kernel.Ids.CapabilityId left, Watchpoint.Kernel.Ids.CapabilityId right) -> bool
+static Watchpoint.Kernel.Ids.CapabilityId.Parse(string? text) -> Watchpoint.Kernel.Results.Result<Watchpoint.Kernel.Ids.CapabilityId>
+static Watchpoint.Kernel.Ids.ChangeSetId.From(System.Guid value) -> Watchpoint.Kernel.Ids.ChangeSetId
+static Watchpoint.Kernel.Ids.ChangeSetId.New() -> Watchpoint.Kernel.Ids.ChangeSetId
+static Watchpoint.Kernel.Ids.ChangeSetId.operator !=(Watchpoint.Kernel.Ids.ChangeSetId left, Watchpoint.Kernel.Ids.ChangeSetId right) -> bool
+static Watchpoint.Kernel.Ids.ChangeSetId.operator <(Watchpoint.Kernel.Ids.ChangeSetId left, Watchpoint.Kernel.Ids.ChangeSetId right) -> bool
+static Watchpoint.Kernel.Ids.ChangeSetId.operator <=(Watchpoint.Kernel.Ids.ChangeSetId left, Watchpoint.Kernel.Ids.ChangeSetId right) -> bool
+static Watchpoint.Kernel.Ids.ChangeSetId.operator ==(Watchpoint.Kernel.Ids.ChangeSetId left, Watchpoint.Kernel.Ids.ChangeSetId right) -> bool
+static Watchpoint.Kernel.Ids.ChangeSetId.operator >(Watchpoint.Kernel.Ids.ChangeSetId left, Watchpoint.Kernel.Ids.ChangeSetId right) -> bool
+static Watchpoint.Kernel.Ids.ChangeSetId.operator >=(Watchpoint.Kernel.Ids.ChangeSetId left, Watchpoint.Kernel.Ids.ChangeSetId right) -> bool
+static Watchpoint.Kernel.Ids.ChangeSetId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.ChangeSetId.TryParse(string? s, out Watchpoint.Kernel.Ids.ChangeSetId id) -> bool
+static Watchpoint.Kernel.Ids.CommandId.From(System.Guid value) -> Watchpoint.Kernel.Ids.CommandId
+static Watchpoint.Kernel.Ids.CommandId.New() -> Watchpoint.Kernel.Ids.CommandId
+static Watchpoint.Kernel.Ids.CommandId.operator !=(Watchpoint.Kernel.Ids.CommandId left, Watchpoint.Kernel.Ids.CommandId right) -> bool
+static Watchpoint.Kernel.Ids.CommandId.operator <(Watchpoint.Kernel.Ids.CommandId left, Watchpoint.Kernel.Ids.CommandId right) -> bool
+static Watchpoint.Kernel.Ids.CommandId.operator <=(Watchpoint.Kernel.Ids.CommandId left, Watchpoint.Kernel.Ids.CommandId right) -> bool
+static Watchpoint.Kernel.Ids.CommandId.operator ==(Watchpoint.Kernel.Ids.CommandId left, Watchpoint.Kernel.Ids.CommandId right) -> bool
+static Watchpoint.Kernel.Ids.CommandId.operator >(Watchpoint.Kernel.Ids.CommandId left, Watchpoint.Kernel.Ids.CommandId right) -> bool
+static Watchpoint.Kernel.Ids.CommandId.operator >=(Watchpoint.Kernel.Ids.CommandId left, Watchpoint.Kernel.Ids.CommandId right) -> bool
+static Watchpoint.Kernel.Ids.CommandId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.CommandId.TryParse(string? s, out Watchpoint.Kernel.Ids.CommandId id) -> bool
+static Watchpoint.Kernel.Ids.ConnectionId.From(System.Guid value) -> Watchpoint.Kernel.Ids.ConnectionId
+static Watchpoint.Kernel.Ids.ConnectionId.New() -> Watchpoint.Kernel.Ids.ConnectionId
+static Watchpoint.Kernel.Ids.ConnectionId.operator !=(Watchpoint.Kernel.Ids.ConnectionId left, Watchpoint.Kernel.Ids.ConnectionId right) -> bool
+static Watchpoint.Kernel.Ids.ConnectionId.operator <(Watchpoint.Kernel.Ids.ConnectionId left, Watchpoint.Kernel.Ids.ConnectionId right) -> bool
+static Watchpoint.Kernel.Ids.ConnectionId.operator <=(Watchpoint.Kernel.Ids.ConnectionId left, Watchpoint.Kernel.Ids.ConnectionId right) -> bool
+static Watchpoint.Kernel.Ids.ConnectionId.operator ==(Watchpoint.Kernel.Ids.ConnectionId left, Watchpoint.Kernel.Ids.ConnectionId right) -> bool
+static Watchpoint.Kernel.Ids.ConnectionId.operator >(Watchpoint.Kernel.Ids.ConnectionId left, Watchpoint.Kernel.Ids.ConnectionId right) -> bool
+static Watchpoint.Kernel.Ids.ConnectionId.operator >=(Watchpoint.Kernel.Ids.ConnectionId left, Watchpoint.Kernel.Ids.ConnectionId right) -> bool
+static Watchpoint.Kernel.Ids.ConnectionId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.ConnectionId.TryParse(string? s, out Watchpoint.Kernel.Ids.ConnectionId id) -> bool
+static Watchpoint.Kernel.Ids.CustomFieldId.From(System.Guid value) -> Watchpoint.Kernel.Ids.CustomFieldId
+static Watchpoint.Kernel.Ids.CustomFieldId.New() -> Watchpoint.Kernel.Ids.CustomFieldId
+static Watchpoint.Kernel.Ids.CustomFieldId.operator !=(Watchpoint.Kernel.Ids.CustomFieldId left, Watchpoint.Kernel.Ids.CustomFieldId right) -> bool
+static Watchpoint.Kernel.Ids.CustomFieldId.operator <(Watchpoint.Kernel.Ids.CustomFieldId left, Watchpoint.Kernel.Ids.CustomFieldId right) -> bool
+static Watchpoint.Kernel.Ids.CustomFieldId.operator <=(Watchpoint.Kernel.Ids.CustomFieldId left, Watchpoint.Kernel.Ids.CustomFieldId right) -> bool
+static Watchpoint.Kernel.Ids.CustomFieldId.operator ==(Watchpoint.Kernel.Ids.CustomFieldId left, Watchpoint.Kernel.Ids.CustomFieldId right) -> bool
+static Watchpoint.Kernel.Ids.CustomFieldId.operator >(Watchpoint.Kernel.Ids.CustomFieldId left, Watchpoint.Kernel.Ids.CustomFieldId right) -> bool
+static Watchpoint.Kernel.Ids.CustomFieldId.operator >=(Watchpoint.Kernel.Ids.CustomFieldId left, Watchpoint.Kernel.Ids.CustomFieldId right) -> bool
+static Watchpoint.Kernel.Ids.CustomFieldId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.CustomFieldId.TryParse(string? s, out Watchpoint.Kernel.Ids.CustomFieldId id) -> bool
+static Watchpoint.Kernel.Ids.DeviceId.From(System.Guid value) -> Watchpoint.Kernel.Ids.DeviceId
+static Watchpoint.Kernel.Ids.DeviceId.New() -> Watchpoint.Kernel.Ids.DeviceId
+static Watchpoint.Kernel.Ids.DeviceId.operator !=(Watchpoint.Kernel.Ids.DeviceId left, Watchpoint.Kernel.Ids.DeviceId right) -> bool
+static Watchpoint.Kernel.Ids.DeviceId.operator <(Watchpoint.Kernel.Ids.DeviceId left, Watchpoint.Kernel.Ids.DeviceId right) -> bool
+static Watchpoint.Kernel.Ids.DeviceId.operator <=(Watchpoint.Kernel.Ids.DeviceId left, Watchpoint.Kernel.Ids.DeviceId right) -> bool
+static Watchpoint.Kernel.Ids.DeviceId.operator ==(Watchpoint.Kernel.Ids.DeviceId left, Watchpoint.Kernel.Ids.DeviceId right) -> bool
+static Watchpoint.Kernel.Ids.DeviceId.operator >(Watchpoint.Kernel.Ids.DeviceId left, Watchpoint.Kernel.Ids.DeviceId right) -> bool
+static Watchpoint.Kernel.Ids.DeviceId.operator >=(Watchpoint.Kernel.Ids.DeviceId left, Watchpoint.Kernel.Ids.DeviceId right) -> bool
+static Watchpoint.Kernel.Ids.DeviceId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.DeviceId.TryParse(string? s, out Watchpoint.Kernel.Ids.DeviceId id) -> bool
+static Watchpoint.Kernel.Ids.DraftId.From(System.Guid value) -> Watchpoint.Kernel.Ids.DraftId
+static Watchpoint.Kernel.Ids.DraftId.New() -> Watchpoint.Kernel.Ids.DraftId
+static Watchpoint.Kernel.Ids.DraftId.operator !=(Watchpoint.Kernel.Ids.DraftId left, Watchpoint.Kernel.Ids.DraftId right) -> bool
+static Watchpoint.Kernel.Ids.DraftId.operator <(Watchpoint.Kernel.Ids.DraftId left, Watchpoint.Kernel.Ids.DraftId right) -> bool
+static Watchpoint.Kernel.Ids.DraftId.operator <=(Watchpoint.Kernel.Ids.DraftId left, Watchpoint.Kernel.Ids.DraftId right) -> bool
+static Watchpoint.Kernel.Ids.DraftId.operator ==(Watchpoint.Kernel.Ids.DraftId left, Watchpoint.Kernel.Ids.DraftId right) -> bool
+static Watchpoint.Kernel.Ids.DraftId.operator >(Watchpoint.Kernel.Ids.DraftId left, Watchpoint.Kernel.Ids.DraftId right) -> bool
+static Watchpoint.Kernel.Ids.DraftId.operator >=(Watchpoint.Kernel.Ids.DraftId left, Watchpoint.Kernel.Ids.DraftId right) -> bool
+static Watchpoint.Kernel.Ids.DraftId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.DraftId.TryParse(string? s, out Watchpoint.Kernel.Ids.DraftId id) -> bool
+static Watchpoint.Kernel.Ids.EntityIdExtensions.ToLogString<TId>(this TId id) -> string!
+static Watchpoint.Kernel.Ids.ErrorCode.FromTrusted(string! value) -> Watchpoint.Kernel.Ids.ErrorCode
+static Watchpoint.Kernel.Ids.ErrorCode.operator !=(Watchpoint.Kernel.Ids.ErrorCode left, Watchpoint.Kernel.Ids.ErrorCode right) -> bool
+static Watchpoint.Kernel.Ids.ErrorCode.operator ==(Watchpoint.Kernel.Ids.ErrorCode left, Watchpoint.Kernel.Ids.ErrorCode right) -> bool
+static Watchpoint.Kernel.Ids.ErrorCode.Parse(string? text) -> Watchpoint.Kernel.Results.Result<Watchpoint.Kernel.Ids.ErrorCode>
+static Watchpoint.Kernel.Ids.EventRecordId.From(System.Guid value) -> Watchpoint.Kernel.Ids.EventRecordId
+static Watchpoint.Kernel.Ids.EventRecordId.New() -> Watchpoint.Kernel.Ids.EventRecordId
+static Watchpoint.Kernel.Ids.EventRecordId.operator !=(Watchpoint.Kernel.Ids.EventRecordId left, Watchpoint.Kernel.Ids.EventRecordId right) -> bool
+static Watchpoint.Kernel.Ids.EventRecordId.operator <(Watchpoint.Kernel.Ids.EventRecordId left, Watchpoint.Kernel.Ids.EventRecordId right) -> bool
+static Watchpoint.Kernel.Ids.EventRecordId.operator <=(Watchpoint.Kernel.Ids.EventRecordId left, Watchpoint.Kernel.Ids.EventRecordId right) -> bool
+static Watchpoint.Kernel.Ids.EventRecordId.operator ==(Watchpoint.Kernel.Ids.EventRecordId left, Watchpoint.Kernel.Ids.EventRecordId right) -> bool
+static Watchpoint.Kernel.Ids.EventRecordId.operator >(Watchpoint.Kernel.Ids.EventRecordId left, Watchpoint.Kernel.Ids.EventRecordId right) -> bool
+static Watchpoint.Kernel.Ids.EventRecordId.operator >=(Watchpoint.Kernel.Ids.EventRecordId left, Watchpoint.Kernel.Ids.EventRecordId right) -> bool
+static Watchpoint.Kernel.Ids.EventRecordId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.EventRecordId.TryParse(string? s, out Watchpoint.Kernel.Ids.EventRecordId id) -> bool
+static Watchpoint.Kernel.Ids.FederationLinkId.From(System.Guid value) -> Watchpoint.Kernel.Ids.FederationLinkId
+static Watchpoint.Kernel.Ids.FederationLinkId.New() -> Watchpoint.Kernel.Ids.FederationLinkId
+static Watchpoint.Kernel.Ids.FederationLinkId.operator !=(Watchpoint.Kernel.Ids.FederationLinkId left, Watchpoint.Kernel.Ids.FederationLinkId right) -> bool
+static Watchpoint.Kernel.Ids.FederationLinkId.operator <(Watchpoint.Kernel.Ids.FederationLinkId left, Watchpoint.Kernel.Ids.FederationLinkId right) -> bool
+static Watchpoint.Kernel.Ids.FederationLinkId.operator <=(Watchpoint.Kernel.Ids.FederationLinkId left, Watchpoint.Kernel.Ids.FederationLinkId right) -> bool
+static Watchpoint.Kernel.Ids.FederationLinkId.operator ==(Watchpoint.Kernel.Ids.FederationLinkId left, Watchpoint.Kernel.Ids.FederationLinkId right) -> bool
+static Watchpoint.Kernel.Ids.FederationLinkId.operator >(Watchpoint.Kernel.Ids.FederationLinkId left, Watchpoint.Kernel.Ids.FederationLinkId right) -> bool
+static Watchpoint.Kernel.Ids.FederationLinkId.operator >=(Watchpoint.Kernel.Ids.FederationLinkId left, Watchpoint.Kernel.Ids.FederationLinkId right) -> bool
+static Watchpoint.Kernel.Ids.FederationLinkId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.FederationLinkId.TryParse(string? s, out Watchpoint.Kernel.Ids.FederationLinkId id) -> bool
+static Watchpoint.Kernel.Ids.FileId.From(System.Guid value) -> Watchpoint.Kernel.Ids.FileId
+static Watchpoint.Kernel.Ids.FileId.New() -> Watchpoint.Kernel.Ids.FileId
+static Watchpoint.Kernel.Ids.FileId.operator !=(Watchpoint.Kernel.Ids.FileId left, Watchpoint.Kernel.Ids.FileId right) -> bool
+static Watchpoint.Kernel.Ids.FileId.operator <(Watchpoint.Kernel.Ids.FileId left, Watchpoint.Kernel.Ids.FileId right) -> bool
+static Watchpoint.Kernel.Ids.FileId.operator <=(Watchpoint.Kernel.Ids.FileId left, Watchpoint.Kernel.Ids.FileId right) -> bool
+static Watchpoint.Kernel.Ids.FileId.operator ==(Watchpoint.Kernel.Ids.FileId left, Watchpoint.Kernel.Ids.FileId right) -> bool
+static Watchpoint.Kernel.Ids.FileId.operator >(Watchpoint.Kernel.Ids.FileId left, Watchpoint.Kernel.Ids.FileId right) -> bool
+static Watchpoint.Kernel.Ids.FileId.operator >=(Watchpoint.Kernel.Ids.FileId left, Watchpoint.Kernel.Ids.FileId right) -> bool
+static Watchpoint.Kernel.Ids.FileId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.FileId.TryParse(string? s, out Watchpoint.Kernel.Ids.FileId id) -> bool
+static Watchpoint.Kernel.Ids.HolidaySetId.From(System.Guid value) -> Watchpoint.Kernel.Ids.HolidaySetId
+static Watchpoint.Kernel.Ids.HolidaySetId.New() -> Watchpoint.Kernel.Ids.HolidaySetId
+static Watchpoint.Kernel.Ids.HolidaySetId.operator !=(Watchpoint.Kernel.Ids.HolidaySetId left, Watchpoint.Kernel.Ids.HolidaySetId right) -> bool
+static Watchpoint.Kernel.Ids.HolidaySetId.operator <(Watchpoint.Kernel.Ids.HolidaySetId left, Watchpoint.Kernel.Ids.HolidaySetId right) -> bool
+static Watchpoint.Kernel.Ids.HolidaySetId.operator <=(Watchpoint.Kernel.Ids.HolidaySetId left, Watchpoint.Kernel.Ids.HolidaySetId right) -> bool
+static Watchpoint.Kernel.Ids.HolidaySetId.operator ==(Watchpoint.Kernel.Ids.HolidaySetId left, Watchpoint.Kernel.Ids.HolidaySetId right) -> bool
+static Watchpoint.Kernel.Ids.HolidaySetId.operator >(Watchpoint.Kernel.Ids.HolidaySetId left, Watchpoint.Kernel.Ids.HolidaySetId right) -> bool
+static Watchpoint.Kernel.Ids.HolidaySetId.operator >=(Watchpoint.Kernel.Ids.HolidaySetId left, Watchpoint.Kernel.Ids.HolidaySetId right) -> bool
+static Watchpoint.Kernel.Ids.HolidaySetId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.HolidaySetId.TryParse(string? s, out Watchpoint.Kernel.Ids.HolidaySetId id) -> bool
+static Watchpoint.Kernel.Ids.HostId.From(System.Guid value) -> Watchpoint.Kernel.Ids.HostId
+static Watchpoint.Kernel.Ids.HostId.New() -> Watchpoint.Kernel.Ids.HostId
+static Watchpoint.Kernel.Ids.HostId.operator !=(Watchpoint.Kernel.Ids.HostId left, Watchpoint.Kernel.Ids.HostId right) -> bool
+static Watchpoint.Kernel.Ids.HostId.operator <(Watchpoint.Kernel.Ids.HostId left, Watchpoint.Kernel.Ids.HostId right) -> bool
+static Watchpoint.Kernel.Ids.HostId.operator <=(Watchpoint.Kernel.Ids.HostId left, Watchpoint.Kernel.Ids.HostId right) -> bool
+static Watchpoint.Kernel.Ids.HostId.operator ==(Watchpoint.Kernel.Ids.HostId left, Watchpoint.Kernel.Ids.HostId right) -> bool
+static Watchpoint.Kernel.Ids.HostId.operator >(Watchpoint.Kernel.Ids.HostId left, Watchpoint.Kernel.Ids.HostId right) -> bool
+static Watchpoint.Kernel.Ids.HostId.operator >=(Watchpoint.Kernel.Ids.HostId left, Watchpoint.Kernel.Ids.HostId right) -> bool
+static Watchpoint.Kernel.Ids.HostId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.HostId.TryParse(string? s, out Watchpoint.Kernel.Ids.HostId id) -> bool
+static Watchpoint.Kernel.Ids.IncidentId.From(System.Guid value) -> Watchpoint.Kernel.Ids.IncidentId
+static Watchpoint.Kernel.Ids.IncidentId.New() -> Watchpoint.Kernel.Ids.IncidentId
+static Watchpoint.Kernel.Ids.IncidentId.operator !=(Watchpoint.Kernel.Ids.IncidentId left, Watchpoint.Kernel.Ids.IncidentId right) -> bool
+static Watchpoint.Kernel.Ids.IncidentId.operator <(Watchpoint.Kernel.Ids.IncidentId left, Watchpoint.Kernel.Ids.IncidentId right) -> bool
+static Watchpoint.Kernel.Ids.IncidentId.operator <=(Watchpoint.Kernel.Ids.IncidentId left, Watchpoint.Kernel.Ids.IncidentId right) -> bool
+static Watchpoint.Kernel.Ids.IncidentId.operator ==(Watchpoint.Kernel.Ids.IncidentId left, Watchpoint.Kernel.Ids.IncidentId right) -> bool
+static Watchpoint.Kernel.Ids.IncidentId.operator >(Watchpoint.Kernel.Ids.IncidentId left, Watchpoint.Kernel.Ids.IncidentId right) -> bool
+static Watchpoint.Kernel.Ids.IncidentId.operator >=(Watchpoint.Kernel.Ids.IncidentId left, Watchpoint.Kernel.Ids.IncidentId right) -> bool
+static Watchpoint.Kernel.Ids.IncidentId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.IncidentId.TryParse(string? s, out Watchpoint.Kernel.Ids.IncidentId id) -> bool
+static Watchpoint.Kernel.Ids.JobId.From(System.Guid value) -> Watchpoint.Kernel.Ids.JobId
+static Watchpoint.Kernel.Ids.JobId.New() -> Watchpoint.Kernel.Ids.JobId
+static Watchpoint.Kernel.Ids.JobId.operator !=(Watchpoint.Kernel.Ids.JobId left, Watchpoint.Kernel.Ids.JobId right) -> bool
+static Watchpoint.Kernel.Ids.JobId.operator <(Watchpoint.Kernel.Ids.JobId left, Watchpoint.Kernel.Ids.JobId right) -> bool
+static Watchpoint.Kernel.Ids.JobId.operator <=(Watchpoint.Kernel.Ids.JobId left, Watchpoint.Kernel.Ids.JobId right) -> bool
+static Watchpoint.Kernel.Ids.JobId.operator ==(Watchpoint.Kernel.Ids.JobId left, Watchpoint.Kernel.Ids.JobId right) -> bool
+static Watchpoint.Kernel.Ids.JobId.operator >(Watchpoint.Kernel.Ids.JobId left, Watchpoint.Kernel.Ids.JobId right) -> bool
+static Watchpoint.Kernel.Ids.JobId.operator >=(Watchpoint.Kernel.Ids.JobId left, Watchpoint.Kernel.Ids.JobId right) -> bool
+static Watchpoint.Kernel.Ids.JobId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.JobId.TryParse(string? s, out Watchpoint.Kernel.Ids.JobId id) -> bool
+static Watchpoint.Kernel.Ids.LicenceId.From(System.Guid value) -> Watchpoint.Kernel.Ids.LicenceId
+static Watchpoint.Kernel.Ids.LicenceId.New() -> Watchpoint.Kernel.Ids.LicenceId
+static Watchpoint.Kernel.Ids.LicenceId.operator !=(Watchpoint.Kernel.Ids.LicenceId left, Watchpoint.Kernel.Ids.LicenceId right) -> bool
+static Watchpoint.Kernel.Ids.LicenceId.operator <(Watchpoint.Kernel.Ids.LicenceId left, Watchpoint.Kernel.Ids.LicenceId right) -> bool
+static Watchpoint.Kernel.Ids.LicenceId.operator <=(Watchpoint.Kernel.Ids.LicenceId left, Watchpoint.Kernel.Ids.LicenceId right) -> bool
+static Watchpoint.Kernel.Ids.LicenceId.operator ==(Watchpoint.Kernel.Ids.LicenceId left, Watchpoint.Kernel.Ids.LicenceId right) -> bool
+static Watchpoint.Kernel.Ids.LicenceId.operator >(Watchpoint.Kernel.Ids.LicenceId left, Watchpoint.Kernel.Ids.LicenceId right) -> bool
+static Watchpoint.Kernel.Ids.LicenceId.operator >=(Watchpoint.Kernel.Ids.LicenceId left, Watchpoint.Kernel.Ids.LicenceId right) -> bool
+static Watchpoint.Kernel.Ids.LicenceId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.LicenceId.TryParse(string? s, out Watchpoint.Kernel.Ids.LicenceId id) -> bool
+static Watchpoint.Kernel.Ids.LinkId.From(System.Guid value) -> Watchpoint.Kernel.Ids.LinkId
+static Watchpoint.Kernel.Ids.LinkId.New() -> Watchpoint.Kernel.Ids.LinkId
+static Watchpoint.Kernel.Ids.LinkId.operator !=(Watchpoint.Kernel.Ids.LinkId left, Watchpoint.Kernel.Ids.LinkId right) -> bool
+static Watchpoint.Kernel.Ids.LinkId.operator <(Watchpoint.Kernel.Ids.LinkId left, Watchpoint.Kernel.Ids.LinkId right) -> bool
+static Watchpoint.Kernel.Ids.LinkId.operator <=(Watchpoint.Kernel.Ids.LinkId left, Watchpoint.Kernel.Ids.LinkId right) -> bool
+static Watchpoint.Kernel.Ids.LinkId.operator ==(Watchpoint.Kernel.Ids.LinkId left, Watchpoint.Kernel.Ids.LinkId right) -> bool
+static Watchpoint.Kernel.Ids.LinkId.operator >(Watchpoint.Kernel.Ids.LinkId left, Watchpoint.Kernel.Ids.LinkId right) -> bool
+static Watchpoint.Kernel.Ids.LinkId.operator >=(Watchpoint.Kernel.Ids.LinkId left, Watchpoint.Kernel.Ids.LinkId right) -> bool
+static Watchpoint.Kernel.Ids.LinkId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.LinkId.TryParse(string? s, out Watchpoint.Kernel.Ids.LinkId id) -> bool
+static Watchpoint.Kernel.Ids.LocationId.From(System.Guid value) -> Watchpoint.Kernel.Ids.LocationId
+static Watchpoint.Kernel.Ids.LocationId.New() -> Watchpoint.Kernel.Ids.LocationId
+static Watchpoint.Kernel.Ids.LocationId.operator !=(Watchpoint.Kernel.Ids.LocationId left, Watchpoint.Kernel.Ids.LocationId right) -> bool
+static Watchpoint.Kernel.Ids.LocationId.operator <(Watchpoint.Kernel.Ids.LocationId left, Watchpoint.Kernel.Ids.LocationId right) -> bool
+static Watchpoint.Kernel.Ids.LocationId.operator <=(Watchpoint.Kernel.Ids.LocationId left, Watchpoint.Kernel.Ids.LocationId right) -> bool
+static Watchpoint.Kernel.Ids.LocationId.operator ==(Watchpoint.Kernel.Ids.LocationId left, Watchpoint.Kernel.Ids.LocationId right) -> bool
+static Watchpoint.Kernel.Ids.LocationId.operator >(Watchpoint.Kernel.Ids.LocationId left, Watchpoint.Kernel.Ids.LocationId right) -> bool
+static Watchpoint.Kernel.Ids.LocationId.operator >=(Watchpoint.Kernel.Ids.LocationId left, Watchpoint.Kernel.Ids.LocationId right) -> bool
+static Watchpoint.Kernel.Ids.LocationId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.LocationId.TryParse(string? s, out Watchpoint.Kernel.Ids.LocationId id) -> bool
+static Watchpoint.Kernel.Ids.MemberId.FromTrusted(string! value) -> Watchpoint.Kernel.Ids.MemberId
+static Watchpoint.Kernel.Ids.MemberId.operator !=(Watchpoint.Kernel.Ids.MemberId left, Watchpoint.Kernel.Ids.MemberId right) -> bool
+static Watchpoint.Kernel.Ids.MemberId.operator ==(Watchpoint.Kernel.Ids.MemberId left, Watchpoint.Kernel.Ids.MemberId right) -> bool
+static Watchpoint.Kernel.Ids.MemberId.Parse(string? text) -> Watchpoint.Kernel.Results.Result<Watchpoint.Kernel.Ids.MemberId>
+static Watchpoint.Kernel.Ids.NodeId.From(System.Guid value) -> Watchpoint.Kernel.Ids.NodeId
+static Watchpoint.Kernel.Ids.NodeId.New() -> Watchpoint.Kernel.Ids.NodeId
+static Watchpoint.Kernel.Ids.NodeId.operator !=(Watchpoint.Kernel.Ids.NodeId left, Watchpoint.Kernel.Ids.NodeId right) -> bool
+static Watchpoint.Kernel.Ids.NodeId.operator <(Watchpoint.Kernel.Ids.NodeId left, Watchpoint.Kernel.Ids.NodeId right) -> bool
+static Watchpoint.Kernel.Ids.NodeId.operator <=(Watchpoint.Kernel.Ids.NodeId left, Watchpoint.Kernel.Ids.NodeId right) -> bool
+static Watchpoint.Kernel.Ids.NodeId.operator ==(Watchpoint.Kernel.Ids.NodeId left, Watchpoint.Kernel.Ids.NodeId right) -> bool
+static Watchpoint.Kernel.Ids.NodeId.operator >(Watchpoint.Kernel.Ids.NodeId left, Watchpoint.Kernel.Ids.NodeId right) -> bool
+static Watchpoint.Kernel.Ids.NodeId.operator >=(Watchpoint.Kernel.Ids.NodeId left, Watchpoint.Kernel.Ids.NodeId right) -> bool
+static Watchpoint.Kernel.Ids.NodeId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.NodeId.TryParse(string? s, out Watchpoint.Kernel.Ids.NodeId id) -> bool
+static Watchpoint.Kernel.Ids.NotificationId.From(System.Guid value) -> Watchpoint.Kernel.Ids.NotificationId
+static Watchpoint.Kernel.Ids.NotificationId.New() -> Watchpoint.Kernel.Ids.NotificationId
+static Watchpoint.Kernel.Ids.NotificationId.operator !=(Watchpoint.Kernel.Ids.NotificationId left, Watchpoint.Kernel.Ids.NotificationId right) -> bool
+static Watchpoint.Kernel.Ids.NotificationId.operator <(Watchpoint.Kernel.Ids.NotificationId left, Watchpoint.Kernel.Ids.NotificationId right) -> bool
+static Watchpoint.Kernel.Ids.NotificationId.operator <=(Watchpoint.Kernel.Ids.NotificationId left, Watchpoint.Kernel.Ids.NotificationId right) -> bool
+static Watchpoint.Kernel.Ids.NotificationId.operator ==(Watchpoint.Kernel.Ids.NotificationId left, Watchpoint.Kernel.Ids.NotificationId right) -> bool
+static Watchpoint.Kernel.Ids.NotificationId.operator >(Watchpoint.Kernel.Ids.NotificationId left, Watchpoint.Kernel.Ids.NotificationId right) -> bool
+static Watchpoint.Kernel.Ids.NotificationId.operator >=(Watchpoint.Kernel.Ids.NotificationId left, Watchpoint.Kernel.Ids.NotificationId right) -> bool
+static Watchpoint.Kernel.Ids.NotificationId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.NotificationId.TryParse(string? s, out Watchpoint.Kernel.Ids.NotificationId id) -> bool
+static Watchpoint.Kernel.Ids.ObservationId.From(System.Guid value) -> Watchpoint.Kernel.Ids.ObservationId
+static Watchpoint.Kernel.Ids.ObservationId.New() -> Watchpoint.Kernel.Ids.ObservationId
+static Watchpoint.Kernel.Ids.ObservationId.operator !=(Watchpoint.Kernel.Ids.ObservationId left, Watchpoint.Kernel.Ids.ObservationId right) -> bool
+static Watchpoint.Kernel.Ids.ObservationId.operator <(Watchpoint.Kernel.Ids.ObservationId left, Watchpoint.Kernel.Ids.ObservationId right) -> bool
+static Watchpoint.Kernel.Ids.ObservationId.operator <=(Watchpoint.Kernel.Ids.ObservationId left, Watchpoint.Kernel.Ids.ObservationId right) -> bool
+static Watchpoint.Kernel.Ids.ObservationId.operator ==(Watchpoint.Kernel.Ids.ObservationId left, Watchpoint.Kernel.Ids.ObservationId right) -> bool
+static Watchpoint.Kernel.Ids.ObservationId.operator >(Watchpoint.Kernel.Ids.ObservationId left, Watchpoint.Kernel.Ids.ObservationId right) -> bool
+static Watchpoint.Kernel.Ids.ObservationId.operator >=(Watchpoint.Kernel.Ids.ObservationId left, Watchpoint.Kernel.Ids.ObservationId right) -> bool
+static Watchpoint.Kernel.Ids.ObservationId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.ObservationId.TryParse(string? s, out Watchpoint.Kernel.Ids.ObservationId id) -> bool
+static Watchpoint.Kernel.Ids.PackageId.FromTrusted(string! value) -> Watchpoint.Kernel.Ids.PackageId
+static Watchpoint.Kernel.Ids.PackageId.operator !=(Watchpoint.Kernel.Ids.PackageId left, Watchpoint.Kernel.Ids.PackageId right) -> bool
+static Watchpoint.Kernel.Ids.PackageId.operator ==(Watchpoint.Kernel.Ids.PackageId left, Watchpoint.Kernel.Ids.PackageId right) -> bool
+static Watchpoint.Kernel.Ids.PackageId.Parse(string? text) -> Watchpoint.Kernel.Results.Result<Watchpoint.Kernel.Ids.PackageId>
+static Watchpoint.Kernel.Ids.PermissionCode.FromTrusted(string! value) -> Watchpoint.Kernel.Ids.PermissionCode
+static Watchpoint.Kernel.Ids.PermissionCode.operator !=(Watchpoint.Kernel.Ids.PermissionCode left, Watchpoint.Kernel.Ids.PermissionCode right) -> bool
+static Watchpoint.Kernel.Ids.PermissionCode.operator ==(Watchpoint.Kernel.Ids.PermissionCode left, Watchpoint.Kernel.Ids.PermissionCode right) -> bool
+static Watchpoint.Kernel.Ids.PermissionCode.Parse(string? text) -> Watchpoint.Kernel.Results.Result<Watchpoint.Kernel.Ids.PermissionCode>
+static Watchpoint.Kernel.Ids.ProcedureId.From(System.Guid value) -> Watchpoint.Kernel.Ids.ProcedureId
+static Watchpoint.Kernel.Ids.ProcedureId.New() -> Watchpoint.Kernel.Ids.ProcedureId
+static Watchpoint.Kernel.Ids.ProcedureId.operator !=(Watchpoint.Kernel.Ids.ProcedureId left, Watchpoint.Kernel.Ids.ProcedureId right) -> bool
+static Watchpoint.Kernel.Ids.ProcedureId.operator <(Watchpoint.Kernel.Ids.ProcedureId left, Watchpoint.Kernel.Ids.ProcedureId right) -> bool
+static Watchpoint.Kernel.Ids.ProcedureId.operator <=(Watchpoint.Kernel.Ids.ProcedureId left, Watchpoint.Kernel.Ids.ProcedureId right) -> bool
+static Watchpoint.Kernel.Ids.ProcedureId.operator ==(Watchpoint.Kernel.Ids.ProcedureId left, Watchpoint.Kernel.Ids.ProcedureId right) -> bool
+static Watchpoint.Kernel.Ids.ProcedureId.operator >(Watchpoint.Kernel.Ids.ProcedureId left, Watchpoint.Kernel.Ids.ProcedureId right) -> bool
+static Watchpoint.Kernel.Ids.ProcedureId.operator >=(Watchpoint.Kernel.Ids.ProcedureId left, Watchpoint.Kernel.Ids.ProcedureId right) -> bool
+static Watchpoint.Kernel.Ids.ProcedureId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.ProcedureId.TryParse(string? s, out Watchpoint.Kernel.Ids.ProcedureId id) -> bool
+static Watchpoint.Kernel.Ids.PropertyPath.FromTrusted(string! value) -> Watchpoint.Kernel.Ids.PropertyPath
+static Watchpoint.Kernel.Ids.PropertyPath.operator !=(Watchpoint.Kernel.Ids.PropertyPath left, Watchpoint.Kernel.Ids.PropertyPath right) -> bool
+static Watchpoint.Kernel.Ids.PropertyPath.operator ==(Watchpoint.Kernel.Ids.PropertyPath left, Watchpoint.Kernel.Ids.PropertyPath right) -> bool
+static Watchpoint.Kernel.Ids.PropertyPath.Parse(string? text) -> Watchpoint.Kernel.Results.Result<Watchpoint.Kernel.Ids.PropertyPath>
+static Watchpoint.Kernel.Ids.ReportId.From(System.Guid value) -> Watchpoint.Kernel.Ids.ReportId
+static Watchpoint.Kernel.Ids.ReportId.New() -> Watchpoint.Kernel.Ids.ReportId
+static Watchpoint.Kernel.Ids.ReportId.operator !=(Watchpoint.Kernel.Ids.ReportId left, Watchpoint.Kernel.Ids.ReportId right) -> bool
+static Watchpoint.Kernel.Ids.ReportId.operator <(Watchpoint.Kernel.Ids.ReportId left, Watchpoint.Kernel.Ids.ReportId right) -> bool
+static Watchpoint.Kernel.Ids.ReportId.operator <=(Watchpoint.Kernel.Ids.ReportId left, Watchpoint.Kernel.Ids.ReportId right) -> bool
+static Watchpoint.Kernel.Ids.ReportId.operator ==(Watchpoint.Kernel.Ids.ReportId left, Watchpoint.Kernel.Ids.ReportId right) -> bool
+static Watchpoint.Kernel.Ids.ReportId.operator >(Watchpoint.Kernel.Ids.ReportId left, Watchpoint.Kernel.Ids.ReportId right) -> bool
+static Watchpoint.Kernel.Ids.ReportId.operator >=(Watchpoint.Kernel.Ids.ReportId left, Watchpoint.Kernel.Ids.ReportId right) -> bool
+static Watchpoint.Kernel.Ids.ReportId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.ReportId.TryParse(string? s, out Watchpoint.Kernel.Ids.ReportId id) -> bool
+static Watchpoint.Kernel.Ids.RightGrantId.From(System.Guid value) -> Watchpoint.Kernel.Ids.RightGrantId
+static Watchpoint.Kernel.Ids.RightGrantId.New() -> Watchpoint.Kernel.Ids.RightGrantId
+static Watchpoint.Kernel.Ids.RightGrantId.operator !=(Watchpoint.Kernel.Ids.RightGrantId left, Watchpoint.Kernel.Ids.RightGrantId right) -> bool
+static Watchpoint.Kernel.Ids.RightGrantId.operator <(Watchpoint.Kernel.Ids.RightGrantId left, Watchpoint.Kernel.Ids.RightGrantId right) -> bool
+static Watchpoint.Kernel.Ids.RightGrantId.operator <=(Watchpoint.Kernel.Ids.RightGrantId left, Watchpoint.Kernel.Ids.RightGrantId right) -> bool
+static Watchpoint.Kernel.Ids.RightGrantId.operator ==(Watchpoint.Kernel.Ids.RightGrantId left, Watchpoint.Kernel.Ids.RightGrantId right) -> bool
+static Watchpoint.Kernel.Ids.RightGrantId.operator >(Watchpoint.Kernel.Ids.RightGrantId left, Watchpoint.Kernel.Ids.RightGrantId right) -> bool
+static Watchpoint.Kernel.Ids.RightGrantId.operator >=(Watchpoint.Kernel.Ids.RightGrantId left, Watchpoint.Kernel.Ids.RightGrantId right) -> bool
+static Watchpoint.Kernel.Ids.RightGrantId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.RightGrantId.TryParse(string? s, out Watchpoint.Kernel.Ids.RightGrantId id) -> bool
+static Watchpoint.Kernel.Ids.ScriptId.From(System.Guid value) -> Watchpoint.Kernel.Ids.ScriptId
+static Watchpoint.Kernel.Ids.ScriptId.New() -> Watchpoint.Kernel.Ids.ScriptId
+static Watchpoint.Kernel.Ids.ScriptId.operator !=(Watchpoint.Kernel.Ids.ScriptId left, Watchpoint.Kernel.Ids.ScriptId right) -> bool
+static Watchpoint.Kernel.Ids.ScriptId.operator <(Watchpoint.Kernel.Ids.ScriptId left, Watchpoint.Kernel.Ids.ScriptId right) -> bool
+static Watchpoint.Kernel.Ids.ScriptId.operator <=(Watchpoint.Kernel.Ids.ScriptId left, Watchpoint.Kernel.Ids.ScriptId right) -> bool
+static Watchpoint.Kernel.Ids.ScriptId.operator ==(Watchpoint.Kernel.Ids.ScriptId left, Watchpoint.Kernel.Ids.ScriptId right) -> bool
+static Watchpoint.Kernel.Ids.ScriptId.operator >(Watchpoint.Kernel.Ids.ScriptId left, Watchpoint.Kernel.Ids.ScriptId right) -> bool
+static Watchpoint.Kernel.Ids.ScriptId.operator >=(Watchpoint.Kernel.Ids.ScriptId left, Watchpoint.Kernel.Ids.ScriptId right) -> bool
+static Watchpoint.Kernel.Ids.ScriptId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.ScriptId.TryParse(string? s, out Watchpoint.Kernel.Ids.ScriptId id) -> bool
+static Watchpoint.Kernel.Ids.SecretId.From(System.Guid value) -> Watchpoint.Kernel.Ids.SecretId
+static Watchpoint.Kernel.Ids.SecretId.New() -> Watchpoint.Kernel.Ids.SecretId
+static Watchpoint.Kernel.Ids.SecretId.operator !=(Watchpoint.Kernel.Ids.SecretId left, Watchpoint.Kernel.Ids.SecretId right) -> bool
+static Watchpoint.Kernel.Ids.SecretId.operator <(Watchpoint.Kernel.Ids.SecretId left, Watchpoint.Kernel.Ids.SecretId right) -> bool
+static Watchpoint.Kernel.Ids.SecretId.operator <=(Watchpoint.Kernel.Ids.SecretId left, Watchpoint.Kernel.Ids.SecretId right) -> bool
+static Watchpoint.Kernel.Ids.SecretId.operator ==(Watchpoint.Kernel.Ids.SecretId left, Watchpoint.Kernel.Ids.SecretId right) -> bool
+static Watchpoint.Kernel.Ids.SecretId.operator >(Watchpoint.Kernel.Ids.SecretId left, Watchpoint.Kernel.Ids.SecretId right) -> bool
+static Watchpoint.Kernel.Ids.SecretId.operator >=(Watchpoint.Kernel.Ids.SecretId left, Watchpoint.Kernel.Ids.SecretId right) -> bool
+static Watchpoint.Kernel.Ids.SecretId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.SecretId.TryParse(string? s, out Watchpoint.Kernel.Ids.SecretId id) -> bool
+static Watchpoint.Kernel.Ids.ServerId.From(System.Guid value) -> Watchpoint.Kernel.Ids.ServerId
+static Watchpoint.Kernel.Ids.ServerId.New() -> Watchpoint.Kernel.Ids.ServerId
+static Watchpoint.Kernel.Ids.ServerId.operator !=(Watchpoint.Kernel.Ids.ServerId left, Watchpoint.Kernel.Ids.ServerId right) -> bool
+static Watchpoint.Kernel.Ids.ServerId.operator <(Watchpoint.Kernel.Ids.ServerId left, Watchpoint.Kernel.Ids.ServerId right) -> bool
+static Watchpoint.Kernel.Ids.ServerId.operator <=(Watchpoint.Kernel.Ids.ServerId left, Watchpoint.Kernel.Ids.ServerId right) -> bool
+static Watchpoint.Kernel.Ids.ServerId.operator ==(Watchpoint.Kernel.Ids.ServerId left, Watchpoint.Kernel.Ids.ServerId right) -> bool
+static Watchpoint.Kernel.Ids.ServerId.operator >(Watchpoint.Kernel.Ids.ServerId left, Watchpoint.Kernel.Ids.ServerId right) -> bool
+static Watchpoint.Kernel.Ids.ServerId.operator >=(Watchpoint.Kernel.Ids.ServerId left, Watchpoint.Kernel.Ids.ServerId right) -> bool
+static Watchpoint.Kernel.Ids.ServerId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.ServerId.TryParse(string? s, out Watchpoint.Kernel.Ids.ServerId id) -> bool
+static Watchpoint.Kernel.Ids.SessionId.From(System.Guid value) -> Watchpoint.Kernel.Ids.SessionId
+static Watchpoint.Kernel.Ids.SessionId.New() -> Watchpoint.Kernel.Ids.SessionId
+static Watchpoint.Kernel.Ids.SessionId.operator !=(Watchpoint.Kernel.Ids.SessionId left, Watchpoint.Kernel.Ids.SessionId right) -> bool
+static Watchpoint.Kernel.Ids.SessionId.operator <(Watchpoint.Kernel.Ids.SessionId left, Watchpoint.Kernel.Ids.SessionId right) -> bool
+static Watchpoint.Kernel.Ids.SessionId.operator <=(Watchpoint.Kernel.Ids.SessionId left, Watchpoint.Kernel.Ids.SessionId right) -> bool
+static Watchpoint.Kernel.Ids.SessionId.operator ==(Watchpoint.Kernel.Ids.SessionId left, Watchpoint.Kernel.Ids.SessionId right) -> bool
+static Watchpoint.Kernel.Ids.SessionId.operator >(Watchpoint.Kernel.Ids.SessionId left, Watchpoint.Kernel.Ids.SessionId right) -> bool
+static Watchpoint.Kernel.Ids.SessionId.operator >=(Watchpoint.Kernel.Ids.SessionId left, Watchpoint.Kernel.Ids.SessionId right) -> bool
+static Watchpoint.Kernel.Ids.SessionId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.SessionId.TryParse(string? s, out Watchpoint.Kernel.Ids.SessionId id) -> bool
+static Watchpoint.Kernel.Ids.SiteId.From(System.Guid value) -> Watchpoint.Kernel.Ids.SiteId
+static Watchpoint.Kernel.Ids.SiteId.New() -> Watchpoint.Kernel.Ids.SiteId
+static Watchpoint.Kernel.Ids.SiteId.operator !=(Watchpoint.Kernel.Ids.SiteId left, Watchpoint.Kernel.Ids.SiteId right) -> bool
+static Watchpoint.Kernel.Ids.SiteId.operator <(Watchpoint.Kernel.Ids.SiteId left, Watchpoint.Kernel.Ids.SiteId right) -> bool
+static Watchpoint.Kernel.Ids.SiteId.operator <=(Watchpoint.Kernel.Ids.SiteId left, Watchpoint.Kernel.Ids.SiteId right) -> bool
+static Watchpoint.Kernel.Ids.SiteId.operator ==(Watchpoint.Kernel.Ids.SiteId left, Watchpoint.Kernel.Ids.SiteId right) -> bool
+static Watchpoint.Kernel.Ids.SiteId.operator >(Watchpoint.Kernel.Ids.SiteId left, Watchpoint.Kernel.Ids.SiteId right) -> bool
+static Watchpoint.Kernel.Ids.SiteId.operator >=(Watchpoint.Kernel.Ids.SiteId left, Watchpoint.Kernel.Ids.SiteId right) -> bool
+static Watchpoint.Kernel.Ids.SiteId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.SiteId.TryParse(string? s, out Watchpoint.Kernel.Ids.SiteId id) -> bool
+static Watchpoint.Kernel.Ids.SynopticId.From(System.Guid value) -> Watchpoint.Kernel.Ids.SynopticId
+static Watchpoint.Kernel.Ids.SynopticId.New() -> Watchpoint.Kernel.Ids.SynopticId
+static Watchpoint.Kernel.Ids.SynopticId.operator !=(Watchpoint.Kernel.Ids.SynopticId left, Watchpoint.Kernel.Ids.SynopticId right) -> bool
+static Watchpoint.Kernel.Ids.SynopticId.operator <(Watchpoint.Kernel.Ids.SynopticId left, Watchpoint.Kernel.Ids.SynopticId right) -> bool
+static Watchpoint.Kernel.Ids.SynopticId.operator <=(Watchpoint.Kernel.Ids.SynopticId left, Watchpoint.Kernel.Ids.SynopticId right) -> bool
+static Watchpoint.Kernel.Ids.SynopticId.operator ==(Watchpoint.Kernel.Ids.SynopticId left, Watchpoint.Kernel.Ids.SynopticId right) -> bool
+static Watchpoint.Kernel.Ids.SynopticId.operator >(Watchpoint.Kernel.Ids.SynopticId left, Watchpoint.Kernel.Ids.SynopticId right) -> bool
+static Watchpoint.Kernel.Ids.SynopticId.operator >=(Watchpoint.Kernel.Ids.SynopticId left, Watchpoint.Kernel.Ids.SynopticId right) -> bool
+static Watchpoint.Kernel.Ids.SynopticId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.SynopticId.TryParse(string? s, out Watchpoint.Kernel.Ids.SynopticId id) -> bool
+static Watchpoint.Kernel.Ids.TagFamilyId.From(System.Guid value) -> Watchpoint.Kernel.Ids.TagFamilyId
+static Watchpoint.Kernel.Ids.TagFamilyId.New() -> Watchpoint.Kernel.Ids.TagFamilyId
+static Watchpoint.Kernel.Ids.TagFamilyId.operator !=(Watchpoint.Kernel.Ids.TagFamilyId left, Watchpoint.Kernel.Ids.TagFamilyId right) -> bool
+static Watchpoint.Kernel.Ids.TagFamilyId.operator <(Watchpoint.Kernel.Ids.TagFamilyId left, Watchpoint.Kernel.Ids.TagFamilyId right) -> bool
+static Watchpoint.Kernel.Ids.TagFamilyId.operator <=(Watchpoint.Kernel.Ids.TagFamilyId left, Watchpoint.Kernel.Ids.TagFamilyId right) -> bool
+static Watchpoint.Kernel.Ids.TagFamilyId.operator ==(Watchpoint.Kernel.Ids.TagFamilyId left, Watchpoint.Kernel.Ids.TagFamilyId right) -> bool
+static Watchpoint.Kernel.Ids.TagFamilyId.operator >(Watchpoint.Kernel.Ids.TagFamilyId left, Watchpoint.Kernel.Ids.TagFamilyId right) -> bool
+static Watchpoint.Kernel.Ids.TagFamilyId.operator >=(Watchpoint.Kernel.Ids.TagFamilyId left, Watchpoint.Kernel.Ids.TagFamilyId right) -> bool
+static Watchpoint.Kernel.Ids.TagFamilyId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.TagFamilyId.TryParse(string? s, out Watchpoint.Kernel.Ids.TagFamilyId id) -> bool
+static Watchpoint.Kernel.Ids.TagId.From(System.Guid value) -> Watchpoint.Kernel.Ids.TagId
+static Watchpoint.Kernel.Ids.TagId.New() -> Watchpoint.Kernel.Ids.TagId
+static Watchpoint.Kernel.Ids.TagId.operator !=(Watchpoint.Kernel.Ids.TagId left, Watchpoint.Kernel.Ids.TagId right) -> bool
+static Watchpoint.Kernel.Ids.TagId.operator <(Watchpoint.Kernel.Ids.TagId left, Watchpoint.Kernel.Ids.TagId right) -> bool
+static Watchpoint.Kernel.Ids.TagId.operator <=(Watchpoint.Kernel.Ids.TagId left, Watchpoint.Kernel.Ids.TagId right) -> bool
+static Watchpoint.Kernel.Ids.TagId.operator ==(Watchpoint.Kernel.Ids.TagId left, Watchpoint.Kernel.Ids.TagId right) -> bool
+static Watchpoint.Kernel.Ids.TagId.operator >(Watchpoint.Kernel.Ids.TagId left, Watchpoint.Kernel.Ids.TagId right) -> bool
+static Watchpoint.Kernel.Ids.TagId.operator >=(Watchpoint.Kernel.Ids.TagId left, Watchpoint.Kernel.Ids.TagId right) -> bool
+static Watchpoint.Kernel.Ids.TagId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.TagId.TryParse(string? s, out Watchpoint.Kernel.Ids.TagId id) -> bool
+static Watchpoint.Kernel.Ids.TypeId.FromTrusted(string! value) -> Watchpoint.Kernel.Ids.TypeId
+static Watchpoint.Kernel.Ids.TypeId.operator !=(Watchpoint.Kernel.Ids.TypeId left, Watchpoint.Kernel.Ids.TypeId right) -> bool
+static Watchpoint.Kernel.Ids.TypeId.operator ==(Watchpoint.Kernel.Ids.TypeId left, Watchpoint.Kernel.Ids.TypeId right) -> bool
+static Watchpoint.Kernel.Ids.TypeId.Parse(string? text) -> Watchpoint.Kernel.Results.Result<Watchpoint.Kernel.Ids.TypeId>
+static Watchpoint.Kernel.Ids.UserGroupId.From(System.Guid value) -> Watchpoint.Kernel.Ids.UserGroupId
+static Watchpoint.Kernel.Ids.UserGroupId.New() -> Watchpoint.Kernel.Ids.UserGroupId
+static Watchpoint.Kernel.Ids.UserGroupId.operator !=(Watchpoint.Kernel.Ids.UserGroupId left, Watchpoint.Kernel.Ids.UserGroupId right) -> bool
+static Watchpoint.Kernel.Ids.UserGroupId.operator <(Watchpoint.Kernel.Ids.UserGroupId left, Watchpoint.Kernel.Ids.UserGroupId right) -> bool
+static Watchpoint.Kernel.Ids.UserGroupId.operator <=(Watchpoint.Kernel.Ids.UserGroupId left, Watchpoint.Kernel.Ids.UserGroupId right) -> bool
+static Watchpoint.Kernel.Ids.UserGroupId.operator ==(Watchpoint.Kernel.Ids.UserGroupId left, Watchpoint.Kernel.Ids.UserGroupId right) -> bool
+static Watchpoint.Kernel.Ids.UserGroupId.operator >(Watchpoint.Kernel.Ids.UserGroupId left, Watchpoint.Kernel.Ids.UserGroupId right) -> bool
+static Watchpoint.Kernel.Ids.UserGroupId.operator >=(Watchpoint.Kernel.Ids.UserGroupId left, Watchpoint.Kernel.Ids.UserGroupId right) -> bool
+static Watchpoint.Kernel.Ids.UserGroupId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.UserGroupId.TryParse(string? s, out Watchpoint.Kernel.Ids.UserGroupId id) -> bool
+static Watchpoint.Kernel.Ids.UserId.From(System.Guid value) -> Watchpoint.Kernel.Ids.UserId
+static Watchpoint.Kernel.Ids.UserId.New() -> Watchpoint.Kernel.Ids.UserId
+static Watchpoint.Kernel.Ids.UserId.operator !=(Watchpoint.Kernel.Ids.UserId left, Watchpoint.Kernel.Ids.UserId right) -> bool
+static Watchpoint.Kernel.Ids.UserId.operator <(Watchpoint.Kernel.Ids.UserId left, Watchpoint.Kernel.Ids.UserId right) -> bool
+static Watchpoint.Kernel.Ids.UserId.operator <=(Watchpoint.Kernel.Ids.UserId left, Watchpoint.Kernel.Ids.UserId right) -> bool
+static Watchpoint.Kernel.Ids.UserId.operator ==(Watchpoint.Kernel.Ids.UserId left, Watchpoint.Kernel.Ids.UserId right) -> bool
+static Watchpoint.Kernel.Ids.UserId.operator >(Watchpoint.Kernel.Ids.UserId left, Watchpoint.Kernel.Ids.UserId right) -> bool
+static Watchpoint.Kernel.Ids.UserId.operator >=(Watchpoint.Kernel.Ids.UserId left, Watchpoint.Kernel.Ids.UserId right) -> bool
+static Watchpoint.Kernel.Ids.UserId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.UserId.TryParse(string? s, out Watchpoint.Kernel.Ids.UserId id) -> bool
+static Watchpoint.Kernel.Ids.WorkstationId.From(System.Guid value) -> Watchpoint.Kernel.Ids.WorkstationId
+static Watchpoint.Kernel.Ids.WorkstationId.New() -> Watchpoint.Kernel.Ids.WorkstationId
+static Watchpoint.Kernel.Ids.WorkstationId.operator !=(Watchpoint.Kernel.Ids.WorkstationId left, Watchpoint.Kernel.Ids.WorkstationId right) -> bool
+static Watchpoint.Kernel.Ids.WorkstationId.operator <(Watchpoint.Kernel.Ids.WorkstationId left, Watchpoint.Kernel.Ids.WorkstationId right) -> bool
+static Watchpoint.Kernel.Ids.WorkstationId.operator <=(Watchpoint.Kernel.Ids.WorkstationId left, Watchpoint.Kernel.Ids.WorkstationId right) -> bool
+static Watchpoint.Kernel.Ids.WorkstationId.operator ==(Watchpoint.Kernel.Ids.WorkstationId left, Watchpoint.Kernel.Ids.WorkstationId right) -> bool
+static Watchpoint.Kernel.Ids.WorkstationId.operator >(Watchpoint.Kernel.Ids.WorkstationId left, Watchpoint.Kernel.Ids.WorkstationId right) -> bool
+static Watchpoint.Kernel.Ids.WorkstationId.operator >=(Watchpoint.Kernel.Ids.WorkstationId left, Watchpoint.Kernel.Ids.WorkstationId right) -> bool
+static Watchpoint.Kernel.Ids.WorkstationId.Prefix.get -> string!
+static Watchpoint.Kernel.Ids.WorkstationId.TryParse(string? s, out Watchpoint.Kernel.Ids.WorkstationId id) -> bool
+static Watchpoint.Kernel.Json.WatchpointJson.Create(Watchpoint.Kernel.Json.JsonProfile profile, params System.Text.Json.Serialization.Metadata.IJsonTypeInfoResolver![]! resolvers) -> System.Text.Json.JsonSerializerOptions!
+static Watchpoint.Kernel.Paging.CursorCodec.Decode(string! cursor, int expectedVersion) -> Watchpoint.Kernel.Results.Result<Watchpoint.Kernel.Paging.DecodedCursor!>
+static Watchpoint.Kernel.Paging.CursorCodec.Decode(string! cursor, int expectedVersion, Microsoft.Extensions.Logging.ILogger? logger) -> Watchpoint.Kernel.Results.Result<Watchpoint.Kernel.Paging.DecodedCursor!>
+static Watchpoint.Kernel.Paging.CursorCodec.Encode(int version, System.Collections.Generic.IReadOnlyList<object?>! keyValues, System.Guid lastId) -> string!
+static Watchpoint.Kernel.Paging.DecodedCursor.operator !=(Watchpoint.Kernel.Paging.DecodedCursor? left, Watchpoint.Kernel.Paging.DecodedCursor? right) -> bool
+static Watchpoint.Kernel.Paging.DecodedCursor.operator ==(Watchpoint.Kernel.Paging.DecodedCursor? left, Watchpoint.Kernel.Paging.DecodedCursor? right) -> bool
+static Watchpoint.Kernel.Paging.Page<T>.operator !=(Watchpoint.Kernel.Paging.Page<T>? left, Watchpoint.Kernel.Paging.Page<T>? right) -> bool
+static Watchpoint.Kernel.Paging.Page<T>.operator ==(Watchpoint.Kernel.Paging.Page<T>? left, Watchpoint.Kernel.Paging.Page<T>? right) -> bool
+static Watchpoint.Kernel.Paging.PageRequest.Create(int? limit, string? cursor) -> Watchpoint.Kernel.Results.Result<Watchpoint.Kernel.Paging.PageRequest!>
+static Watchpoint.Kernel.Paging.PageRequest.operator !=(Watchpoint.Kernel.Paging.PageRequest? left, Watchpoint.Kernel.Paging.PageRequest? right) -> bool
+static Watchpoint.Kernel.Paging.PageRequest.operator ==(Watchpoint.Kernel.Paging.PageRequest? left, Watchpoint.Kernel.Paging.PageRequest? right) -> bool
+static Watchpoint.Kernel.Paging.SortField.operator !=(Watchpoint.Kernel.Paging.SortField? left, Watchpoint.Kernel.Paging.SortField? right) -> bool
+static Watchpoint.Kernel.Paging.SortField.operator ==(Watchpoint.Kernel.Paging.SortField? left, Watchpoint.Kernel.Paging.SortField? right) -> bool
+static Watchpoint.Kernel.Paging.SortSpec.operator !=(Watchpoint.Kernel.Paging.SortSpec? left, Watchpoint.Kernel.Paging.SortSpec? right) -> bool
+static Watchpoint.Kernel.Paging.SortSpec.operator ==(Watchpoint.Kernel.Paging.SortSpec? left, Watchpoint.Kernel.Paging.SortSpec? right) -> bool
+static Watchpoint.Kernel.Paging.SortSpec.Parse(string? text, System.Collections.Generic.IReadOnlySet<string!>! allowed, Watchpoint.Kernel.Paging.SortSpec! default) -> Watchpoint.Kernel.Results.Result<Watchpoint.Kernel.Paging.SortSpec!>
+static Watchpoint.Kernel.Results.CommonErrors.CursorInvalid() -> Watchpoint.Kernel.Results.Error!
+static Watchpoint.Kernel.Results.CommonErrors.DuplicateAt(string! path, string! value) -> Watchpoint.Kernel.Results.FieldError!
+static Watchpoint.Kernel.Results.CommonErrors.Forbidden(Watchpoint.Kernel.Ids.PermissionCode permission) -> Watchpoint.Kernel.Results.Error!
+static Watchpoint.Kernel.Results.CommonErrors.Internal(string! developerDetail) -> Watchpoint.Kernel.Results.Error!
+static Watchpoint.Kernel.Results.CommonErrors.InvalidFormat(string! expected) -> Watchpoint.Kernel.Results.Error!
+static Watchpoint.Kernel.Results.CommonErrors.InvalidFormatAt(string! path, string! expected) -> Watchpoint.Kernel.Results.FieldError!
+static Watchpoint.Kernel.Results.CommonErrors.NotAllowedAt(string! path, System.Collections.Generic.IReadOnlyList<string!>! allowed) -> Watchpoint.Kernel.Results.FieldError!
+static Watchpoint.Kernel.Results.CommonErrors.NotFound(string! entity, object! id) -> Watchpoint.Kernel.Results.Error!
+static Watchpoint.Kernel.Results.CommonErrors.OutOfRange(long min, long max) -> Watchpoint.Kernel.Results.Error!
+static Watchpoint.Kernel.Results.CommonErrors.OutOfRangeAt(string! path, long min, long max) -> Watchpoint.Kernel.Results.FieldError!
+static Watchpoint.Kernel.Results.CommonErrors.RateLimited(int retryAfterSeconds) -> Watchpoint.Kernel.Results.Error!
+static Watchpoint.Kernel.Results.CommonErrors.RequiredAt(string! path) -> Watchpoint.Kernel.Results.FieldError!
+static Watchpoint.Kernel.Results.CommonErrors.SortInvalidField(string! field, System.Collections.Generic.IReadOnlyList<string!>! allowed) -> Watchpoint.Kernel.Results.Error!
+static Watchpoint.Kernel.Results.CommonErrors.TimeInvalidLocal(string! local, string! reason) -> Watchpoint.Kernel.Results.Error!
+static Watchpoint.Kernel.Results.CommonErrors.TooLongAt(string! path, int max) -> Watchpoint.Kernel.Results.FieldError!
+static Watchpoint.Kernel.Results.CommonErrors.TooShortAt(string! path, int min) -> Watchpoint.Kernel.Results.FieldError!
+static Watchpoint.Kernel.Results.CommonErrors.Unauthenticated() -> Watchpoint.Kernel.Results.Error!
+static Watchpoint.Kernel.Results.CommonErrors.Unavailable(string! dependency) -> Watchpoint.Kernel.Results.Error!
+static Watchpoint.Kernel.Results.CommonErrors.ValidationFailed(System.Collections.Generic.IReadOnlyList<Watchpoint.Kernel.Results.FieldError!>! fields) -> Watchpoint.Kernel.Results.Error!
+static Watchpoint.Kernel.Results.CommonErrors.VersionConflict(string! expected, string! actual) -> Watchpoint.Kernel.Results.Error!
+static Watchpoint.Kernel.Results.Error.Conflict(string! code, params (string! Key, object? Value)[]! args) -> Watchpoint.Kernel.Results.Error!
+static Watchpoint.Kernel.Results.Error.Create(Watchpoint.Kernel.Results.ErrorKind kind, string! code, params (string! Key, object? Value)[]! args) -> Watchpoint.Kernel.Results.Error!
+static Watchpoint.Kernel.Results.Error.Forbidden(string! code, params (string! Key, object? Value)[]! args) -> Watchpoint.Kernel.Results.Error!
+static Watchpoint.Kernel.Results.Error.Internal(string! developerDetail) -> Watchpoint.Kernel.Results.Error!
+static Watchpoint.Kernel.Results.Error.NotFound(string! code, params (string! Key, object? Value)[]! args) -> Watchpoint.Kernel.Results.Error!
+static Watchpoint.Kernel.Results.Error.operator !=(Watchpoint.Kernel.Results.Error? left, Watchpoint.Kernel.Results.Error? right) -> bool
+static Watchpoint.Kernel.Results.Error.operator ==(Watchpoint.Kernel.Results.Error? left, Watchpoint.Kernel.Results.Error? right) -> bool
+static Watchpoint.Kernel.Results.Error.Unavailable(string! code, params (string! Key, object? Value)[]! args) -> Watchpoint.Kernel.Results.Error!
+static Watchpoint.Kernel.Results.Error.Unprocessable(string! code, params (string! Key, object? Value)[]! args) -> Watchpoint.Kernel.Results.Error!
+static Watchpoint.Kernel.Results.Error.Validation(string! code, System.Collections.Generic.IReadOnlyList<Watchpoint.Kernel.Results.FieldError!>! fields) -> Watchpoint.Kernel.Results.Error!
+static Watchpoint.Kernel.Results.FieldError.Create(string! path, Watchpoint.Kernel.Ids.ErrorCode code, params (string! Key, object? Value)[]! args) -> Watchpoint.Kernel.Results.FieldError!
+static Watchpoint.Kernel.Results.FieldError.operator !=(Watchpoint.Kernel.Results.FieldError? left, Watchpoint.Kernel.Results.FieldError? right) -> bool
+static Watchpoint.Kernel.Results.FieldError.operator ==(Watchpoint.Kernel.Results.FieldError? left, Watchpoint.Kernel.Results.FieldError? right) -> bool
+static Watchpoint.Kernel.Results.Result.Failure(Watchpoint.Kernel.Results.Error! error) -> Watchpoint.Kernel.Results.Result
+static Watchpoint.Kernel.Results.Result.Failure<T>(Watchpoint.Kernel.Results.Error! error) -> Watchpoint.Kernel.Results.Result<T>
+static Watchpoint.Kernel.Results.Result.FromError(Watchpoint.Kernel.Results.Error! error) -> Watchpoint.Kernel.Results.Result
+static Watchpoint.Kernel.Results.Result.implicit operator Watchpoint.Kernel.Results.Result(Watchpoint.Kernel.Results.Error! error) -> Watchpoint.Kernel.Results.Result
+static Watchpoint.Kernel.Results.Result.operator !=(Watchpoint.Kernel.Results.Result left, Watchpoint.Kernel.Results.Result right) -> bool
+static Watchpoint.Kernel.Results.Result.operator ==(Watchpoint.Kernel.Results.Result left, Watchpoint.Kernel.Results.Result right) -> bool
+static Watchpoint.Kernel.Results.Result.Success() -> Watchpoint.Kernel.Results.Result
+static Watchpoint.Kernel.Results.Result.Success<T>(T value) -> Watchpoint.Kernel.Results.Result<T>
+static Watchpoint.Kernel.Results.Result<T>.implicit operator Watchpoint.Kernel.Results.Result<T>(T value) -> Watchpoint.Kernel.Results.Result<T>
+static Watchpoint.Kernel.Results.Result<T>.implicit operator Watchpoint.Kernel.Results.Result<T>(Watchpoint.Kernel.Results.Error! error) -> Watchpoint.Kernel.Results.Result<T>
+static Watchpoint.Kernel.Results.Result<T>.operator !=(Watchpoint.Kernel.Results.Result<T> left, Watchpoint.Kernel.Results.Result<T> right) -> bool
+static Watchpoint.Kernel.Results.Result<T>.operator ==(Watchpoint.Kernel.Results.Result<T> left, Watchpoint.Kernel.Results.Result<T> right) -> bool
+static Watchpoint.Kernel.Results.ResultExtensions.Bind(this Watchpoint.Kernel.Results.Result result, System.Func<Watchpoint.Kernel.Results.Result>! bind) -> Watchpoint.Kernel.Results.Result
+static Watchpoint.Kernel.Results.ResultExtensions.Bind<T, TOut>(this Watchpoint.Kernel.Results.Result<T> result, System.Func<T, Watchpoint.Kernel.Results.Result<TOut>>! bind) -> Watchpoint.Kernel.Results.Result<TOut>
+static Watchpoint.Kernel.Results.ResultExtensions.Bind<T>(this Watchpoint.Kernel.Results.Result<T> result, System.Func<T, Watchpoint.Kernel.Results.Result>! bind) -> Watchpoint.Kernel.Results.Result
+static Watchpoint.Kernel.Results.ResultExtensions.Bind<TOut>(this Watchpoint.Kernel.Results.Result result, System.Func<Watchpoint.Kernel.Results.Result<TOut>>! bind) -> Watchpoint.Kernel.Results.Result<TOut>
+static Watchpoint.Kernel.Results.ResultExtensions.Combine(params Watchpoint.Kernel.Results.Result[]! results) -> Watchpoint.Kernel.Results.Result
+static Watchpoint.Kernel.Results.ResultExtensions.Ensure<T>(this Watchpoint.Kernel.Results.Result<T> result, System.Func<T, bool>! predicate, Watchpoint.Kernel.Results.Error! error) -> Watchpoint.Kernel.Results.Result<T>
+static Watchpoint.Kernel.Results.ResultExtensions.Map<T, TOut>(this Watchpoint.Kernel.Results.Result<T> result, System.Func<T, TOut>! map) -> Watchpoint.Kernel.Results.Result<TOut>
+static Watchpoint.Kernel.Results.ResultExtensions.Map<TOut>(this Watchpoint.Kernel.Results.Result result, System.Func<TOut>! map) -> Watchpoint.Kernel.Results.Result<TOut>
+static Watchpoint.Kernel.Results.ResultExtensions.MapError(this Watchpoint.Kernel.Results.Result result, System.Func<Watchpoint.Kernel.Results.Error!, Watchpoint.Kernel.Results.Error!>! map) -> Watchpoint.Kernel.Results.Result
+static Watchpoint.Kernel.Results.ResultExtensions.MapError<T>(this Watchpoint.Kernel.Results.Result<T> result, System.Func<Watchpoint.Kernel.Results.Error!, Watchpoint.Kernel.Results.Error!>! map) -> Watchpoint.Kernel.Results.Result<T>
+static Watchpoint.Kernel.Results.ResultExtensions.Match<T, TOut>(this Watchpoint.Kernel.Results.Result<T> result, System.Func<T, TOut>! onSuccess, System.Func<Watchpoint.Kernel.Results.Error!, TOut>! onFailure) -> TOut
+static Watchpoint.Kernel.Results.ResultExtensions.Match<TOut>(this Watchpoint.Kernel.Results.Result result, System.Func<TOut>! onSuccess, System.Func<Watchpoint.Kernel.Results.Error!, TOut>! onFailure) -> TOut
+static Watchpoint.Kernel.Results.ResultExtensions.Tap(this Watchpoint.Kernel.Results.Result result, System.Action! action) -> Watchpoint.Kernel.Results.Result
+static Watchpoint.Kernel.Results.ResultExtensions.Tap<T>(this Watchpoint.Kernel.Results.Result<T> result, System.Action<T>! action) -> Watchpoint.Kernel.Results.Result<T>
+static Watchpoint.Kernel.Results.ResultTaskExtensions.Bind<T, TOut>(this System.Threading.Tasks.Task<Watchpoint.Kernel.Results.Result<T>>! task, System.Func<T, Watchpoint.Kernel.Results.Result<TOut>>! bind) -> System.Threading.Tasks.Task<Watchpoint.Kernel.Results.Result<TOut>>!
+static Watchpoint.Kernel.Results.ResultTaskExtensions.Bind<T, TOut>(this System.Threading.Tasks.ValueTask<Watchpoint.Kernel.Results.Result<T>> task, System.Func<T, Watchpoint.Kernel.Results.Result<TOut>>! bind) -> System.Threading.Tasks.ValueTask<Watchpoint.Kernel.Results.Result<TOut>>
+static Watchpoint.Kernel.Results.ResultTaskExtensions.BindAsync<T, TOut>(this System.Threading.Tasks.Task<Watchpoint.Kernel.Results.Result<T>>! task, System.Func<T, System.Threading.Tasks.Task<Watchpoint.Kernel.Results.Result<TOut>>!>! bind) -> System.Threading.Tasks.Task<Watchpoint.Kernel.Results.Result<TOut>>!
+static Watchpoint.Kernel.Results.ResultTaskExtensions.BindAsync<T, TOut>(this System.Threading.Tasks.ValueTask<Watchpoint.Kernel.Results.Result<T>> task, System.Func<T, System.Threading.Tasks.ValueTask<Watchpoint.Kernel.Results.Result<TOut>>>! bind) -> System.Threading.Tasks.ValueTask<Watchpoint.Kernel.Results.Result<TOut>>
+static Watchpoint.Kernel.Results.ResultTaskExtensions.BindAsync<T, TOut>(this Watchpoint.Kernel.Results.Result<T> result, System.Func<T, System.Threading.Tasks.Task<Watchpoint.Kernel.Results.Result<TOut>>!>! bind) -> System.Threading.Tasks.Task<Watchpoint.Kernel.Results.Result<TOut>>!
+static Watchpoint.Kernel.Results.ResultTaskExtensions.Ensure<T>(this System.Threading.Tasks.Task<Watchpoint.Kernel.Results.Result<T>>! task, System.Func<T, bool>! predicate, Watchpoint.Kernel.Results.Error! error) -> System.Threading.Tasks.Task<Watchpoint.Kernel.Results.Result<T>>!
+static Watchpoint.Kernel.Results.ResultTaskExtensions.Ensure<T>(this System.Threading.Tasks.ValueTask<Watchpoint.Kernel.Results.Result<T>> task, System.Func<T, bool>! predicate, Watchpoint.Kernel.Results.Error! error) -> System.Threading.Tasks.ValueTask<Watchpoint.Kernel.Results.Result<T>>
+static Watchpoint.Kernel.Results.ResultTaskExtensions.Map<T, TOut>(this System.Threading.Tasks.Task<Watchpoint.Kernel.Results.Result<T>>! task, System.Func<T, TOut>! map) -> System.Threading.Tasks.Task<Watchpoint.Kernel.Results.Result<TOut>>!
+static Watchpoint.Kernel.Results.ResultTaskExtensions.Map<T, TOut>(this System.Threading.Tasks.ValueTask<Watchpoint.Kernel.Results.Result<T>> task, System.Func<T, TOut>! map) -> System.Threading.Tasks.ValueTask<Watchpoint.Kernel.Results.Result<TOut>>
+static Watchpoint.Kernel.Results.ResultTaskExtensions.MapError<T>(this System.Threading.Tasks.Task<Watchpoint.Kernel.Results.Result<T>>! task, System.Func<Watchpoint.Kernel.Results.Error!, Watchpoint.Kernel.Results.Error!>! map) -> System.Threading.Tasks.Task<Watchpoint.Kernel.Results.Result<T>>!
+static Watchpoint.Kernel.Results.ResultTaskExtensions.MapError<T>(this System.Threading.Tasks.ValueTask<Watchpoint.Kernel.Results.Result<T>> task, System.Func<Watchpoint.Kernel.Results.Error!, Watchpoint.Kernel.Results.Error!>! map) -> System.Threading.Tasks.ValueTask<Watchpoint.Kernel.Results.Result<T>>
+static Watchpoint.Kernel.Results.ResultTaskExtensions.Match<T, TOut>(this System.Threading.Tasks.Task<Watchpoint.Kernel.Results.Result<T>>! task, System.Func<T, TOut>! onSuccess, System.Func<Watchpoint.Kernel.Results.Error!, TOut>! onFailure) -> System.Threading.Tasks.Task<TOut>!
+static Watchpoint.Kernel.Results.ResultTaskExtensions.Match<T, TOut>(this System.Threading.Tasks.ValueTask<Watchpoint.Kernel.Results.Result<T>> task, System.Func<T, TOut>! onSuccess, System.Func<Watchpoint.Kernel.Results.Error!, TOut>! onFailure) -> System.Threading.Tasks.ValueTask<TOut>
+static Watchpoint.Kernel.Results.ResultTaskExtensions.Tap<T>(this System.Threading.Tasks.Task<Watchpoint.Kernel.Results.Result<T>>! task, System.Action<T>! action) -> System.Threading.Tasks.Task<Watchpoint.Kernel.Results.Result<T>>!
+static Watchpoint.Kernel.Results.ResultTaskExtensions.Tap<T>(this System.Threading.Tasks.ValueTask<Watchpoint.Kernel.Results.Result<T>> task, System.Action<T>! action) -> System.Threading.Tasks.ValueTask<Watchpoint.Kernel.Results.Result<T>>
+static Watchpoint.Kernel.Text.LocalizedName.operator !=(Watchpoint.Kernel.Text.LocalizedName? left, Watchpoint.Kernel.Text.LocalizedName? right) -> bool
+static Watchpoint.Kernel.Text.LocalizedName.operator ==(Watchpoint.Kernel.Text.LocalizedName? left, Watchpoint.Kernel.Text.LocalizedName? right) -> bool
+static Watchpoint.Kernel.Text.Message.Of(string! key, params (string! Name, object? Value)[]! args) -> Watchpoint.Kernel.Text.Message!
+static Watchpoint.Kernel.Text.Message.operator !=(Watchpoint.Kernel.Text.Message? left, Watchpoint.Kernel.Text.Message? right) -> bool
+static Watchpoint.Kernel.Text.Message.operator ==(Watchpoint.Kernel.Text.Message? left, Watchpoint.Kernel.Text.Message? right) -> bool
+static Watchpoint.Kernel.Text.NameRules.AreEquivalent(string! a, string! b) -> bool
+static Watchpoint.Kernel.Text.NameRules.Compare(string! a, string! b) -> int
+static Watchpoint.Kernel.Text.NameRules.Normalize(string! value) -> string!
+static Watchpoint.Kernel.Text.NameRules.Validate(string? value, string! path) -> System.Collections.Generic.IReadOnlyList<Watchpoint.Kernel.Results.FieldError!>!
+static Watchpoint.Kernel.Text.SupportedCultures.All.get -> System.Collections.Generic.IReadOnlyList<string!>!
+static Watchpoint.Kernel.Text.SupportedCultures.IsRightToLeft(string? culture) -> bool
+static Watchpoint.Kernel.Text.SupportedCultures.IsSupported(string? culture) -> bool
+static Watchpoint.Kernel.Text.SupportedCultures.RightToLeft.get -> System.Collections.Generic.IReadOnlyList<string!>!
+static Watchpoint.Kernel.Time.SiteTimeZone.FromIana(string! tzId) -> Watchpoint.Kernel.Results.Result<Watchpoint.Kernel.Time.SiteTimeZone!>
+static Watchpoint.Kernel.Time.TimeProviderExtensions.UtcNowMs(this System.TimeProvider! timeProvider) -> System.DateTimeOffset
+static Watchpoint.Kernel.Validation.Guard.InRange<T>(T value, T min, T max, string? paramName = null) -> T
+static Watchpoint.Kernel.Validation.Guard.NotEmpty(string? value, string? paramName = null) -> string!
+static Watchpoint.Kernel.Validation.Guard.NotEmpty<T>(System.Collections.Generic.IReadOnlyCollection<T>? value, string? paramName = null) -> System.Collections.Generic.IReadOnlyCollection<T>!
+static Watchpoint.Kernel.Validation.Guard.NotNull<T>(T? value, string? paramName = null) -> T!
+static Watchpoint.Kernel.Validation.JsonPointer.Append(string! path, int index) -> string!
+static Watchpoint.Kernel.Validation.JsonPointer.Append(string! path, string! segment) -> string!
+static Watchpoint.Kernel.Validation.JsonPointer.Combine(params string![]! segments) -> string!
+static Watchpoint.Kernel.Validation.JsonPointer.Escape(string! segment) -> string!
+Watchpoint.Kernel.Ids.AlarmId
+Watchpoint.Kernel.Ids.AlarmId.AlarmId() -> void
+Watchpoint.Kernel.Ids.AlarmId.CompareTo(Watchpoint.Kernel.Ids.AlarmId other) -> int
+Watchpoint.Kernel.Ids.AlarmId.Equals(Watchpoint.Kernel.Ids.AlarmId other) -> bool
+Watchpoint.Kernel.Ids.AlarmId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.AlarmId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.AlarmId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.AlarmRuleId
+Watchpoint.Kernel.Ids.AlarmRuleId.AlarmRuleId() -> void
+Watchpoint.Kernel.Ids.AlarmRuleId.CompareTo(Watchpoint.Kernel.Ids.AlarmRuleId other) -> int
+Watchpoint.Kernel.Ids.AlarmRuleId.Equals(Watchpoint.Kernel.Ids.AlarmRuleId other) -> bool
+Watchpoint.Kernel.Ids.AlarmRuleId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.AlarmRuleId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.AlarmRuleId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.AutomationId
+Watchpoint.Kernel.Ids.AutomationId.AutomationId() -> void
+Watchpoint.Kernel.Ids.AutomationId.CompareTo(Watchpoint.Kernel.Ids.AutomationId other) -> int
+Watchpoint.Kernel.Ids.AutomationId.Equals(Watchpoint.Kernel.Ids.AutomationId other) -> bool
+Watchpoint.Kernel.Ids.AutomationId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.AutomationId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.AutomationId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.AutomationRunId
+Watchpoint.Kernel.Ids.AutomationRunId.AutomationRunId() -> void
+Watchpoint.Kernel.Ids.AutomationRunId.CompareTo(Watchpoint.Kernel.Ids.AutomationRunId other) -> int
+Watchpoint.Kernel.Ids.AutomationRunId.Equals(Watchpoint.Kernel.Ids.AutomationRunId other) -> bool
+Watchpoint.Kernel.Ids.AutomationRunId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.AutomationRunId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.AutomationRunId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.CalendarId
+Watchpoint.Kernel.Ids.CalendarId.CalendarId() -> void
+Watchpoint.Kernel.Ids.CalendarId.CompareTo(Watchpoint.Kernel.Ids.CalendarId other) -> int
+Watchpoint.Kernel.Ids.CalendarId.Equals(Watchpoint.Kernel.Ids.CalendarId other) -> bool
+Watchpoint.Kernel.Ids.CalendarId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.CalendarId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.CalendarId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.CapabilityId
+Watchpoint.Kernel.Ids.CapabilityId.CapabilityId() -> void
+Watchpoint.Kernel.Ids.CapabilityId.Equals(Watchpoint.Kernel.Ids.CapabilityId other) -> bool
+Watchpoint.Kernel.Ids.CapabilityId.Value.get -> string!
+Watchpoint.Kernel.Ids.ChangeSetId
+Watchpoint.Kernel.Ids.ChangeSetId.ChangeSetId() -> void
+Watchpoint.Kernel.Ids.ChangeSetId.CompareTo(Watchpoint.Kernel.Ids.ChangeSetId other) -> int
+Watchpoint.Kernel.Ids.ChangeSetId.Equals(Watchpoint.Kernel.Ids.ChangeSetId other) -> bool
+Watchpoint.Kernel.Ids.ChangeSetId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.ChangeSetId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.ChangeSetId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.CommandId
+Watchpoint.Kernel.Ids.CommandId.CommandId() -> void
+Watchpoint.Kernel.Ids.CommandId.CompareTo(Watchpoint.Kernel.Ids.CommandId other) -> int
+Watchpoint.Kernel.Ids.CommandId.Equals(Watchpoint.Kernel.Ids.CommandId other) -> bool
+Watchpoint.Kernel.Ids.CommandId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.CommandId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.CommandId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.ConnectionId
+Watchpoint.Kernel.Ids.ConnectionId.CompareTo(Watchpoint.Kernel.Ids.ConnectionId other) -> int
+Watchpoint.Kernel.Ids.ConnectionId.ConnectionId() -> void
+Watchpoint.Kernel.Ids.ConnectionId.Equals(Watchpoint.Kernel.Ids.ConnectionId other) -> bool
+Watchpoint.Kernel.Ids.ConnectionId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.ConnectionId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.ConnectionId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.CustomFieldId
+Watchpoint.Kernel.Ids.CustomFieldId.CompareTo(Watchpoint.Kernel.Ids.CustomFieldId other) -> int
+Watchpoint.Kernel.Ids.CustomFieldId.CustomFieldId() -> void
+Watchpoint.Kernel.Ids.CustomFieldId.Equals(Watchpoint.Kernel.Ids.CustomFieldId other) -> bool
+Watchpoint.Kernel.Ids.CustomFieldId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.CustomFieldId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.CustomFieldId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.DeviceId
+Watchpoint.Kernel.Ids.DeviceId.CompareTo(Watchpoint.Kernel.Ids.DeviceId other) -> int
+Watchpoint.Kernel.Ids.DeviceId.DeviceId() -> void
+Watchpoint.Kernel.Ids.DeviceId.Equals(Watchpoint.Kernel.Ids.DeviceId other) -> bool
+Watchpoint.Kernel.Ids.DeviceId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.DeviceId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.DeviceId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.DraftId
+Watchpoint.Kernel.Ids.DraftId.CompareTo(Watchpoint.Kernel.Ids.DraftId other) -> int
+Watchpoint.Kernel.Ids.DraftId.DraftId() -> void
+Watchpoint.Kernel.Ids.DraftId.Equals(Watchpoint.Kernel.Ids.DraftId other) -> bool
+Watchpoint.Kernel.Ids.DraftId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.DraftId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.DraftId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.EntityIdExtensions
+Watchpoint.Kernel.Ids.EntityIdJsonConverter<TId>
+Watchpoint.Kernel.Ids.EntityIdJsonConverter<TId>.EntityIdJsonConverter() -> void
+Watchpoint.Kernel.Ids.ErrorCode
+Watchpoint.Kernel.Ids.ErrorCode.Equals(Watchpoint.Kernel.Ids.ErrorCode other) -> bool
+Watchpoint.Kernel.Ids.ErrorCode.ErrorCode() -> void
+Watchpoint.Kernel.Ids.ErrorCode.Value.get -> string!
+Watchpoint.Kernel.Ids.EventRecordId
+Watchpoint.Kernel.Ids.EventRecordId.CompareTo(Watchpoint.Kernel.Ids.EventRecordId other) -> int
+Watchpoint.Kernel.Ids.EventRecordId.Equals(Watchpoint.Kernel.Ids.EventRecordId other) -> bool
+Watchpoint.Kernel.Ids.EventRecordId.EventRecordId() -> void
+Watchpoint.Kernel.Ids.EventRecordId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.EventRecordId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.EventRecordId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.FederationLinkId
+Watchpoint.Kernel.Ids.FederationLinkId.CompareTo(Watchpoint.Kernel.Ids.FederationLinkId other) -> int
+Watchpoint.Kernel.Ids.FederationLinkId.Equals(Watchpoint.Kernel.Ids.FederationLinkId other) -> bool
+Watchpoint.Kernel.Ids.FederationLinkId.FederationLinkId() -> void
+Watchpoint.Kernel.Ids.FederationLinkId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.FederationLinkId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.FederationLinkId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.FileId
+Watchpoint.Kernel.Ids.FileId.CompareTo(Watchpoint.Kernel.Ids.FileId other) -> int
+Watchpoint.Kernel.Ids.FileId.Equals(Watchpoint.Kernel.Ids.FileId other) -> bool
+Watchpoint.Kernel.Ids.FileId.FileId() -> void
+Watchpoint.Kernel.Ids.FileId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.FileId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.FileId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.HolidaySetId
+Watchpoint.Kernel.Ids.HolidaySetId.CompareTo(Watchpoint.Kernel.Ids.HolidaySetId other) -> int
+Watchpoint.Kernel.Ids.HolidaySetId.Equals(Watchpoint.Kernel.Ids.HolidaySetId other) -> bool
+Watchpoint.Kernel.Ids.HolidaySetId.HolidaySetId() -> void
+Watchpoint.Kernel.Ids.HolidaySetId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.HolidaySetId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.HolidaySetId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.HostId
+Watchpoint.Kernel.Ids.HostId.CompareTo(Watchpoint.Kernel.Ids.HostId other) -> int
+Watchpoint.Kernel.Ids.HostId.Equals(Watchpoint.Kernel.Ids.HostId other) -> bool
+Watchpoint.Kernel.Ids.HostId.HostId() -> void
+Watchpoint.Kernel.Ids.HostId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.HostId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.HostId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.IEntityId<TSelf>
+Watchpoint.Kernel.Ids.IEntityId<TSelf>.From(System.Guid value) -> TSelf
+Watchpoint.Kernel.Ids.IEntityId<TSelf>.New() -> TSelf
+Watchpoint.Kernel.Ids.IEntityId<TSelf>.Prefix.get -> string!
+Watchpoint.Kernel.Ids.IEntityId<TSelf>.TryParse(string? s, out TSelf id) -> bool
+Watchpoint.Kernel.Ids.IEntityId<TSelf>.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.IncidentId
+Watchpoint.Kernel.Ids.IncidentId.CompareTo(Watchpoint.Kernel.Ids.IncidentId other) -> int
+Watchpoint.Kernel.Ids.IncidentId.Equals(Watchpoint.Kernel.Ids.IncidentId other) -> bool
+Watchpoint.Kernel.Ids.IncidentId.IncidentId() -> void
+Watchpoint.Kernel.Ids.IncidentId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.IncidentId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.IncidentId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.JobId
+Watchpoint.Kernel.Ids.JobId.CompareTo(Watchpoint.Kernel.Ids.JobId other) -> int
+Watchpoint.Kernel.Ids.JobId.Equals(Watchpoint.Kernel.Ids.JobId other) -> bool
+Watchpoint.Kernel.Ids.JobId.JobId() -> void
+Watchpoint.Kernel.Ids.JobId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.JobId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.JobId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.LicenceId
+Watchpoint.Kernel.Ids.LicenceId.CompareTo(Watchpoint.Kernel.Ids.LicenceId other) -> int
+Watchpoint.Kernel.Ids.LicenceId.Equals(Watchpoint.Kernel.Ids.LicenceId other) -> bool
+Watchpoint.Kernel.Ids.LicenceId.LicenceId() -> void
+Watchpoint.Kernel.Ids.LicenceId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.LicenceId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.LicenceId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.LinkId
+Watchpoint.Kernel.Ids.LinkId.CompareTo(Watchpoint.Kernel.Ids.LinkId other) -> int
+Watchpoint.Kernel.Ids.LinkId.Equals(Watchpoint.Kernel.Ids.LinkId other) -> bool
+Watchpoint.Kernel.Ids.LinkId.LinkId() -> void
+Watchpoint.Kernel.Ids.LinkId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.LinkId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.LinkId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.LocationId
+Watchpoint.Kernel.Ids.LocationId.CompareTo(Watchpoint.Kernel.Ids.LocationId other) -> int
+Watchpoint.Kernel.Ids.LocationId.Equals(Watchpoint.Kernel.Ids.LocationId other) -> bool
+Watchpoint.Kernel.Ids.LocationId.LocationId() -> void
+Watchpoint.Kernel.Ids.LocationId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.LocationId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.LocationId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.MemberId
+Watchpoint.Kernel.Ids.MemberId.Equals(Watchpoint.Kernel.Ids.MemberId other) -> bool
+Watchpoint.Kernel.Ids.MemberId.MemberId() -> void
+Watchpoint.Kernel.Ids.MemberId.Value.get -> string!
+Watchpoint.Kernel.Ids.NodeId
+Watchpoint.Kernel.Ids.NodeId.CompareTo(Watchpoint.Kernel.Ids.NodeId other) -> int
+Watchpoint.Kernel.Ids.NodeId.Equals(Watchpoint.Kernel.Ids.NodeId other) -> bool
+Watchpoint.Kernel.Ids.NodeId.NodeId() -> void
+Watchpoint.Kernel.Ids.NodeId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.NodeId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.NodeId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.NotificationId
+Watchpoint.Kernel.Ids.NotificationId.CompareTo(Watchpoint.Kernel.Ids.NotificationId other) -> int
+Watchpoint.Kernel.Ids.NotificationId.Equals(Watchpoint.Kernel.Ids.NotificationId other) -> bool
+Watchpoint.Kernel.Ids.NotificationId.NotificationId() -> void
+Watchpoint.Kernel.Ids.NotificationId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.NotificationId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.NotificationId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.ObservationId
+Watchpoint.Kernel.Ids.ObservationId.CompareTo(Watchpoint.Kernel.Ids.ObservationId other) -> int
+Watchpoint.Kernel.Ids.ObservationId.Equals(Watchpoint.Kernel.Ids.ObservationId other) -> bool
+Watchpoint.Kernel.Ids.ObservationId.ObservationId() -> void
+Watchpoint.Kernel.Ids.ObservationId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.ObservationId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.ObservationId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.PackageId
+Watchpoint.Kernel.Ids.PackageId.Equals(Watchpoint.Kernel.Ids.PackageId other) -> bool
+Watchpoint.Kernel.Ids.PackageId.PackageId() -> void
+Watchpoint.Kernel.Ids.PackageId.Value.get -> string!
+Watchpoint.Kernel.Ids.PermissionCode
+Watchpoint.Kernel.Ids.PermissionCode.Equals(Watchpoint.Kernel.Ids.PermissionCode other) -> bool
+Watchpoint.Kernel.Ids.PermissionCode.PermissionCode() -> void
+Watchpoint.Kernel.Ids.PermissionCode.Value.get -> string!
+Watchpoint.Kernel.Ids.ProcedureId
+Watchpoint.Kernel.Ids.ProcedureId.CompareTo(Watchpoint.Kernel.Ids.ProcedureId other) -> int
+Watchpoint.Kernel.Ids.ProcedureId.Equals(Watchpoint.Kernel.Ids.ProcedureId other) -> bool
+Watchpoint.Kernel.Ids.ProcedureId.ProcedureId() -> void
+Watchpoint.Kernel.Ids.ProcedureId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.ProcedureId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.ProcedureId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.PropertyPath
+Watchpoint.Kernel.Ids.PropertyPath.Capability.get -> Watchpoint.Kernel.Ids.CapabilityId
+Watchpoint.Kernel.Ids.PropertyPath.Equals(Watchpoint.Kernel.Ids.PropertyPath other) -> bool
+Watchpoint.Kernel.Ids.PropertyPath.Member.get -> Watchpoint.Kernel.Ids.MemberId
+Watchpoint.Kernel.Ids.PropertyPath.PropertyPath() -> void
+Watchpoint.Kernel.Ids.PropertyPath.PropertyPath(Watchpoint.Kernel.Ids.CapabilityId capability, Watchpoint.Kernel.Ids.MemberId member) -> void
+Watchpoint.Kernel.Ids.PropertyPath.Value.get -> string!
+Watchpoint.Kernel.Ids.ReportId
+Watchpoint.Kernel.Ids.ReportId.CompareTo(Watchpoint.Kernel.Ids.ReportId other) -> int
+Watchpoint.Kernel.Ids.ReportId.Equals(Watchpoint.Kernel.Ids.ReportId other) -> bool
+Watchpoint.Kernel.Ids.ReportId.ReportId() -> void
+Watchpoint.Kernel.Ids.ReportId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.ReportId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.ReportId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.RightGrantId
+Watchpoint.Kernel.Ids.RightGrantId.CompareTo(Watchpoint.Kernel.Ids.RightGrantId other) -> int
+Watchpoint.Kernel.Ids.RightGrantId.Equals(Watchpoint.Kernel.Ids.RightGrantId other) -> bool
+Watchpoint.Kernel.Ids.RightGrantId.RightGrantId() -> void
+Watchpoint.Kernel.Ids.RightGrantId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.RightGrantId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.RightGrantId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.ScriptId
+Watchpoint.Kernel.Ids.ScriptId.CompareTo(Watchpoint.Kernel.Ids.ScriptId other) -> int
+Watchpoint.Kernel.Ids.ScriptId.Equals(Watchpoint.Kernel.Ids.ScriptId other) -> bool
+Watchpoint.Kernel.Ids.ScriptId.ScriptId() -> void
+Watchpoint.Kernel.Ids.ScriptId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.ScriptId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.ScriptId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.SecretId
+Watchpoint.Kernel.Ids.SecretId.CompareTo(Watchpoint.Kernel.Ids.SecretId other) -> int
+Watchpoint.Kernel.Ids.SecretId.Equals(Watchpoint.Kernel.Ids.SecretId other) -> bool
+Watchpoint.Kernel.Ids.SecretId.SecretId() -> void
+Watchpoint.Kernel.Ids.SecretId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.SecretId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.SecretId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.ServerId
+Watchpoint.Kernel.Ids.ServerId.CompareTo(Watchpoint.Kernel.Ids.ServerId other) -> int
+Watchpoint.Kernel.Ids.ServerId.Equals(Watchpoint.Kernel.Ids.ServerId other) -> bool
+Watchpoint.Kernel.Ids.ServerId.ServerId() -> void
+Watchpoint.Kernel.Ids.ServerId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.ServerId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.ServerId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.SessionId
+Watchpoint.Kernel.Ids.SessionId.CompareTo(Watchpoint.Kernel.Ids.SessionId other) -> int
+Watchpoint.Kernel.Ids.SessionId.Equals(Watchpoint.Kernel.Ids.SessionId other) -> bool
+Watchpoint.Kernel.Ids.SessionId.SessionId() -> void
+Watchpoint.Kernel.Ids.SessionId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.SessionId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.SessionId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.SiteId
+Watchpoint.Kernel.Ids.SiteId.CompareTo(Watchpoint.Kernel.Ids.SiteId other) -> int
+Watchpoint.Kernel.Ids.SiteId.Equals(Watchpoint.Kernel.Ids.SiteId other) -> bool
+Watchpoint.Kernel.Ids.SiteId.SiteId() -> void
+Watchpoint.Kernel.Ids.SiteId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.SiteId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.SiteId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.SynopticId
+Watchpoint.Kernel.Ids.SynopticId.CompareTo(Watchpoint.Kernel.Ids.SynopticId other) -> int
+Watchpoint.Kernel.Ids.SynopticId.Equals(Watchpoint.Kernel.Ids.SynopticId other) -> bool
+Watchpoint.Kernel.Ids.SynopticId.SynopticId() -> void
+Watchpoint.Kernel.Ids.SynopticId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.SynopticId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.SynopticId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.TagFamilyId
+Watchpoint.Kernel.Ids.TagFamilyId.CompareTo(Watchpoint.Kernel.Ids.TagFamilyId other) -> int
+Watchpoint.Kernel.Ids.TagFamilyId.Equals(Watchpoint.Kernel.Ids.TagFamilyId other) -> bool
+Watchpoint.Kernel.Ids.TagFamilyId.TagFamilyId() -> void
+Watchpoint.Kernel.Ids.TagFamilyId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.TagFamilyId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.TagFamilyId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.TagId
+Watchpoint.Kernel.Ids.TagId.CompareTo(Watchpoint.Kernel.Ids.TagId other) -> int
+Watchpoint.Kernel.Ids.TagId.Equals(Watchpoint.Kernel.Ids.TagId other) -> bool
+Watchpoint.Kernel.Ids.TagId.TagId() -> void
+Watchpoint.Kernel.Ids.TagId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.TagId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.TagId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.TypeId
+Watchpoint.Kernel.Ids.TypeId.Equals(Watchpoint.Kernel.Ids.TypeId other) -> bool
+Watchpoint.Kernel.Ids.TypeId.TypeId() -> void
+Watchpoint.Kernel.Ids.TypeId.Value.get -> string!
+Watchpoint.Kernel.Ids.UserGroupId
+Watchpoint.Kernel.Ids.UserGroupId.CompareTo(Watchpoint.Kernel.Ids.UserGroupId other) -> int
+Watchpoint.Kernel.Ids.UserGroupId.Equals(Watchpoint.Kernel.Ids.UserGroupId other) -> bool
+Watchpoint.Kernel.Ids.UserGroupId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.UserGroupId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.UserGroupId.UserGroupId() -> void
+Watchpoint.Kernel.Ids.UserGroupId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.UserId
+Watchpoint.Kernel.Ids.UserId.CompareTo(Watchpoint.Kernel.Ids.UserId other) -> int
+Watchpoint.Kernel.Ids.UserId.Equals(Watchpoint.Kernel.Ids.UserId other) -> bool
+Watchpoint.Kernel.Ids.UserId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.UserId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.UserId.UserId() -> void
+Watchpoint.Kernel.Ids.UserId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.WorkstationId
+Watchpoint.Kernel.Ids.WorkstationId.CompareTo(Watchpoint.Kernel.Ids.WorkstationId other) -> int
+Watchpoint.Kernel.Ids.WorkstationId.Equals(Watchpoint.Kernel.Ids.WorkstationId other) -> bool
+Watchpoint.Kernel.Ids.WorkstationId.ToString(string? format, System.IFormatProvider? formatProvider) -> string!
+Watchpoint.Kernel.Ids.WorkstationId.TryFormat(System.Span<char> destination, out int charsWritten, System.ReadOnlySpan<char> format, System.IFormatProvider? provider) -> bool
+Watchpoint.Kernel.Ids.WorkstationId.Value.get -> System.Guid
+Watchpoint.Kernel.Ids.WorkstationId.WorkstationId() -> void
+Watchpoint.Kernel.Json.JsonProfile
+Watchpoint.Kernel.Json.JsonProfile.Api = 0 -> Watchpoint.Kernel.Json.JsonProfile
+Watchpoint.Kernel.Json.JsonProfile.Document = 1 -> Watchpoint.Kernel.Json.JsonProfile
+Watchpoint.Kernel.Json.JsonProfile.Log = 2 -> Watchpoint.Kernel.Json.JsonProfile
+Watchpoint.Kernel.Json.WatchpointJson
+Watchpoint.Kernel.Paging.CursorCodec
+Watchpoint.Kernel.Paging.DecodedCursor
+Watchpoint.Kernel.Paging.DecodedCursor.<Clone>$() -> Watchpoint.Kernel.Paging.DecodedCursor!
+Watchpoint.Kernel.Paging.DecodedCursor.DecodedCursor(System.Collections.Generic.IReadOnlyList<System.Text.Json.JsonElement>! KeyValues, System.Guid LastId) -> void
+Watchpoint.Kernel.Paging.DecodedCursor.Deconstruct(out System.Collections.Generic.IReadOnlyList<System.Text.Json.JsonElement>! KeyValues, out System.Guid LastId) -> void
+Watchpoint.Kernel.Paging.DecodedCursor.Equals(Watchpoint.Kernel.Paging.DecodedCursor? other) -> bool
+Watchpoint.Kernel.Paging.DecodedCursor.KeyValues.get -> System.Collections.Generic.IReadOnlyList<System.Text.Json.JsonElement>!
+Watchpoint.Kernel.Paging.DecodedCursor.KeyValues.init -> void
+Watchpoint.Kernel.Paging.DecodedCursor.LastId.get -> System.Guid
+Watchpoint.Kernel.Paging.DecodedCursor.LastId.init -> void
+Watchpoint.Kernel.Paging.Page<T>
+Watchpoint.Kernel.Paging.Page<T>.<Clone>$() -> Watchpoint.Kernel.Paging.Page<T>!
+Watchpoint.Kernel.Paging.Page<T>.Deconstruct(out System.Collections.Generic.IReadOnlyList<T>! Items, out string? NextCursor) -> void
+Watchpoint.Kernel.Paging.Page<T>.Equals(Watchpoint.Kernel.Paging.Page<T>? other) -> bool
+Watchpoint.Kernel.Paging.Page<T>.Items.get -> System.Collections.Generic.IReadOnlyList<T>!
+Watchpoint.Kernel.Paging.Page<T>.Items.init -> void
+Watchpoint.Kernel.Paging.Page<T>.NextCursor.get -> string?
+Watchpoint.Kernel.Paging.Page<T>.NextCursor.init -> void
+Watchpoint.Kernel.Paging.Page<T>.Page(System.Collections.Generic.IReadOnlyList<T>! Items, string? NextCursor) -> void
+Watchpoint.Kernel.Paging.PageRequest
+Watchpoint.Kernel.Paging.PageRequest.<Clone>$() -> Watchpoint.Kernel.Paging.PageRequest!
+Watchpoint.Kernel.Paging.PageRequest.Cursor.get -> string?
+Watchpoint.Kernel.Paging.PageRequest.Cursor.init -> void
+Watchpoint.Kernel.Paging.PageRequest.Deconstruct(out int Limit, out string? Cursor) -> void
+Watchpoint.Kernel.Paging.PageRequest.Equals(Watchpoint.Kernel.Paging.PageRequest? other) -> bool
+Watchpoint.Kernel.Paging.PageRequest.Limit.get -> int
+Watchpoint.Kernel.Paging.PageRequest.Limit.init -> void
+Watchpoint.Kernel.Paging.PageRequest.PageRequest(int Limit = 100, string? Cursor = null) -> void
+Watchpoint.Kernel.Paging.SortField
+Watchpoint.Kernel.Paging.SortField.<Clone>$() -> Watchpoint.Kernel.Paging.SortField!
+Watchpoint.Kernel.Paging.SortField.Deconstruct(out string! Name, out bool Descending) -> void
+Watchpoint.Kernel.Paging.SortField.Descending.get -> bool
+Watchpoint.Kernel.Paging.SortField.Descending.init -> void
+Watchpoint.Kernel.Paging.SortField.Equals(Watchpoint.Kernel.Paging.SortField? other) -> bool
+Watchpoint.Kernel.Paging.SortField.Name.get -> string!
+Watchpoint.Kernel.Paging.SortField.Name.init -> void
+Watchpoint.Kernel.Paging.SortField.SortField(string! Name, bool Descending) -> void
+Watchpoint.Kernel.Paging.SortSpec
+Watchpoint.Kernel.Paging.SortSpec.<Clone>$() -> Watchpoint.Kernel.Paging.SortSpec!
+Watchpoint.Kernel.Paging.SortSpec.Deconstruct(out System.Collections.Generic.IReadOnlyList<Watchpoint.Kernel.Paging.SortField!>! Fields) -> void
+Watchpoint.Kernel.Paging.SortSpec.Equals(Watchpoint.Kernel.Paging.SortSpec? other) -> bool
+Watchpoint.Kernel.Paging.SortSpec.Fields.get -> System.Collections.Generic.IReadOnlyList<Watchpoint.Kernel.Paging.SortField!>!
+Watchpoint.Kernel.Paging.SortSpec.Fields.init -> void
+Watchpoint.Kernel.Paging.SortSpec.SortSpec(System.Collections.Generic.IReadOnlyList<Watchpoint.Kernel.Paging.SortField!>! Fields) -> void
+Watchpoint.Kernel.Results.CommonErrorCodes
+Watchpoint.Kernel.Results.CommonErrors
+Watchpoint.Kernel.Results.Error
+Watchpoint.Kernel.Results.Error.<Clone>$() -> Watchpoint.Kernel.Results.Error!
+Watchpoint.Kernel.Results.Error.Args.get -> System.Collections.Generic.IReadOnlyDictionary<string!, object?>!
+Watchpoint.Kernel.Results.Error.Args.init -> void
+Watchpoint.Kernel.Results.Error.Code.get -> Watchpoint.Kernel.Ids.ErrorCode
+Watchpoint.Kernel.Results.Error.Code.init -> void
+Watchpoint.Kernel.Results.Error.DeveloperDetail.get -> string?
+Watchpoint.Kernel.Results.Error.DeveloperDetail.init -> void
+Watchpoint.Kernel.Results.Error.Equals(Watchpoint.Kernel.Results.Error? other) -> bool
+Watchpoint.Kernel.Results.Error.Error() -> void
+Watchpoint.Kernel.Results.Error.FieldErrors.get -> System.Collections.Generic.IReadOnlyList<Watchpoint.Kernel.Results.FieldError!>!
+Watchpoint.Kernel.Results.Error.FieldErrors.init -> void
+Watchpoint.Kernel.Results.Error.Kind.get -> Watchpoint.Kernel.Results.ErrorKind
+Watchpoint.Kernel.Results.Error.Kind.init -> void
+Watchpoint.Kernel.Results.Error.MessageKey.get -> string!
+Watchpoint.Kernel.Results.Error.WithArg(string! key, object? value) -> Watchpoint.Kernel.Results.Error!
+Watchpoint.Kernel.Results.ErrorKind
+Watchpoint.Kernel.Results.ErrorKind.Conflict = 4 -> Watchpoint.Kernel.Results.ErrorKind
+Watchpoint.Kernel.Results.ErrorKind.Forbidden = 2 -> Watchpoint.Kernel.Results.ErrorKind
+Watchpoint.Kernel.Results.ErrorKind.Internal = 9 -> Watchpoint.Kernel.Results.ErrorKind
+Watchpoint.Kernel.Results.ErrorKind.NotFound = 3 -> Watchpoint.Kernel.Results.ErrorKind
+Watchpoint.Kernel.Results.ErrorKind.PreconditionFailed = 5 -> Watchpoint.Kernel.Results.ErrorKind
+Watchpoint.Kernel.Results.ErrorKind.TooManyRequests = 7 -> Watchpoint.Kernel.Results.ErrorKind
+Watchpoint.Kernel.Results.ErrorKind.Unauthenticated = 1 -> Watchpoint.Kernel.Results.ErrorKind
+Watchpoint.Kernel.Results.ErrorKind.Unavailable = 8 -> Watchpoint.Kernel.Results.ErrorKind
+Watchpoint.Kernel.Results.ErrorKind.Unprocessable = 6 -> Watchpoint.Kernel.Results.ErrorKind
+Watchpoint.Kernel.Results.ErrorKind.Validation = 0 -> Watchpoint.Kernel.Results.ErrorKind
+Watchpoint.Kernel.Results.FieldError
+Watchpoint.Kernel.Results.FieldError.<Clone>$() -> Watchpoint.Kernel.Results.FieldError!
+Watchpoint.Kernel.Results.FieldError.Args.get -> System.Collections.Generic.IReadOnlyDictionary<string!, object?>!
+Watchpoint.Kernel.Results.FieldError.Args.init -> void
+Watchpoint.Kernel.Results.FieldError.Code.get -> Watchpoint.Kernel.Ids.ErrorCode
+Watchpoint.Kernel.Results.FieldError.Code.init -> void
+Watchpoint.Kernel.Results.FieldError.Deconstruct(out string! Path, out Watchpoint.Kernel.Ids.ErrorCode Code, out System.Collections.Generic.IReadOnlyDictionary<string!, object?>! Args) -> void
+Watchpoint.Kernel.Results.FieldError.Equals(Watchpoint.Kernel.Results.FieldError? other) -> bool
+Watchpoint.Kernel.Results.FieldError.FieldError(string! Path, Watchpoint.Kernel.Ids.ErrorCode Code, System.Collections.Generic.IReadOnlyDictionary<string!, object?>! Args) -> void
+Watchpoint.Kernel.Results.FieldError.MessageKey.get -> string!
+Watchpoint.Kernel.Results.FieldError.Path.get -> string!
+Watchpoint.Kernel.Results.FieldError.Path.init -> void
+Watchpoint.Kernel.Results.Result
+Watchpoint.Kernel.Results.Result.Equals(Watchpoint.Kernel.Results.Result other) -> bool
+Watchpoint.Kernel.Results.Result.Error.get -> Watchpoint.Kernel.Results.Error!
+Watchpoint.Kernel.Results.Result.IsSuccess.get -> bool
+Watchpoint.Kernel.Results.Result.Result() -> void
+Watchpoint.Kernel.Results.Result<T>
+Watchpoint.Kernel.Results.Result<T>.Equals(Watchpoint.Kernel.Results.Result<T> other) -> bool
+Watchpoint.Kernel.Results.Result<T>.Error.get -> Watchpoint.Kernel.Results.Error!
+Watchpoint.Kernel.Results.Result<T>.IsSuccess.get -> bool
+Watchpoint.Kernel.Results.Result<T>.Result() -> void
+Watchpoint.Kernel.Results.Result<T>.ToResult() -> Watchpoint.Kernel.Results.Result
+Watchpoint.Kernel.Results.Result<T>.TryGetValue(out T value, out Watchpoint.Kernel.Results.Error! error) -> bool
+Watchpoint.Kernel.Results.Result<T>.Value.get -> T
+Watchpoint.Kernel.Results.ResultExtensions
+Watchpoint.Kernel.Results.ResultTaskExtensions
+Watchpoint.Kernel.Text.LocalizedName
+Watchpoint.Kernel.Text.LocalizedName.<Clone>$() -> Watchpoint.Kernel.Text.LocalizedName!
+Watchpoint.Kernel.Text.LocalizedName.Deconstruct(out string! Default, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Translations) -> void
+Watchpoint.Kernel.Text.LocalizedName.Default.get -> string!
+Watchpoint.Kernel.Text.LocalizedName.Default.init -> void
+Watchpoint.Kernel.Text.LocalizedName.Equals(Watchpoint.Kernel.Text.LocalizedName? other) -> bool
+Watchpoint.Kernel.Text.LocalizedName.LocalizedName(string! default) -> void
+Watchpoint.Kernel.Text.LocalizedName.LocalizedName(string! Default, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Translations) -> void
+Watchpoint.Kernel.Text.LocalizedName.Resolve(string! culture) -> string!
+Watchpoint.Kernel.Text.LocalizedName.Translations.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
+Watchpoint.Kernel.Text.LocalizedName.Translations.init -> void
+Watchpoint.Kernel.Text.LocalizedName.Validate(string! path) -> System.Collections.Generic.IReadOnlyList<Watchpoint.Kernel.Results.FieldError!>!
+Watchpoint.Kernel.Text.Message
+Watchpoint.Kernel.Text.Message.<Clone>$() -> Watchpoint.Kernel.Text.Message!
+Watchpoint.Kernel.Text.Message.Args.get -> System.Collections.Generic.IReadOnlyDictionary<string!, object?>!
+Watchpoint.Kernel.Text.Message.Args.init -> void
+Watchpoint.Kernel.Text.Message.Equals(Watchpoint.Kernel.Text.Message? other) -> bool
+Watchpoint.Kernel.Text.Message.Key.get -> string!
+Watchpoint.Kernel.Text.Message.Key.init -> void
+Watchpoint.Kernel.Text.Message.Message(string! key, System.Collections.Generic.IReadOnlyDictionary<string!, object?>! args) -> void
+Watchpoint.Kernel.Text.NameRules
+Watchpoint.Kernel.Text.SupportedCultures
+Watchpoint.Kernel.Time.AmbiguityPolicy
+Watchpoint.Kernel.Time.AmbiguityPolicy.EarlierOffset = 0 -> Watchpoint.Kernel.Time.AmbiguityPolicy
+Watchpoint.Kernel.Time.AmbiguityPolicy.LaterOffset = 1 -> Watchpoint.Kernel.Time.AmbiguityPolicy
+Watchpoint.Kernel.Time.AmbiguityPolicy.Reject = 2 -> Watchpoint.Kernel.Time.AmbiguityPolicy
+Watchpoint.Kernel.Time.Iso8601DurationConverter
+Watchpoint.Kernel.Time.Iso8601DurationConverter.Iso8601DurationConverter() -> void
+Watchpoint.Kernel.Time.SiteTimeZone
+Watchpoint.Kernel.Time.SiteTimeZone.Id.get -> string!
+Watchpoint.Kernel.Time.SiteTimeZone.ToLocal(System.DateTimeOffset utc) -> NodaTime.LocalDateTime
+Watchpoint.Kernel.Time.SiteTimeZone.ToUtc(NodaTime.LocalDateTime local, Watchpoint.Kernel.Time.AmbiguityPolicy policy) -> Watchpoint.Kernel.Results.Result<System.DateTimeOffset>
+Watchpoint.Kernel.Time.TimeProviderExtensions
+Watchpoint.Kernel.Time.UtcDateTimeOffsetConverter
+Watchpoint.Kernel.Time.UtcDateTimeOffsetConverter.UtcDateTimeOffsetConverter() -> void
+Watchpoint.Kernel.Validation.Guard
+Watchpoint.Kernel.Validation.JsonPointer
+Watchpoint.Kernel.Validation.ValidationBuilder
+Watchpoint.Kernel.Validation.ValidationBuilder.Add(Watchpoint.Kernel.Results.FieldError! error) -> Watchpoint.Kernel.Validation.ValidationBuilder!
+Watchpoint.Kernel.Validation.ValidationBuilder.AddRange(System.Collections.Generic.IEnumerable<Watchpoint.Kernel.Results.FieldError!>! errors) -> Watchpoint.Kernel.Validation.ValidationBuilder!
+Watchpoint.Kernel.Validation.ValidationBuilder.Build() -> Watchpoint.Kernel.Results.Result
+Watchpoint.Kernel.Validation.ValidationBuilder.Custom(string! path, System.Func<System.Collections.Generic.IEnumerable<Watchpoint.Kernel.Results.FieldError!>!>! check) -> Watchpoint.Kernel.Validation.ValidationBuilder!
+Watchpoint.Kernel.Validation.ValidationBuilder.Errors.get -> System.Collections.Generic.IReadOnlyList<Watchpoint.Kernel.Results.FieldError!>!
+Watchpoint.Kernel.Validation.ValidationBuilder.IsValid.get -> bool
+Watchpoint.Kernel.Validation.ValidationBuilder.MaxLength(string! path, string? value, int max) -> Watchpoint.Kernel.Validation.ValidationBuilder!
+Watchpoint.Kernel.Validation.ValidationBuilder.Name(string! path, string? value) -> Watchpoint.Kernel.Validation.ValidationBuilder!
+Watchpoint.Kernel.Validation.ValidationBuilder.Pattern(string! path, string? value, System.Text.RegularExpressions.Regex! pattern, string! expected) -> Watchpoint.Kernel.Validation.ValidationBuilder!
+Watchpoint.Kernel.Validation.ValidationBuilder.Range(string! path, long? value, long min, long max) -> Watchpoint.Kernel.Validation.ValidationBuilder!
+Watchpoint.Kernel.Validation.ValidationBuilder.Required(string! path, object? value) -> Watchpoint.Kernel.Validation.ValidationBuilder!
+Watchpoint.Kernel.Validation.ValidationBuilder.ValidationBuilder() -> void
+Watchpoint.Kernel.Validation.ValidationBuilder.ValidationBuilder(Microsoft.Extensions.Logging.ILogger! logger) -> void
+~override Watchpoint.Kernel.Ids.AlarmId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.AlarmRuleId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.AutomationId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.AutomationRunId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.CalendarId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.CapabilityId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.ChangeSetId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.CommandId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.ConnectionId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.CustomFieldId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.DeviceId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.DraftId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.ErrorCode.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.EventRecordId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.FederationLinkId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.FileId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.HolidaySetId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.HostId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.IncidentId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.JobId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.LicenceId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.LinkId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.LocationId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.MemberId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.NodeId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.NotificationId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.ObservationId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.PackageId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.PermissionCode.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.ProcedureId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.PropertyPath.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.ReportId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.RightGrantId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.ScriptId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.SecretId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.ServerId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.SessionId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.SiteId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.SynopticId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.TagFamilyId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.TagId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.TypeId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.UserGroupId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.UserId.Equals(object obj) -> bool
+~override Watchpoint.Kernel.Ids.WorkstationId.Equals(object obj) -> bool
