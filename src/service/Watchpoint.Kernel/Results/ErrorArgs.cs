@@ -10,7 +10,7 @@ internal static partial class ErrorArgs
     public static readonly IReadOnlyDictionary<string, object?> Empty =
         FrozenDictionary<string, object?>.Empty;
 
-    private static readonly FrozenSet<Type> s_scalarTypes = new[]
+    private static readonly FrozenSet<Type> _scalarTypes = new[]
     {
         typeof(string), typeof(int), typeof(long), typeof(double), typeof(decimal),
         typeof(bool), typeof(DateTimeOffset), typeof(Guid),
@@ -60,7 +60,7 @@ internal static partial class ErrorArgs
             null => true,
             IStringId => true,
             IReadOnlyList<string> => true,
-            _ => s_scalarTypes.Contains(value.GetType()) || IsEntityId(value.GetType()),
+            _ => _scalarTypes.Contains(value.GetType()) || IsEntityId(value.GetType()),
         };
 
     private static void Check(string key, object? value)

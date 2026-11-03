@@ -7,7 +7,7 @@ namespace Watchpoint.Kernel.Tests.Results;
 
 public sealed class ResultTests
 {
-    private static readonly Error s_notFound = CommonErrors.NotFound("device", Guid.CreateVersion7());
+    private static readonly Error _notFound = CommonErrors.NotFound("device", Guid.CreateVersion7());
 
     [Fact]
     public void K_U_016_Success_result_exposes_value()
@@ -28,17 +28,17 @@ public sealed class ResultTests
     [Fact]
     public void K_U_017_Failure_result_exposes_error()
     {
-        Result<int> r = s_notFound;
+        Result<int> r = _notFound;
 
         r.IsSuccess.ShouldBeFalse();
-        r.Error.ShouldBeSameAs(s_notFound);
+        r.Error.ShouldBeSameAs(_notFound);
         Should.Throw<InvalidOperationException>(() => r.Value);
         r.TryGetValue(out _, out var error).ShouldBeFalse();
-        error.ShouldBeSameAs(s_notFound);
+        error.ShouldBeSameAs(_notFound);
 
-        Result plain = s_notFound;
+        Result plain = _notFound;
         plain.IsSuccess.ShouldBeFalse();
-        plain.Error.ShouldBeSameAs(s_notFound);
+        plain.Error.ShouldBeSameAs(_notFound);
     }
 
     [Fact]
@@ -60,7 +60,7 @@ public sealed class ResultTests
         Result<int> ok = 5;
         ok.Map(x => x * 2).Value.ShouldBe(10);
 
-        Result<int> failed = s_notFound;
+        Result<int> failed = _notFound;
         var called = false;
         var mapped = failed.Map(x =>
         {
@@ -69,14 +69,14 @@ public sealed class ResultTests
         });
 
         called.ShouldBeFalse();
-        mapped.Error.ShouldBeSameAs(s_notFound);
+        mapped.Error.ShouldBeSameAs(_notFound);
     }
 
     [Fact]
     public void K_U_020_Bind_short_circuits()
     {
         var secondCalled = false;
-        Result<int> First(int x) => s_notFound;
+        Result<int> First(int x) => _notFound;
         Result<int> Second(int x)
         {
             secondCalled = true;
@@ -86,7 +86,7 @@ public sealed class ResultTests
         var result = Result.Success(1).Bind(First).Bind(Second);
 
         secondCalled.ShouldBeFalse();
-        result.Error.ShouldBeSameAs(s_notFound);
+        result.Error.ShouldBeSameAs(_notFound);
         Result.Success(1).Bind(x => Result.Success(x + 1)).Value.ShouldBe(2);
     }
 
@@ -97,7 +97,7 @@ public sealed class ResultTests
 
         Result.Success(15).Ensure(x => x >= 10, tooSmall).Value.ShouldBe(15);
         Result.Success(5).Ensure(x => x >= 10, tooSmall).Error.ShouldBeSameAs(tooSmall);
-        Result.Failure<int>(s_notFound).Ensure(x => x >= 10, tooSmall).Error.ShouldBeSameAs(s_notFound);
+        Result.Failure<int>(_notFound).Ensure(x => x >= 10, tooSmall).Error.ShouldBeSameAs(_notFound);
     }
 
     [Fact]
@@ -123,8 +123,8 @@ public sealed class ResultTests
         var validation = CommonErrors.ValidationFailed([CommonErrors.RequiredAt("/name")]);
         var conflict = Error.Conflict("registry.device.duplicate");
 
-        ResultExtensions.Combine(validation, s_notFound, conflict).Error.ShouldBeSameAs(s_notFound);
-        ResultExtensions.Combine(conflict, validation, s_notFound).Error.ShouldBeSameAs(conflict);
+        ResultExtensions.Combine(validation, _notFound, conflict).Error.ShouldBeSameAs(_notFound);
+        ResultExtensions.Combine(conflict, validation, _notFound).Error.ShouldBeSameAs(conflict);
     }
 
     [Fact]
@@ -166,15 +166,15 @@ public sealed class ResultTests
     public async Task K_U_026_Async_extensions_Async()
     {
         static Task<Result<int>> Ok(int x) => Task.FromResult(Result.Success(x));
-        static Task<Result<int>> Failed() => Task.FromResult(Result.Failure<int>(s_notFound));
+        static Task<Result<int>> Failed() => Task.FromResult(Result.Failure<int>(_notFound));
 
         (await Ok(2).Map(x => x * 3)).Value.ShouldBe(6);
-        (await Failed().Map(x => x * 3)).Error.ShouldBeSameAs(s_notFound);
+        (await Failed().Map(x => x * 3)).Error.ShouldBeSameAs(_notFound);
 
         (await Ok(2).Bind(x => Result.Success(x + 1))).Value.ShouldBe(3);
         (await Ok(2).BindAsync(x => Ok(x + 10))).Value.ShouldBe(12);
-        (await Failed().BindAsync(x => Ok(x + 10))).Error.ShouldBeSameAs(s_notFound);
-        (await Ok(2).Ensure(x => x > 5, s_notFound)).Error.ShouldBeSameAs(s_notFound);
+        (await Failed().BindAsync(x => Ok(x + 10))).Error.ShouldBeSameAs(_notFound);
+        (await Ok(2).Ensure(x => x > 5, _notFound)).Error.ShouldBeSameAs(_notFound);
         (await Failed().Match(x => "ok", e => e.Code.Value)).ShouldBe("common.not_found");
 
         var tapped = 0;
@@ -185,11 +185,11 @@ public sealed class ResultTests
         (await Failed().MapError(_ => replacement)).Error.ShouldBeSameAs(replacement);
 
         static ValueTask<Result<int>> OkValue(int x) => ValueTask.FromResult(Result.Success(x));
-        static ValueTask<Result<int>> FailedValue() => ValueTask.FromResult(Result.Failure<int>(s_notFound));
+        static ValueTask<Result<int>> FailedValue() => ValueTask.FromResult(Result.Failure<int>(_notFound));
         (await OkValue(2).Map(x => x * 3)).Value.ShouldBe(6);
-        (await FailedValue().Map(x => x * 3)).Error.ShouldBeSameAs(s_notFound);
+        (await FailedValue().Map(x => x * 3)).Error.ShouldBeSameAs(_notFound);
         (await OkValue(2).BindAsync(x => OkValue(x + 1))).Value.ShouldBe(3);
-        (await FailedValue().Ensure(x => x > 0, replacement)).Error.ShouldBeSameAs(s_notFound);
+        (await FailedValue().Ensure(x => x > 0, replacement)).Error.ShouldBeSameAs(_notFound);
     }
 
     [Fact]

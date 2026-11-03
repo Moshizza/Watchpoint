@@ -14,7 +14,7 @@ public sealed class EntityIdTests
 
     private sealed record Holder(DeviceId Id);
 
-    private static readonly JsonSerializerOptions s_web = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions _web = new(JsonSerializerDefaults.Web);
 
     [Fact]
     public void K_U_001_New_creates_version_7_uuids()
@@ -100,14 +100,14 @@ public sealed class EntityIdTests
     {
         var holder = new Holder(DeviceId.From(Guid.Parse(UpperId)));
 
-        var json = JsonSerializer.Serialize(holder, s_web);
+        var json = JsonSerializer.Serialize(holder, _web);
         json.ShouldBe($$"""{"id":"{{LowerId}}"}""");
-        JsonSerializer.Deserialize<Holder>(json, s_web).ShouldBe(holder);
+        JsonSerializer.Deserialize<Holder>(json, _web).ShouldBe(holder);
 
         var map = new Dictionary<DeviceId, int> { [holder.Id] = 1 };
-        var mapJson = JsonSerializer.Serialize(map, s_web);
+        var mapJson = JsonSerializer.Serialize(map, _web);
         mapJson.ShouldBe($$"""{"{{LowerId}}":1}""");
-        JsonSerializer.Deserialize<Dictionary<DeviceId, int>>(mapJson, s_web)!.ShouldContainKey(holder.Id);
+        JsonSerializer.Deserialize<Dictionary<DeviceId, int>>(mapJson, _web)!.ShouldContainKey(holder.Id);
     }
 
     [Theory]
@@ -116,7 +116,7 @@ public sealed class EntityIdTests
     [InlineData("""{"id":42}""")]
     public void K_U_008_Json_rejects_invalid_id(string json)
     {
-        var ex = Should.Throw<JsonException>(() => JsonSerializer.Deserialize<Holder>(json, s_web));
+        var ex = Should.Throw<JsonException>(() => JsonSerializer.Deserialize<Holder>(json, _web));
 
         ex.Path.ShouldBe("$.id");
     }

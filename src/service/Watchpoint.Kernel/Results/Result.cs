@@ -7,7 +7,7 @@ namespace Watchpoint.Kernel.Results;
 /// </summary>
 public readonly struct Result : IEquatable<Result>
 {
-    private static readonly Result s_success = new(null, initialised: true);
+    private static readonly Result _success = new(null, initialised: true);
 
     private readonly Error? _error;
     private readonly bool _initialised;
@@ -27,7 +27,7 @@ public readonly struct Result : IEquatable<Result>
 
     /// <summary>Returns the success result.</summary>
     /// <returns>A success.</returns>
-    public static Result Success() => s_success;
+    public static Result Success() => _success;
 
     /// <summary>Returns a failure.</summary>
     /// <param name="error">The error.</param>

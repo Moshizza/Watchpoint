@@ -7,8 +7,8 @@ namespace Watchpoint.Kernel.Tests.Paging;
 
 public sealed class PagingTests
 {
-    private static readonly HashSet<string> s_allowed = new(StringComparer.Ordinal) { "name", "createdAt", "id" };
-    private static readonly SortSpec s_default = new([new SortField("name", false)]);
+    private static readonly HashSet<string> _allowed = new(StringComparer.Ordinal) { "name", "createdAt", "id" };
+    private static readonly SortSpec _default = new([new SortField("name", false)]);
 
     [Fact]
     public void K_U_029_PageRequest_Create_limits()
@@ -33,24 +33,24 @@ public sealed class PagingTests
     [Fact]
     public void K_U_030_SortSpec_Parse()
     {
-        var parsed = SortSpec.Parse("name,-createdAt", s_allowed, s_default);
+        var parsed = SortSpec.Parse("name,-createdAt", _allowed, _default);
         parsed.Value.Fields.ShouldBe([new SortField("name", false), new SortField("createdAt", true)]);
 
-        SortSpec.Parse(" -id , name ", s_allowed, s_default).Value.Fields
+        SortSpec.Parse(" -id , name ", _allowed, _default).Value.Fields
             .ShouldBe([new SortField("id", true), new SortField("name", false)]);
 
-        var unknown = SortSpec.Parse("name,-size", s_allowed, s_default);
+        var unknown = SortSpec.Parse("name,-size", _allowed, _default);
         unknown.IsSuccess.ShouldBeFalse();
         unknown.Error.Code.ShouldBe(CommonErrorCodes.SortInvalidField);
         unknown.Error.Kind.ShouldBe(ErrorKind.Validation);
         unknown.Error.Args["field"].ShouldBe("-size");
         unknown.Error.Args["allowed"].ShouldBe(new List<string> { "createdAt", "id", "name" });
 
-        SortSpec.Parse("name,,id", s_allowed, s_default).Error.Code.ShouldBe(CommonErrorCodes.SortInvalidField);
-        SortSpec.Parse("name,-name", s_allowed, s_default).Error.Code.ShouldBe(CommonErrorCodes.SortInvalidField);
-        SortSpec.Parse("Name", s_allowed, s_default).Error.Code.ShouldBe(CommonErrorCodes.SortInvalidField);
+        SortSpec.Parse("name,,id", _allowed, _default).Error.Code.ShouldBe(CommonErrorCodes.SortInvalidField);
+        SortSpec.Parse("name,-name", _allowed, _default).Error.Code.ShouldBe(CommonErrorCodes.SortInvalidField);
+        SortSpec.Parse("Name", _allowed, _default).Error.Code.ShouldBe(CommonErrorCodes.SortInvalidField);
 
-        SortSpec.Parse(null, s_allowed, s_default).Value.ShouldBeSameAs(s_default);
-        SortSpec.Parse("  ", s_allowed, s_default).Value.ShouldBeSameAs(s_default);
+        SortSpec.Parse(null, _allowed, _default).Value.ShouldBeSameAs(_default);
+        SortSpec.Parse("  ", _allowed, _default).Value.ShouldBeSameAs(_default);
     }
 }
