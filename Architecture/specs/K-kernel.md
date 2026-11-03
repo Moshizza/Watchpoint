@@ -81,14 +81,15 @@ public interface IEntityId<TSelf> : IEquatable<TSelf>, IComparable<TSelf>, ISpan
 }
 
 [JsonConverter(typeof(EntityIdJsonConverter<DeviceId>))]
-public readonly record struct DeviceId(Guid Value) : IEntityId<DeviceId>
+public readonly record struct DeviceId : IEntityId<DeviceId>
 {
+    private DeviceId(Guid value) => Value = value;   // private: only From/New/TryParse create ids
+    public Guid Value { get; }
     public static string Prefix => "dev";
     public static DeviceId New() => new(Guid.CreateVersion7());
-    public static DeviceId From(Guid value) => value == Guid.Empty
-        ? throw new ArgumentException("Empty id", nameof(value)) : new(value);
+    public static DeviceId From(Guid value);         // Guid.Empty → ArgumentException("Empty id")
     public override string ToString() => Value.ToString("D");   // lowercase, 36 chars
-    // TryParse, CompareTo (by Value bytes — v7 sorts by time), TryFormat
+    // TryParse, CompareTo (by Value bytes — v7 sorts by time), comparison operators, TryFormat
 }
 ```
 
@@ -124,6 +125,8 @@ Rules:
   (braces, no dashes) → `common.value.invalid_format`.
 - `ToLogString()` extension returns `"{Prefix}:{Value}"` for logs.
 - `Guid.Empty` is never a valid id.
+- Version 7 UUIDs sort by their millisecond timestamp; ids created within the same
+  millisecond have no defined order (`Guid.CreateVersion7` fills the rest with random bits).
 
 ### 4.2 String-based ids
 
@@ -174,6 +177,7 @@ public sealed record Error
     public static Error Unprocessable(string code, params (string, object?)[] args);
     public static Error Unavailable(string code, params (string, object?)[] args);
     public static Error Internal(string developerDetail);   // code common.internal
+    public static Error Create(ErrorKind kind, string code, params (string, object?)[] args); // any kind
     public Error WithArg(string key, object? value);
 }
 
@@ -202,13 +206,22 @@ public readonly struct Result<T>
     public static implicit operator Result<T>(T value);
     public static implicit operator Result<T>(Error error);
     public bool TryGetValue([MaybeNullWhen(false)] out T value, [MaybeNullWhen(true)] out Error error);
+    public Result ToResult();
 }
 ```
 
-Extensions (`ResultExtensions`): `Map`, `Bind`, `Ensure(predicate, error)`, `Match`,
+`Result.Success<T>(value)` and `Result.Failure<T>(error)` are the named alternatives of the
+implicit conversions. Error codes passed to the `Error` factories are validated against the
+`ErrorCode` pattern (`ArgumentException` otherwise).
+
+Extensions (`ResultExtensions`; Task/ValueTask versions in `ResultTaskExtensions`, where the
+variants taking an asynchronous function are named `BindAsync`): `Map`, `Bind`, `Ensure(predicate, error)`, `Match`,
 `Tap`, `MapError`, async versions on `Task<Result<T>>` / `ValueTask<Result<T>>`, and
 `Combine(params Result[])` which merges validation errors (field errors concatenated;
-otherwise the first error wins).
+otherwise the first error wins). Precisely: any non-validation failure → the first one wins;
+a single validation failure is returned unchanged; several are merged into one
+`common.validation.failed` whose field errors are concatenated in order (a validation error
+without field errors contributes one field error with an empty path, its code and its args).
 
 Rules:
 
@@ -218,7 +231,8 @@ Rules:
 
 ### 5.4 Error and message arguments
 
-Allowed argument value types (checked by `Error`/`Message` constructors in DEBUG builds and
+Allowed argument value types (checked by `Error`/`FieldError`/`Message` constructors in all builds — the check is
+cheap and K-U-025 runs in the Release CI build — and
 by unit tests of each module): `string`, `int`, `long`, `double`, `decimal`, `bool`,
 `DateTimeOffset`, `Guid`, any `IEntityId`, string-based ids, `IReadOnlyList<string>`.
 Anything else → `ArgumentException` (programming error). Names of arguments are camelCase.
@@ -244,6 +258,13 @@ Anything else → `ArgumentException` (programming error). Names of arguments ar
 | `common.rate_limited` | TooManyRequests | `retryAfterSeconds` | |
 | `common.unavailable` | Unavailable | `dependency` | DB/NATS down |
 | `common.internal` | Internal | — | Unexpected failure |
+
+Codes are constants of `CommonErrorCodes` (e.g. `CommonErrorCodes.ValueRequired`). Factories are
+methods of `CommonErrors`: those ending in `At` return a `FieldError` for a JSON Pointer path
+(`RequiredAt`, `InvalidFormatAt`, `OutOfRangeAt`, `TooLongAt`, `TooShortAt`, `NotAllowedAt`,
+`DuplicateAt`); the others return an `Error` (`ValidationFailed`, `InvalidFormat` and `OutOfRange`
+for a single value with kind Validation, `NotFound`, `VersionConflict`, `CursorInvalid`,
+`SortInvalidField`, `Unauthenticated`, `Forbidden`, `RateLimited`, `Unavailable`, `Internal`).
 
 ## 6. Time
 
@@ -485,7 +506,7 @@ All tests are unit tests in `tests/service/Watchpoint.Kernel.Tests`.
 | K-U-022 | `Combine` merges validation errors | two validation failures with 1 and 2 field errors → one validation error with 3 field errors in order |
 | K-U-023 | `Combine` with a non-validation error | first non-validation error wins |
 | K-U-024 | `MessageKey` derived from code | `registry.device.not_found` → `errors.registry.device.not_found` |
-| K-U-025 | Disallowed argument types rejected (DEBUG) | `Error.NotFound("x.y", ("a", new object()))` → `ArgumentException` |
+| K-U-025 | Disallowed argument types rejected | `Error.NotFound("x.y", ("a", new object()))` → `ArgumentException` |
 | K-U-026 | Async extensions | `Task<Result<int>>.Map(...)` works and propagates failures |
 | K-U-027 | `WithArg` returns a new error | original unchanged |
 
