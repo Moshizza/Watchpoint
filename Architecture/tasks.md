@@ -197,11 +197,11 @@ spec that must exist and pass.
 
 | ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| T7.01 | Footprint collector (Windows, Linux, VM, container host-id), licence file verification, quotas | LIC §4–§7 | T1.07 | LIC-U-001…LIC-U-045 | — | — | todo |
-| T7.02 | Activation requests (online, offline file), licence import, enforcement and restricted mode, UI panel | LIC §8–§11 | T7.01, T3.10 | LIC-U-046…LIC-U-080, LIC-I-001…LIC-I-006 | — | — | todo |
-| T7.03 | Licensing portal backend: accounts, orders, requests, review queue, issuance with signing key, check-in API | LPT §4–§8 | T0.04 | LPT-U-001…LPT-U-050, LPT-I-001…LPT-I-010 | — | — | todo |
-| T7.04 | Licensing portal UI (customers, partners, licensing team) | LPT §9 | T7.03 | LPT-U-051…LPT-U-070 | — | — | todo |
-| T7.05 | E2E scenarios E-060…E-064 | tests/e2e-scenarios | T7.02, T7.04 | E-060…E-064 | — | — | todo |
+| T7.01 | Footprint collector (Windows, Linux, VM, container host-id), licence file verification, quotas | LIC §4–§7 | T1.07, T1.16, T1.18 | LIC-U-001…LIC-U-045 | [#96](https://github.com/Moshizza/Watchpoint/issues/96) | — | todo |
+| T7.02 | Activation requests (online, offline file), licence import, enforcement and restricted mode, UI panel | LIC §8–§12 | T7.01, T3.02, T3.10 | LIC-U-046…LIC-U-080, LIC-I-001…LIC-I-006 | [#97](https://github.com/Moshizza/Watchpoint/issues/97) | — | todo |
+| T7.03 | Licensing portal backend: accounts, orders, requests, review queue, issuance with signing key, check-in API | LPT §4–§8 | T0.04 | LPT-U-001…LPT-U-050, LPT-I-001…LPT-I-010 | [#98](https://github.com/Moshizza/Watchpoint/issues/98) | — | todo |
+| T7.04 | Licensing portal UI (customers, partners, licensing team) | LPT §9 | T7.03 | LPT-U-051…LPT-U-070 | [#99](https://github.com/Moshizza/Watchpoint/issues/99) | — | todo |
+| T7.05 | E2E scenarios E-060…E-064 | tests/e2e-scenarios | T7.02, T7.04 | E-060…E-064 | [#100](https://github.com/Moshizza/Watchpoint/issues/100) | — | todo |
 
 ### M8 — Automate
 
@@ -265,5 +265,5 @@ spec that must exist and pass.
 | D.02 | M0 specs (K, TST, SCM) | done |
 | D.03 | M1 specs | done |
 | D.04 | Cross-module tests (integration matrix, e2e scenarios) — grows with each milestone | M1 done |
-| D.05 | M2–M11 specs | in progress (M2–M6 done) |
+| D.05 | M2–M11 specs | in progress (M2–M7 done) |
 | D.06 | M12 specs | blocked (vendor docs) |
