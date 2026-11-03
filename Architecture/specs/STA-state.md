@@ -220,6 +220,22 @@ Live stream topics `devices` and `aggregates` are served by API using `IStateCha
   background writer calls `IStateStore.WriteSnapshotAsync` (consumer `state`, kind `device`,
   batches of ≤ 5,000, checkpoint in the last batch).
 - If writing fails, the dirty set is merged back and retried next interval (log 1720).
+- Other modules with per-partition in-memory state (CMD pending commands, ALM active alarms
+  and rule windows) plug into the same cadence through:
+
+```csharp
+public interface ISnapshotParticipant
+{
+    string Consumer { get; }                      // "commands", "alarms"
+    string Kind { get; }                          // state item kind
+    // Called on the partition worker: return dirty items since the last call (serialised) and deletions.
+    SnapshotContribution Collect(int partition);
+    void Restore(int partition, IReadOnlyList<StateItem> items);   // during recovery, before replay
+}
+public sealed record SnapshotContribution(IReadOnlyList<StateItem> Upserts, IReadOnlyList<StateItemKey> Deletes);
+```
+
+  Each participant writes its own checkpoint (consumer name) in the same transaction pattern.
 - Persisted payload excludes derived fields (`Summary`, `ServerUnavailable`, stale-derived
   quality) — they are recomputed at recovery.
 
