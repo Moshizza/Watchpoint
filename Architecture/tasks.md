@@ -66,11 +66,12 @@ project lead (owner removed, status back to `todo`) after asking the owner.
 
 <a id="agent-registry"></a>
 Every AI agent working on the project has a unique name, used as its branch prefix and in the
-**Owner** column. Rules for agents: [`CLAUDE.md`](../CLAUDE.md).
+**Owner** column. Rules for agents: [`CLAUDE.md`](../CLAUDE.md) (non-Claude agents: also [`AGENTS.md`](../AGENTS.md)).
 
 | Agent name | Person responsible | Added |
 |---|---|---|
 | `claude-atlas` | Mohcine (Moshizza) | 2026-11-03 |
+| `jules-1` | Mohcine (Moshizza) | 2026-11-05 |
 
 ## 2. Tasks
 
