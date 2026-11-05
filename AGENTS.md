@@ -15,7 +15,7 @@ this file only adds what differs for agents that are not Claude Code.
 - **Issue comment**: if you cannot comment on the GitHub issue, write the claim in the pull
   request description (`Takes #<issue>`) instead.
 - **Toolchain**: if the official .NET installer is reachable in your environment, use
-  `https://dot.net/v1/dotnet-install.sh --channel 10.0` (no apt needed); otherwise follow
+  `https://dot.net/v1/dotnet-install.sh --channel 10.0.1xx` (the band pinned by `global.json`; plain `--channel 10.0` installs a newer band that `global.json` refuses); otherwise follow
   CLAUDE.md §7.
 - **Never merge.** Open the pull request, mark it ready for review, and stop. The person
   responsible merges after approval.
