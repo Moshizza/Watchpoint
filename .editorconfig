@@ -114,6 +114,8 @@ dotnet_diagnostic.CS1591.severity = none      # missing XML docs: only required 
 [tests/**/*.cs]
 dotnet_diagnostic.CA1707.severity = none
 dotnet_diagnostic.CA1515.severity = none
+# Test methods are named by test id (WP0002), so async tests do not end with "Async"
+dotnet_naming_rule.async_methods_end_with_async.severity = none
 
 # Generated code
 [**/{obj,bin,Migrations}/**/*.cs]

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Real infrastructure in containers for integration tests (Architecture/specs/TST-test-infrastructure.md §5). -->
+  <PropertyGroup>
+    <RootNamespace>Watchpoint.Testing.Containers</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql" />
+    <PackageReference Include="Testcontainers.Nats" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="xunit.v3.assert" />
+    <PackageReference Include="xunit.v3.extensibility.core" />
+  </ItemGroup>
+
+</Project>
