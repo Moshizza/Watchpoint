@@ -1,0 +1,140 @@
+{
+  "$schema": "https://schemas.watchpoint.dev/capability/1.json",
+  "id": "armable",
+  "version": "1.0.0",
+  "properties": [
+    {
+      "id": "armState",
+      "valueType": "enum",
+      "enumValues": [
+        {
+          "code": "disarmed",
+          "severity": "normal"
+        },
+        {
+          "code": "partial",
+          "severity": "normalActive"
+        },
+        {
+          "code": "full",
+          "severity": "normalActive"
+        },
+        {
+          "code": "arming",
+          "severity": "info"
+        },
+        {
+          "code": "exitDelay",
+          "severity": "info"
+        },
+        {
+          "code": "entryDelay",
+          "severity": "warning"
+        },
+        {
+          "code": "alarm",
+          "severity": "alarm"
+        },
+        {
+          "code": "unknown",
+          "severity": "unknown"
+        }
+      ],
+      "history": {
+        "mode": "everyChange"
+      }
+    }
+  ],
+  "commands": [
+    {
+      "id": "arm",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "full",
+              "partial"
+            ],
+            "default": "full"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "risk": "sensitive",
+      "timeout": "PT30S"
+    },
+    {
+      "id": "disarm",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      },
+      "risk": "sensitive",
+      "timeout": "PT30S"
+    },
+    {
+      "id": "cancelArming",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      },
+      "risk": "normal",
+      "timeout": "PT30S"
+    }
+  ],
+  "events": [
+    {
+      "id": "armed",
+      "severity": "info",
+      "payload": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string"
+          },
+          "byRef": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "disarmed",
+      "severity": "info",
+      "payload": {
+        "type": "object",
+        "properties": {
+          "byRef": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "armFailed",
+      "severity": "warning",
+      "payload": {
+        "type": "object",
+        "properties": {
+          "reasons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "openZones": {
+            "type": "array",
+            "items": {
+              "type": "entityRef",
+              "entity": "device"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

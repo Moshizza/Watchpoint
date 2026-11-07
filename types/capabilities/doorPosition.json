@@ -1,0 +1,68 @@
+{
+  "$schema": "https://schemas.watchpoint.dev/capability/1.json",
+  "id": "doorPosition",
+  "version": "1.0.0",
+  "properties": [
+    {
+      "id": "position",
+      "valueType": "enum",
+      "enumValues": [
+        {
+          "code": "closed",
+          "severity": "normal"
+        },
+        {
+          "code": "open",
+          "severity": "normalActive"
+        },
+        {
+          "code": "heldOpen",
+          "severity": "warning"
+        },
+        {
+          "code": "forced",
+          "severity": "alarm"
+        },
+        {
+          "code": "unknown",
+          "severity": "unknown"
+        }
+      ],
+      "history": {
+        "mode": "everyChange"
+      },
+      "staleAfter": "PT10M"
+    }
+  ],
+  "commands": [],
+  "events": [
+    {
+      "id": "forced",
+      "severity": "alarm",
+      "payload": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "id": "heldOpen",
+      "severity": "warning",
+      "payload": {
+        "type": "object",
+        "properties": {
+          "openFor": {
+            "type": "duration"
+          }
+        }
+      }
+    },
+    {
+      "id": "closedAgain",
+      "severity": "info",
+      "payload": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  ]
+}

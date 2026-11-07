@@ -13,6 +13,11 @@
     <ProjectReference Include="../Watchpoint.Kernel/Watchpoint.Kernel.csproj" />
   </ItemGroup>
 
+  <!-- The schema files of the repository root, embedded for DocumentReader.FromEmbeddedSchemas (wptypes, runtime). -->
+  <ItemGroup>
+    <EmbeddedResource Include="../../../schemas/*.schema.json" LogicalName="schemas/%(Filename)%(Extension)" />
+  </ItemGroup>
+
   <ItemGroup>
     <InternalsVisibleTo Include="Watchpoint.Model.Documents.Tests" />
   </ItemGroup>

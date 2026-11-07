@@ -62,6 +62,10 @@ jobs:
           dotnet test --solution "$SOLUTION" --no-build --configuration Release \
             --results-directory "$GITHUB_WORKSPACE/TestResults"
 
+      # Standard type library (SCM §8); package folders are added here when the first package exists.
+      - name: Validate type library
+        run: dotnet tools/wptypes/bin/Release/net10.0/wptypes.dll validate types --strict-i18n
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

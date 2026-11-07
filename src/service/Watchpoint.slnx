@@ -28,6 +28,7 @@
     <Project Path="../../tests/service/Watchpoint.Storage.Tests/Watchpoint.Storage.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Testing.Containers/Watchpoint.Testing.Containers.csproj" />
     <Project Path="../../tests/service/Watchpoint.Testing.Tests/Watchpoint.Testing.Tests.csproj" />
+    <Project Path="../../tests/tools/Wptypes.Tests/Wptypes.Tests.csproj" />
   </Folder>
   <Folder Name="/tools/">
     <Project Path="../../tools/spikes/ConnectorIsolation/Connector/Watchpoint.Spikes.ConnectorIsolation.Connector.csproj" />
@@ -35,5 +36,6 @@
     <Project Path="../../tools/spikes/ConnectorIsolation/Host/Watchpoint.Spikes.ConnectorIsolation.Host.csproj" />
     <Project Path="../../tools/spikes/ConnectorIsolation/Runner/Watchpoint.Spikes.ConnectorIsolation.Runner.csproj" />
     <Project Path="../../tools/spikes/Watchpoint.Spikes.NatsJetStream/Watchpoint.Spikes.NatsJetStream.csproj" />
+    <Project Path="../../tools/wptypes/Watchpoint.Wptypes.csproj" />
   </Folder>
 </Solution>

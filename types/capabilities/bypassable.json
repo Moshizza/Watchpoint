@@ -1,0 +1,49 @@
+{
+  "$schema": "https://schemas.watchpoint.dev/capability/1.json",
+  "id": "bypassable",
+  "version": "1.0.0",
+  "properties": [
+    {
+      "id": "bypassed",
+      "valueType": "boolean",
+      "booleanSeverity": {
+        "true": "normalActive",
+        "false": "normal"
+      },
+      "history": {
+        "mode": "everyChange"
+      }
+    }
+  ],
+  "commands": [
+    {
+      "id": "bypass",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      },
+      "risk": "sensitive",
+      "timeout": "PT30S",
+      "expectedEffect": {
+        "property": "bypassable.bypassed",
+        "equals": true,
+        "within": "PT10S"
+      }
+    },
+    {
+      "id": "unbypass",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      },
+      "risk": "sensitive",
+      "timeout": "PT30S",
+      "expectedEffect": {
+        "property": "bypassable.bypassed",
+        "equals": false,
+        "within": "PT10S"
+      }
+    }
+  ],
+  "events": []
+}

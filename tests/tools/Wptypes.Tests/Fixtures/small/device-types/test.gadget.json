@@ -1,0 +1,11 @@
+{
+  "$schema": "https://schemas.watchpoint.dev/device-type/1.json",
+  "id": "test.gadget",
+  "version": "1.0.0",
+  "role": "device",
+  "category": "generic",
+  "extends": null,
+  "capabilities": [{ "id": "health", "version": "^1.0" }, { "id": "gadget", "version": "^1.2" }],
+  "licenceClass": "light",
+  "display": { "icon": "box", "symbol": "test.gadget", "primaryProperty": "gadget.mode" }
+}
