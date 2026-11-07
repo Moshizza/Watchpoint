@@ -1,0 +1,16 @@
+{
+  "name": "@watchpoint/live",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Live hub client and device state store (spec UIC \u00a75).",
+  "license": "UNLICENSED",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "devDependencies": {
+    "vite": "8.3.6",
+    "vitest": "5.1.0"
+  }
+}
