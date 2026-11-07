@@ -13,6 +13,9 @@ internal static class LogScenarios
     public const string Stream = "WP_LOG";
     public const int Partitions = 64;
 
+    /// <summary>Unexpected fencing rejections seen by <see cref="FencedLanesAppendAsync"/> (diagnostics).</summary>
+    public static System.Collections.Concurrent.ConcurrentQueue<string> Conflicts { get; } = new();
+
     public static StreamConfig LogStream(int replicas, bool atomic = false) => new(Stream, ["wp.log.>"])
     {
         Storage = StreamConfigStorage.File,
@@ -222,13 +225,19 @@ internal static class LogScenarios
                     // (the client re-sent it): adopt its sequence. Otherwise another writer appended: we are fenced out.
                     var stored = await stream.GetAsync(new StreamMsgGetRequest { LastBySubj = filter }).ConfigureAwait(false);
                     var storedBody = Encoding.UTF8.GetString(stored.Message.Data.Span);
-                    if (!storedBody.Contains(id.ToString(), StringComparison.Ordinal))
+                    if (storedBody.Contains(id.ToString(), StringComparison.Ordinal))
                     {
-                        throw new InvalidOperationException(string.Create(CultureInfo.InvariantCulture,
-                            $"fenced out by another writer: {wrong.Description} ({wrong.ErrCode})"));
+                        Interlocked.Increment(ref resolved);
+                    }
+                    else
+                    {
+                        // Unexpected: there is no other writer in this scenario. Record the evidence and retry.
+                        var state = (await js.GetStreamAsync(Stream).ConfigureAwait(false)).Info.State;
+                        Conflicts.Enqueue(string.Create(CultureInfo.InvariantCulture,
+                            $"partition {p}, record {i}, expected {last}: '{wrong.Description}' ({wrong.ErrCode}); last on filter = seq {stored.Message.Seq} subject {stored.Message.Subject}; stream {state.Messages} msgs, last seq {state.LastSeq}"));
+                        i--;
                     }
 
-                    Interlocked.Increment(ref resolved);
                     last = stored.Message.Seq;
                     continue;
                 }

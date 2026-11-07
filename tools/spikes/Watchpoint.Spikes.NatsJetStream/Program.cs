@@ -142,6 +142,17 @@ await using (var cluster = await NatsCluster.StartAsync(server, Path.Combine(wor
     await FailoverScenarios.QuorumLossAsync(cluster, report).ConfigureAwait(false);
 }
 
+if (!LogScenarios.Conflicts.IsEmpty)
+{
+    report.Heading("Unexpected fencing rejections (no competing writer)");
+    foreach (var c in LogScenarios.Conflicts.Take(20))
+    {
+        report.Line("- " + c);
+    }
+
+    report.Line(string.Create(CultureInfo.InvariantCulture, $"- total: {LogScenarios.Conflicts.Count}"));
+}
+
 await report.SaveAsync(output).ConfigureAwait(false);
 return 0;
 
