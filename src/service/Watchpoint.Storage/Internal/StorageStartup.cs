@@ -13,6 +13,7 @@ internal sealed class StorageStartup(StoreMapHolder holder, MigrationRunner migr
     {
         var map = holder.Map;
         holder.LogWarnings(logger);
+        migrations.ValidateRegistrations();
         var deadline = clock.GetUtcNow() + map.StartupWait;
         foreach (var db in map.UsedDatabases)
         {

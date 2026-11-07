@@ -11,7 +11,7 @@ public static class StorageServiceCollectionExtensions
     /// <summary>Health check name (tag <c>ready</c>).</summary>
     public const string HealthCheckName = "storage";
 
-    /// <summary>Registers settings, store map, connections, start-up (wait and migrations), health check and metrics.</summary>
+    /// <summary>Registers settings, store map, connections, state store, start-up (wait and migrations), health check and metrics.</summary>
     /// <param name="services">The services.</param>
     /// <param name="configuration">The configuration root (section <c>Database</c>).</param>
     /// <param name="isDevelopment">Whether the node runs in Development (<c>PasswordDev</c> allowed).</param>
@@ -32,6 +32,12 @@ public static class StorageServiceCollectionExtensions
         services.AddSingleton<IStorageStartup, StorageStartup>();
         services.AddMetrics();
         services.AddSingleton<StorageMetrics>();
+        services.AddSingleton<IStateStore>(sp =>
+        {
+            var connections = sp.GetRequiredService<IStoreConnectionFactory>();
+            var inner = connections.GetProvider(StoreKind.State).CreateStateStore(connections.GetDatabase(StoreKind.State));
+            return ActivatorUtilities.CreateInstance<InstrumentedStateStore>(sp, inner);
+        });
         services.AddHostedService<DatabaseSizePoller>();
         services.AddHealthChecks().AddCheck<StorageHealthCheck>(HealthCheckName, tags: ["ready"]);
         return services;

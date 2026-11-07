@@ -24,6 +24,12 @@ internal sealed class StorageHealthCheck(StoreMapHolder holder) : IHealthCheck
                 command.CommandText = "SELECT 1";
                 await command.ExecuteScalarAsync(timeout.Token).ConfigureAwait(false);
                 data[$"{db.Key}.version"] = connection.ServerVersion;
+                if (!data.ContainsKey("provider"))
+                {
+                    // Summary of the first database (the configuration store's when all stores share it).
+                    data["provider"] = provider.ProviderId;
+                    data["version"] = connection.ServerVersion;
+                }
             }
             catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
             {

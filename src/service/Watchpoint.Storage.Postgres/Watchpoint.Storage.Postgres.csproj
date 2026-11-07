@@ -16,6 +16,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Sql/*.sql" LogicalName="sql/%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="Watchpoint.Storage.Tests" />
     <InternalsVisibleTo Include="Watchpoint.IntegrationTests" />
   </ItemGroup>

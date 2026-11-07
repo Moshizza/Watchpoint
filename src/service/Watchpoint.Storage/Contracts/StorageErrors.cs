@@ -23,6 +23,12 @@ public static class StorageErrors
     /// <summary><c>storage.concurrency.conflict</c>.</summary>
     public const string ConcurrencyConflictCode = "storage.concurrency.conflict";
 
+    /// <summary><c>storage.state.batch_too_large</c>.</summary>
+    public const string StateBatchTooLargeCode = "storage.state.batch_too_large";
+
+    /// <summary><c>storage.module.context_missing</c>: a module has no context for the configured provider.</summary>
+    public const string ModuleContextMissingCode = "storage.module.context_missing";
+
     /// <summary><c>storage.settings.invalid</c>: storage settings failed validation (field errors name the keys).</summary>
     public const string SettingsInvalidCode = "storage.settings.invalid";
 
@@ -56,10 +62,64 @@ public static class StorageErrors
     public static Error MigrationLockTimeout(string database) =>
         Error.Create(ErrorKind.Unavailable, MigrationLockTimeoutCode, ("database", database));
 
+    /// <summary>A snapshot batch has too many items.</summary>
+    /// <param name="count">Items in the batch.</param>
+    /// <param name="max">The maximum.</param>
+    /// <returns>The error.</returns>
+    public static Error StateBatchTooLarge(int count, int max) =>
+        Error.Create(ErrorKind.Validation, StateBatchTooLargeCode, ("count", count), ("max", max));
+
+    /// <summary><c>row_version</c> mismatch on save; modules map it to <c>common.version.conflict</c>.</summary>
+    /// <param name="entity">The entity type.</param>
+    /// <returns>The error.</returns>
+    public static Error ConcurrencyConflict(string entity) =>
+        Error.Create(ErrorKind.PreconditionFailed, ConcurrencyConflictCode, ("entity", entity));
+
+    /// <summary>A module registered no context for the configured provider.</summary>
+    /// <param name="module">The module.</param>
+    /// <param name="provider">The provider id.</param>
+    /// <returns>The error.</returns>
+    public static Error ModuleContextMissing(string module, string provider) =>
+        Error.Create(ErrorKind.Validation, ModuleContextMissingCode, ("module", module), ("provider", provider));
+
     /// <summary>Storage settings are invalid.</summary>
     /// <param name="fields">The invalid keys.</param>
     /// <returns>The error.</returns>
     public static Error SettingsInvalid(IReadOnlyList<FieldError> fields) => Error.Validation(SettingsInvalidCode, fields);
+}
+
+/// <summary>A storage operation failed for a business reason carried by <see cref="Error"/> (e.g. a concurrency conflict).</summary>
+public sealed class StorageException : Exception
+{
+    /// <summary>Creates the exception.</summary>
+    /// <param name="error">The error.</param>
+    /// <param name="inner">The cause.</param>
+    public StorageException(Error error, Exception? inner = null)
+        : base(error?.Code.Value, inner) => Error = error ?? throw new ArgumentNullException(nameof(error));
+
+    /// <summary>Creates the exception.</summary>
+    public StorageException()
+        : this(Error.Internal("storage failure"))
+    {
+    }
+
+    /// <summary>Creates the exception.</summary>
+    /// <param name="message">The message.</param>
+    public StorageException(string message)
+        : this(Error.Internal(message))
+    {
+    }
+
+    /// <summary>Creates the exception.</summary>
+    /// <param name="message">The message.</param>
+    /// <param name="innerException">The cause.</param>
+    public StorageException(string message, Exception innerException)
+        : this(Error.Internal(message), innerException)
+    {
+    }
+
+    /// <summary>Gets the error.</summary>
+    public Error Error { get; }
 }
 
 /// <summary>A fatal storage failure during start-up; the host stops with <see cref="ExitCode"/>.</summary>

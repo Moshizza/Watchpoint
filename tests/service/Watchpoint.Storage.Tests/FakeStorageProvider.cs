@@ -1,4 +1,5 @@
 using System.Data.Common;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Watchpoint.Kernel.Results;
 using Watchpoint.Storage.Contracts;
@@ -31,14 +32,24 @@ internal sealed class FakeStorageProvider(string id = "postgres", bool schemas =
     public ProviderCapabilities CapabilitiesFor(DatabaseInfo info) =>
         Capabilities with { TimeSeriesExtension = info.Extensions.Contains("timescaledb") };
 
-    public void ConfigureDbContext(DbContextOptionsBuilder builder, DatabaseDefinition db, string migrationsHistorySchema) =>
-        throw new NotSupportedException();
+    /// <summary>SQLite in-memory database shared by the contexts and connections of this provider (kept open by the test).</summary>
+    public string SqliteConnectionString { get; } = $"DataSource=file:fake{Guid.NewGuid():N}?mode=memory&cache=shared";
 
-    public ValueTask<DbConnection> OpenConnectionAsync(DatabaseDefinition db, CancellationToken ct) => throw new NotSupportedException();
+    public void ConfigureDbContext(DbContextOptionsBuilder builder, DatabaseDefinition db, string migrationsHistorySchema) =>
+        builder.UseSqlite(SqliteConnectionString);
+
+    public async ValueTask<DbConnection> OpenConnectionAsync(DatabaseDefinition db, CancellationToken ct)
+    {
+        var connection = new SqliteConnection(SqliteConnectionString);
+        await connection.OpenAsync(ct);
+        return connection;
+    }
+
+    public IStateStore CreateStateStore(DatabaseDefinition db) => new MemoryStateStore();
 
     public IMigrationLock CreateMigrationLock(DatabaseDefinition db) => new Lock(this, db.Key);
 
-    public Task BootstrapAsync(DatabaseDefinition db, IReadOnlyCollection<string> schemas, CancellationToken ct)
+    public Task BootstrapAsync(DatabaseDefinition db, IReadOnlyCollection<string> schemas, IReadOnlyCollection<StoreKind> stores, CancellationToken ct)
     {
         Events.Add($"bootstrap {db.Key} [{string.Join(",", schemas)}]");
         return Task.CompletedTask;

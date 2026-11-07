@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Watchpoint.Kernel.Ids;
+using Watchpoint.Kernel.Text;
 
 namespace Watchpoint.Storage.Contracts;
 
@@ -42,18 +43,37 @@ public abstract class ConfigurationDbContextBase : DbContext
     public string Schema { get; }
 
     /// <inheritdoc/>
+    /// <exception cref="StorageException"><c>storage.concurrency.conflict</c> when a <see cref="IVersioned"/> entity changed meanwhile.</exception>
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
         ApplyConventions();
-        return base.SaveChanges(acceptAllChangesOnSuccess);
+        try
+        {
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            throw Conflict(ex);
+        }
     }
 
     /// <inheritdoc/>
-    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    /// <exception cref="StorageException"><c>storage.concurrency.conflict</c> when a <see cref="IVersioned"/> entity changed meanwhile.</exception>
+    public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
     {
         ApplyConventions();
-        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        try
+        {
+            return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken).ConfigureAwait(false);
+        }
+        catch (DbUpdateConcurrencyException ex)
+        {
+            throw Conflict(ex);
+        }
     }
+
+    private static StorageException Conflict(DbUpdateConcurrencyException ex) =>
+        new(StorageErrors.ConcurrencyConflict(ex.Entries.Count > 0 ? ex.Entries[0].Metadata.ClrType.Name : "entity"), ex);
 
     /// <inheritdoc/>
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
@@ -70,6 +90,7 @@ public abstract class ConfigurationDbContextBase : DbContext
         }
 
         configurationBuilder.Properties<DateTimeOffset>().HavePrecision(3);
+        configurationBuilder.Properties<LocalizedName>().HaveConversion<LocalizedNameJsonConverter, LocalizedNameComparer>();
     }
 
     /// <inheritdoc/>
@@ -88,6 +109,14 @@ public abstract class ConfigurationDbContextBase : DbContext
             if (typeof(IVersioned).IsAssignableFrom(entity.ClrType))
             {
                 modelBuilder.Entity(entity.ClrType).Property(nameof(IVersioned.RowVersion)).HasColumnName(RowVersionColumn).IsConcurrencyToken();
+            }
+
+            if (Database.ProviderName?.Contains("Npgsql", StringComparison.Ordinal) == true)
+            {
+                foreach (var property in entity.GetProperties().Where(p => p.ClrType == typeof(LocalizedName)))
+                {
+                    property.SetColumnType("jsonb");
+                }
             }
 
             if (!Info.Naming.UsesSchemas && entity.GetTableName() is { } table)

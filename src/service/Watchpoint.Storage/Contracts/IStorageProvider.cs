@@ -44,12 +44,21 @@ public interface IStorageProvider
     /// <returns>The lock.</returns>
     IMigrationLock CreateMigrationLock(DatabaseDefinition db);
 
-    /// <summary>Creates the schemas if missing and runs provider-owned bootstrap SQL idempotently (STO §6.3 step 2).</summary>
+    /// <summary>
+    /// Creates the schemas if missing and runs provider-owned bootstrap SQL idempotently (STO §6.3 step 2), e.g. the state
+    /// tables when <paramref name="stores"/> contains <see cref="StoreKind.State"/>.
+    /// </summary>
     /// <param name="db">The database.</param>
-    /// <param name="schemas">The schemas to create.</param>
+    /// <param name="schemas">The module schemas to create.</param>
+    /// <param name="stores">The stores mapped to this database.</param>
     /// <param name="ct">Cancellation.</param>
     /// <returns>A task.</returns>
-    Task BootstrapAsync(DatabaseDefinition db, IReadOnlyCollection<string> schemas, CancellationToken ct);
+    Task BootstrapAsync(DatabaseDefinition db, IReadOnlyCollection<string> schemas, IReadOnlyCollection<StoreKind> stores, CancellationToken ct);
+
+    /// <summary>Creates the state store on <paramref name="db"/> (spec STO §7.2).</summary>
+    /// <param name="db">The database of the state store.</param>
+    /// <returns>The store.</returns>
+    IStateStore CreateStateStore(DatabaseDefinition db);
 
     /// <summary>Pool statistics for health and metrics, when the provider exposes them.</summary>
     /// <param name="db">The database.</param>
@@ -61,7 +70,7 @@ public interface IStorageProvider
     /// <returns>The sanitised connection string.</returns>
     string Sanitize(string connectionString);
 
-    // History and audit store factories and CreateStateStore are added by T1.04 (state), T2.13 (HIS), T3.06 (AUD).
+    // History and audit store factories are added by T2.13 (HIS) and T3.06 (AUD).
 }
 
 /// <summary>Connection pool statistics.</summary>
