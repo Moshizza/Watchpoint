@@ -2,6 +2,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Shouldly;
 using Watchpoint.Kernel.Ids;
+using Watchpoint.Kernel.Text;
 using Watchpoint.Storage.Contracts;
 using Watchpoint.Testing.Time;
 using Xunit;
@@ -114,6 +115,8 @@ internal sealed class Gadget : IVersioned, ITimestamped
 
     public DateTimeOffset? SeenAt { get; set; }
 
+    public LocalizedName? Label { get; set; }
+
     public long RowVersion { get; set; }
 
     public DateTimeOffset CreatedAt { get; set; }
@@ -121,10 +124,13 @@ internal sealed class Gadget : IVersioned, ITimestamped
     public DateTimeOffset UpdatedAt { get; set; }
 }
 
-internal sealed class TestModuleContext(DbContextOptions options, StorageContextInfo info) : ConfigurationDbContextBase(options, info)
+internal class TestModuleContext(DbContextOptions options, StorageContextInfo info) : ConfigurationDbContextBase(options, info)
 {
     public DbSet<Gadget> Gadgets => Set<Gadget>();
 
     protected override void OnModuleModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.Entity<Gadget>().ToTable("gadgets");
 }
+
+/// <summary>The "postgres" subclass of the test module (the fake provider uses SQLite underneath).</summary>
+internal sealed class TestModulePostgresContext(DbContextOptions options, StorageContextInfo info) : TestModuleContext(options, info);

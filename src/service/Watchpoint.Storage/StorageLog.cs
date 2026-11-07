@@ -23,6 +23,10 @@ internal static partial class StorageLog
     [LoggerMessage(EventId = 1211, Level = LogLevel.Error, Message = "Migration {Migration} for module {Module} failed")]
     public static partial void MigrationFailed(ILogger logger, Exception exception, string migration, string module);
 
+    [LoggerMessage(EventId = 1220, Level = LogLevel.Debug,
+        Message = "State snapshot written: consumer {Consumer}, partition {Partition}, {Upserts} upserts, {Deletes} deletes, sequence {Sequence}")]
+    public static partial void SnapshotWritten(ILogger logger, string consumer, int partition, int upserts, int deletes, long sequence);
+
     [LoggerMessage(EventId = 1212, Level = LogLevel.Information, Message = "Waiting for the migration lock of database {Key}")]
     public static partial void MigrationLockWaiting(ILogger logger, string key);
 }

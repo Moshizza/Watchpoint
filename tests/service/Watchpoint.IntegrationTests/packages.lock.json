@@ -498,6 +498,15 @@
           "Watchpoint.Kernel": "[1.0.0, )"
         }
       },
+      "watchpoint.storage.certification": {
+        "type": "Project",
+        "dependencies": {
+          "Shouldly": "[4.3.0, )",
+          "Watchpoint.Storage": "[1.0.0, )",
+          "xunit.v3.assert": "[4.0.2, )",
+          "xunit.v3.extensibility.core": "[4.0.2, )"
+        }
+      },
       "watchpoint.storage.postgres": {
         "type": "Project",
         "dependencies": {

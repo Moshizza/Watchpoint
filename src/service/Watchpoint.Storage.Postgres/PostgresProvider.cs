@@ -82,9 +82,11 @@ internal sealed class PostgresProvider(PostgresDataSources sources, TimeProvider
 
     public IMigrationLock CreateMigrationLock(DatabaseDefinition db) => new PostgresMigrationLock(sources.Get(db), clock);
 
-    public async Task BootstrapAsync(DatabaseDefinition db, IReadOnlyCollection<string> schemas, CancellationToken ct)
+    public async Task BootstrapAsync(DatabaseDefinition db, IReadOnlyCollection<string> schemas, IReadOnlyCollection<StoreKind> stores,
+        CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(schemas);
+        ArgumentNullException.ThrowIfNull(stores);
         await using var connection = await sources.Get(db).OpenConnectionAsync(ct).ConfigureAwait(false);
         foreach (var schema in schemas)
         {
@@ -93,7 +95,21 @@ internal sealed class PostgresProvider(PostgresDataSources sources, TimeProvider
             await command.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
         }
 
-        // State tables (STO §7.3) are added to the bootstrap by T1.04.
+        if (stores.Contains(StoreKind.State))
+        {
+            await using var command = new NpgsqlCommand(EmbeddedSql("state-tables.sql"), connection);
+            await command.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+        }
+    }
+
+    public IStateStore CreateStateStore(DatabaseDefinition db) => new PostgresStateStore(sources.Get(db));
+
+    internal static string EmbeddedSql(string name)
+    {
+        using var stream = typeof(PostgresProvider).Assembly.GetManifestResourceStream("sql/" + name)
+            ?? throw new InvalidOperationException($"Embedded SQL {name} is missing.");
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
     }
 
     public PoolStatistics? GetPoolStatistics(DatabaseDefinition db) => null; // Npgsql publishes pool metrics on its own meter "Npgsql".

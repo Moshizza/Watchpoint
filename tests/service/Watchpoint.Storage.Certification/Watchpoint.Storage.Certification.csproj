@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Provider-agnostic certification suite (spec STO §12): abstract test classes that each provider's
+       integration tests derive from. A library, not a test executable. -->
+  <PropertyGroup>
+    <RootNamespace>Watchpoint.Storage.Certification</RootNamespace>
+    <IsTestProject>false</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3.assert" />
+    <PackageReference Include="xunit.v3.extensibility.core" />
+    <PackageReference Include="Shouldly" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../../src/service/Watchpoint.Storage/Watchpoint.Storage.csproj" />
+  </ItemGroup>
+
+</Project>

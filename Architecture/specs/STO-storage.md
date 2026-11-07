@@ -124,10 +124,11 @@ public interface IStorageProvider
     ValueTask<DbConnection> OpenConnectionAsync(DatabaseDefinition db, CancellationToken ct);   // pooled
     IStorageNaming Naming { get; }
     IMigrationLock CreateMigrationLock(DatabaseDefinition db);  // AcquireAsync(timeout, ct) → held lock or null on timeout
-    Task BootstrapAsync(DatabaseDefinition db, IReadOnlyCollection<string> schemas, CancellationToken ct); // §6.3 step 2
+    Task BootstrapAsync(DatabaseDefinition db, IReadOnlyCollection<string> schemas,
+        IReadOnlyCollection<StoreKind> stores, CancellationToken ct);  // §6.3 step 2; state tables when stores has State
     PoolStatistics? GetPoolStatistics(DatabaseDefinition db);  // null when the driver publishes its own pool metrics
     string Sanitize(string connectionString);           // password removed, for logs
-    IStateStore CreateStateStore(DatabaseDefinition db);       // added by T1.04
+    IStateStore CreateStateStore(DatabaseDefinition db);
     // History and audit store factories are added by HIS/AUD tasks (T2.13, T3.06).
 }
 
@@ -216,8 +217,8 @@ services.AddModuleStorage<RegistryDbContext>("Registry", providers => providers
 - sets default schema from the module name;
 - applies conventions: `uuid` ids with value converters for Kernel id types
   (`DeviceId` ↔ `uuid`), string-id converters, `DateTimeOffset` UTC enforcement (values with
-  non-zero offset throw on save) and precision 3 (milliseconds), `LocalizedName` as `jsonb`
-  (added by T1.04 with the Kernel translatable-text types of T0.04);
+  non-zero offset throw on save) and precision 3 (milliseconds), `LocalizedName` as JSON
+  `{"default": …, "translations": {…}}` (`jsonb` on PostgreSQL; `LocalizedNameJsonConverter`);
 - adds a `row_version bigint` concurrency token to entities implementing `IVersioned`
   (incremented by the base `SaveChangesAsync`, never by the database), used for ETags;
 - adds `created_at`, `updated_at` to entities implementing `ITimestamped`.
@@ -292,6 +293,12 @@ public sealed record StateItemKey(string Kind, Guid Key);
   added by modules; lowercase, ≤ 32 chars.
 - `Consumer` is the logical owner of checkpoints (e.g. `state`, `alarms`, `commands`).
 - `Sequence` in items = event-log sequence of the last change reflected (debug/consistency).
+- The `IStateStore` resolved from DI wraps the provider's store: it validates batches
+  (`StateStoreRules`: ≤ 5,000 items → else `StorageException` `storage.state.batch_too_large`; kinds
+  and consumers `^[a-z][a-z0-9-]*$`, ≤ 32 chars → else `ArgumentException`; items in the batch's
+  partition) and records the snapshot metrics and `STO1220`.
+- `ConfigurationDbContextBase.SaveChanges*` turns `DbUpdateConcurrencyException` into
+  `StorageException` with `storage.concurrency.conflict` (arg `entity`).
 
 ### 7.3 State tables (PostgreSQL)
 
@@ -321,7 +328,8 @@ CREATE TABLE IF NOT EXISTS wp_state.checkpoints (
 `WriteSnapshotAsync` (PostgreSQL): one transaction; upserts via a single
 `INSERT … SELECT FROM unnest(@kinds, @keys, @partitions, @payloads, @sequences) ON CONFLICT
 (kind,key) DO UPDATE …`; deletes via `DELETE … WHERE (kind,key) IN (SELECT * FROM unnest(…))`;
-checkpoint upsert; commit. Batches up to 5,000 items; larger inputs are split by the caller
+checkpoint upsert; commit. Several upserts of the same key in one batch: the last wins. Batches up
+to 5,000 items; larger inputs are split by the caller
 (STA) into several batches, **with the checkpoint written only in the last one**.
 
 Tables are created by the provider bootstrap (§6.3 step 2), not EF migrations (they are
@@ -354,7 +362,8 @@ provider-owned infrastructure).
 | `storage.migration.failed` | Internal | Migration error (args `module`, `migration`) |
 | `storage.migration.lock_timeout` | Unavailable | Could not get migration lock |
 | `storage.concurrency.conflict` | PreconditionFailed | `row_version` mismatch on save (mapped by modules to `common.version.conflict`) |
-| `storage.state.batch_too_large` | Validation | > 5,000 items in one batch |
+| `storage.state.batch_too_large` | Validation | > 5,000 items in one batch (args `count`, `max`) |
+| `storage.module.context_missing` | Validation | A module registered no context for the configured provider (args `module`, `provider`); start-up stops with exit 78 |
 | `storage.settings.invalid` | Validation | Storage settings invalid; field errors name the keys (unknown database key, `PasswordDev` outside Development, insecure remote TLS, port/pool out of range, bad `StartupWait`) |
 
 ## 10. Observability
@@ -388,9 +397,10 @@ Metrics (`Watchpoint.Storage`): `watchpoint.storage.snapshot.duration` (ms, tag 
 ## 12. Tests
 
 Unit: `tests/service/Watchpoint.Storage.Tests`. Integration and certification:
-`tests/service/Watchpoint.Storage.Certification` (abstract test classes, created by T1.04 with
-STO-I-015) with `Watchpoint.IntegrationTests/Storage/Postgres*` deriving from them for
-PostgreSQL. STO-I-001…006 (T1.03) are PostgreSQL-specific and live in
+`tests/service/Watchpoint.Storage.Certification` (`StorageCertificationTests`: STO-I-007…014, and
+the `CertificationContext` module whose provider migration each provider supplies) with
+`Watchpoint.IntegrationTests/Storage/PostgresCertificationTests` deriving from it for PostgreSQL
+(plus STO-I-015). STO-I-001…006 are PostgreSQL-specific and live in
 `Watchpoint.IntegrationTests/Storage/PostgresStorageTests`.
 
 | Id | Layer | Test | Given / When / Then |
