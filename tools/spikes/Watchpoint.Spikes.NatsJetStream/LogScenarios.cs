@@ -216,20 +216,20 @@ internal static class LogScenarios
                     ExpectedLastSubjectSequence = last,
                     ExpectedLastSubjectSequenceSubject = filter,
                 }, headers: Headers()).ConfigureAwait(false);
-                if (ack.Error is { ErrCode: 10071 } wrong)
+                if (ack.Error is { } wrong && wrong.Description?.StartsWith("wrong last sequence", StringComparison.Ordinal) == true)
                 {
-                    // "wrong last sequence: N". If record N is ours, an earlier attempt of this same publish was stored
-                    // (the client re-sent it): adopt N. Otherwise another writer appended: we are fenced out.
-                    var actual = ulong.Parse(wrong.Description!.Split(':')[1].Trim(), CultureInfo.InvariantCulture);
-                    var stored = await stream.GetAsync(new StreamMsgGetRequest { Seq = actual }).ConfigureAwait(false);
+                    // If the partition's last record is ours, an earlier attempt of this same publish was stored
+                    // (the client re-sent it): adopt its sequence. Otherwise another writer appended: we are fenced out.
+                    var stored = await stream.GetAsync(new StreamMsgGetRequest { LastBySubj = filter }).ConfigureAwait(false);
                     var storedBody = Encoding.UTF8.GetString(stored.Message.Data.Span);
                     if (!storedBody.Contains(id.ToString(), StringComparison.Ordinal))
                     {
-                        throw new InvalidOperationException("fenced out by another writer: " + wrong.Description);
+                        throw new InvalidOperationException(string.Create(CultureInfo.InvariantCulture,
+                            $"fenced out by another writer: {wrong.Description} ({wrong.ErrCode})"));
                     }
 
                     Interlocked.Increment(ref resolved);
-                    last = actual;
+                    last = stored.Message.Seq;
                     continue;
                 }
 
@@ -314,7 +314,8 @@ internal static class LogScenarios
     }
 
     /// <summary>Ordered consumer replay (PIP §5.4) from <paramref name="fromSequence"/> until caught up.</summary>
-    public static async Task<(long Count, TimeSpan Elapsed)> ReplayAsync(INatsJSContext js, IReadOnlyList<string> filters, ulong fromSequence)
+    public static async Task<(long Count, TimeSpan Elapsed)> ReplayAsync(INatsJSContext js, IReadOnlyList<string> filters, ulong fromSequence,
+        int? maxMsgs = null)
     {
         var opts = new NatsJSOrderedConsumerOpts
         {
@@ -327,7 +328,7 @@ internal static class LogScenarios
         long count = 0;
         ulong lastSeq = 0;
         using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
-        await foreach (var msg in consumer.ConsumeAsync<byte[]>(cancellationToken: cts.Token).ConfigureAwait(false))
+        await foreach (var msg in consumer.ConsumeAsync<byte[]>(opts: maxMsgs is null ? null : new NatsJSConsumeOpts { MaxMsgs = maxMsgs }, cancellationToken: cts.Token).ConfigureAwait(false))
         {
             count++;
             var seq = msg.Metadata!.Value.Sequence.Stream;

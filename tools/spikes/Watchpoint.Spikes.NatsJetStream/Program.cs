@@ -153,6 +153,10 @@ static async Task ReplaySetAsync(INatsJSContext js, Report report, string label)
     report.Row("Replay whole log from seq 1, " + label, Report.Rate(n, t));
     (n, t) = await LogScenarios.ReplayAsync(js, [LogScenarios.PartitionFilter(17)], 1).ConfigureAwait(false);
     report.Row("Replay one partition (`wp.log.17.>`) from seq 1, " + label, Report.Rate(n, t));
+    (n, t) = await LogScenarios.ReplayAsync(js, [LogScenarios.PartitionFilter(19)], 1, maxMsgs: 10_000).ConfigureAwait(false);
+    report.Row("Replay one partition from seq 1, consumer pull batch 10,000, " + label, Report.Rate(n, t));
+    (n, t) = await LogScenarios.ReplayAsync(js, ["wp.log.>"], half, maxMsgs: 10_000).ConfigureAwait(false);
+    report.Row("Replay whole log from the middle, consumer pull batch 10,000, " + label, Report.Rate(n, t));
     (n, t) = await LogScenarios.ReplayAsync(js, [LogScenarios.PartitionFilter(18)], half).ConfigureAwait(false);
     report.Row("Replay one partition from the middle of the log, " + label, Report.Rate(n, t));
     (n, t) = await LogScenarios.ReplayAsync(js, [.. Enumerable.Range(32, 16).Select(p => LogScenarios.PartitionFilter(p))], 1)
