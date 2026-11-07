@@ -99,7 +99,7 @@ internal sealed class SecretVault(
         if (record.LastAccessedAt is not { } last || now - last >= AccessWriteInterval)
         {
             // Direct update: no row_version change, no updated_at change (access is not a modification).
-            await context.Secrets.Where(s => s.Id == record.Id && (s.LastAccessedAt == null || s.LastAccessedAt <= now - AccessWriteInterval))
+            await context.Secrets.Where(s => s.Id == record.Id)
                 .ExecuteUpdateAsync(u => u.SetProperty(s => s.LastAccessedAt, now), ct).ConfigureAwait(false);
         }
 
