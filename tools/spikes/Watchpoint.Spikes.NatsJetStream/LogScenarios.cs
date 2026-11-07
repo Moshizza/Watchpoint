@@ -13,6 +13,13 @@ internal static class LogScenarios
     public const string Stream = "WP_LOG";
     public const int Partitions = 64;
 
+    private static int _staleRecreates;
+
+    /// <summary>Times a deleted and immediately re-created stream still held the old records.</summary>
+    public static int StaleRecreates => _staleRecreates;
+
+    private sealed class StaleStreamException : Exception;
+
     /// <summary>Unexpected fencing rejections seen by <see cref="FencedLanesAppendAsync"/> (diagnostics).</summary>
     public static System.Collections.Concurrent.ConcurrentQueue<string> Conflicts { get; } = new();
 
@@ -40,7 +47,7 @@ internal static class LogScenarios
             {
                 return await ResetStreamOnceAsync(nats, replicas, atomic).ConfigureAwait(false);
             }
-            catch (NatsJSApiNoResponseException) when (attempt < 40)
+            catch (Exception e) when (e is NatsJSApiNoResponseException or StaleStreamException && attempt < 40)
             {
                 await Task.Delay(250).ConfigureAwait(false);
             }
@@ -52,14 +59,24 @@ internal static class LogScenarios
         var js = new NatsJSContext(nats);
         try
         {
-            await js.DeleteStreamAsync(Stream).ConfigureAwait(false);
+            if (!await js.DeleteStreamAsync(Stream).ConfigureAwait(false))
+            {
+                throw new InvalidOperationException("stream delete returned false");
+            }
         }
-        catch (NatsJSApiException)
+        catch (NatsJSApiException e) when (e.Error.ErrCode == 10059)
         {
-            // absent
+            // stream not found
         }
 
-        await js.CreateStreamAsync(LogStream(replicas, atomic)).ConfigureAwait(false);
+        var created = await js.CreateStreamAsync(LogStream(replicas, atomic)).ConfigureAwait(false);
+        if (created.Info.State.Messages != 0)
+        {
+            // Seen intermittently: delete + immediate re-create of the same name brings back the old records.
+            Interlocked.Increment(ref _staleRecreates);
+            throw new StaleStreamException();
+        }
+
         return js;
     }
 

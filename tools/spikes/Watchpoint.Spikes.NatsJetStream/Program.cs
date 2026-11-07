@@ -142,6 +142,8 @@ await using (var cluster = await NatsCluster.StartAsync(server, Path.Combine(wor
     await FailoverScenarios.QuorumLossAsync(cluster, report).ConfigureAwait(false);
 }
 
+report.Line(string.Create(CultureInfo.InvariantCulture,
+    $"\nHarness note: stream delete + immediate re-create returned the old records {LogScenarios.StaleRecreates} time(s) (retried)."));
 if (!LogScenarios.Conflicts.IsEmpty)
 {
     report.Heading("Unexpected fencing rejections (no competing writer)");
