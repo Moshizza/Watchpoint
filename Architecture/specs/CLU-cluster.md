@@ -81,7 +81,7 @@ public interface IClusterMembership
 - **Heartbeat**: each node writes `wp_members.<nodeId>` every 2 s (roles, state, version, load:
   CPU, memory, partitions owned, connections owned, devices, event rate). Members not seen for
   10 s are shown `Unreachable` (their leases expire on their own).
-- **Quorum monitor**: if the node cannot write to KV for 6 s (no JetStream majority), it enters
+- **Quorum monitor**: if the node cannot write to KV for 10 s (`Cluster:QuorumLossTimeout`; no JetStream majority), it enters
   **Isolated**: stops partition workers, stops connections, refuses commands
   (`cluster.no_quorum`), API stays up read-only with a banner; recovers automatically when writes
   succeed again (re-acquires leases normally).
@@ -107,7 +107,7 @@ public interface ILeaseManager
   **Acquire**: `Create` (key absent) or `Update(expectedRevision)` when the current value's
   `expiresAt` < now − clock skew allowance (2 s); the new KV revision is the **fencing token**
   (monotonic per key across the cluster).
-- TTL 10 s, renewal every 2 s (`LeaseRenewer` batches renewals); renewal failure for the TTL →
+- TTL 15 s, renewal every 2 s (`LeaseRenewer` batches renewals); renewal failure for the TTL →
   the owner **must** stop the work before `expiresAt` (local deadline = last successful renewal +
   TTL − 2 s), guaranteeing no overlap with a new owner when clocks are within 2 s (NTP required;
   HLT checks skew).
@@ -115,8 +115,19 @@ public interface ILeaseManager
   (`IConnectionCommandChannel.ExecuteAsync(…, fencingToken)` — IRT rejects tokens lower than the
   connection's current lease token), partition record writes (PIP adds header `Wp-Fence` and the
   partition writer checks it against `IOwnership.CurrentToken(partition)` before publishing; JetStream
-  publish with `expected-last-subject-sequence` on the partition subject prevents two writers
-  interleaving), singleton jobs (DB writes include the token in a `cluster_fences` check).
+  publish with `Nats-Expected-Last-Subject-Sequence` **and**
+  `Nats-Expected-Last-Subject-Sequence-Subject: wp.log.<pp>.>` prevents two writers interleaving —
+  the exact-subject check alone does not, a partition has one subject per kind), singleton jobs
+  (DB writes include the token in a `cluster_fences` check).
+- Fenced partition writes ([ADR-001](../decisions/ADR-001-nats-jetstream-event-log-and-leases.md)):
+  preferably one **atomic batch** per worker batch (expected-sequence headers on the first
+  message), at most 32 concurrently open batches per stream (64 fail: server in-flight batch limit);
+  otherwise per-record fenced publishes. On `10071`/`10164` "wrong last sequence" the writer reads
+  the last record on `wp.log.<pp>.>`: its own record id → adopt that sequence; equal to the
+  expected sequence → retry; otherwise → fenced out (`cluster.fence.stale_token`, stop the worker).
+- Measured (ADR-001): a stream leader loss blocks KV writes for 5–7.5 s and log appends for up
+  to ~12 s; TTL, renewal and quorum timeouts are sized so that a leader failover alone never
+  makes owners stop.
 
 ## 6. Ownership (T9.01)
 
@@ -145,11 +156,12 @@ Integration points (implemented in the owning modules by T9.01/T9.02):
 
 Sequence on node loss (A owns partitions P and connections C):
 
-1. A stops renewing; within 10 s its leases expire.
+1. A stops renewing; within 15 s its leases expire.
 2. `Rebalancer` on each remaining node watches `wp_leases`: for expired keys, the **placement
    engine** (§9) proposes the target; the target node acquires (CAS); others back off.
-3. Partition gain on B: snapshot restore + replay (target < 10 s for 1 h of log tail at 20,000
-   records/s — PIP budget), start live consumption; **commands** pending in those partitions are
+3. Partition gain on B: snapshot restore + replay of the tail since the last snapshot
+   (`State:SnapshotInterval`, 5 s; target < 10 s for up to 1.5 M records — ADR-001 measured
+   ≈ 180k records/s whole-log replay, so "1 h of tail" at 20,000 records/s would take minutes), start live consumption; **commands** pending in those partitions are
    resumed by CMD (pending → re-evaluated: not yet dispatched → dispatched with B's tokens;
    dispatched but not completed → `Unverified` reconciliation per CMD rules, never re-sent
    blindly).
@@ -234,8 +246,8 @@ public sealed record PlacementConstraint(LeaseKey Key, IReadOnlySet<NodeId>? Pin
 
 | Key | Default |
 |---|---|
-| `Cluster:LeaseTtl` / `RenewInterval` | 10 s / 2 s |
-| `Cluster:QuorumLossTimeout` | 6 s |
+| `Cluster:LeaseTtl` / `RenewInterval` | 15 s / 2 s (ADR-001) |
+| `Cluster:QuorumLossTimeout` | 10 s (ADR-001: leader failover blocks KV writes up to 7.5 s) |
 | `Cluster:Rebalance:Interval` / `Threshold` / `MaxMovesPerMinute` | 5 min / 25 % / 2 |
 | `Cluster:MaxClockSkew` | 2 s |
 
