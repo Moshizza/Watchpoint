@@ -59,7 +59,7 @@ internal static class MarkdownCatalogue
             }
         }
 
-        md.Append("\n## Device and server types\n\n");
+        md.Append("## Device and server types\n\n");
         md.Append("| Type | Name | Role | Category | Licence | Capabilities | Primary property |\n|---|---|---|---|---|---|---|\n");
         foreach (var t in Catalogue.Types(set))
         {
