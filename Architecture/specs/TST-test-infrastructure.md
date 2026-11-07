@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Spec id | TST |
-| Projects | `tests/service/Watchpoint.Testing`, `tests/service/Watchpoint.Testing.Containers`, `tests/service/Watchpoint.ArchitectureTests`, `src/service/Watchpoint.Analyzers` |
+| Projects | `tests/service/Watchpoint.Testing`, `tests/service/Watchpoint.Testing.Containers`, `tests/service/Watchpoint.ArchitectureTests`, `src/service/Watchpoint.Analyzers`, `src/service/Watchpoint.Analyzers.CodeFixes` |
 | Milestone | M0 |
 | Tasks | T0.05 |
 | Design docs | [Architecture README §9](../README.md#9-testing-conventions) |
@@ -26,7 +26,7 @@ UI test infrastructure (Vitest, Testing Library, MSW mocks) is specified in
 
 | Uses | Used by |
 |---|---|
-| K (Kernel), xUnit v3, Shouldly, NSubstitute, Testcontainers for .NET, NetArchTest.Rules, Microsoft.Extensions.TimeProvider.Testing, Microsoft.CodeAnalysis (analyzers) | All test projects; analyzers by all service and connector projects |
+| K (Kernel), xUnit v3, Shouldly, NSubstitute (added by the first task that needs it), Testcontainers for .NET, Npgsql, NATS.Net, NetArchTest.Rules, Microsoft.Extensions.TimeProvider.Testing, Microsoft.Extensions.Logging, Microsoft.CodeAnalysis (analyzers) | All test projects; analyzers by all service and connector projects |
 
 All are free and allow closed-source use (MIT, BSD-3, Apache-2).
 
@@ -47,20 +47,31 @@ tests/service/
 │   ├── PostgresDatabase.cs               per-test-class database
 │   ├── NatsContainerFixture.cs
 │   ├── NatsScope.cs                      per-test-class stream/subject prefix
+│   ├── ContainerFixtureOptions.cs        Docker probe / require override (TST-I-007)
+│   ├── DockerAvailability.cs             skip-or-fail rule (§5.4)
 │   └── ContainerImages.cs                pinned image references
 ├── Watchpoint.ArchitectureTests/
+│   ├── ArchitectureRules.cs              ARCH-1…ARCH-8, each returns its violations
 │   └── DependencyRulesTests.cs
+├── Watchpoint.Testing.Tests/             TST-U-001…TST-U-008
+├── Watchpoint.Analyzers.Tests/           TST-U-009…TST-U-013 (in-repo analyzer harness)
+└── Watchpoint.IntegrationTests/Testing/  TST-I-001…TST-I-007, TST-I-010
 src/service/
-└── Watchpoint.Analyzers/                 Roslyn analyzers (netstandard2.0)
-    ├── DefaultResultAnalyzer.cs          WP0001
-    ├── TestNamingAnalyzer.cs             WP0002
-    ├── WallClockAnalyzer.cs              WP0003
-    ├── BlockingWaitAnalyzer.cs           WP0004
-    └── SleepInTestsAnalyzer.cs           WP0005
+├── Watchpoint.Analyzers/                 Roslyn analyzers (netstandard2.0, Roslyn 4.14 so every supported compiler loads them)
+│   ├── DefaultResultAnalyzer.cs          WP0001
+│   ├── TestNamingAnalyzer.cs             WP0002
+│   ├── WallClockAnalyzer.cs              WP0003
+│   ├── BlockingWaitAnalyzer.cs           WP0004
+│   └── SleepInTestsAnalyzer.cs           WP0005
+└── Watchpoint.Analyzers.CodeFixes/       code fixes (separate assembly: they need Workspaces, which the command-line compiler does not load — RS1038)
+    └── WallClockCodeFixProvider.cs       WP0003 fix
 ```
 
-`Directory.Build.props` adds `Watchpoint.Analyzers` as an analyzer reference to every
-project under `src/` and `tests/`.
+`Directory.Build.props` adds `Watchpoint.Analyzers` and `Watchpoint.Analyzers.CodeFixes` as analyzer
+references to every project under `src/` and `tests/` (except the analyzer projects and their tests),
+and sets the compiler-visible property `WatchpointTestCode=true` for projects under `tests/`
+(the "Applies to" column of §7 is decided by this property). A project may opt out with
+`<WatchpointUseAnalyzers>false</WatchpointUseAnalyzers>`.
 
 ## 4. Helpers (`Watchpoint.Testing`)
 
@@ -70,16 +81,17 @@ project under `src/` and `tests/`.
 public sealed class TestClock : FakeTimeProvider
 {
     public static readonly DateTimeOffset DefaultStart = new(2026, 1, 15, 9, 0, 0, TimeSpan.Zero);
-    public TestClock(DateTimeOffset? start = null);         // auto-advance disabled
-    public void Advance(TimeSpan by);                         // fires due timers in order
-    public void AdvanceTo(DateTimeOffset utc);
+    public TestClock(DateTimeOffset? start = null);         // auto-advance disabled, local time zone UTC
+    // Advance(TimeSpan by) is inherited from FakeTimeProvider and fires due timers in order
+    public void AdvanceTo(DateTimeOffset utc);              // forward only
 }
 ```
 
 ### 4.2 `TestIds`
 
 `TestIds.Device(1)` → `DeviceId` with value `00000000-0000-7000-8000-000000000001`; one
-method per id type; sequence numbers make test failures readable.
+method per UUID id type (`TestIds.Server(n)`, `TestIds.User(n)`…) plus `TestIds.Uuid(n)`; the sequence
+number is written in decimal digits (`Device(42)` → `…-000000000042`) so test failures are readable.
 
 ### 4.3 `LogCollector`
 
@@ -105,6 +117,9 @@ public sealed class SecretLeakDetector
 }
 ```
 
+Helper assertions throw `Watchpoint.Testing.TestAssertionException`, so `Watchpoint.Testing` does not
+depend on a test framework. The failure message names the entry and field, never the secret.
+
 Every module that handles secrets uses it in at least one test (security layer `S`).
 
 ### 4.5 `Eventually`
@@ -112,10 +127,11 @@ Every module that handles secrets uses it in at least one test (security layer `
 ```csharp
 public static class Eventually
 {
-    // Polls condition each time `signal` fires or every `pollInterval` (real time, default 20 ms),
-    // until true or `timeout` (default TestTimeouts.Default = 5 s; 30 s in CI for container tests).
+    // Polls condition every `pollInterval` (real time, default TestTimeouts.PollInterval = 20 ms),
+    // until true or `timeout` (default TestTimeouts.Default = 5 s; TestTimeouts.Container = 30 s in CI).
     public static Task UntilAsync(Func<bool> condition, TimeSpan? timeout = null,
-                                  string? because = null, CancellationToken ct = default);
+                                  string? because = null, TimeSpan? pollInterval = null,
+                                  CancellationToken ct = default);
     public static Task<T> UntilAsync<T>(Func<T?> probe, TimeSpan? timeout = null, ...) where T : class;
 }
 ```
@@ -126,7 +142,8 @@ tests use `TestClock` and direct calls instead.
 ### 4.6 `JsonAssert`
 
 `JsonAssert.Equivalent(expectedJson, actualJson, options)` — compares parsed JSON
-(ignores property order and whitespace; options to ignore paths like `/traceId`).
+(ignores property order and whitespace, numbers by value; `JsonAssertOptions.Ignoring("/traceId")`
+ignores JSON pointers). The failure message gives the pointer of the first difference.
 
 ## 5. Containers (`Watchpoint.Testing.Containers`)
 
@@ -144,17 +161,21 @@ Digests are updated by the dependency-upgrade task, never ad hoc.
 ```csharp
 public sealed class PostgresContainerFixture : IAsyncLifetime   // xUnit assembly fixture
 {
-    public string AdminConnectionString { get; }
+    public static PostgresContainerFixture WithOptions(ContainerFixtureOptions options);
+    public string AdminConnectionString { get; }  // after StartAsync
+    public Task StartAsync(CancellationToken ct);  // idempotent; applies §5.4
     public Task<PostgresDatabase> CreateDatabaseAsync(string testClassName, CancellationToken ct);
 }
 public sealed class PostgresDatabase : IAsyncDisposable
 {
-    public string ConnectionString { get; }   // dedicated database "t_<hash>"
+    public string Name { get; }               // "t_<hash of class name>_<random>"
+    public string ConnectionString { get; }   // dedicated database
     // DisposeAsync drops the database (WITH (FORCE))
 }
 ```
 
-- One container per test assembly run (assembly fixture), started lazily.
+- One container per test assembly run (assembly fixture), started lazily by `StartAsync` (called by
+  `CreateDatabaseAsync`).
 - One **database per test class**, created from a template database that has the
   extensions (`timescaledb`, `pgcrypto`) already installed, so creation takes < 200 ms.
 - Migrations are applied by the module's own test setup (so migrations are tested too).
@@ -166,11 +187,13 @@ public sealed class PostgresDatabase : IAsyncDisposable
 ```csharp
 public sealed class NatsContainerFixture : IAsyncLifetime
 {
-    public string Url { get; }
+    public static NatsContainerFixture WithOptions(ContainerFixtureOptions options);
+    public string Url { get; }                     // after StartAsync
+    public Task StartAsync(CancellationToken ct);  // idempotent, lazy; applies §5.4
     public NatsScope CreateScope(string testClassName);
 }
 public sealed record NatsScope(string SubjectPrefix, string StreamPrefix);
-// e.g. SubjectPrefix "t1a2b.wp", StreamPrefix "T1A2B_" — modules accept prefixes via options
+// e.g. SubjectPrefix "t1a2b3c4d.wp", StreamPrefix "T1A2B3C4D_" — modules accept prefixes via options
 ```
 
 Modules using NATS must accept a subject/stream prefix in their options (see PIP §8), so tests
@@ -180,11 +203,14 @@ run in parallel on one server.
 
 If Docker is not available locally, container tests are **skipped with an explicit reason**
 (`Assert.Skip("Docker not available")`) locally, but CI sets
-`WATCHPOINT_REQUIRE_CONTAINERS=1`, which turns the skip into a failure.
+`WATCHPOINT_REQUIRE_CONTAINERS=1`, which turns the skip into a failure. Tests simulate both cases with
+`ContainerFixtureOptions { DockerProbe, RequireContainers }` (TST-I-007).
 
 ## 6. Architecture tests (`Watchpoint.ArchitectureTests`)
 
-Rules (NetArchTest), each a test:
+Rules, each a test. Type rules (ARCH-4, ARCH-8) use NetArchTest; reference rules read assembly metadata
+(`System.Reflection.Metadata`) so that type and assembly matches are exact. The test project references
+every `src/service/Watchpoint.*` and `src/integrations/Watchpoint.*` project by pattern.
 
 | Rule | Description |
 |---|---|
@@ -205,12 +231,14 @@ automatically.
 | Id | Severity | Rule | Applies to |
 |---|---|---|---|
 | WP0001 | Error | `default(Result)` / `default(Result<T>)` / `new Result<T>()` is not allowed | All |
-| WP0002 | Error | A test method (`[Fact]`/`[Theory]`) name must start with a test id: `^[A-Z][A-Z0-9-]*_[UICEPS]_\d{3}_` (e.g. `REG_U_012_…`) | Test projects |
+| WP0002 | Error | A test method (`[Fact]`/`[Theory]` or derived) name must start with a test id: `^[A-Z][A-Z0-9]*(?:_[A-Z][A-Z0-9]*)*_[UICEPS]_\d{3}_` (e.g. `REG_U_012_…`, `X_API_REG_C_001_…`) | Test projects |
 | WP0003 | Error | `DateTime.Now`, `DateTime.UtcNow`, `DateTimeOffset.Now/UtcNow`, `Stopwatch.StartNew` outside `TimeProvider` usage are forbidden | `src/` (not tests' infrastructure) |
 | WP0004 | Error | `.Result`, `.Wait()`, `.GetAwaiter().GetResult()` on tasks are forbidden | All except `Main` methods |
 | WP0005 | Error | `Thread.Sleep` and `Task.Delay` without a `TimeProvider` argument are forbidden in tests | Test projects |
 
-Each analyzer ships with a code-fix where obvious (WP0003 → inject `TimeProvider`).
+Each analyzer ships with a code-fix where obvious: WP0003 → use the `TimeProvider` in scope (field,
+property, parameter or local), else `TimeProvider.System`. A test that checks `default(Result)` on
+purpose suppresses WP0001 with `#pragma warning disable WP0001` and a reason (K-U-018).
 
 ## 8. Test project conventions
 
@@ -221,7 +249,8 @@ Each analyzer ships with a code-fix where obvious (WP0003 → inject `TimeProvid
   SDK no longer runs VSTest through `dotnet test`). Test projects are executables
   (`<OutputType>Exe</OutputType>`) referencing only `xunit.v3` (no `Microsoft.NET.Test.Sdk` or
   `xunit.runner.visualstudio`); run with `dotnet test --solution src/service/Watchpoint.slnx`.
-- xUnit v3 with `[assembly: CollectionBehavior(MaxParallelThreads = -1)]`; tests must be
+- xUnit v3 with `[assembly: Xunit.v3.Parallelization(MaxThreads = -1)]` (replaces the obsolete
+  `CollectionBehavior(MaxParallelThreads)`); tests must be
   safe in parallel (no shared static state, separate databases/prefixes).
 - Traits: `[Trait("layer", "U|I|C|E|P|S")]`, `[Trait("spec", "REG")]` — CI filters by layer.
 - Builders for a module's types live in that module's test project (`Builders/`); builders
@@ -243,7 +272,7 @@ Not applicable (test-only), except `SecretLeakDetector` (§4.4).
 | TST-U-006 | U | `Eventually` returns when condition becomes true | Condition true after 3 polls → completes |
 | TST-U-007 | U | `Eventually` fails with message | Never true, timeout 100 ms → exception containing `because` text |
 | TST-U-008 | U | `JsonAssert` ignores order and listed paths | Same objects different order, differing `/traceId` ignored → equal |
-| TST-U-009 | U | WP0001 reports `default(Result<int>)` | Analyzer test (Microsoft.CodeAnalysis.Testing) → diagnostic at location |
+| TST-U-009 | U | WP0001 reports `default(Result<int>)` | Analyzer test (in-repo harness: Roslyn compilation against the runtime's assemblies, offline; Microsoft.CodeAnalysis.Testing's verifiers target xUnit v2 and download reference packages) → diagnostic at location |
 | TST-U-010 | U | WP0002 reports a badly named test | `[Fact] void Works()` → diagnostic; `REG_U_001_Works` → none |
 | TST-U-011 | U | WP0003 reports `DateTime.UtcNow` | diagnostic + code fix test |
 | TST-U-012 | U | WP0004 reports `.Result` | diagnostic |
