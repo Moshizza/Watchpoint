@@ -11,9 +11,14 @@
     <PackageReference Include="Shouldly" />
     <PackageReference Include="NATS.Net" />
     <PackageReference Include="Npgsql" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../../../src/service/Watchpoint.Storage/Watchpoint.Storage.csproj" />
+    <ProjectReference Include="../../../src/service/Watchpoint.Storage.Postgres/Watchpoint.Storage.Postgres.csproj" />
     <ProjectReference Include="../Watchpoint.Testing/Watchpoint.Testing.csproj" />
     <ProjectReference Include="../Watchpoint.Testing.Containers/Watchpoint.Testing.Containers.csproj" />
   </ItemGroup>
