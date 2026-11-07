@@ -246,7 +246,8 @@ inproc = null!;
 inprocContext = null!;
 foreach (var leak in new[] { false, true })
 {
-    var (weak, unloadStart) = LoadRunAndUnload(ingest, leak);
+    var holder = await LoadAndRunAsync(ingest, leak);
+    var (weak, unloadStart) = Unload(holder);
     var rounds = 0;
     while (weak.IsAlive && rounds < 20)
     {
@@ -266,20 +267,43 @@ if (outFile is not null)
 
 return 0;
 
-[MethodImpl(MethodImplOptions.NoInlining)]
-static (WeakReference Context, long UnloadStart) LoadRunAndUnload(Ingest ingest, bool leak)
+static async Task<LoadedPackage> LoadAndRunAsync(Ingest ingest, bool leak)
 {
-    var (context, connector) = PackageLoadContext.LoadConnector(Layout.ConnectorAssembly);
-    connector.Initialize(ingest.CreateDirectSink());
+    // The load context lives only in the holder (not in this state machine's locals), so Unload can release it.
+    var holder = LoadedPackage.Load();
+    holder.Connector!.Initialize(ingest.CreateDirectSink());
     var done = ingest.Expect(10_000);
-    connector.EmitAsync(10_000, 0, CancellationToken.None).GetAwaiter().GetResult();
-    done.GetAwaiter().GetResult();
+    await holder.Connector.EmitAsync(10_000, 0, CancellationToken.None);
+    await done;
     if (leak)
     {
-        connector.Misbehave(Misbehaviour.LeakIntoSharedType);
+        holder.Connector.Misbehave(Misbehaviour.LeakIntoSharedType);
     }
 
+    return holder;
+}
+
+[MethodImpl(MethodImplOptions.NoInlining)]
+static (WeakReference Context, long UnloadStart) Unload(LoadedPackage holder)
+{
+    var context = holder.Context!;
+    holder.Context = null;
+    holder.Connector = null;
     var start = Stopwatch.GetTimestamp();
     context.Unload();
     return (new WeakReference(context), start);
+}
+
+internal sealed class LoadedPackage
+{
+    public PackageLoadContext? Context { get; set; }
+
+    public ISpikeConnector? Connector { get; set; }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public static LoadedPackage Load()
+    {
+        var (context, connector) = PackageLoadContext.LoadConnector(Layout.ConnectorAssembly);
+        return new LoadedPackage { Context = context, Connector = connector };
+    }
 }
