@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.watchpoint.dev/capability/1.json",
+  "title": "Watchpoint capability",
+  "description": "A capability: properties, commands and events a device type can offer (spec SCM §4).",
+  "type": "object",
+  "required": ["$schema", "id", "version"],
+  "properties": {
+    "$schema": { "const": "https://schemas.watchpoint.dev/capability/1.json" },
+    "id": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/capabilityId" },
+    "version": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/semVersion" },
+    "properties": { "type": "array", "items": { "$ref": "#/$defs/property" } },
+    "commands": { "type": "array", "items": { "$ref": "#/$defs/command" } },
+    "events": { "type": "array", "items": { "$ref": "#/$defs/event" } }
+  },
+  "patternProperties": { "^x-": true },
+  "additionalProperties": false,
+  "$defs": {
+    "valueType": {
+      "enum": ["boolean", "integer", "decimal", "enum", "string", "timestamp", "duration", "geoPoint", "object", "list"]
+    },
+    "property": {
+      "type": "object",
+      "required": ["id", "valueType"],
+      "properties": {
+        "id": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/memberId" },
+        "valueType": { "$ref": "#/$defs/valueType" },
+        "enumValues": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["code", "severity"],
+            "properties": {
+              "code": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/memberId" },
+              "severity": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/severity" }
+            },
+            "patternProperties": { "^x-": true },
+            "additionalProperties": false
+          }
+        },
+        "unit": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/unit" },
+        "range": {
+          "type": "object",
+          "properties": { "min": { "type": "number" }, "max": { "type": "number" } },
+          "additionalProperties": false
+        },
+        "decimals": { "type": "integer", "minimum": 0, "maximum": 6 },
+        "maxLength": { "type": "integer", "minimum": 1 },
+        "itemType": { "enum": ["boolean", "integer", "decimal", "enum", "string", "timestamp", "duration", "geoPoint"] },
+        "objectSchema": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/parameterSchema" },
+        "writable": { "type": "boolean" },
+        "history": {
+          "type": "object",
+          "required": ["mode"],
+          "properties": {
+            "mode": { "enum": ["everyChange", "deadband", "periodic", "none"] },
+            "absolute": { "type": "number", "exclusiveMinimum": 0 },
+            "percent": { "type": "number", "exclusiveMinimum": 0, "maximum": 100 },
+            "interval": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/duration" }
+          },
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "if": { "properties": { "mode": { "const": "deadband" } }, "required": ["mode"] },
+              "else": { "properties": { "absolute": false, "percent": false } }
+            },
+            {
+              "if": { "properties": { "mode": { "const": "periodic" } }, "required": ["mode"] },
+              "then": { "required": ["interval"] },
+              "else": { "properties": { "interval": false } }
+            }
+          ]
+        },
+        "staleAfter": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/duration" },
+        "default": true,
+        "booleanSeverity": {
+          "type": "object",
+          "properties": {
+            "true": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/severity" },
+            "false": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/severity" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "patternProperties": { "^x-": true },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "valueType": { "const": "enum" } }, "required": ["valueType"] },
+          "then": { "required": ["enumValues"] },
+          "else": { "properties": { "enumValues": false } }
+        },
+        {
+          "if": { "properties": { "valueType": { "enum": ["integer", "decimal"] } }, "required": ["valueType"] },
+          "else": {
+            "properties": {
+              "unit": false,
+              "range": false,
+              "history": { "properties": { "mode": { "not": { "const": "deadband" } } } }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "valueType": { "const": "decimal" } }, "required": ["valueType"] },
+          "else": { "properties": { "decimals": false } }
+        },
+        {
+          "if": { "properties": { "valueType": { "const": "string" } }, "required": ["valueType"] },
+          "else": { "properties": { "maxLength": false } }
+        },
+        {
+          "if": { "properties": { "valueType": { "const": "list" } }, "required": ["valueType"] },
+          "then": { "required": ["itemType"] },
+          "else": { "properties": { "itemType": false } }
+        },
+        {
+          "if": { "properties": { "valueType": { "const": "object" } }, "required": ["valueType"] },
+          "then": { "required": ["objectSchema"] },
+          "else": { "properties": { "objectSchema": false } }
+        },
+        {
+          "if": { "properties": { "valueType": { "const": "boolean" } }, "required": ["valueType"] },
+          "else": { "properties": { "booleanSeverity": false } }
+        }
+      ]
+    },
+    "risk": { "enum": ["normal", "sensitive", "critical"] },
+    "command": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/memberId" },
+        "parameters": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/parameterSchema" },
+        "risk": { "$ref": "#/$defs/risk" },
+        "timeout": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/duration" },
+        "idempotent": { "type": "boolean" },
+        "batchable": { "type": "boolean" },
+        "riskByArgument": {
+          "type": "object",
+          "propertyNames": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/memberId" },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": { "$ref": "#/$defs/risk" }
+          }
+        },
+        "expectedEffect": {
+          "type": "object",
+          "required": ["property"],
+          "properties": {
+            "property": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/propertyPath" },
+            "equals": true,
+            "in": { "type": "array", "minItems": 1 },
+            "within": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/duration" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "patternProperties": { "^x-": true },
+      "additionalProperties": false
+    },
+    "event": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/memberId" },
+        "severity": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/severity" },
+        "payload": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/parameterSchema" },
+        "personalData": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/fieldNames" }
+      },
+      "patternProperties": { "^x-": true },
+      "additionalProperties": false
+    }
+  }
+}

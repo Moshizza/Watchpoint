@@ -1,0 +1,200 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.watchpoint.dev/common/1.json",
+  "title": "Watchpoint common definitions",
+  "description": "Definitions shared by the Watchpoint document schemas (spec SCM §3, §4.4).",
+  "$defs": {
+    "extensions": {
+      "description": "Keys starting with x- are extensions, ignored by the runtime.",
+      "patternProperties": { "^x-": true }
+    },
+    "semVersion": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "maxLength": 32
+    },
+    "versionRange": {
+      "description": "Caret range (^1.2 = >=1.2.0 <2.0.0) or * (any version).",
+      "type": "string",
+      "pattern": "^(\\*|\\^(0|[1-9][0-9]*)(\\.(0|[1-9][0-9]*)){0,2})$",
+      "maxLength": 32
+    },
+    "duration": {
+      "description": "ISO 8601 duration in days, hours, minutes and seconds, e.g. PT10S.",
+      "type": "string",
+      "pattern": "^P(?!$)([0-9]+D)?(T(?=[0-9])([0-9]+H)?([0-9]+M)?([0-9]+(\\.[0-9]{1,3})?S)?)?$",
+      "maxLength": 32
+    },
+    "capabilityId": {
+      "type": "string",
+      "pattern": "^[a-z][a-zA-Z0-9]*(\\.[a-z][a-zA-Z0-9]*)?$",
+      "maxLength": 64
+    },
+    "memberId": {
+      "type": "string",
+      "pattern": "^[a-z][a-zA-Z0-9]*$",
+      "maxLength": 64
+    },
+    "typeId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9-]*){1,4}$",
+      "maxLength": 100
+    },
+    "packageId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9-]*){1,5}$",
+      "maxLength": 128
+    },
+    "propertyPath": {
+      "description": "<capabilityId>.<propertyId>, e.g. doorPosition.position.",
+      "type": "string",
+      "pattern": "^[a-z][a-zA-Z0-9]*(\\.[a-z][a-zA-Z0-9]*)?\\.[a-z][a-zA-Z0-9]*$",
+      "maxLength": 129
+    },
+    "severity": {
+      "enum": ["normal", "normalActive", "info", "warning", "alarm", "fault", "offline", "unknown"]
+    },
+    "overallState": {
+      "enum": ["alarm", "fault", "warning", "normalActive", "normal", "maintenance", "disabled", "offline", "unknown"]
+    },
+    "category": {
+      "enum": [
+        "accessControl", "video", "intrusion", "fire", "intercomAudio", "perimeter",
+        "buildingManagement", "smartCity", "itInfrastructure", "generic", "system"
+      ]
+    },
+    "unit": {
+      "description": "UCUM code, e.g. Cel, %, s, kW.h.",
+      "type": "string",
+      "pattern": "^[!-~]{1,32}$"
+    },
+    "relativePath": {
+      "description": "Path relative to the package root, with forward slashes, without '..'.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 260,
+      "pattern": "^(?!/)(?!.*(^|/)\\.\\.(/|$))[^\\\\:*?\"<>|]+$"
+    },
+    "parameterSchema": {
+      "description": "Restricted JSON Schema subset used for command parameters, event payloads, object properties, attributes and settings (spec SCM §4.4).",
+      "type": "object",
+      "required": ["type", "properties"],
+      "properties": {
+        "type": { "const": "object" },
+        "properties": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/memberId" },
+          "additionalProperties": { "$ref": "#/$defs/parameterField" }
+        },
+        "required": { "$ref": "#/$defs/fieldNames" },
+        "x-wp-ui": { "$ref": "#/$defs/parameterUi" }
+      },
+      "patternProperties": { "^x-": true },
+      "additionalProperties": false
+    },
+    "fieldNames": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/memberId" },
+      "uniqueItems": true
+    },
+    "parameterField": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["string", "integer", "number", "boolean", "duration", "timestamp", "entityRef", "array", "object"] },
+        "enum": { "type": "array", "minItems": 1, "items": { "type": ["string", "integer", "number"] } },
+        "default": true,
+        "minimum": { "type": ["number", "string"] },
+        "maximum": { "type": ["number", "string"] },
+        "minLength": { "type": "integer", "minimum": 0 },
+        "maxLength": { "type": "integer", "minimum": 0 },
+        "pattern": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "format": { "enum": ["hostname", "ipv4", "ipv6", "uri", "email"] },
+        "items": { "$ref": "#/$defs/itemField" },
+        "minItems": { "type": "integer", "minimum": 0 },
+        "maxItems": { "type": "integer", "minimum": 0 },
+        "required": { "$ref": "#/$defs/fieldNames" },
+        "properties": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/memberId" },
+          "additionalProperties": { "$ref": "#/$defs/nestedField" }
+        },
+        "entity": { "enum": ["device", "server", "location", "user", "userGroup", "calendar"] },
+        "deviceCategory": { "$ref": "#/$defs/category" },
+        "deviceType": { "$ref": "#/$defs/typeId" },
+        "capability": { "$ref": "#/$defs/capabilityId" }
+      },
+      "patternProperties": { "^x-": true },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "array" } }, "required": ["type"] },
+          "then": { "required": ["items"] },
+          "else": { "properties": { "items": false, "minItems": false, "maxItems": false } }
+        },
+        {
+          "if": { "properties": { "type": { "const": "object" } }, "required": ["type"] },
+          "then": { "required": ["properties"] },
+          "else": { "properties": { "properties": false, "required": false } }
+        },
+        {
+          "if": { "properties": { "type": { "const": "entityRef" } }, "required": ["type"] },
+          "then": { "required": ["entity"] },
+          "else": { "properties": { "entity": false, "deviceCategory": false, "deviceType": false, "capability": false } }
+        },
+        {
+          "if": { "properties": { "type": { "const": "string" } }, "required": ["type"] },
+          "else": { "properties": { "minLength": false, "maxLength": false, "pattern": false, "format": false } }
+        },
+        {
+          "if": { "properties": { "type": { "enum": ["integer", "number", "duration", "timestamp"] } }, "required": ["type"] },
+          "else": { "properties": { "minimum": false, "maximum": false } }
+        }
+      ]
+    },
+    "nestedField": {
+      "description": "A field of an object field: objects nest one level only.",
+      "$ref": "#/$defs/parameterField",
+      "properties": { "type": { "not": { "const": "object" } } }
+    },
+    "itemField": {
+      "description": "The items of an array field: a scalar type.",
+      "$ref": "#/$defs/parameterField",
+      "properties": { "type": { "not": { "enum": ["array", "object"] } } }
+    },
+    "parameterUi": {
+      "type": "object",
+      "properties": {
+        "groups": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "fields"],
+            "properties": {
+              "id": { "$ref": "#/$defs/memberId" },
+              "fields": { "$ref": "#/$defs/fieldNames" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "advanced": { "$ref": "#/$defs/fieldNames" },
+        "visibleWhen": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/memberId" },
+          "additionalProperties": {
+            "type": "object",
+            "required": ["field"],
+            "properties": {
+              "field": { "$ref": "#/$defs/memberId" },
+              "equals": true,
+              "in": { "type": "array", "minItems": 1 }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "patternProperties": { "^x-": true },
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.watchpoint.dev/manifest/1.json",
+  "title": "Watchpoint integration package manifest",
+  "description": "The manifest.json of an integration package (spec SCM §5.3).",
+  "type": "object",
+  "required": ["$schema", "id", "version", "vendor", "category", "contract", "minWatchpointVersion", "platforms", "isolation", "licence", "files"],
+  "properties": {
+    "$schema": { "const": "https://schemas.watchpoint.dev/manifest/1.json" },
+    "id": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/packageId" },
+    "version": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/semVersion" },
+    "vendor": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "category": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/category" },
+    "contract": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/versionRange" },
+    "minWatchpointVersion": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/semVersion" },
+    "platforms": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "enum": ["win-x64", "win-x86", "linux-x64", "linux-arm64"] }
+    },
+    "nativeCode": { "type": "boolean" },
+    "isolation": { "enum": ["inProcessAllowed", "isolatedRecommended", "isolatedRequired"] },
+    "licence": {
+      "type": "object",
+      "required": ["featureKey", "class"],
+      "properties": {
+        "featureKey": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9]*(\\.[a-z][a-zA-Z0-9-]*){1,5}$", "maxLength": 128 },
+        "class": { "enum": ["included", "standard", "advanced"] }
+      },
+      "additionalProperties": false
+    },
+    "connectors": { "type": "array", "items": { "$ref": "#/$defs/connector" } },
+    "types": { "$ref": "#/$defs/paths" },
+    "capabilities": { "$ref": "#/$defs/paths" },
+    "ruleTemplates": { "$ref": "#/$defs/paths" },
+    "symbols": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/relativePath" },
+    "i18n": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/relativePath" },
+    "docs": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/relativePath" },
+    "privacy": {
+      "type": "object",
+      "properties": {
+        "personalData": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1, "maxLength": 200 } }
+      },
+      "additionalProperties": false
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "sha256"],
+        "properties": {
+          "path": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/relativePath" },
+          "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "patternProperties": { "^x-": true },
+  "additionalProperties": false,
+  "$defs": {
+    "paths": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/relativePath" }
+    },
+    "connector": {
+      "type": "object",
+      "required": ["class", "serverType", "features"],
+      "properties": {
+        "class": {
+          "description": "<AssemblyName>::<FullTypeName>",
+          "type": "string",
+          "maxLength": 512,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*::[A-Za-z_][A-Za-z0-9_]*([.+][A-Za-z_][A-Za-z0-9_]*)*$"
+        },
+        "serverType": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/typeId" },
+        "supportedVendorVersions": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "features": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "discovery", "liveObservation", "stateRefresh", "commandExecution", "eventCatchUp",
+              "videoProvider", "timeSync", "lookup", "configurationPush", "diagnostics"
+            ]
+          }
+        },
+        "settingsSchema": {
+          "if": { "type": "string" },
+          "then": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/relativePath" },
+          "else": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/parameterSchema" }
+        },
+        "secretsSchema": {
+          "type": "object",
+          "required": ["fields"],
+          "properties": {
+            "fields": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["id", "kind"],
+                "properties": {
+                  "id": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/memberId" },
+                  "kind": { "enum": ["password", "apiKey", "certificate", "privateKey", "token"] },
+                  "required": { "type": "boolean" }
+                },
+                "additionalProperties": false
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "devicesPerConnection": { "type": "integer", "minimum": 1 },
+            "commandsPerSecond": { "type": "number", "exclusiveMinimum": 0 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "patternProperties": { "^x-": true },
+      "additionalProperties": false
+    }
+  }
+}

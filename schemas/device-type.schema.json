@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.watchpoint.dev/device-type/1.json",
+  "title": "Watchpoint device or server type",
+  "description": "A device or server type: capabilities, attributes, display and defaults (spec SCM §5).",
+  "type": "object",
+  "required": ["$schema", "id", "version", "role", "category", "capabilities"],
+  "properties": {
+    "$schema": { "const": "https://schemas.watchpoint.dev/device-type/1.json" },
+    "id": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/typeId" },
+    "version": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/semVersion" },
+    "role": { "enum": ["device", "server"] },
+    "category": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/category" },
+    "extends": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["id", "version"],
+          "properties": {
+            "id": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/typeId" },
+            "version": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/versionRange" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/capabilityUse" }
+    },
+    "attributes": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/parameterSchema" },
+    "allowedChildTypes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "maxLength": 100,
+        "pattern": "^([a-z][a-z0-9]*(\\.[a-z][a-z0-9-]*){1,4}|[a-z][a-zA-Z0-9]*\\.\\*)$"
+      }
+    },
+    "licenceClass": { "enum": ["full", "light", "free"] },
+    "display": {
+      "type": "object",
+      "properties": {
+        "icon": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$", "maxLength": 64 },
+        "symbol": { "type": "string", "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9-]*){0,4}$", "maxLength": 100 },
+        "primaryProperty": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/propertyPath" }
+      },
+      "patternProperties": { "^x-": true },
+      "additionalProperties": false
+    },
+    "stateSummary": {
+      "type": "object",
+      "properties": {
+        "overrides": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["property", "values", "state"],
+            "properties": {
+              "property": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/propertyPath" },
+              "values": { "type": "array", "minItems": 1, "items": { "type": ["string", "boolean", "number"] } },
+              "state": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/overallState" }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "defaultAlarmRules": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9]*(\\.[a-z][a-zA-Z0-9-]*){1,6}$", "maxLength": 128 }
+    },
+    "defaultLinks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind"],
+        "properties": {
+          "kind": { "enum": ["cameraViews", "memberOf", "controls", "powers", "partOf"] },
+          "peerCategory": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/category" },
+          "peerType": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/typeId" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "patternProperties": { "^x-": true },
+  "additionalProperties": false,
+  "$defs": {
+    "capabilityUse": {
+      "type": "object",
+      "required": ["id", "version"],
+      "properties": {
+        "id": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/capabilityId" },
+        "version": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/versionRange" },
+        "optional": { "type": "boolean" },
+        "exclude": {
+          "type": "object",
+          "properties": {
+            "commands": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/fieldNames" },
+            "events": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/fieldNames" },
+            "enumValues": {
+              "type": "object",
+              "propertyNames": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/memberId" },
+              "additionalProperties": { "$ref": "https://schemas.watchpoint.dev/common/1.json#/$defs/fieldNames" }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "patternProperties": { "^x-": true },
+      "additionalProperties": false
+    }
+  }
+}
