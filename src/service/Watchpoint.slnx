@@ -12,7 +12,9 @@
     <Project Path="Watchpoint.Kernel.Testing/Watchpoint.Kernel.Testing.csproj" />
     <Project Path="Watchpoint.Model.Documents/Watchpoint.Model.Documents.csproj" />
   </Folder>
-  <Folder Name="/integrations/" />
+  <Folder Name="/integrations/">
+    <Project Path="../integrations/Watchpoint.Integration.Abstractions/Watchpoint.Integration.Abstractions.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="../../tests/service/Watchpoint.Analyzers.Tests/Watchpoint.Analyzers.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.ArchitectureTests/Watchpoint.ArchitectureTests.csproj" />

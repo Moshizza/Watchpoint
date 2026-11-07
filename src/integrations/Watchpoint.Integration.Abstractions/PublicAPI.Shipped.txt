@@ -1,0 +1,673 @@
+#nullable enable
+Watchpoint.Integration.Abstractions.ConnectorAttribute
+Watchpoint.Integration.Abstractions.ConnectorAttribute.ConnectorAttribute(string! serverType) -> void
+Watchpoint.Integration.Abstractions.ConnectorAttribute.ServerType.get -> string!
+Watchpoint.Integration.Abstractions.Context.ConnectionInfo
+Watchpoint.Integration.Abstractions.Context.ConnectionInfo.<Clone>$() -> Watchpoint.Integration.Abstractions.Context.ConnectionInfo!
+Watchpoint.Integration.Abstractions.Context.ConnectionInfo.ConnectionInfo(System.Guid Id, string! Name, string! PackageId, string! PackageVersion, string! ServerType, string! Culture) -> void
+Watchpoint.Integration.Abstractions.Context.ConnectionInfo.Culture.get -> string!
+Watchpoint.Integration.Abstractions.Context.ConnectionInfo.Culture.init -> void
+Watchpoint.Integration.Abstractions.Context.ConnectionInfo.Deconstruct(out System.Guid Id, out string! Name, out string! PackageId, out string! PackageVersion, out string! ServerType, out string! Culture) -> void
+Watchpoint.Integration.Abstractions.Context.ConnectionInfo.Equals(Watchpoint.Integration.Abstractions.Context.ConnectionInfo? other) -> bool
+Watchpoint.Integration.Abstractions.Context.ConnectionInfo.Id.get -> System.Guid
+Watchpoint.Integration.Abstractions.Context.ConnectionInfo.Id.init -> void
+Watchpoint.Integration.Abstractions.Context.ConnectionInfo.Name.get -> string!
+Watchpoint.Integration.Abstractions.Context.ConnectionInfo.Name.init -> void
+Watchpoint.Integration.Abstractions.Context.ConnectionInfo.PackageId.get -> string!
+Watchpoint.Integration.Abstractions.Context.ConnectionInfo.PackageId.init -> void
+Watchpoint.Integration.Abstractions.Context.ConnectionInfo.PackageVersion.get -> string!
+Watchpoint.Integration.Abstractions.Context.ConnectionInfo.PackageVersion.init -> void
+Watchpoint.Integration.Abstractions.Context.ConnectionInfo.ServerType.get -> string!
+Watchpoint.Integration.Abstractions.Context.ConnectionInfo.ServerType.init -> void
+Watchpoint.Integration.Abstractions.Context.ConnectionStatus
+Watchpoint.Integration.Abstractions.Context.ConnectionStatus.Connected = 1 -> Watchpoint.Integration.Abstractions.Context.ConnectionStatus
+Watchpoint.Integration.Abstractions.Context.ConnectionStatus.Connecting = 0 -> Watchpoint.Integration.Abstractions.Context.ConnectionStatus
+Watchpoint.Integration.Abstractions.Context.ConnectionStatus.Degraded = 2 -> Watchpoint.Integration.Abstractions.Context.ConnectionStatus
+Watchpoint.Integration.Abstractions.Context.ConnectionStatus.Disconnected = 3 -> Watchpoint.Integration.Abstractions.Context.ConnectionStatus
+Watchpoint.Integration.Abstractions.Context.ConnectorSecret
+Watchpoint.Integration.Abstractions.Context.ConnectorSecret.ConnectorSecret(System.ReadOnlySpan<byte> utf8Value) -> void
+Watchpoint.Integration.Abstractions.Context.ConnectorSecret.Dispose() -> void
+Watchpoint.Integration.Abstractions.Context.ConnectorSecret.UseAsString<T>(System.Func<string!, T>! use) -> T
+Watchpoint.Integration.Abstractions.Context.ConnectorSecret.UseBytes<T>(System.Func<System.ReadOnlySpan<byte>, T>! use) -> T
+Watchpoint.Integration.Abstractions.Context.DeviceMapChangedEventArgs
+Watchpoint.Integration.Abstractions.Context.DeviceMapChangedEventArgs.Added.get -> System.Collections.Generic.IReadOnlyList<Watchpoint.Integration.Abstractions.Model.DeviceHandle!>!
+Watchpoint.Integration.Abstractions.Context.DeviceMapChangedEventArgs.DeviceMapChangedEventArgs(System.Collections.Generic.IReadOnlyList<Watchpoint.Integration.Abstractions.Model.DeviceHandle!>! added, System.Collections.Generic.IReadOnlyList<Watchpoint.Integration.Abstractions.Model.DeviceHandle!>! updated, System.Collections.Generic.IReadOnlyList<Watchpoint.Integration.Abstractions.Model.DeviceKey>! removed) -> void
+Watchpoint.Integration.Abstractions.Context.DeviceMapChangedEventArgs.Removed.get -> System.Collections.Generic.IReadOnlyList<Watchpoint.Integration.Abstractions.Model.DeviceKey>!
+Watchpoint.Integration.Abstractions.Context.DeviceMapChangedEventArgs.Updated.get -> System.Collections.Generic.IReadOnlyList<Watchpoint.Integration.Abstractions.Model.DeviceHandle!>!
+Watchpoint.Integration.Abstractions.Context.HttpClientOptions
+Watchpoint.Integration.Abstractions.Context.HttpClientOptions.<Clone>$() -> Watchpoint.Integration.Abstractions.Context.HttpClientOptions!
+Watchpoint.Integration.Abstractions.Context.HttpClientOptions.AllowHttp.get -> bool
+Watchpoint.Integration.Abstractions.Context.HttpClientOptions.AllowHttp.init -> void
+Watchpoint.Integration.Abstractions.Context.HttpClientOptions.BaseAddress.get -> System.Uri!
+Watchpoint.Integration.Abstractions.Context.HttpClientOptions.BaseAddress.init -> void
+Watchpoint.Integration.Abstractions.Context.HttpClientOptions.CustomCaPem.get -> string?
+Watchpoint.Integration.Abstractions.Context.HttpClientOptions.CustomCaPem.init -> void
+Watchpoint.Integration.Abstractions.Context.HttpClientOptions.Deconstruct(out System.Uri! BaseAddress, out System.TimeSpan Timeout, out string? PinnedPublicKeySha256, out string? CustomCaPem, out bool AllowHttp) -> void
+Watchpoint.Integration.Abstractions.Context.HttpClientOptions.Equals(Watchpoint.Integration.Abstractions.Context.HttpClientOptions? other) -> bool
+Watchpoint.Integration.Abstractions.Context.HttpClientOptions.HttpClientOptions(System.Uri! BaseAddress, System.TimeSpan Timeout, string? PinnedPublicKeySha256 = null, string? CustomCaPem = null, bool AllowHttp = false) -> void
+Watchpoint.Integration.Abstractions.Context.HttpClientOptions.PinnedPublicKeySha256.get -> string?
+Watchpoint.Integration.Abstractions.Context.HttpClientOptions.PinnedPublicKeySha256.init -> void
+Watchpoint.Integration.Abstractions.Context.HttpClientOptions.Timeout.get -> System.TimeSpan
+Watchpoint.Integration.Abstractions.Context.HttpClientOptions.Timeout.init -> void
+Watchpoint.Integration.Abstractions.Context.IConnectionHealth
+Watchpoint.Integration.Abstractions.Context.IConnectionHealth.Report(Watchpoint.Integration.Abstractions.Context.ConnectionStatus status, Watchpoint.Integration.Abstractions.Model.ConnectorMessage? reason = null) -> void
+Watchpoint.Integration.Abstractions.Context.IConnectionStore
+Watchpoint.Integration.Abstractions.Context.IConnectionStore.DeleteAsync(string! key, System.Threading.CancellationToken ct) -> System.Threading.Tasks.ValueTask
+Watchpoint.Integration.Abstractions.Context.IConnectionStore.GetAsync(string! key, System.Threading.CancellationToken ct) -> System.Threading.Tasks.ValueTask<byte[]?>
+Watchpoint.Integration.Abstractions.Context.IConnectionStore.SetAsync(string! key, System.ReadOnlyMemory<byte> value, System.Threading.CancellationToken ct) -> System.Threading.Tasks.ValueTask
+Watchpoint.Integration.Abstractions.Context.IConnectorContext
+Watchpoint.Integration.Abstractions.Context.IConnectorContext.Connection.get -> Watchpoint.Integration.Abstractions.Context.ConnectionInfo!
+Watchpoint.Integration.Abstractions.Context.IConnectorContext.Devices.get -> Watchpoint.Integration.Abstractions.Context.IDeviceMap!
+Watchpoint.Integration.Abstractions.Context.IConnectorContext.Gate.get -> Watchpoint.Integration.Abstractions.Context.IRequestGate!
+Watchpoint.Integration.Abstractions.Context.IConnectorContext.GetSettings<T>(System.Text.Json.Serialization.Metadata.JsonTypeInfo<T>! typeInfo) -> T
+Watchpoint.Integration.Abstractions.Context.IConnectorContext.Health.get -> Watchpoint.Integration.Abstractions.Context.IConnectionHealth!
+Watchpoint.Integration.Abstractions.Context.IConnectorContext.Http.get -> Watchpoint.Integration.Abstractions.Context.ISecureHttp!
+Watchpoint.Integration.Abstractions.Context.IConnectorContext.Inbound.get -> Watchpoint.Integration.Abstractions.Context.IInboundEndpoints!
+Watchpoint.Integration.Abstractions.Context.IConnectorContext.Logging.get -> Microsoft.Extensions.Logging.ILoggerFactory!
+Watchpoint.Integration.Abstractions.Context.IConnectorContext.Metrics.get -> Watchpoint.Integration.Abstractions.Context.IConnectorMetrics!
+Watchpoint.Integration.Abstractions.Context.IConnectorContext.Scheduler.get -> Watchpoint.Integration.Abstractions.Context.IConnectorScheduler!
+Watchpoint.Integration.Abstractions.Context.IConnectorContext.Secrets.get -> Watchpoint.Integration.Abstractions.Context.ISecretAccessor!
+Watchpoint.Integration.Abstractions.Context.IConnectorContext.Settings.get -> System.Text.Json.JsonElement
+Watchpoint.Integration.Abstractions.Context.IConnectorContext.Sink.get -> Watchpoint.Integration.Abstractions.Context.IObservationSink!
+Watchpoint.Integration.Abstractions.Context.IConnectorContext.Stopping.get -> System.Threading.CancellationToken
+Watchpoint.Integration.Abstractions.Context.IConnectorContext.Store.get -> Watchpoint.Integration.Abstractions.Context.IConnectionStore!
+Watchpoint.Integration.Abstractions.Context.IConnectorContext.Time.get -> System.TimeProvider!
+Watchpoint.Integration.Abstractions.Context.IConnectorMetrics
+Watchpoint.Integration.Abstractions.Context.IConnectorMetrics.CountRequest(string! operation, bool success, System.TimeSpan duration) -> void
+Watchpoint.Integration.Abstractions.Context.IConnectorMetrics.SetGauge(string! name, double value) -> void
+Watchpoint.Integration.Abstractions.Context.IConnectorScheduler
+Watchpoint.Integration.Abstractions.Context.IConnectorScheduler.SchedulePolling(string! name, System.TimeSpan interval, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! work, Watchpoint.Integration.Abstractions.Context.PollingOptions? options = null) -> System.IDisposable!
+Watchpoint.Integration.Abstractions.Context.IDeviceMap
+Watchpoint.Integration.Abstractions.Context.IDeviceMap.All.get -> System.Collections.Generic.IReadOnlyCollection<Watchpoint.Integration.Abstractions.Model.DeviceHandle!>!
+Watchpoint.Integration.Abstractions.Context.IDeviceMap.Changed -> System.EventHandler<Watchpoint.Integration.Abstractions.Context.DeviceMapChangedEventArgs!>?
+Watchpoint.Integration.Abstractions.Context.IDeviceMap.TryGet(Watchpoint.Integration.Abstractions.Model.DeviceKey key, out Watchpoint.Integration.Abstractions.Model.DeviceHandle? handle) -> bool
+Watchpoint.Integration.Abstractions.Context.IInboundEndpoints
+Watchpoint.Integration.Abstractions.Context.IInboundEndpoints.RegisterHttpAsync(string! path, Watchpoint.Integration.Abstractions.Context.InboundAuth! auth, System.Func<Watchpoint.Integration.Abstractions.Context.InboundRequest!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<Watchpoint.Integration.Abstractions.Context.InboundResponse!>>! handler, System.Threading.CancellationToken ct) -> System.Threading.Tasks.ValueTask<Watchpoint.Integration.Abstractions.Context.InboundRegistration!>
+Watchpoint.Integration.Abstractions.Context.IInboundEndpoints.RegisterTcpAsync(int port, System.Net.IPAddress! bindAddress, System.Func<System.IO.Stream!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! handler, System.Threading.CancellationToken ct) -> System.Threading.Tasks.ValueTask<Watchpoint.Integration.Abstractions.Context.InboundRegistration!>
+Watchpoint.Integration.Abstractions.Context.IInboundEndpoints.RegisterUdpAsync(int port, System.Net.IPAddress! bindAddress, string? shareKey, System.Func<Watchpoint.Integration.Abstractions.Context.UdpDatagram!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! handler, System.Threading.CancellationToken ct) -> System.Threading.Tasks.ValueTask<Watchpoint.Integration.Abstractions.Context.InboundRegistration!>
+Watchpoint.Integration.Abstractions.Context.IObservationSink
+Watchpoint.Integration.Abstractions.Context.IObservationSink.FlushAsync(System.Threading.CancellationToken ct) -> System.Threading.Tasks.ValueTask<Watchpoint.Integration.Abstractions.Context.SinkFlushResult!>
+Watchpoint.Integration.Abstractions.Context.IObservationSink.ReportDeviceHealth(Watchpoint.Integration.Abstractions.Model.DeviceKey device, Watchpoint.Kernel.Values.Connectivity connectivity, System.Collections.Generic.IReadOnlyList<string!>? faults = null, string? reason = null) -> void
+Watchpoint.Integration.Abstractions.Context.IObservationSink.ReportEvent(Watchpoint.Integration.Abstractions.Model.DeviceKey device, string! eventPath, System.Collections.Generic.IReadOnlyDictionary<string!, Watchpoint.Kernel.Values.WpValue>? payload = null, System.DateTimeOffset? sourceTime = null) -> void
+Watchpoint.Integration.Abstractions.Context.IObservationSink.ReportInventoryChanged(Watchpoint.Integration.Abstractions.Model.InventorySnapshot! partialOrComplete) -> void
+Watchpoint.Integration.Abstractions.Context.IObservationSink.ReportProperty(Watchpoint.Integration.Abstractions.Model.DeviceKey device, string! propertyPath, Watchpoint.Kernel.Values.WpValue value, Watchpoint.Kernel.Values.Quality quality = Watchpoint.Kernel.Values.Quality.Good, System.DateTimeOffset? sourceTime = null, string? unit = null, System.Guid? causedByCommand = null) -> void
+Watchpoint.Integration.Abstractions.Context.IObservationSink.ReportServerHealth(string! serverNativeId, Watchpoint.Kernel.Values.Connectivity connectivity, System.Collections.Generic.IReadOnlyList<string!>? faults = null, string? reason = null) -> void
+Watchpoint.Integration.Abstractions.Context.IObservationSink.ReportServerProperty(string! serverNativeId, string! propertyPath, Watchpoint.Kernel.Values.WpValue value, Watchpoint.Kernel.Values.Quality quality = Watchpoint.Kernel.Values.Quality.Good, System.DateTimeOffset? sourceTime = null) -> void
+Watchpoint.Integration.Abstractions.Context.IRequestGate
+Watchpoint.Integration.Abstractions.Context.IRequestGate.MaxConcurrency.get -> int
+Watchpoint.Integration.Abstractions.Context.IRequestGate.RunAsync<T>(Watchpoint.Integration.Abstractions.Model.CommandPriority priority, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! request, System.Threading.CancellationToken ct) -> System.Threading.Tasks.ValueTask<T>
+Watchpoint.Integration.Abstractions.Context.ISecretAccessor
+Watchpoint.Integration.Abstractions.Context.ISecretAccessor.GetAsync(string! fieldId, System.Threading.CancellationToken ct) -> System.Threading.Tasks.ValueTask<Watchpoint.Integration.Abstractions.Context.ConnectorSecret?>
+Watchpoint.Integration.Abstractions.Context.ISecureHttp
+Watchpoint.Integration.Abstractions.Context.ISecureHttp.CreateClient(Watchpoint.Integration.Abstractions.Context.HttpClientOptions! options) -> System.Net.Http.HttpClient!
+Watchpoint.Integration.Abstractions.Context.InboundAuth
+Watchpoint.Integration.Abstractions.Context.InboundAuth.ClientCertificate
+Watchpoint.Integration.Abstractions.Context.InboundAuth.ClientCertificate.ClientCertificate(string! PinnedSha256) -> void
+Watchpoint.Integration.Abstractions.Context.InboundAuth.ClientCertificate.Deconstruct(out string! PinnedSha256) -> void
+Watchpoint.Integration.Abstractions.Context.InboundAuth.ClientCertificate.Equals(Watchpoint.Integration.Abstractions.Context.InboundAuth.ClientCertificate? other) -> bool
+Watchpoint.Integration.Abstractions.Context.InboundAuth.ClientCertificate.PinnedSha256.get -> string!
+Watchpoint.Integration.Abstractions.Context.InboundAuth.ClientCertificate.PinnedSha256.init -> void
+Watchpoint.Integration.Abstractions.Context.InboundAuth.HmacSignature
+Watchpoint.Integration.Abstractions.Context.InboundAuth.HmacSignature.Algorithm.get -> string!
+Watchpoint.Integration.Abstractions.Context.InboundAuth.HmacSignature.Algorithm.init -> void
+Watchpoint.Integration.Abstractions.Context.InboundAuth.HmacSignature.Deconstruct(out string! HeaderName, out string! SecretFieldId, out string! Algorithm) -> void
+Watchpoint.Integration.Abstractions.Context.InboundAuth.HmacSignature.Equals(Watchpoint.Integration.Abstractions.Context.InboundAuth.HmacSignature? other) -> bool
+Watchpoint.Integration.Abstractions.Context.InboundAuth.HmacSignature.HeaderName.get -> string!
+Watchpoint.Integration.Abstractions.Context.InboundAuth.HmacSignature.HeaderName.init -> void
+Watchpoint.Integration.Abstractions.Context.InboundAuth.HmacSignature.HmacSignature(string! HeaderName, string! SecretFieldId, string! Algorithm) -> void
+Watchpoint.Integration.Abstractions.Context.InboundAuth.HmacSignature.SecretFieldId.get -> string!
+Watchpoint.Integration.Abstractions.Context.InboundAuth.HmacSignature.SecretFieldId.init -> void
+Watchpoint.Integration.Abstractions.Context.InboundAuth.InboundAuth(Watchpoint.Integration.Abstractions.Context.InboundAuth! original) -> void
+Watchpoint.Integration.Abstractions.Context.InboundAuth.SharedSecretHeader
+Watchpoint.Integration.Abstractions.Context.InboundAuth.SharedSecretHeader.Deconstruct(out string! HeaderName, out string! SecretFieldId) -> void
+Watchpoint.Integration.Abstractions.Context.InboundAuth.SharedSecretHeader.Equals(Watchpoint.Integration.Abstractions.Context.InboundAuth.SharedSecretHeader? other) -> bool
+Watchpoint.Integration.Abstractions.Context.InboundAuth.SharedSecretHeader.HeaderName.get -> string!
+Watchpoint.Integration.Abstractions.Context.InboundAuth.SharedSecretHeader.HeaderName.init -> void
+Watchpoint.Integration.Abstractions.Context.InboundAuth.SharedSecretHeader.SecretFieldId.get -> string!
+Watchpoint.Integration.Abstractions.Context.InboundAuth.SharedSecretHeader.SecretFieldId.init -> void
+Watchpoint.Integration.Abstractions.Context.InboundAuth.SharedSecretHeader.SharedSecretHeader(string! HeaderName, string! SecretFieldId) -> void
+Watchpoint.Integration.Abstractions.Context.InboundAuth.SourceAddress
+Watchpoint.Integration.Abstractions.Context.InboundAuth.SourceAddress.AllowedCidrs.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Watchpoint.Integration.Abstractions.Context.InboundAuth.SourceAddress.AllowedCidrs.init -> void
+Watchpoint.Integration.Abstractions.Context.InboundAuth.SourceAddress.Deconstruct(out System.Collections.Generic.IReadOnlyList<string!>! AllowedCidrs) -> void
+Watchpoint.Integration.Abstractions.Context.InboundAuth.SourceAddress.Equals(Watchpoint.Integration.Abstractions.Context.InboundAuth.SourceAddress? other) -> bool
+Watchpoint.Integration.Abstractions.Context.InboundAuth.SourceAddress.SourceAddress(System.Collections.Generic.IReadOnlyList<string!>! AllowedCidrs) -> void
+Watchpoint.Integration.Abstractions.Context.InboundRegistration
+Watchpoint.Integration.Abstractions.Context.InboundRegistration.Address.get -> string!
+Watchpoint.Integration.Abstractions.Context.InboundRegistration.DisposeAsync() -> System.Threading.Tasks.ValueTask
+Watchpoint.Integration.Abstractions.Context.InboundRegistration.InboundRegistration(string! address, System.Func<System.Threading.Tasks.ValueTask>! unregister) -> void
+Watchpoint.Integration.Abstractions.Context.InboundRequest
+Watchpoint.Integration.Abstractions.Context.InboundRequest.<Clone>$() -> Watchpoint.Integration.Abstractions.Context.InboundRequest!
+Watchpoint.Integration.Abstractions.Context.InboundRequest.Body.get -> System.ReadOnlyMemory<byte>
+Watchpoint.Integration.Abstractions.Context.InboundRequest.Body.init -> void
+Watchpoint.Integration.Abstractions.Context.InboundRequest.Deconstruct(out string! Method, out string! Path, out string! Query, out System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyList<string!>!>! Headers, out System.ReadOnlyMemory<byte> Body, out System.Net.IPAddress! RemoteAddress) -> void
+Watchpoint.Integration.Abstractions.Context.InboundRequest.Equals(Watchpoint.Integration.Abstractions.Context.InboundRequest? other) -> bool
+Watchpoint.Integration.Abstractions.Context.InboundRequest.Headers.get -> System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyList<string!>!>!
+Watchpoint.Integration.Abstractions.Context.InboundRequest.Headers.init -> void
+Watchpoint.Integration.Abstractions.Context.InboundRequest.InboundRequest(string! Method, string! Path, string! Query, System.Collections.Generic.IReadOnlyDictionary<string!, System.Collections.Generic.IReadOnlyList<string!>!>! Headers, System.ReadOnlyMemory<byte> Body, System.Net.IPAddress! RemoteAddress) -> void
+Watchpoint.Integration.Abstractions.Context.InboundRequest.Method.get -> string!
+Watchpoint.Integration.Abstractions.Context.InboundRequest.Method.init -> void
+Watchpoint.Integration.Abstractions.Context.InboundRequest.Path.get -> string!
+Watchpoint.Integration.Abstractions.Context.InboundRequest.Path.init -> void
+Watchpoint.Integration.Abstractions.Context.InboundRequest.Query.get -> string!
+Watchpoint.Integration.Abstractions.Context.InboundRequest.Query.init -> void
+Watchpoint.Integration.Abstractions.Context.InboundRequest.RemoteAddress.get -> System.Net.IPAddress!
+Watchpoint.Integration.Abstractions.Context.InboundRequest.RemoteAddress.init -> void
+Watchpoint.Integration.Abstractions.Context.InboundResponse
+Watchpoint.Integration.Abstractions.Context.InboundResponse.<Clone>$() -> Watchpoint.Integration.Abstractions.Context.InboundResponse!
+Watchpoint.Integration.Abstractions.Context.InboundResponse.Body.get -> System.ReadOnlyMemory<byte>
+Watchpoint.Integration.Abstractions.Context.InboundResponse.Body.init -> void
+Watchpoint.Integration.Abstractions.Context.InboundResponse.ContentType.get -> string?
+Watchpoint.Integration.Abstractions.Context.InboundResponse.ContentType.init -> void
+Watchpoint.Integration.Abstractions.Context.InboundResponse.Deconstruct(out int StatusCode, out System.ReadOnlyMemory<byte> Body, out string? ContentType) -> void
+Watchpoint.Integration.Abstractions.Context.InboundResponse.Equals(Watchpoint.Integration.Abstractions.Context.InboundResponse? other) -> bool
+Watchpoint.Integration.Abstractions.Context.InboundResponse.InboundResponse(int StatusCode, System.ReadOnlyMemory<byte> Body = default(System.ReadOnlyMemory<byte>), string? ContentType = null) -> void
+Watchpoint.Integration.Abstractions.Context.InboundResponse.StatusCode.get -> int
+Watchpoint.Integration.Abstractions.Context.InboundResponse.StatusCode.init -> void
+Watchpoint.Integration.Abstractions.Context.PollingOptions
+Watchpoint.Integration.Abstractions.Context.PollingOptions.<Clone>$() -> Watchpoint.Integration.Abstractions.Context.PollingOptions!
+Watchpoint.Integration.Abstractions.Context.PollingOptions.Deconstruct(out double Jitter, out bool RunWhenDisconnected, out System.TimeSpan? MaxBackoff, out Watchpoint.Integration.Abstractions.Model.CommandPriority Priority) -> void
+Watchpoint.Integration.Abstractions.Context.PollingOptions.Equals(Watchpoint.Integration.Abstractions.Context.PollingOptions? other) -> bool
+Watchpoint.Integration.Abstractions.Context.PollingOptions.Jitter.get -> double
+Watchpoint.Integration.Abstractions.Context.PollingOptions.Jitter.init -> void
+Watchpoint.Integration.Abstractions.Context.PollingOptions.MaxBackoff.get -> System.TimeSpan?
+Watchpoint.Integration.Abstractions.Context.PollingOptions.MaxBackoff.init -> void
+Watchpoint.Integration.Abstractions.Context.PollingOptions.PollingOptions(double Jitter = 0.1, bool RunWhenDisconnected = false, System.TimeSpan? MaxBackoff = null, Watchpoint.Integration.Abstractions.Model.CommandPriority Priority = Watchpoint.Integration.Abstractions.Model.CommandPriority.Background) -> void
+Watchpoint.Integration.Abstractions.Context.PollingOptions.Priority.get -> Watchpoint.Integration.Abstractions.Model.CommandPriority
+Watchpoint.Integration.Abstractions.Context.PollingOptions.Priority.init -> void
+Watchpoint.Integration.Abstractions.Context.PollingOptions.RunWhenDisconnected.get -> bool
+Watchpoint.Integration.Abstractions.Context.PollingOptions.RunWhenDisconnected.init -> void
+Watchpoint.Integration.Abstractions.Context.SinkFlushResult
+Watchpoint.Integration.Abstractions.Context.SinkFlushResult.<Clone>$() -> Watchpoint.Integration.Abstractions.Context.SinkFlushResult!
+Watchpoint.Integration.Abstractions.Context.SinkFlushResult.Accepted.get -> int
+Watchpoint.Integration.Abstractions.Context.SinkFlushResult.Accepted.init -> void
+Watchpoint.Integration.Abstractions.Context.SinkFlushResult.Deconstruct(out int Accepted, out int Rejected, out int UnknownDevices) -> void
+Watchpoint.Integration.Abstractions.Context.SinkFlushResult.Equals(Watchpoint.Integration.Abstractions.Context.SinkFlushResult? other) -> bool
+Watchpoint.Integration.Abstractions.Context.SinkFlushResult.Rejected.get -> int
+Watchpoint.Integration.Abstractions.Context.SinkFlushResult.Rejected.init -> void
+Watchpoint.Integration.Abstractions.Context.SinkFlushResult.SinkFlushResult(int Accepted, int Rejected, int UnknownDevices) -> void
+Watchpoint.Integration.Abstractions.Context.SinkFlushResult.UnknownDevices.get -> int
+Watchpoint.Integration.Abstractions.Context.SinkFlushResult.UnknownDevices.init -> void
+Watchpoint.Integration.Abstractions.Context.UdpDatagram
+Watchpoint.Integration.Abstractions.Context.UdpDatagram.<Clone>$() -> Watchpoint.Integration.Abstractions.Context.UdpDatagram!
+Watchpoint.Integration.Abstractions.Context.UdpDatagram.Data.get -> System.ReadOnlyMemory<byte>
+Watchpoint.Integration.Abstractions.Context.UdpDatagram.Data.init -> void
+Watchpoint.Integration.Abstractions.Context.UdpDatagram.Deconstruct(out System.ReadOnlyMemory<byte> Data, out System.Net.IPEndPoint! Remote) -> void
+Watchpoint.Integration.Abstractions.Context.UdpDatagram.Equals(Watchpoint.Integration.Abstractions.Context.UdpDatagram? other) -> bool
+Watchpoint.Integration.Abstractions.Context.UdpDatagram.Remote.get -> System.Net.IPEndPoint!
+Watchpoint.Integration.Abstractions.Context.UdpDatagram.Remote.init -> void
+Watchpoint.Integration.Abstractions.Context.UdpDatagram.UdpDatagram(System.ReadOnlyMemory<byte> Data, System.Net.IPEndPoint! Remote) -> void
+Watchpoint.Integration.Abstractions.ContractVersion
+Watchpoint.Integration.Abstractions.Features.DiagnosticItem
+Watchpoint.Integration.Abstractions.Features.DiagnosticItem.<Clone>$() -> Watchpoint.Integration.Abstractions.Features.DiagnosticItem!
+Watchpoint.Integration.Abstractions.Features.DiagnosticItem.Deconstruct(out string! Id, out Watchpoint.Integration.Abstractions.Model.ConnectorMessage! Label, out Watchpoint.Kernel.Values.WpValue Value, out Watchpoint.Integration.Abstractions.Features.DiagnosticLevel Level) -> void
+Watchpoint.Integration.Abstractions.Features.DiagnosticItem.DiagnosticItem(string! Id, Watchpoint.Integration.Abstractions.Model.ConnectorMessage! Label, Watchpoint.Kernel.Values.WpValue Value, Watchpoint.Integration.Abstractions.Features.DiagnosticLevel Level = Watchpoint.Integration.Abstractions.Features.DiagnosticLevel.Info) -> void
+Watchpoint.Integration.Abstractions.Features.DiagnosticItem.Equals(Watchpoint.Integration.Abstractions.Features.DiagnosticItem? other) -> bool
+Watchpoint.Integration.Abstractions.Features.DiagnosticItem.Id.get -> string!
+Watchpoint.Integration.Abstractions.Features.DiagnosticItem.Id.init -> void
+Watchpoint.Integration.Abstractions.Features.DiagnosticItem.Label.get -> Watchpoint.Integration.Abstractions.Model.ConnectorMessage!
+Watchpoint.Integration.Abstractions.Features.DiagnosticItem.Label.init -> void
+Watchpoint.Integration.Abstractions.Features.DiagnosticItem.Level.get -> Watchpoint.Integration.Abstractions.Features.DiagnosticLevel
+Watchpoint.Integration.Abstractions.Features.DiagnosticItem.Level.init -> void
+Watchpoint.Integration.Abstractions.Features.DiagnosticItem.Value.get -> Watchpoint.Kernel.Values.WpValue
+Watchpoint.Integration.Abstractions.Features.DiagnosticItem.Value.init -> void
+Watchpoint.Integration.Abstractions.Features.DiagnosticLevel
+Watchpoint.Integration.Abstractions.Features.DiagnosticLevel.Error = 2 -> Watchpoint.Integration.Abstractions.Features.DiagnosticLevel
+Watchpoint.Integration.Abstractions.Features.DiagnosticLevel.Info = 0 -> Watchpoint.Integration.Abstractions.Features.DiagnosticLevel
+Watchpoint.Integration.Abstractions.Features.DiagnosticLevel.Warning = 1 -> Watchpoint.Integration.Abstractions.Features.DiagnosticLevel
+Watchpoint.Integration.Abstractions.Features.DiscoveryProgress
+Watchpoint.Integration.Abstractions.Features.DiscoveryProgress.<Clone>$() -> Watchpoint.Integration.Abstractions.Features.DiscoveryProgress!
+Watchpoint.Integration.Abstractions.Features.DiscoveryProgress.Deconstruct(out int Done, out int? Total, out Watchpoint.Integration.Abstractions.Model.ConnectorMessage? Stage) -> void
+Watchpoint.Integration.Abstractions.Features.DiscoveryProgress.DiscoveryProgress(int Done, int? Total, Watchpoint.Integration.Abstractions.Model.ConnectorMessage? Stage) -> void
+Watchpoint.Integration.Abstractions.Features.DiscoveryProgress.Done.get -> int
+Watchpoint.Integration.Abstractions.Features.DiscoveryProgress.Done.init -> void
+Watchpoint.Integration.Abstractions.Features.DiscoveryProgress.Equals(Watchpoint.Integration.Abstractions.Features.DiscoveryProgress? other) -> bool
+Watchpoint.Integration.Abstractions.Features.DiscoveryProgress.Stage.get -> Watchpoint.Integration.Abstractions.Model.ConnectorMessage?
+Watchpoint.Integration.Abstractions.Features.DiscoveryProgress.Stage.init -> void
+Watchpoint.Integration.Abstractions.Features.DiscoveryProgress.Total.get -> int?
+Watchpoint.Integration.Abstractions.Features.DiscoveryProgress.Total.init -> void
+Watchpoint.Integration.Abstractions.Features.IBatchCommandExecutor
+Watchpoint.Integration.Abstractions.Features.IBatchCommandExecutor.ExecuteBatchAsync(System.Collections.Generic.IReadOnlyList<Watchpoint.Integration.Abstractions.Model.ConnectorCommand!>! commands, System.Threading.CancellationToken ct) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Watchpoint.Integration.Abstractions.Model.ConnectorCommandResult!>!>
+Watchpoint.Integration.Abstractions.Features.ICommandExecutor
+Watchpoint.Integration.Abstractions.Features.ICommandExecutor.ExecuteAsync(Watchpoint.Integration.Abstractions.Model.ConnectorCommand! command, System.Threading.CancellationToken ct) -> System.Threading.Tasks.ValueTask<Watchpoint.Integration.Abstractions.Model.ConnectorCommandResult!>
+Watchpoint.Integration.Abstractions.Features.IDiagnostics
+Watchpoint.Integration.Abstractions.Features.IDiagnostics.GetDiagnosticsAsync(System.Threading.CancellationToken ct) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Watchpoint.Integration.Abstractions.Features.DiagnosticItem!>!>
+Watchpoint.Integration.Abstractions.Features.IDiagnostics.RunActionAsync(string! actionId, System.Text.Json.JsonElement args, System.Threading.CancellationToken ct) -> System.Threading.Tasks.ValueTask<Watchpoint.Kernel.Results.Result<Watchpoint.Integration.Abstractions.Model.ConnectorMessage!>>
+Watchpoint.Integration.Abstractions.Features.IDiscovery
+Watchpoint.Integration.Abstractions.Features.IDiscovery.DiscoverAsync(System.IProgress<Watchpoint.Integration.Abstractions.Features.DiscoveryProgress!>! progress, System.Threading.CancellationToken ct) -> System.Threading.Tasks.ValueTask<Watchpoint.Integration.Abstractions.Model.InventorySnapshot!>
+Watchpoint.Integration.Abstractions.Features.IEventCatchUp
+Watchpoint.Integration.Abstractions.Features.IEventCatchUp.CatchUpAsync(System.Threading.CancellationToken ct) -> System.Threading.Tasks.ValueTask
+Watchpoint.Integration.Abstractions.Features.ILookup
+Watchpoint.Integration.Abstractions.Features.ILookup.LookupAsync(Watchpoint.Integration.Abstractions.Features.LookupRequest! request, System.Threading.CancellationToken ct) -> System.Threading.Tasks.ValueTask<Watchpoint.Integration.Abstractions.Features.LookupResult!>
+Watchpoint.Integration.Abstractions.Features.IServerLocator
+Watchpoint.Integration.Abstractions.Features.IServerLocator.LocateAsync(Watchpoint.Integration.Abstractions.Features.LocateRequest! request, System.Threading.CancellationToken ct) -> System.Collections.Generic.IAsyncEnumerable<Watchpoint.Integration.Abstractions.Features.LocatedServer!>!
+Watchpoint.Integration.Abstractions.Features.IStateRefresh
+Watchpoint.Integration.Abstractions.Features.IStateRefresh.RefreshAsync(Watchpoint.Integration.Abstractions.Model.RefreshScope! scope, System.Threading.CancellationToken ct) -> System.Threading.Tasks.ValueTask
+Watchpoint.Integration.Abstractions.Features.ITimeSync
+Watchpoint.Integration.Abstractions.Features.ITimeSync.GetTimeAsync(System.Threading.CancellationToken ct) -> System.Threading.Tasks.ValueTask<Watchpoint.Integration.Abstractions.Features.TimeSyncStatus!>
+Watchpoint.Integration.Abstractions.Features.ITimeSync.SetTimeAsync(System.DateTimeOffset utc, System.Threading.CancellationToken ct) -> System.Threading.Tasks.ValueTask<Watchpoint.Kernel.Results.Result>
+Watchpoint.Integration.Abstractions.Features.LocateRequest
+Watchpoint.Integration.Abstractions.Features.LocateRequest.<Clone>$() -> Watchpoint.Integration.Abstractions.Features.LocateRequest!
+Watchpoint.Integration.Abstractions.Features.LocateRequest.Deconstruct(out System.TimeSpan Timeout, out System.Collections.Generic.IReadOnlyList<string!>? Networks) -> void
+Watchpoint.Integration.Abstractions.Features.LocateRequest.Equals(Watchpoint.Integration.Abstractions.Features.LocateRequest? other) -> bool
+Watchpoint.Integration.Abstractions.Features.LocateRequest.LocateRequest(System.TimeSpan Timeout, System.Collections.Generic.IReadOnlyList<string!>? Networks = null) -> void
+Watchpoint.Integration.Abstractions.Features.LocateRequest.Networks.get -> System.Collections.Generic.IReadOnlyList<string!>?
+Watchpoint.Integration.Abstractions.Features.LocateRequest.Networks.init -> void
+Watchpoint.Integration.Abstractions.Features.LocateRequest.Timeout.get -> System.TimeSpan
+Watchpoint.Integration.Abstractions.Features.LocateRequest.Timeout.init -> void
+Watchpoint.Integration.Abstractions.Features.LocatedServer
+Watchpoint.Integration.Abstractions.Features.LocatedServer.<Clone>$() -> Watchpoint.Integration.Abstractions.Features.LocatedServer!
+Watchpoint.Integration.Abstractions.Features.LocatedServer.Address.get -> string!
+Watchpoint.Integration.Abstractions.Features.LocatedServer.Address.init -> void
+Watchpoint.Integration.Abstractions.Features.LocatedServer.Deconstruct(out string! Address, out string? Name, out Watchpoint.Integration.Abstractions.Model.ServerIdentity? Identity, out System.Text.Json.JsonElement? SuggestedSettings) -> void
+Watchpoint.Integration.Abstractions.Features.LocatedServer.Equals(Watchpoint.Integration.Abstractions.Features.LocatedServer? other) -> bool
+Watchpoint.Integration.Abstractions.Features.LocatedServer.Identity.get -> Watchpoint.Integration.Abstractions.Model.ServerIdentity?
+Watchpoint.Integration.Abstractions.Features.LocatedServer.Identity.init -> void
+Watchpoint.Integration.Abstractions.Features.LocatedServer.LocatedServer(string! Address, string? Name, Watchpoint.Integration.Abstractions.Model.ServerIdentity? Identity, System.Text.Json.JsonElement? SuggestedSettings) -> void
+Watchpoint.Integration.Abstractions.Features.LocatedServer.Name.get -> string?
+Watchpoint.Integration.Abstractions.Features.LocatedServer.Name.init -> void
+Watchpoint.Integration.Abstractions.Features.LocatedServer.SuggestedSettings.get -> System.Text.Json.JsonElement?
+Watchpoint.Integration.Abstractions.Features.LocatedServer.SuggestedSettings.init -> void
+Watchpoint.Integration.Abstractions.Features.LookupRequest
+Watchpoint.Integration.Abstractions.Features.LookupRequest.<Clone>$() -> Watchpoint.Integration.Abstractions.Features.LookupRequest!
+Watchpoint.Integration.Abstractions.Features.LookupRequest.Deconstruct(out string! Kind, out string! Reference, out Watchpoint.Integration.Abstractions.Model.DeviceKey? Device) -> void
+Watchpoint.Integration.Abstractions.Features.LookupRequest.Device.get -> Watchpoint.Integration.Abstractions.Model.DeviceKey?
+Watchpoint.Integration.Abstractions.Features.LookupRequest.Device.init -> void
+Watchpoint.Integration.Abstractions.Features.LookupRequest.Equals(Watchpoint.Integration.Abstractions.Features.LookupRequest? other) -> bool
+Watchpoint.Integration.Abstractions.Features.LookupRequest.Kind.get -> string!
+Watchpoint.Integration.Abstractions.Features.LookupRequest.Kind.init -> void
+Watchpoint.Integration.Abstractions.Features.LookupRequest.LookupRequest(string! Kind, string! Reference, Watchpoint.Integration.Abstractions.Model.DeviceKey? Device) -> void
+Watchpoint.Integration.Abstractions.Features.LookupRequest.Reference.get -> string!
+Watchpoint.Integration.Abstractions.Features.LookupRequest.Reference.init -> void
+Watchpoint.Integration.Abstractions.Features.LookupResult
+Watchpoint.Integration.Abstractions.Features.LookupResult.<Clone>$() -> Watchpoint.Integration.Abstractions.Features.LookupResult!
+Watchpoint.Integration.Abstractions.Features.LookupResult.Deconstruct(out bool Found, out System.Collections.Generic.IReadOnlyDictionary<string!, Watchpoint.Kernel.Values.WpValue>! Fields) -> void
+Watchpoint.Integration.Abstractions.Features.LookupResult.Equals(Watchpoint.Integration.Abstractions.Features.LookupResult? other) -> bool
+Watchpoint.Integration.Abstractions.Features.LookupResult.Fields.get -> System.Collections.Generic.IReadOnlyDictionary<string!, Watchpoint.Kernel.Values.WpValue>!
+Watchpoint.Integration.Abstractions.Features.LookupResult.Fields.init -> void
+Watchpoint.Integration.Abstractions.Features.LookupResult.Found.get -> bool
+Watchpoint.Integration.Abstractions.Features.LookupResult.Found.init -> void
+Watchpoint.Integration.Abstractions.Features.LookupResult.LookupResult(bool Found, System.Collections.Generic.IReadOnlyDictionary<string!, Watchpoint.Kernel.Values.WpValue>! Fields) -> void
+Watchpoint.Integration.Abstractions.Features.TimeSyncStatus
+Watchpoint.Integration.Abstractions.Features.TimeSyncStatus.<Clone>$() -> Watchpoint.Integration.Abstractions.Features.TimeSyncStatus!
+Watchpoint.Integration.Abstractions.Features.TimeSyncStatus.Deconstruct(out System.DateTimeOffset SystemTime, out System.DateTimeOffset ReadAt, out System.TimeSpan? RoundTrip) -> void
+Watchpoint.Integration.Abstractions.Features.TimeSyncStatus.Equals(Watchpoint.Integration.Abstractions.Features.TimeSyncStatus? other) -> bool
+Watchpoint.Integration.Abstractions.Features.TimeSyncStatus.ReadAt.get -> System.DateTimeOffset
+Watchpoint.Integration.Abstractions.Features.TimeSyncStatus.ReadAt.init -> void
+Watchpoint.Integration.Abstractions.Features.TimeSyncStatus.RoundTrip.get -> System.TimeSpan?
+Watchpoint.Integration.Abstractions.Features.TimeSyncStatus.RoundTrip.init -> void
+Watchpoint.Integration.Abstractions.Features.TimeSyncStatus.SystemTime.get -> System.DateTimeOffset
+Watchpoint.Integration.Abstractions.Features.TimeSyncStatus.SystemTime.init -> void
+Watchpoint.Integration.Abstractions.Features.TimeSyncStatus.TimeSyncStatus(System.DateTimeOffset SystemTime, System.DateTimeOffset ReadAt, System.TimeSpan? RoundTrip) -> void
+Watchpoint.Integration.Abstractions.IConnector
+Watchpoint.Integration.Abstractions.IConnector.DescribeAsync(System.Threading.CancellationToken ct) -> System.Threading.Tasks.ValueTask<Watchpoint.Integration.Abstractions.Model.InventorySnapshot!>
+Watchpoint.Integration.Abstractions.IConnector.InitializeAsync(Watchpoint.Integration.Abstractions.Context.IConnectorContext! context, System.Threading.CancellationToken ct) -> System.Threading.Tasks.ValueTask<Watchpoint.Kernel.Results.Result>
+Watchpoint.Integration.Abstractions.IConnector.StartAsync(System.Threading.CancellationToken ct) -> System.Threading.Tasks.ValueTask
+Watchpoint.Integration.Abstractions.IConnector.StopAsync(System.Threading.CancellationToken ct) -> System.Threading.Tasks.ValueTask
+Watchpoint.Integration.Abstractions.IConnector.TestAsync(System.Threading.CancellationToken ct) -> System.Threading.Tasks.ValueTask<Watchpoint.Integration.Abstractions.Model.ConnectionTestResult!>
+Watchpoint.Integration.Abstractions.IntegrationJson
+Watchpoint.Integration.Abstractions.Model.CommandOutcome
+Watchpoint.Integration.Abstractions.Model.CommandOutcome.Failed = 1 -> Watchpoint.Integration.Abstractions.Model.CommandOutcome
+Watchpoint.Integration.Abstractions.Model.CommandOutcome.NotSupported = 2 -> Watchpoint.Integration.Abstractions.Model.CommandOutcome
+Watchpoint.Integration.Abstractions.Model.CommandOutcome.Succeeded = 0 -> Watchpoint.Integration.Abstractions.Model.CommandOutcome
+Watchpoint.Integration.Abstractions.Model.CommandPriority
+Watchpoint.Integration.Abstractions.Model.CommandPriority.Background = 3 -> Watchpoint.Integration.Abstractions.Model.CommandPriority
+Watchpoint.Integration.Abstractions.Model.CommandPriority.Critical = 0 -> Watchpoint.Integration.Abstractions.Model.CommandPriority
+Watchpoint.Integration.Abstractions.Model.CommandPriority.High = 1 -> Watchpoint.Integration.Abstractions.Model.CommandPriority
+Watchpoint.Integration.Abstractions.Model.CommandPriority.Normal = 2 -> Watchpoint.Integration.Abstractions.Model.CommandPriority
+Watchpoint.Integration.Abstractions.Model.ConnectionTestResult
+Watchpoint.Integration.Abstractions.Model.ConnectionTestResult.<Clone>$() -> Watchpoint.Integration.Abstractions.Model.ConnectionTestResult!
+Watchpoint.Integration.Abstractions.Model.ConnectionTestResult.ConnectionTestResult(bool Success, Watchpoint.Integration.Abstractions.Model.FailureCategory? Failure, Watchpoint.Integration.Abstractions.Model.ConnectorMessage? Message, Watchpoint.Integration.Abstractions.Model.ServerIdentity? Identity) -> void
+Watchpoint.Integration.Abstractions.Model.ConnectionTestResult.Deconstruct(out bool Success, out Watchpoint.Integration.Abstractions.Model.FailureCategory? Failure, out Watchpoint.Integration.Abstractions.Model.ConnectorMessage? Message, out Watchpoint.Integration.Abstractions.Model.ServerIdentity? Identity) -> void
+Watchpoint.Integration.Abstractions.Model.ConnectionTestResult.Equals(Watchpoint.Integration.Abstractions.Model.ConnectionTestResult? other) -> bool
+Watchpoint.Integration.Abstractions.Model.ConnectionTestResult.Failure.get -> Watchpoint.Integration.Abstractions.Model.FailureCategory?
+Watchpoint.Integration.Abstractions.Model.ConnectionTestResult.Failure.init -> void
+Watchpoint.Integration.Abstractions.Model.ConnectionTestResult.Identity.get -> Watchpoint.Integration.Abstractions.Model.ServerIdentity?
+Watchpoint.Integration.Abstractions.Model.ConnectionTestResult.Identity.init -> void
+Watchpoint.Integration.Abstractions.Model.ConnectionTestResult.Message.get -> Watchpoint.Integration.Abstractions.Model.ConnectorMessage?
+Watchpoint.Integration.Abstractions.Model.ConnectionTestResult.Message.init -> void
+Watchpoint.Integration.Abstractions.Model.ConnectionTestResult.Success.get -> bool
+Watchpoint.Integration.Abstractions.Model.ConnectionTestResult.Success.init -> void
+Watchpoint.Integration.Abstractions.Model.ConnectorCommand
+Watchpoint.Integration.Abstractions.Model.ConnectorCommand.<Clone>$() -> Watchpoint.Integration.Abstractions.Model.ConnectorCommand!
+Watchpoint.Integration.Abstractions.Model.ConnectorCommand.Arguments.get -> System.Collections.Generic.IReadOnlyDictionary<string!, Watchpoint.Kernel.Values.WpValue>!
+Watchpoint.Integration.Abstractions.Model.ConnectorCommand.Arguments.init -> void
+Watchpoint.Integration.Abstractions.Model.ConnectorCommand.Attempt.get -> int
+Watchpoint.Integration.Abstractions.Model.ConnectorCommand.Attempt.init -> void
+Watchpoint.Integration.Abstractions.Model.ConnectorCommand.Command.get -> string!
+Watchpoint.Integration.Abstractions.Model.ConnectorCommand.Command.init -> void
+Watchpoint.Integration.Abstractions.Model.ConnectorCommand.CommandId.get -> System.Guid
+Watchpoint.Integration.Abstractions.Model.ConnectorCommand.CommandId.init -> void
+Watchpoint.Integration.Abstractions.Model.ConnectorCommand.ConnectorCommand(System.Guid CommandId, Watchpoint.Integration.Abstractions.Model.DeviceHandle! Target, string! Command, System.Collections.Generic.IReadOnlyDictionary<string!, Watchpoint.Kernel.Values.WpValue>! Arguments, System.DateTimeOffset Deadline, int Attempt, Watchpoint.Integration.Abstractions.Model.CommandPriority Priority) -> void
+Watchpoint.Integration.Abstractions.Model.ConnectorCommand.Deadline.get -> System.DateTimeOffset
+Watchpoint.Integration.Abstractions.Model.ConnectorCommand.Deadline.init -> void
+Watchpoint.Integration.Abstractions.Model.ConnectorCommand.Deconstruct(out System.Guid CommandId, out Watchpoint.Integration.Abstractions.Model.DeviceHandle! Target, out string! Command, out System.Collections.Generic.IReadOnlyDictionary<string!, Watchpoint.Kernel.Values.WpValue>! Arguments, out System.DateTimeOffset Deadline, out int Attempt, out Watchpoint.Integration.Abstractions.Model.CommandPriority Priority) -> void
+Watchpoint.Integration.Abstractions.Model.ConnectorCommand.Equals(Watchpoint.Integration.Abstractions.Model.ConnectorCommand? other) -> bool
+Watchpoint.Integration.Abstractions.Model.ConnectorCommand.Priority.get -> Watchpoint.Integration.Abstractions.Model.CommandPriority
+Watchpoint.Integration.Abstractions.Model.ConnectorCommand.Priority.init -> void
+Watchpoint.Integration.Abstractions.Model.ConnectorCommand.Target.get -> Watchpoint.Integration.Abstractions.Model.DeviceHandle!
+Watchpoint.Integration.Abstractions.Model.ConnectorCommand.Target.init -> void
+Watchpoint.Integration.Abstractions.Model.ConnectorCommandResult
+Watchpoint.Integration.Abstractions.Model.ConnectorCommandResult.<Clone>$() -> Watchpoint.Integration.Abstractions.Model.ConnectorCommandResult!
+Watchpoint.Integration.Abstractions.Model.ConnectorCommandResult.ConnectorCommandResult(Watchpoint.Integration.Abstractions.Model.CommandOutcome outcome, Watchpoint.Integration.Abstractions.Model.FailureCategory? failure, Watchpoint.Integration.Abstractions.Model.ConnectorMessage? message, string? vendorCode, string? vendorDetail) -> void
+Watchpoint.Integration.Abstractions.Model.ConnectorCommandResult.Equals(Watchpoint.Integration.Abstractions.Model.ConnectorCommandResult? other) -> bool
+Watchpoint.Integration.Abstractions.Model.ConnectorCommandResult.Failure.get -> Watchpoint.Integration.Abstractions.Model.FailureCategory?
+Watchpoint.Integration.Abstractions.Model.ConnectorCommandResult.Message.get -> Watchpoint.Integration.Abstractions.Model.ConnectorMessage?
+Watchpoint.Integration.Abstractions.Model.ConnectorCommandResult.Outcome.get -> Watchpoint.Integration.Abstractions.Model.CommandOutcome
+Watchpoint.Integration.Abstractions.Model.ConnectorCommandResult.VendorCode.get -> string?
+Watchpoint.Integration.Abstractions.Model.ConnectorCommandResult.VendorDetail.get -> string?
+Watchpoint.Integration.Abstractions.Model.ConnectorMessage
+Watchpoint.Integration.Abstractions.Model.ConnectorMessage.<Clone>$() -> Watchpoint.Integration.Abstractions.Model.ConnectorMessage!
+Watchpoint.Integration.Abstractions.Model.ConnectorMessage.Args.get -> System.Collections.Generic.IReadOnlyDictionary<string!, object?>!
+Watchpoint.Integration.Abstractions.Model.ConnectorMessage.ConnectorMessage(string! key, System.Collections.Generic.IReadOnlyDictionary<string!, object?>! args) -> void
+Watchpoint.Integration.Abstractions.Model.ConnectorMessage.Equals(Watchpoint.Integration.Abstractions.Model.ConnectorMessage? other) -> bool
+Watchpoint.Integration.Abstractions.Model.ConnectorMessage.Key.get -> string!
+Watchpoint.Integration.Abstractions.Model.ConnectorMessage.ToMessage(string! packageId) -> Watchpoint.Kernel.Text.Message!
+Watchpoint.Integration.Abstractions.Model.DeviceHandle
+Watchpoint.Integration.Abstractions.Model.DeviceHandle.<Clone>$() -> Watchpoint.Integration.Abstractions.Model.DeviceHandle!
+Watchpoint.Integration.Abstractions.Model.DeviceHandle.Attributes.get -> System.Collections.Generic.IReadOnlyDictionary<string!, Watchpoint.Kernel.Values.WpValue>!
+Watchpoint.Integration.Abstractions.Model.DeviceHandle.Attributes.init -> void
+Watchpoint.Integration.Abstractions.Model.DeviceHandle.Deconstruct(out Watchpoint.Integration.Abstractions.Model.DeviceKey Key, out string! TypeId, out string! TypeVersion, out System.Collections.Generic.IReadOnlyDictionary<string!, Watchpoint.Kernel.Values.WpValue>! Attributes, out System.Collections.Generic.IReadOnlyList<string!>! UnsupportedOptionalCapabilities) -> void
+Watchpoint.Integration.Abstractions.Model.DeviceHandle.DeviceHandle(Watchpoint.Integration.Abstractions.Model.DeviceKey Key, string! TypeId, string! TypeVersion, System.Collections.Generic.IReadOnlyDictionary<string!, Watchpoint.Kernel.Values.WpValue>! Attributes, System.Collections.Generic.IReadOnlyList<string!>! UnsupportedOptionalCapabilities) -> void
+Watchpoint.Integration.Abstractions.Model.DeviceHandle.Equals(Watchpoint.Integration.Abstractions.Model.DeviceHandle? other) -> bool
+Watchpoint.Integration.Abstractions.Model.DeviceHandle.Key.get -> Watchpoint.Integration.Abstractions.Model.DeviceKey
+Watchpoint.Integration.Abstractions.Model.DeviceHandle.Key.init -> void
+Watchpoint.Integration.Abstractions.Model.DeviceHandle.TypeId.get -> string!
+Watchpoint.Integration.Abstractions.Model.DeviceHandle.TypeId.init -> void
+Watchpoint.Integration.Abstractions.Model.DeviceHandle.TypeVersion.get -> string!
+Watchpoint.Integration.Abstractions.Model.DeviceHandle.TypeVersion.init -> void
+Watchpoint.Integration.Abstractions.Model.DeviceHandle.UnsupportedOptionalCapabilities.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Watchpoint.Integration.Abstractions.Model.DeviceHandle.UnsupportedOptionalCapabilities.init -> void
+Watchpoint.Integration.Abstractions.Model.DeviceKey
+Watchpoint.Integration.Abstractions.Model.DeviceKey.Deconstruct(out string! ServerNativeId, out string! NativeId) -> void
+Watchpoint.Integration.Abstractions.Model.DeviceKey.DeviceKey() -> void
+Watchpoint.Integration.Abstractions.Model.DeviceKey.DeviceKey(string! ServerNativeId, string! NativeId) -> void
+Watchpoint.Integration.Abstractions.Model.DeviceKey.Equals(Watchpoint.Integration.Abstractions.Model.DeviceKey other) -> bool
+Watchpoint.Integration.Abstractions.Model.DeviceKey.NativeId.get -> string!
+Watchpoint.Integration.Abstractions.Model.DeviceKey.NativeId.init -> void
+Watchpoint.Integration.Abstractions.Model.DeviceKey.ServerNativeId.get -> string!
+Watchpoint.Integration.Abstractions.Model.DeviceKey.ServerNativeId.init -> void
+Watchpoint.Integration.Abstractions.Model.FailureCategory
+Watchpoint.Integration.Abstractions.Model.FailureCategory.AuthenticationFailed = 1 -> Watchpoint.Integration.Abstractions.Model.FailureCategory
+Watchpoint.Integration.Abstractions.Model.FailureCategory.Conflict = 12 -> Watchpoint.Integration.Abstractions.Model.FailureCategory
+Watchpoint.Integration.Abstractions.Model.FailureCategory.ConnectionDown = 7 -> Watchpoint.Integration.Abstractions.Model.FailureCategory
+Watchpoint.Integration.Abstractions.Model.FailureCategory.DeviceOffline = 6 -> Watchpoint.Integration.Abstractions.Model.FailureCategory
+Watchpoint.Integration.Abstractions.Model.FailureCategory.IncompatibleVersion = 2 -> Watchpoint.Integration.Abstractions.Model.FailureCategory
+Watchpoint.Integration.Abstractions.Model.FailureCategory.InternalError = 13 -> Watchpoint.Integration.Abstractions.Model.FailureCategory
+Watchpoint.Integration.Abstractions.Model.FailureCategory.InvalidSettings = 5 -> Watchpoint.Integration.Abstractions.Model.FailureCategory
+Watchpoint.Integration.Abstractions.Model.FailureCategory.InvalidState = 9 -> Watchpoint.Integration.Abstractions.Model.FailureCategory
+Watchpoint.Integration.Abstractions.Model.FailureCategory.NotSupported = 10 -> Watchpoint.Integration.Abstractions.Model.FailureCategory
+Watchpoint.Integration.Abstractions.Model.FailureCategory.RefusedBySystem = 8 -> Watchpoint.Integration.Abstractions.Model.FailureCategory
+Watchpoint.Integration.Abstractions.Model.FailureCategory.Timeout = 11 -> Watchpoint.Integration.Abstractions.Model.FailureCategory
+Watchpoint.Integration.Abstractions.Model.FailureCategory.TlsError = 4 -> Watchpoint.Integration.Abstractions.Model.FailureCategory
+Watchpoint.Integration.Abstractions.Model.FailureCategory.Unreachable = 0 -> Watchpoint.Integration.Abstractions.Model.FailureCategory
+Watchpoint.Integration.Abstractions.Model.FailureCategory.VendorLicenceMissing = 3 -> Watchpoint.Integration.Abstractions.Model.FailureCategory
+Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem
+Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem.<Clone>$() -> Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem!
+Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem.Deconstruct(out string! NativeId, out string! ServerNativeId, out string? ParentNativeId, out string! TypeId, out string! TypeVersion, out string! VendorName, out System.Collections.Generic.IReadOnlyDictionary<string!, Watchpoint.Kernel.Values.WpValue>! VendorAttributes, out System.Collections.Generic.IReadOnlyList<string!>! UnsupportedOptionalCapabilities, out System.Collections.Generic.IReadOnlyList<Watchpoint.Integration.Abstractions.Model.InventoryLinkItem!>! Links) -> void
+Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem.Equals(Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem? other) -> bool
+Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem.InventoryDeviceItem(string! NativeId, string! ServerNativeId, string? ParentNativeId, string! TypeId, string! TypeVersion, string! VendorName, System.Collections.Generic.IReadOnlyDictionary<string!, Watchpoint.Kernel.Values.WpValue>! VendorAttributes, System.Collections.Generic.IReadOnlyList<string!>! UnsupportedOptionalCapabilities, System.Collections.Generic.IReadOnlyList<Watchpoint.Integration.Abstractions.Model.InventoryLinkItem!>! Links) -> void
+Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem.Links.get -> System.Collections.Generic.IReadOnlyList<Watchpoint.Integration.Abstractions.Model.InventoryLinkItem!>!
+Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem.Links.init -> void
+Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem.NativeId.get -> string!
+Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem.NativeId.init -> void
+Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem.ParentNativeId.get -> string?
+Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem.ParentNativeId.init -> void
+Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem.ServerNativeId.get -> string!
+Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem.ServerNativeId.init -> void
+Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem.TypeId.get -> string!
+Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem.TypeId.init -> void
+Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem.TypeVersion.get -> string!
+Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem.TypeVersion.init -> void
+Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem.UnsupportedOptionalCapabilities.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem.UnsupportedOptionalCapabilities.init -> void
+Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem.VendorAttributes.get -> System.Collections.Generic.IReadOnlyDictionary<string!, Watchpoint.Kernel.Values.WpValue>!
+Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem.VendorAttributes.init -> void
+Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem.VendorName.get -> string!
+Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem.VendorName.init -> void
+Watchpoint.Integration.Abstractions.Model.InventoryLinkItem
+Watchpoint.Integration.Abstractions.Model.InventoryLinkItem.<Clone>$() -> Watchpoint.Integration.Abstractions.Model.InventoryLinkItem!
+Watchpoint.Integration.Abstractions.Model.InventoryLinkItem.Deconstruct(out string! Kind, out string! ToNativeId, out string? ToServerNativeId) -> void
+Watchpoint.Integration.Abstractions.Model.InventoryLinkItem.Equals(Watchpoint.Integration.Abstractions.Model.InventoryLinkItem? other) -> bool
+Watchpoint.Integration.Abstractions.Model.InventoryLinkItem.InventoryLinkItem(string! Kind, string! ToNativeId, string? ToServerNativeId) -> void
+Watchpoint.Integration.Abstractions.Model.InventoryLinkItem.Kind.get -> string!
+Watchpoint.Integration.Abstractions.Model.InventoryLinkItem.Kind.init -> void
+Watchpoint.Integration.Abstractions.Model.InventoryLinkItem.ToNativeId.get -> string!
+Watchpoint.Integration.Abstractions.Model.InventoryLinkItem.ToNativeId.init -> void
+Watchpoint.Integration.Abstractions.Model.InventoryLinkItem.ToServerNativeId.get -> string?
+Watchpoint.Integration.Abstractions.Model.InventoryLinkItem.ToServerNativeId.init -> void
+Watchpoint.Integration.Abstractions.Model.InventoryServerItem
+Watchpoint.Integration.Abstractions.Model.InventoryServerItem.<Clone>$() -> Watchpoint.Integration.Abstractions.Model.InventoryServerItem!
+Watchpoint.Integration.Abstractions.Model.InventoryServerItem.Deconstruct(out string! NativeId, out string? ParentNativeId, out string! TypeId, out string! TypeVersion, out string! VendorName, out System.Collections.Generic.IReadOnlyDictionary<string!, Watchpoint.Kernel.Values.WpValue>! VendorAttributes) -> void
+Watchpoint.Integration.Abstractions.Model.InventoryServerItem.Equals(Watchpoint.Integration.Abstractions.Model.InventoryServerItem? other) -> bool
+Watchpoint.Integration.Abstractions.Model.InventoryServerItem.InventoryServerItem(string! NativeId, string? ParentNativeId, string! TypeId, string! TypeVersion, string! VendorName, System.Collections.Generic.IReadOnlyDictionary<string!, Watchpoint.Kernel.Values.WpValue>! VendorAttributes) -> void
+Watchpoint.Integration.Abstractions.Model.InventoryServerItem.NativeId.get -> string!
+Watchpoint.Integration.Abstractions.Model.InventoryServerItem.NativeId.init -> void
+Watchpoint.Integration.Abstractions.Model.InventoryServerItem.ParentNativeId.get -> string?
+Watchpoint.Integration.Abstractions.Model.InventoryServerItem.ParentNativeId.init -> void
+Watchpoint.Integration.Abstractions.Model.InventoryServerItem.TypeId.get -> string!
+Watchpoint.Integration.Abstractions.Model.InventoryServerItem.TypeId.init -> void
+Watchpoint.Integration.Abstractions.Model.InventoryServerItem.TypeVersion.get -> string!
+Watchpoint.Integration.Abstractions.Model.InventoryServerItem.TypeVersion.init -> void
+Watchpoint.Integration.Abstractions.Model.InventoryServerItem.VendorAttributes.get -> System.Collections.Generic.IReadOnlyDictionary<string!, Watchpoint.Kernel.Values.WpValue>!
+Watchpoint.Integration.Abstractions.Model.InventoryServerItem.VendorAttributes.init -> void
+Watchpoint.Integration.Abstractions.Model.InventoryServerItem.VendorName.get -> string!
+Watchpoint.Integration.Abstractions.Model.InventoryServerItem.VendorName.init -> void
+Watchpoint.Integration.Abstractions.Model.InventorySnapshot
+Watchpoint.Integration.Abstractions.Model.InventorySnapshot.<Clone>$() -> Watchpoint.Integration.Abstractions.Model.InventorySnapshot!
+Watchpoint.Integration.Abstractions.Model.InventorySnapshot.Deconstruct(out System.Collections.Generic.IReadOnlyList<Watchpoint.Integration.Abstractions.Model.InventoryServerItem!>! Servers, out System.Collections.Generic.IReadOnlyList<Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem!>! Devices, out bool IsComplete) -> void
+Watchpoint.Integration.Abstractions.Model.InventorySnapshot.Devices.get -> System.Collections.Generic.IReadOnlyList<Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem!>!
+Watchpoint.Integration.Abstractions.Model.InventorySnapshot.Devices.init -> void
+Watchpoint.Integration.Abstractions.Model.InventorySnapshot.Equals(Watchpoint.Integration.Abstractions.Model.InventorySnapshot? other) -> bool
+Watchpoint.Integration.Abstractions.Model.InventorySnapshot.InventorySnapshot(System.Collections.Generic.IReadOnlyList<Watchpoint.Integration.Abstractions.Model.InventoryServerItem!>! Servers, System.Collections.Generic.IReadOnlyList<Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem!>! Devices, bool IsComplete) -> void
+Watchpoint.Integration.Abstractions.Model.InventorySnapshot.IsComplete.get -> bool
+Watchpoint.Integration.Abstractions.Model.InventorySnapshot.IsComplete.init -> void
+Watchpoint.Integration.Abstractions.Model.InventorySnapshot.Servers.get -> System.Collections.Generic.IReadOnlyList<Watchpoint.Integration.Abstractions.Model.InventoryServerItem!>!
+Watchpoint.Integration.Abstractions.Model.InventorySnapshot.Servers.init -> void
+Watchpoint.Integration.Abstractions.Model.InventorySnapshot.Validate() -> Watchpoint.Kernel.Results.Result
+Watchpoint.Integration.Abstractions.Model.RefreshScope
+Watchpoint.Integration.Abstractions.Model.RefreshScope.<Clone>$() -> Watchpoint.Integration.Abstractions.Model.RefreshScope!
+Watchpoint.Integration.Abstractions.Model.RefreshScope.Deconstruct(out System.Collections.Generic.IReadOnlyList<Watchpoint.Integration.Abstractions.Model.DeviceHandle!>? Devices, out bool IncludeServers) -> void
+Watchpoint.Integration.Abstractions.Model.RefreshScope.Devices.get -> System.Collections.Generic.IReadOnlyList<Watchpoint.Integration.Abstractions.Model.DeviceHandle!>?
+Watchpoint.Integration.Abstractions.Model.RefreshScope.Devices.init -> void
+Watchpoint.Integration.Abstractions.Model.RefreshScope.Equals(Watchpoint.Integration.Abstractions.Model.RefreshScope? other) -> bool
+Watchpoint.Integration.Abstractions.Model.RefreshScope.IncludeServers.get -> bool
+Watchpoint.Integration.Abstractions.Model.RefreshScope.IncludeServers.init -> void
+Watchpoint.Integration.Abstractions.Model.RefreshScope.RefreshScope(System.Collections.Generic.IReadOnlyList<Watchpoint.Integration.Abstractions.Model.DeviceHandle!>? Devices, bool IncludeServers) -> void
+Watchpoint.Integration.Abstractions.Model.ServerIdentity
+Watchpoint.Integration.Abstractions.Model.ServerIdentity.<Clone>$() -> Watchpoint.Integration.Abstractions.Model.ServerIdentity!
+Watchpoint.Integration.Abstractions.Model.ServerIdentity.Deconstruct(out string? Model, out string? Version, out string? Serial, out System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Extra) -> void
+Watchpoint.Integration.Abstractions.Model.ServerIdentity.Equals(Watchpoint.Integration.Abstractions.Model.ServerIdentity? other) -> bool
+Watchpoint.Integration.Abstractions.Model.ServerIdentity.Extra.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
+Watchpoint.Integration.Abstractions.Model.ServerIdentity.Extra.init -> void
+Watchpoint.Integration.Abstractions.Model.ServerIdentity.Model.get -> string?
+Watchpoint.Integration.Abstractions.Model.ServerIdentity.Model.init -> void
+Watchpoint.Integration.Abstractions.Model.ServerIdentity.Serial.get -> string?
+Watchpoint.Integration.Abstractions.Model.ServerIdentity.Serial.init -> void
+Watchpoint.Integration.Abstractions.Model.ServerIdentity.ServerIdentity(string? Model, string? Version, string? Serial, System.Collections.Generic.IReadOnlyDictionary<string!, string!>! Extra) -> void
+Watchpoint.Integration.Abstractions.Model.ServerIdentity.Version.get -> string?
+Watchpoint.Integration.Abstractions.Model.ServerIdentity.Version.init -> void
+abstract Watchpoint.Integration.Abstractions.Context.InboundAuth.<Clone>$() -> Watchpoint.Integration.Abstractions.Context.InboundAuth!
+const Watchpoint.Integration.Abstractions.ContractVersion.Current = "1.0" -> string!
+const Watchpoint.Integration.Abstractions.Model.InventorySnapshot.MaxNativeIdLength = 256 -> int
+override Watchpoint.Integration.Abstractions.Context.ConnectionInfo.Equals(object? obj) -> bool
+override Watchpoint.Integration.Abstractions.Context.ConnectionInfo.GetHashCode() -> int
+override Watchpoint.Integration.Abstractions.Context.ConnectionInfo.ToString() -> string!
+override Watchpoint.Integration.Abstractions.Context.ConnectorSecret.ToString() -> string!
+override Watchpoint.Integration.Abstractions.Context.HttpClientOptions.Equals(object? obj) -> bool
+override Watchpoint.Integration.Abstractions.Context.HttpClientOptions.GetHashCode() -> int
+override Watchpoint.Integration.Abstractions.Context.HttpClientOptions.ToString() -> string!
+override Watchpoint.Integration.Abstractions.Context.InboundAuth.ClientCertificate.<Clone>$() -> Watchpoint.Integration.Abstractions.Context.InboundAuth.ClientCertificate!
+override Watchpoint.Integration.Abstractions.Context.InboundAuth.ClientCertificate.Equals(object? obj) -> bool
+override Watchpoint.Integration.Abstractions.Context.InboundAuth.ClientCertificate.GetHashCode() -> int
+override Watchpoint.Integration.Abstractions.Context.InboundAuth.ClientCertificate.ToString() -> string!
+override Watchpoint.Integration.Abstractions.Context.InboundAuth.Equals(object? obj) -> bool
+override Watchpoint.Integration.Abstractions.Context.InboundAuth.GetHashCode() -> int
+override Watchpoint.Integration.Abstractions.Context.InboundAuth.HmacSignature.<Clone>$() -> Watchpoint.Integration.Abstractions.Context.InboundAuth.HmacSignature!
+override Watchpoint.Integration.Abstractions.Context.InboundAuth.HmacSignature.Equals(object? obj) -> bool
+override Watchpoint.Integration.Abstractions.Context.InboundAuth.HmacSignature.GetHashCode() -> int
+override Watchpoint.Integration.Abstractions.Context.InboundAuth.HmacSignature.ToString() -> string!
+override Watchpoint.Integration.Abstractions.Context.InboundAuth.SharedSecretHeader.<Clone>$() -> Watchpoint.Integration.Abstractions.Context.InboundAuth.SharedSecretHeader!
+override Watchpoint.Integration.Abstractions.Context.InboundAuth.SharedSecretHeader.Equals(object? obj) -> bool
+override Watchpoint.Integration.Abstractions.Context.InboundAuth.SharedSecretHeader.GetHashCode() -> int
+override Watchpoint.Integration.Abstractions.Context.InboundAuth.SharedSecretHeader.ToString() -> string!
+override Watchpoint.Integration.Abstractions.Context.InboundAuth.SourceAddress.<Clone>$() -> Watchpoint.Integration.Abstractions.Context.InboundAuth.SourceAddress!
+override Watchpoint.Integration.Abstractions.Context.InboundAuth.SourceAddress.Equals(object? obj) -> bool
+override Watchpoint.Integration.Abstractions.Context.InboundAuth.SourceAddress.GetHashCode() -> int
+override Watchpoint.Integration.Abstractions.Context.InboundAuth.SourceAddress.ToString() -> string!
+override Watchpoint.Integration.Abstractions.Context.InboundAuth.ToString() -> string!
+override Watchpoint.Integration.Abstractions.Context.InboundRequest.Equals(object? obj) -> bool
+override Watchpoint.Integration.Abstractions.Context.InboundRequest.GetHashCode() -> int
+override Watchpoint.Integration.Abstractions.Context.InboundRequest.ToString() -> string!
+override Watchpoint.Integration.Abstractions.Context.InboundResponse.Equals(object? obj) -> bool
+override Watchpoint.Integration.Abstractions.Context.InboundResponse.GetHashCode() -> int
+override Watchpoint.Integration.Abstractions.Context.InboundResponse.ToString() -> string!
+override Watchpoint.Integration.Abstractions.Context.PollingOptions.Equals(object? obj) -> bool
+override Watchpoint.Integration.Abstractions.Context.PollingOptions.GetHashCode() -> int
+override Watchpoint.Integration.Abstractions.Context.PollingOptions.ToString() -> string!
+override Watchpoint.Integration.Abstractions.Context.SinkFlushResult.Equals(object? obj) -> bool
+override Watchpoint.Integration.Abstractions.Context.SinkFlushResult.GetHashCode() -> int
+override Watchpoint.Integration.Abstractions.Context.SinkFlushResult.ToString() -> string!
+override Watchpoint.Integration.Abstractions.Context.UdpDatagram.Equals(object? obj) -> bool
+override Watchpoint.Integration.Abstractions.Context.UdpDatagram.GetHashCode() -> int
+override Watchpoint.Integration.Abstractions.Context.UdpDatagram.ToString() -> string!
+override Watchpoint.Integration.Abstractions.Features.DiagnosticItem.Equals(object? obj) -> bool
+override Watchpoint.Integration.Abstractions.Features.DiagnosticItem.GetHashCode() -> int
+override Watchpoint.Integration.Abstractions.Features.DiagnosticItem.ToString() -> string!
+override Watchpoint.Integration.Abstractions.Features.DiscoveryProgress.Equals(object? obj) -> bool
+override Watchpoint.Integration.Abstractions.Features.DiscoveryProgress.GetHashCode() -> int
+override Watchpoint.Integration.Abstractions.Features.DiscoveryProgress.ToString() -> string!
+override Watchpoint.Integration.Abstractions.Features.LocateRequest.Equals(object? obj) -> bool
+override Watchpoint.Integration.Abstractions.Features.LocateRequest.GetHashCode() -> int
+override Watchpoint.Integration.Abstractions.Features.LocateRequest.ToString() -> string!
+override Watchpoint.Integration.Abstractions.Features.LocatedServer.Equals(object? obj) -> bool
+override Watchpoint.Integration.Abstractions.Features.LocatedServer.GetHashCode() -> int
+override Watchpoint.Integration.Abstractions.Features.LocatedServer.ToString() -> string!
+override Watchpoint.Integration.Abstractions.Features.LookupRequest.Equals(object? obj) -> bool
+override Watchpoint.Integration.Abstractions.Features.LookupRequest.GetHashCode() -> int
+override Watchpoint.Integration.Abstractions.Features.LookupRequest.ToString() -> string!
+override Watchpoint.Integration.Abstractions.Features.LookupResult.Equals(object? obj) -> bool
+override Watchpoint.Integration.Abstractions.Features.LookupResult.GetHashCode() -> int
+override Watchpoint.Integration.Abstractions.Features.LookupResult.ToString() -> string!
+override Watchpoint.Integration.Abstractions.Features.TimeSyncStatus.Equals(object? obj) -> bool
+override Watchpoint.Integration.Abstractions.Features.TimeSyncStatus.GetHashCode() -> int
+override Watchpoint.Integration.Abstractions.Features.TimeSyncStatus.ToString() -> string!
+override Watchpoint.Integration.Abstractions.Model.ConnectionTestResult.Equals(object? obj) -> bool
+override Watchpoint.Integration.Abstractions.Model.ConnectionTestResult.GetHashCode() -> int
+override Watchpoint.Integration.Abstractions.Model.ConnectionTestResult.ToString() -> string!
+override Watchpoint.Integration.Abstractions.Model.ConnectorCommand.Equals(object? obj) -> bool
+override Watchpoint.Integration.Abstractions.Model.ConnectorCommand.GetHashCode() -> int
+override Watchpoint.Integration.Abstractions.Model.ConnectorCommand.ToString() -> string!
+override Watchpoint.Integration.Abstractions.Model.ConnectorCommandResult.Equals(object? obj) -> bool
+override Watchpoint.Integration.Abstractions.Model.ConnectorCommandResult.GetHashCode() -> int
+override Watchpoint.Integration.Abstractions.Model.ConnectorCommandResult.ToString() -> string!
+override Watchpoint.Integration.Abstractions.Model.ConnectorMessage.Equals(object? obj) -> bool
+override Watchpoint.Integration.Abstractions.Model.ConnectorMessage.GetHashCode() -> int
+override Watchpoint.Integration.Abstractions.Model.ConnectorMessage.ToString() -> string!
+override Watchpoint.Integration.Abstractions.Model.DeviceHandle.Equals(object? obj) -> bool
+override Watchpoint.Integration.Abstractions.Model.DeviceHandle.GetHashCode() -> int
+override Watchpoint.Integration.Abstractions.Model.DeviceHandle.ToString() -> string!
+override Watchpoint.Integration.Abstractions.Model.DeviceKey.GetHashCode() -> int
+override Watchpoint.Integration.Abstractions.Model.DeviceKey.ToString() -> string!
+override Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem.Equals(object? obj) -> bool
+override Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem.GetHashCode() -> int
+override Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem.ToString() -> string!
+override Watchpoint.Integration.Abstractions.Model.InventoryLinkItem.Equals(object? obj) -> bool
+override Watchpoint.Integration.Abstractions.Model.InventoryLinkItem.GetHashCode() -> int
+override Watchpoint.Integration.Abstractions.Model.InventoryLinkItem.ToString() -> string!
+override Watchpoint.Integration.Abstractions.Model.InventoryServerItem.Equals(object? obj) -> bool
+override Watchpoint.Integration.Abstractions.Model.InventoryServerItem.GetHashCode() -> int
+override Watchpoint.Integration.Abstractions.Model.InventoryServerItem.ToString() -> string!
+override Watchpoint.Integration.Abstractions.Model.InventorySnapshot.Equals(object? obj) -> bool
+override Watchpoint.Integration.Abstractions.Model.InventorySnapshot.GetHashCode() -> int
+override Watchpoint.Integration.Abstractions.Model.InventorySnapshot.ToString() -> string!
+override Watchpoint.Integration.Abstractions.Model.RefreshScope.Equals(object? obj) -> bool
+override Watchpoint.Integration.Abstractions.Model.RefreshScope.GetHashCode() -> int
+override Watchpoint.Integration.Abstractions.Model.RefreshScope.ToString() -> string!
+override Watchpoint.Integration.Abstractions.Model.ServerIdentity.Equals(object? obj) -> bool
+override Watchpoint.Integration.Abstractions.Model.ServerIdentity.GetHashCode() -> int
+override Watchpoint.Integration.Abstractions.Model.ServerIdentity.ToString() -> string!
+override sealed Watchpoint.Integration.Abstractions.Context.InboundAuth.ClientCertificate.Equals(Watchpoint.Integration.Abstractions.Context.InboundAuth? other) -> bool
+override sealed Watchpoint.Integration.Abstractions.Context.InboundAuth.HmacSignature.Equals(Watchpoint.Integration.Abstractions.Context.InboundAuth? other) -> bool
+override sealed Watchpoint.Integration.Abstractions.Context.InboundAuth.SharedSecretHeader.Equals(Watchpoint.Integration.Abstractions.Context.InboundAuth? other) -> bool
+override sealed Watchpoint.Integration.Abstractions.Context.InboundAuth.SourceAddress.Equals(Watchpoint.Integration.Abstractions.Context.InboundAuth? other) -> bool
+static Watchpoint.Integration.Abstractions.Context.ConnectionInfo.operator !=(Watchpoint.Integration.Abstractions.Context.ConnectionInfo? left, Watchpoint.Integration.Abstractions.Context.ConnectionInfo? right) -> bool
+static Watchpoint.Integration.Abstractions.Context.ConnectionInfo.operator ==(Watchpoint.Integration.Abstractions.Context.ConnectionInfo? left, Watchpoint.Integration.Abstractions.Context.ConnectionInfo? right) -> bool
+static Watchpoint.Integration.Abstractions.Context.HttpClientOptions.operator !=(Watchpoint.Integration.Abstractions.Context.HttpClientOptions? left, Watchpoint.Integration.Abstractions.Context.HttpClientOptions? right) -> bool
+static Watchpoint.Integration.Abstractions.Context.HttpClientOptions.operator ==(Watchpoint.Integration.Abstractions.Context.HttpClientOptions? left, Watchpoint.Integration.Abstractions.Context.HttpClientOptions? right) -> bool
+static Watchpoint.Integration.Abstractions.Context.InboundAuth.ClientCertificate.operator !=(Watchpoint.Integration.Abstractions.Context.InboundAuth.ClientCertificate? left, Watchpoint.Integration.Abstractions.Context.InboundAuth.ClientCertificate? right) -> bool
+static Watchpoint.Integration.Abstractions.Context.InboundAuth.ClientCertificate.operator ==(Watchpoint.Integration.Abstractions.Context.InboundAuth.ClientCertificate? left, Watchpoint.Integration.Abstractions.Context.InboundAuth.ClientCertificate? right) -> bool
+static Watchpoint.Integration.Abstractions.Context.InboundAuth.HmacSignature.operator !=(Watchpoint.Integration.Abstractions.Context.InboundAuth.HmacSignature? left, Watchpoint.Integration.Abstractions.Context.InboundAuth.HmacSignature? right) -> bool
+static Watchpoint.Integration.Abstractions.Context.InboundAuth.HmacSignature.operator ==(Watchpoint.Integration.Abstractions.Context.InboundAuth.HmacSignature? left, Watchpoint.Integration.Abstractions.Context.InboundAuth.HmacSignature? right) -> bool
+static Watchpoint.Integration.Abstractions.Context.InboundAuth.SharedSecretHeader.operator !=(Watchpoint.Integration.Abstractions.Context.InboundAuth.SharedSecretHeader? left, Watchpoint.Integration.Abstractions.Context.InboundAuth.SharedSecretHeader? right) -> bool
+static Watchpoint.Integration.Abstractions.Context.InboundAuth.SharedSecretHeader.operator ==(Watchpoint.Integration.Abstractions.Context.InboundAuth.SharedSecretHeader? left, Watchpoint.Integration.Abstractions.Context.InboundAuth.SharedSecretHeader? right) -> bool
+static Watchpoint.Integration.Abstractions.Context.InboundAuth.SourceAddress.operator !=(Watchpoint.Integration.Abstractions.Context.InboundAuth.SourceAddress? left, Watchpoint.Integration.Abstractions.Context.InboundAuth.SourceAddress? right) -> bool
+static Watchpoint.Integration.Abstractions.Context.InboundAuth.SourceAddress.operator ==(Watchpoint.Integration.Abstractions.Context.InboundAuth.SourceAddress? left, Watchpoint.Integration.Abstractions.Context.InboundAuth.SourceAddress? right) -> bool
+static Watchpoint.Integration.Abstractions.Context.InboundAuth.operator !=(Watchpoint.Integration.Abstractions.Context.InboundAuth? left, Watchpoint.Integration.Abstractions.Context.InboundAuth? right) -> bool
+static Watchpoint.Integration.Abstractions.Context.InboundAuth.operator ==(Watchpoint.Integration.Abstractions.Context.InboundAuth? left, Watchpoint.Integration.Abstractions.Context.InboundAuth? right) -> bool
+static Watchpoint.Integration.Abstractions.Context.InboundRequest.operator !=(Watchpoint.Integration.Abstractions.Context.InboundRequest? left, Watchpoint.Integration.Abstractions.Context.InboundRequest? right) -> bool
+static Watchpoint.Integration.Abstractions.Context.InboundRequest.operator ==(Watchpoint.Integration.Abstractions.Context.InboundRequest? left, Watchpoint.Integration.Abstractions.Context.InboundRequest? right) -> bool
+static Watchpoint.Integration.Abstractions.Context.InboundResponse.NoContent.get -> Watchpoint.Integration.Abstractions.Context.InboundResponse!
+static Watchpoint.Integration.Abstractions.Context.InboundResponse.Ok.get -> Watchpoint.Integration.Abstractions.Context.InboundResponse!
+static Watchpoint.Integration.Abstractions.Context.InboundResponse.operator !=(Watchpoint.Integration.Abstractions.Context.InboundResponse? left, Watchpoint.Integration.Abstractions.Context.InboundResponse? right) -> bool
+static Watchpoint.Integration.Abstractions.Context.InboundResponse.operator ==(Watchpoint.Integration.Abstractions.Context.InboundResponse? left, Watchpoint.Integration.Abstractions.Context.InboundResponse? right) -> bool
+static Watchpoint.Integration.Abstractions.Context.PollingOptions.operator !=(Watchpoint.Integration.Abstractions.Context.PollingOptions? left, Watchpoint.Integration.Abstractions.Context.PollingOptions? right) -> bool
+static Watchpoint.Integration.Abstractions.Context.PollingOptions.operator ==(Watchpoint.Integration.Abstractions.Context.PollingOptions? left, Watchpoint.Integration.Abstractions.Context.PollingOptions? right) -> bool
+static Watchpoint.Integration.Abstractions.Context.SinkFlushResult.operator !=(Watchpoint.Integration.Abstractions.Context.SinkFlushResult? left, Watchpoint.Integration.Abstractions.Context.SinkFlushResult? right) -> bool
+static Watchpoint.Integration.Abstractions.Context.SinkFlushResult.operator ==(Watchpoint.Integration.Abstractions.Context.SinkFlushResult? left, Watchpoint.Integration.Abstractions.Context.SinkFlushResult? right) -> bool
+static Watchpoint.Integration.Abstractions.Context.UdpDatagram.operator !=(Watchpoint.Integration.Abstractions.Context.UdpDatagram? left, Watchpoint.Integration.Abstractions.Context.UdpDatagram? right) -> bool
+static Watchpoint.Integration.Abstractions.Context.UdpDatagram.operator ==(Watchpoint.Integration.Abstractions.Context.UdpDatagram? left, Watchpoint.Integration.Abstractions.Context.UdpDatagram? right) -> bool
+static Watchpoint.Integration.Abstractions.ContractVersion.IsSupported(string? requirement) -> bool
+static Watchpoint.Integration.Abstractions.ContractVersion.Satisfies(string? requirement, string? version) -> bool
+static Watchpoint.Integration.Abstractions.ContractVersion.TryParse(string? text, out int major, out int minor) -> bool
+static Watchpoint.Integration.Abstractions.Features.DiagnosticItem.operator !=(Watchpoint.Integration.Abstractions.Features.DiagnosticItem? left, Watchpoint.Integration.Abstractions.Features.DiagnosticItem? right) -> bool
+static Watchpoint.Integration.Abstractions.Features.DiagnosticItem.operator ==(Watchpoint.Integration.Abstractions.Features.DiagnosticItem? left, Watchpoint.Integration.Abstractions.Features.DiagnosticItem? right) -> bool
+static Watchpoint.Integration.Abstractions.Features.DiscoveryProgress.operator !=(Watchpoint.Integration.Abstractions.Features.DiscoveryProgress? left, Watchpoint.Integration.Abstractions.Features.DiscoveryProgress? right) -> bool
+static Watchpoint.Integration.Abstractions.Features.DiscoveryProgress.operator ==(Watchpoint.Integration.Abstractions.Features.DiscoveryProgress? left, Watchpoint.Integration.Abstractions.Features.DiscoveryProgress? right) -> bool
+static Watchpoint.Integration.Abstractions.Features.LocateRequest.operator !=(Watchpoint.Integration.Abstractions.Features.LocateRequest? left, Watchpoint.Integration.Abstractions.Features.LocateRequest? right) -> bool
+static Watchpoint.Integration.Abstractions.Features.LocateRequest.operator ==(Watchpoint.Integration.Abstractions.Features.LocateRequest? left, Watchpoint.Integration.Abstractions.Features.LocateRequest? right) -> bool
+static Watchpoint.Integration.Abstractions.Features.LocatedServer.operator !=(Watchpoint.Integration.Abstractions.Features.LocatedServer? left, Watchpoint.Integration.Abstractions.Features.LocatedServer? right) -> bool
+static Watchpoint.Integration.Abstractions.Features.LocatedServer.operator ==(Watchpoint.Integration.Abstractions.Features.LocatedServer? left, Watchpoint.Integration.Abstractions.Features.LocatedServer? right) -> bool
+static Watchpoint.Integration.Abstractions.Features.LookupRequest.operator !=(Watchpoint.Integration.Abstractions.Features.LookupRequest? left, Watchpoint.Integration.Abstractions.Features.LookupRequest? right) -> bool
+static Watchpoint.Integration.Abstractions.Features.LookupRequest.operator ==(Watchpoint.Integration.Abstractions.Features.LookupRequest? left, Watchpoint.Integration.Abstractions.Features.LookupRequest? right) -> bool
+static Watchpoint.Integration.Abstractions.Features.LookupResult.NotFound.get -> Watchpoint.Integration.Abstractions.Features.LookupResult!
+static Watchpoint.Integration.Abstractions.Features.LookupResult.operator !=(Watchpoint.Integration.Abstractions.Features.LookupResult? left, Watchpoint.Integration.Abstractions.Features.LookupResult? right) -> bool
+static Watchpoint.Integration.Abstractions.Features.LookupResult.operator ==(Watchpoint.Integration.Abstractions.Features.LookupResult? left, Watchpoint.Integration.Abstractions.Features.LookupResult? right) -> bool
+static Watchpoint.Integration.Abstractions.Features.TimeSyncStatus.operator !=(Watchpoint.Integration.Abstractions.Features.TimeSyncStatus? left, Watchpoint.Integration.Abstractions.Features.TimeSyncStatus? right) -> bool
+static Watchpoint.Integration.Abstractions.Features.TimeSyncStatus.operator ==(Watchpoint.Integration.Abstractions.Features.TimeSyncStatus? left, Watchpoint.Integration.Abstractions.Features.TimeSyncStatus? right) -> bool
+static Watchpoint.Integration.Abstractions.IntegrationJson.Resolver.get -> System.Text.Json.Serialization.Metadata.IJsonTypeInfoResolver!
+static Watchpoint.Integration.Abstractions.Model.ConnectionTestResult.Failed(Watchpoint.Integration.Abstractions.Model.FailureCategory failure, Watchpoint.Integration.Abstractions.Model.ConnectorMessage! message) -> Watchpoint.Integration.Abstractions.Model.ConnectionTestResult!
+static Watchpoint.Integration.Abstractions.Model.ConnectionTestResult.Succeeded(Watchpoint.Integration.Abstractions.Model.ServerIdentity? identity = null) -> Watchpoint.Integration.Abstractions.Model.ConnectionTestResult!
+static Watchpoint.Integration.Abstractions.Model.ConnectionTestResult.operator !=(Watchpoint.Integration.Abstractions.Model.ConnectionTestResult? left, Watchpoint.Integration.Abstractions.Model.ConnectionTestResult? right) -> bool
+static Watchpoint.Integration.Abstractions.Model.ConnectionTestResult.operator ==(Watchpoint.Integration.Abstractions.Model.ConnectionTestResult? left, Watchpoint.Integration.Abstractions.Model.ConnectionTestResult? right) -> bool
+static Watchpoint.Integration.Abstractions.Model.ConnectorCommand.operator !=(Watchpoint.Integration.Abstractions.Model.ConnectorCommand? left, Watchpoint.Integration.Abstractions.Model.ConnectorCommand? right) -> bool
+static Watchpoint.Integration.Abstractions.Model.ConnectorCommand.operator ==(Watchpoint.Integration.Abstractions.Model.ConnectorCommand? left, Watchpoint.Integration.Abstractions.Model.ConnectorCommand? right) -> bool
+static Watchpoint.Integration.Abstractions.Model.ConnectorCommandResult.Failed(Watchpoint.Integration.Abstractions.Model.FailureCategory failure, Watchpoint.Integration.Abstractions.Model.ConnectorMessage! message, string? vendorCode = null) -> Watchpoint.Integration.Abstractions.Model.ConnectorCommandResult!
+static Watchpoint.Integration.Abstractions.Model.ConnectorCommandResult.NotSupported() -> Watchpoint.Integration.Abstractions.Model.ConnectorCommandResult!
+static Watchpoint.Integration.Abstractions.Model.ConnectorCommandResult.Succeeded() -> Watchpoint.Integration.Abstractions.Model.ConnectorCommandResult!
+static Watchpoint.Integration.Abstractions.Model.ConnectorCommandResult.operator !=(Watchpoint.Integration.Abstractions.Model.ConnectorCommandResult? left, Watchpoint.Integration.Abstractions.Model.ConnectorCommandResult? right) -> bool
+static Watchpoint.Integration.Abstractions.Model.ConnectorCommandResult.operator ==(Watchpoint.Integration.Abstractions.Model.ConnectorCommandResult? left, Watchpoint.Integration.Abstractions.Model.ConnectorCommandResult? right) -> bool
+static Watchpoint.Integration.Abstractions.Model.ConnectorMessage.Of(string! key, params (string! Name, object? Value)[]! args) -> Watchpoint.Integration.Abstractions.Model.ConnectorMessage!
+static Watchpoint.Integration.Abstractions.Model.ConnectorMessage.operator !=(Watchpoint.Integration.Abstractions.Model.ConnectorMessage? left, Watchpoint.Integration.Abstractions.Model.ConnectorMessage? right) -> bool
+static Watchpoint.Integration.Abstractions.Model.ConnectorMessage.operator ==(Watchpoint.Integration.Abstractions.Model.ConnectorMessage? left, Watchpoint.Integration.Abstractions.Model.ConnectorMessage? right) -> bool
+static Watchpoint.Integration.Abstractions.Model.DeviceHandle.operator !=(Watchpoint.Integration.Abstractions.Model.DeviceHandle? left, Watchpoint.Integration.Abstractions.Model.DeviceHandle? right) -> bool
+static Watchpoint.Integration.Abstractions.Model.DeviceHandle.operator ==(Watchpoint.Integration.Abstractions.Model.DeviceHandle? left, Watchpoint.Integration.Abstractions.Model.DeviceHandle? right) -> bool
+static Watchpoint.Integration.Abstractions.Model.DeviceKey.operator !=(Watchpoint.Integration.Abstractions.Model.DeviceKey left, Watchpoint.Integration.Abstractions.Model.DeviceKey right) -> bool
+static Watchpoint.Integration.Abstractions.Model.DeviceKey.operator ==(Watchpoint.Integration.Abstractions.Model.DeviceKey left, Watchpoint.Integration.Abstractions.Model.DeviceKey right) -> bool
+static Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem.operator !=(Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem? left, Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem? right) -> bool
+static Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem.operator ==(Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem? left, Watchpoint.Integration.Abstractions.Model.InventoryDeviceItem? right) -> bool
+static Watchpoint.Integration.Abstractions.Model.InventoryLinkItem.operator !=(Watchpoint.Integration.Abstractions.Model.InventoryLinkItem? left, Watchpoint.Integration.Abstractions.Model.InventoryLinkItem? right) -> bool
+static Watchpoint.Integration.Abstractions.Model.InventoryLinkItem.operator ==(Watchpoint.Integration.Abstractions.Model.InventoryLinkItem? left, Watchpoint.Integration.Abstractions.Model.InventoryLinkItem? right) -> bool
+static Watchpoint.Integration.Abstractions.Model.InventoryServerItem.operator !=(Watchpoint.Integration.Abstractions.Model.InventoryServerItem? left, Watchpoint.Integration.Abstractions.Model.InventoryServerItem? right) -> bool
+static Watchpoint.Integration.Abstractions.Model.InventoryServerItem.operator ==(Watchpoint.Integration.Abstractions.Model.InventoryServerItem? left, Watchpoint.Integration.Abstractions.Model.InventoryServerItem? right) -> bool
+static Watchpoint.Integration.Abstractions.Model.InventorySnapshot.operator !=(Watchpoint.Integration.Abstractions.Model.InventorySnapshot? left, Watchpoint.Integration.Abstractions.Model.InventorySnapshot? right) -> bool
+static Watchpoint.Integration.Abstractions.Model.InventorySnapshot.operator ==(Watchpoint.Integration.Abstractions.Model.InventorySnapshot? left, Watchpoint.Integration.Abstractions.Model.InventorySnapshot? right) -> bool
+static Watchpoint.Integration.Abstractions.Model.RefreshScope.All.get -> Watchpoint.Integration.Abstractions.Model.RefreshScope!
+static Watchpoint.Integration.Abstractions.Model.RefreshScope.operator !=(Watchpoint.Integration.Abstractions.Model.RefreshScope? left, Watchpoint.Integration.Abstractions.Model.RefreshScope? right) -> bool
+static Watchpoint.Integration.Abstractions.Model.RefreshScope.operator ==(Watchpoint.Integration.Abstractions.Model.RefreshScope? left, Watchpoint.Integration.Abstractions.Model.RefreshScope? right) -> bool
+static Watchpoint.Integration.Abstractions.Model.ServerIdentity.operator !=(Watchpoint.Integration.Abstractions.Model.ServerIdentity? left, Watchpoint.Integration.Abstractions.Model.ServerIdentity? right) -> bool
+static Watchpoint.Integration.Abstractions.Model.ServerIdentity.operator ==(Watchpoint.Integration.Abstractions.Model.ServerIdentity? left, Watchpoint.Integration.Abstractions.Model.ServerIdentity? right) -> bool
+virtual Watchpoint.Integration.Abstractions.Context.InboundAuth.EqualityContract.get -> System.Type!
+virtual Watchpoint.Integration.Abstractions.Context.InboundAuth.Equals(Watchpoint.Integration.Abstractions.Context.InboundAuth? other) -> bool
+virtual Watchpoint.Integration.Abstractions.Context.InboundAuth.PrintMembers(System.Text.StringBuilder! builder) -> bool
+~override Watchpoint.Integration.Abstractions.Model.DeviceKey.Equals(object obj) -> bool
