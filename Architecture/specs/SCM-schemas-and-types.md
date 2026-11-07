@@ -21,7 +21,7 @@ Not in scope: loading types at runtime (MOD), loading packages (IRT), alarm rule
 
 | Uses | Used by |
 |---|---|
-| K, JsonSchema.Net (MIT) | MOD, IRT, connectors (types they ship), UI (generated TypeScript types for documents), `wppack` |
+| K, JsonSchema.Net 8.x (MIT; pinned — 9.0+ uses the OSMF EULA, do not upgrade) | MOD, IRT, connectors (types they ship), UI (generated TypeScript types for documents), `wppack` |
 
 ## 3. Common rules for all documents
 
