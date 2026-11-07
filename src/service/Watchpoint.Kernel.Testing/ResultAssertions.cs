@@ -80,8 +80,10 @@ public static class ResultAssertions
             ? result.Error
             : throw new ResultAssertionException($"Expected failure {code} but got {Describe(result)}");
 
+#pragma warning disable WP0001 // detects an uninitialised result to describe it in assertion messages
     private static string Describe(Result result) =>
         result.IsSuccess ? "success." : result == default ? "an uninitialised result." : Describe(result.Error);
+#pragma warning restore WP0001
 
     private static string Describe(Error error)
     {

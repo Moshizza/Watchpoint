@@ -30,16 +30,24 @@ Not in scope: feature screens (UIO, UIF), Electron main process (DSK), mobile sc
 ## 3. Workspace (T0.08)
 
 ```
+/package.json, /pnpm-workspace.yaml   workspace root (repository root, T0.01): src/ui, src/ui/packages/*, src/ui/apps/*, src/mobile/*
 src/ui/
-├── package.json            private root: scripts lint, typecheck, test, build, gen:api, gen:types
-├── pnpm-workspace.yaml     packages/*, apps/*
+├── package.json            @watchpoint/ui-workspace (private): shared dev tooling; scripts lint (ESLint + Prettier check),
+│                           format, typecheck, test, build; gen:api (T1.21) and gen:types (T0.07/T1.21) are added with their generators
 ├── tsconfig.base.json      strict, noUncheckedIndexedAccess, exactOptionalPropertyTypes, moduleResolution bundler
-├── eslint.config.js        typescript-eslint strict, react-hooks, jsx-a11y, custom rules (§3.1)
+├── tsconfig.json           type-checks every package's src/, the tooling files and tests/
+├── eslint.config.ts        typescript-eslint strict, react-hooks, jsx-a11y strict, custom rules (§3.1); ESLint 9 (jsx-a11y does not support 10 yet)
 ├── prettier.config.js
-├── vitest.workspace.ts
-├── tailwind/preset.ts      design tokens (§9.1), logical-property enforcement
-└── packages/<name>/        package.json (exports map, "type": "module"), src/, tests next to sources (*.test.ts(x))
+├── vitest.config.ts        `test.projects`: one project per package (packages/*) + the workspace tests (tests/)
+├── tailwind/preset.ts      semantic colour names mapped to the design-token CSS variables (§9.1), used with `@config`;
+│                           logical properties are enforced by `wp/no-physical-direction-classes` (Tailwind 4 cannot disable core utilities)
+├── tests/                  workspace tests (UIC-U-001…003)
+└── packages/<name>/        package.json (exports map, "type": "module"), tsconfig.json extending the base, src/, tests next to sources (*.test.ts(x))
+    └── eslint-plugin-watchpoint/   the custom rules (§3.1), with lint fixtures in fixtures/
 ```
+
+Packages are consumed from source (`"exports": { ".": "./src/index.ts" }`); apps bundle them. Packages
+have no lint/test scripts of their own: the workspace runs ESLint, Prettier and Vitest once for all.
 
 ### 3.1 Custom lint rules (`eslint-plugin-watchpoint`, local package)
 

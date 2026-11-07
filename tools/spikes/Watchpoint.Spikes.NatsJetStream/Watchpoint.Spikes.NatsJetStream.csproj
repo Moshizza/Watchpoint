@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    T0.09 spike: NATS JetStream as event log (PIP §5) and KV lease store (CLU §5).
+    Measurement harness kept for re-runs; results in Architecture/decisions/ADR-001-nats-jetstream.md.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Watchpoint.Spikes.NatsJetStream</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NATS.Net" />
+  </ItemGroup>
+
+</Project>

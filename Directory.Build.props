@@ -46,9 +46,28 @@
     <WarningsAsErrors>$(WarningsAsErrors);CS1591</WarningsAsErrors>
   </PropertyGroup>
 
+  <!--
+    Watchpoint analyzers (Architecture/specs/TST-test-infrastructure.md §7) on every project under src/ and tests/.
+    WatchpointTestCode=true marks test code (projects under tests/): WP0005 applies there, WP0003 does not.
+    A project may set WatchpointUseAnalyzers=false (the analyzer projects and their tests do).
+  -->
+  <PropertyGroup>
+    <_WpRelativeDir>$([MSBuild]::MakeRelative($(MSBuildThisFileDirectory), $(MSBuildProjectDirectory)).Replace('\', '/'))</_WpRelativeDir>
+    <WatchpointTestCode Condition="'$(WatchpointTestCode)' == '' And $(_WpRelativeDir.StartsWith('tests/'))">true</WatchpointTestCode>
+    <WatchpointUseAnalyzers Condition="'$(WatchpointUseAnalyzers)' == '' And ($(_WpRelativeDir.StartsWith('src/')) Or $(_WpRelativeDir.StartsWith('tests/'))) And !$(MSBuildProjectName.StartsWith('Watchpoint.Analyzers'))">true</WatchpointUseAnalyzers>
+  </PropertyGroup>
+
   <!-- Test projects are never packed or published. -->
   <PropertyGroup Condition="$(MSBuildProjectName.EndsWith('.Tests')) Or $(MSBuildProjectName.EndsWith('Tests'))">
     <IsPackable>false</IsPackable>
     <IsPublishable>false</IsPublishable>
   </PropertyGroup>
+
+  <ItemGroup Condition="'$(WatchpointUseAnalyzers)' == 'true'">
+    <ProjectReference Include="$(MSBuildThisFileDirectory)src/service/Watchpoint.Analyzers/Watchpoint.Analyzers.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)src/service/Watchpoint.Analyzers.CodeFixes/Watchpoint.Analyzers.CodeFixes.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <CompilerVisibleProperty Include="WatchpointTestCode" />
+  </ItemGroup>
 </Project>

@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Watchpoint.Spikes.ConnectorIsolation.Runner</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Grpc.AspNetCore" />
+    <PackageReference Include="Google.Protobuf" />
+    <PackageReference Include="Grpc.Tools" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Protobuf Include="../Protos/host_link.proto" GrpcServices="Server" Link="Protos/host_link.proto" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Contract/Watchpoint.Spikes.ConnectorIsolation.Contract.csproj" />
+    <!-- Built first, never referenced: the connector is a "package" and the host a separate process. -->
+    <ProjectReference Include="../Connector/Watchpoint.Spikes.ConnectorIsolation.Connector.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../Host/Watchpoint.Spikes.ConnectorIsolation.Host.csproj" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>
