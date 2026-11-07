@@ -17,6 +17,7 @@ namespace Watchpoint.IntegrationTests.Storage;
 /// <summary>The storage certification suite run against PostgreSQL + TimescaleDB (STO-I-007…STO-I-015).</summary>
 [Trait("layer", "I")]
 [Trait("spec", "STO")]
+[Collection(SerialTiming.Name)]
 public sealed class PostgresCertificationTests(PostgresContainerFixture postgres) : StorageCertificationTests
 {
     [Fact]

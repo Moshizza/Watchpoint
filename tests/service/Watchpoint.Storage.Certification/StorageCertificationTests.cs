@@ -115,7 +115,8 @@ public abstract class StorageCertificationTests : IAsyncDisposable
         var keys = Enumerable.Range(0, IStateStore.MaxBatchItems).Select(_ => Guid.CreateVersion7()).ToList();
         await store.WriteSnapshotAsync(new StateSnapshotBatch("state", 3, 0, [.. keys.Select(k => Item(3, 0) with { Key = k })], []), Ct); // warm-up
 
-        for (var run = 1; run <= 5; run++)
+        // p95 of 20 runs: one slow run (other tests share the database server in CI) does not fail the test.
+        for (var run = 1; run <= 20; run++)
         {
             var batch = new StateSnapshotBatch("state", 3, run, [.. keys.Select(k => Item(3, run) with { Key = k, Sequence = run })], []);
             var start = Stopwatch.GetTimestamp();
@@ -123,7 +124,8 @@ public abstract class StorageCertificationTests : IAsyncDisposable
             durations.Add(Stopwatch.GetElapsedTime(start));
         }
 
-        durations.Max().ShouldBeLessThan(TimeSpan.FromMilliseconds(500), $"runs: {string.Join(", ", durations.Select(d => d.TotalMilliseconds))} ms");
+        var p95 = durations.Order().ElementAt(18);
+        p95.ShouldBeLessThan(TimeSpan.FromMilliseconds(500), $"runs: {string.Join(", ", durations.Select(d => (int)d.TotalMilliseconds))} ms");
         (await ReadAsync(store, "device", 3)).Count.ShouldBe(IStateStore.MaxBatchItems);
     }
 

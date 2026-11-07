@@ -320,6 +320,19 @@
           "Watchpoint.Kernel": "[1.0.0, )"
         }
       },
+      "watchpoint.secrets": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore.Relational": "[10.0.14, )",
+          "Microsoft.Extensions.Configuration.Binder": "[10.0.14, )",
+          "Microsoft.Extensions.Diagnostics": "[10.0.14, )",
+          "Microsoft.Extensions.Hosting.Abstractions": "[10.0.14, )",
+          "Microsoft.Extensions.Logging.Abstractions": "[10.0.14, )",
+          "System.Security.Cryptography.ProtectedData": "[10.0.14, )",
+          "Watchpoint.Kernel": "[1.0.0, )",
+          "Watchpoint.Storage": "[1.0.0, )"
+        }
+      },
       "watchpoint.storage": {
         "type": "Project",
         "dependencies": {
@@ -514,6 +527,12 @@
           "Microsoft.EntityFrameworkCore.Relational": "[10.0.4, 11.0.0)",
           "Npgsql": "10.0.3"
         }
+      },
+      "System.Security.Cryptography.ProtectedData": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.14, )",
+        "resolved": "10.0.14",
+        "contentHash": "UuaBUHgmtc9h6CMxaQqFDDJxkS5JVy7XEB+DbtCvD68GFcVM9/AccuNwFpARx8nwCnvjaxzoOBjG3gPz32P1Eg=="
       },
       "xunit.v3.assert": {
         "type": "CentralTransitive",
