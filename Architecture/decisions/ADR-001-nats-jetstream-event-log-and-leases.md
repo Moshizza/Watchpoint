@@ -44,14 +44,14 @@ KV CAS correctness under contention, and behaviour when nodes die.
 
 | Measurement | R1 (single node) | R3 (3 nodes, one host) |
 |---|---|---|
-| One record, awaited (durable ack) | p50 0.22 ms, p99 0.55 ms | p50 0.44 ms, p99 0.88 ms |
-| Pipelined, 64 / 256 / 1024 acks in flight | 48k / 79k / 93k rec/s | 52k rec/s (1024) |
-| Fenced, 64 lanes (one per partition, each awaits its ack) | 55k rec/s | 32k rec/s |
-| Fenced **atomic batches** of 100, 32 concurrent | 35k rec/s | 66k rec/s |
-| `sync_interval: always` (fsync per write), pipelined | 5.5k rec/s, p50 0.45 ms awaited | — |
+| One record, awaited (durable ack) | p50 0.22–0.25 ms, p99 0.49–0.55 ms | p50 0.44–0.45 ms, p99 0.81–0.88 ms |
+| Pipelined, 64 / 256 / 1024 acks in flight | 46–48k / 74–79k / 86–93k rec/s | 52k rec/s (1024) |
+| Fenced, 64 lanes (one per partition, each awaits its ack) | 55–57k rec/s | 27–32k rec/s |
+| Fenced **atomic batches** of 100, 32 concurrent | 28–35k rec/s | 66–81k rec/s |
+| `sync_interval: always` (fsync per write), pipelined | 5.3–5.6k rec/s, p50 0.45 ms awaited | — |
 
 The PIP budget (20,000 records/s per node) is met with a large margin by pipelined appends on
-R1 and R3, and by fenced appends. **fsync on every write is not viable** (5.5k rec/s).
+R1 and R3, and by fenced appends. **fsync on every write is not viable** (≈ 5.5k rec/s).
 
 ### 4.2 Dedup and fencing semantics
 
@@ -64,7 +64,7 @@ R1 and R3, and by fenced appends. **fsync on every write is not viable** (5.5k r
 - A fenced append can be rejected although no other writer exists, so a writer must not treat
   every rejection as "fenced out": `10071` after its own earlier attempt was stored (client
   re-send), and `10164 wrong last sequence` (no number; seen once on R3 when the last record on the
-  filter **was** the expected one — a transient clustered rejection). Rule: on either code, read
+  filter **was** the expected one — a transient clustered rejection; once per run in both runs). Rule: on either code, read
   the last record on `wp.log.<pp>.>`; if it is this writer's own record id, adopt its sequence; if it
   equals the expected sequence, retry; otherwise the writer is fenced out.
 - Atomic batches (nats-server 2.12, stream option `AllowAtomicPublish`): the expected-sequence
@@ -77,7 +77,7 @@ R1 and R3, and by fenced appends. **fsync on every write is not viable** (5.5k r
 
 | Replay | Rate | Notes |
 |---|---|---|
-| Whole log (`wp.log.>`) from seq 1 | 176k–203k rec/s | same after server restart |
+| Whole log (`wp.log.>`) from seq 1 or from the middle | 175k–203k rec/s | same after server restart |
 | One partition (`wp.log.17.>`), from seq 1 or from the middle | 14k–17k rec/s delivered | ≈ 1 M log records scanned per second |
 | 16 partitions, one consumer with 16 filters | 39k–45k rec/s delivered | |
 | Consumer pull batch 10,000 instead of default | no change | |
@@ -93,21 +93,21 @@ them. The OS page cache was not dropped (sandbox); a cold disk will be slower.
 | `Create` on an existing key / `Update` with a stale revision | both rejected (`NatsKVCreateException`, `NatsKVWrongLastRevisionException`) |
 | Fencing token monotonic | revision 1 → renew 2 → CAS delete → re-create 4: strictly increasing per key, also across delete |
 | 6 clients on 3 nodes race for the same key, 500 rounds, create and take-over update | exactly one winner in every round |
-| CAS renew latency | p50 0.37 ms (client on stream leader), 0.48–0.52 ms (on a follower); p99 < 0.9 ms |
-| Renewal round of 5,000 leases, 256 CAS in flight (CLU-I-006) | p50 107 ms, max 156 ms per round (budget 2 s) |
+| CAS renew latency | p50 0.31–0.37 ms (client on stream leader), 0.44–0.52 ms (on a follower); p99 < 0.9 ms |
+| Renewal round of 5,000 leases, 256 CAS in flight (CLU-I-006) | p50 93–107 ms, max 156 ms per round (budget 2 s) |
 
 ### 4.5 Node loss (R3)
 
-| Scenario (5 runs where noted) | Result |
+| Scenario (10 runs = 5 per full run, where noted) | Result |
 |---|---|
-| SIGKILL the node leading both `WP_LOG` and `KV_wp_leases`: lease write outage | 5.0 / 6.1 / 7.5 s (min / median / max) |
-| Same: log append outage | 5.8 / 6.3 / 11.8 s |
+| SIGKILL the node leading both `WP_LOG` and `KV_wp_leases`: lease write outage | 4.3–7.5 s (medians 5.4 and 6.1 s) |
+| Same: log append outage | 4.5–11.8 s (medians 6.3 and 6.5 s) |
 | Acked records missing or duplicated after failover (appends retried with the same record id) | 0 |
 | Leases lost to another writer; timed-out renewals that were in fact committed | 0; 0 |
-| Killed node restarted → `WP_LOG` replicas current | 2.7 / 2.9 / 3.3 s |
-| 2 of 3 nodes killed: first failed renewal | 1.0 s (= client timeout) |
+| Killed node restarted → `WP_LOG` replicas current | 2.2–3.4 s |
+| 2 of 3 nodes killed: first failed renewal | 0.3–1.0 s (≤ client timeout) |
 | 2 of 3 down: successful KV writes | 0 (no write without majority) |
-| One node back: first successful renewal | 2.1–5.8 s |
+| One node back: first successful renewal | 5.4–5.8 s (2.1 s in a smoke run) |
 
 ## 5. Decision
 
@@ -143,13 +143,13 @@ them. The OS page cache was not dropped (sandbox); a cold disk will be slower.
 
 - PIP T1.09: writer pipelines with a bounded in-flight window (≥ 256), retries with the same id,
   `ReadPartitionsAsync` for recovery. Integration tests must not delete and immediately re-create
-  a stream of the same name: during the spike the re-created stream intermittently still held the
+  a stream of the same name: during the spike the re-created stream intermittently (once or twice per full run) still held the
   deleted stream's records (same sequences). Tests isolate with unique `Log:StreamPrefix` /
   `Log:SubjectPrefix` (already in PIP §5.1).
 - PIP T1.10: ingest must absorb a log append outage of up to ~12 s in R3 (back-pressure through the
   bounded partition queues, PIP §8) without failing ingest callers.
 - CLU T9.01/T9.02: lease and fencing rules as in §5; CLU-I tests confirm the timings on a real
-  multi-host network (the spike ran all nodes on one host, 5 failover runs).
+  multi-host network (the spike ran all nodes on one host, 10 failover runs).
 - README §4: NATS server ≥ 2.12. NATS.Net 3.3 lacks an atomic batch API; T9.01 either
   implements the headers itself (as the spike does) or upgrades the client if one appears.
 - Not measured: cold-disk replay, multi-host network latency, `sync_interval` values between

@@ -91,7 +91,7 @@ spec that must exist and pass.
 | T0.06 | JSON Schemas: capability, device type, integration manifest; schema versioning | SCM §3–§5 | T0.01 | SCM-U-001…SCM-U-020 | [#6](https://github.com/Moshizza/Watchpoint/issues/6) | — | todo |
 | T0.07 | Standard type library v0 + `wptypes` validator CLI | SCM §6–§8 | T0.06 | SCM-U-021…SCM-U-040 | [#7](https://github.com/Moshizza/Watchpoint/issues/7) | — | todo |
 | T0.08 | UI workspace skeleton: package scaffolds, TypeScript strict, ESLint, Prettier, Vitest, Tailwind preset | README §7, UIC §3 | T0.01 | UIC-U-001…UIC-U-003 | [#8](https://github.com/Moshizza/Watchpoint/issues/8) | — | todo |
-| T0.09 | Spike: NATS JetStream as event log and KV lease store (throughput, replay, KV CAS) → decision record | PIP §5, CLU §4 | T0.05 | Spike report | [#9](https://github.com/Moshizza/Watchpoint/issues/9) | claude-orion/T0.09-spike-nats-jetstream | in progress |
+| T0.09 | Spike: NATS JetStream as event log and KV lease store (throughput, replay, KV CAS) → decision record | PIP §5, CLU §4 | T0.05 | Spike report | [#9](https://github.com/Moshizza/Watchpoint/issues/9) | claude-orion/T0.09-spike-nats-jetstream | in review |
 | T0.10 | Spike: go2rtc RTSP → WebRTC in Electron on Windows, Linux, macOS (H.264, H.265) → decision record | VID §4 | T0.01 | Spike report | [#10](https://github.com/Moshizza/Watchpoint/issues/10) | — | todo |
 | T0.11 | Spike: connector isolation — `AssemblyLoadContext` in-process vs gRPC isolated host (latency, crash behaviour) → decision record | IRT §5, IHO §4 | T0.03 | Spike report | [#11](https://github.com/Moshizza/Watchpoint/issues/11) | — | todo |
 
