@@ -9,6 +9,7 @@
     <Project Path="Watchpoint.Analyzers/Watchpoint.Analyzers.csproj" />
     <Project Path="Watchpoint.Analyzers.CodeFixes/Watchpoint.Analyzers.CodeFixes.csproj" />
     <Project Path="Watchpoint.Kernel/Watchpoint.Kernel.csproj" />
+    <Project Path="Watchpoint.Kernel.Testing/Watchpoint.Kernel.Testing.csproj" />
     <Project Path="Watchpoint.Storage.Postgres/Watchpoint.Storage.Postgres.csproj" />
     <Project Path="Watchpoint.Storage/Watchpoint.Storage.csproj" />
   </Folder>
