@@ -140,7 +140,7 @@ public sealed class StateStoreAndFactoryTests : IDisposable
             loaded.Translations.ShouldBe(label.Translations, ignoreOrder: true);
         }
 
-        await using var raw = new SqliteCommand("SELECT Label FROM wp_testmod__gadgets", _keepAlive);
+        await using var raw = new SqliteCommand("SELECT Label FROM gadgets", _keepAlive);
         using var json = System.Text.Json.JsonDocument.Parse((string)(await raw.ExecuteScalarAsync(Ct))!);
         json.RootElement.GetProperty("default").GetString().ShouldBe("Lobby door");
         json.RootElement.GetProperty("translations").GetProperty("ar").GetString().ShouldBe("باب الردهة");
