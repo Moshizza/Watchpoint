@@ -48,10 +48,12 @@ jobs:
         run: dotnet build "$SOLUTION" --no-restore --configuration Release
 
       # Unit, integration (Testcontainers; Docker is available on the Linux runner), contract and
-      # architecture tests. Filters per category are added when the test projects exist (T0.05).
-      # The .NET 10 test runner fails on a solution without projects, so the step is skipped
-      # until the first project is added (T0.03).
+      # architecture tests. WATCHPOINT_REQUIRE_CONTAINERS=1 turns "Docker not available" skips into
+      # failures (TST §5.4). The .NET 10 test runner fails on a solution without projects, so the
+      # step is skipped until the first project is added (T0.03).
       - name: Test
+        env:
+          WATCHPOINT_REQUIRE_CONTAINERS: "1"
         run: |
           if ! grep -q '<Project ' "$SOLUTION"; then
             echo "No projects in $SOLUTION yet; nothing to test."

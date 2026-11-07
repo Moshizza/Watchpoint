@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Integration tests with real infrastructure, one folder per module (Architecture/README.md §9.1). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Watchpoint.IntegrationTests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="NATS.Net" />
+    <PackageReference Include="Npgsql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Watchpoint.Testing/Watchpoint.Testing.csproj" />
+    <ProjectReference Include="../Watchpoint.Testing.Containers/Watchpoint.Testing.Containers.csproj" />
+  </ItemGroup>
+
+</Project>
