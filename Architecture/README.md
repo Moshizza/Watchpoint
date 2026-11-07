@@ -108,7 +108,7 @@ Rules:
 | React Native / Expo | Latest Expo SDK at project start, pinned |
 | PostgreSQL | **17** bundled; 16–18 supported |
 | TimescaleDB | Latest 2.x compatible with the bundled PostgreSQL |
-| NATS server | Latest 2.x (≥ 2.11) |
+| NATS server | Latest 2.x (≥ 2.12, [ADR-001](decisions/ADR-001-nats-jetstream-event-log-and-leases.md)) |
 | go2rtc | Latest 1.x |
 | Docker / Podman | For tests (Testcontainers) and container images |
 

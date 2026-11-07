@@ -167,6 +167,14 @@ In-process connections of a package version share one load context. Unloading ha
 when no connection uses it (best effort; collectible contexts may stay alive if references
 leak — HLT reports load contexts not collected after 5 minutes).
 
+Limits measured by spike T0.11 ([ADR-003](../decisions/ADR-003-connector-isolation.md)): an
+unhandled exception on a connector-owned thread, a stack overflow or a native abort **terminates the
+node process** — load contexts isolate types, not faults. The in-process host logs the owning
+package/connection from `AppDomain.UnhandledException` (load context name) before the process ends.
+A connector thread that hangs cannot be stopped: the connection goes `Faulted` and HLT asks for a
+service restart. Shared assemblies must expose no static events, caches or registries reachable from
+package code (they root the load context and prevent unloading).
+
 ## 6. Data (`wp_integrations` schema)
 
 | Table | Columns | Keys |

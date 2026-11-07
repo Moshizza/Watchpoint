@@ -1,5 +1,6 @@
 # pnpm workspace for every TypeScript package and app (Architecture/README.md §3, §7).
 packages:
+  - "src/ui"
   - "src/ui/packages/*"
   - "src/ui/apps/*"
   - "src/mobile/*"

@@ -44,12 +44,14 @@ public sealed class ResultTests
     [Fact]
     public void K_U_018_Default_result_access_throws()
     {
+#pragma warning disable WP0001 // this test checks the behaviour of an uninitialised result
         var r = default(Result<int>);
         r.IsSuccess.ShouldBeFalse();
         Should.Throw<InvalidOperationException>(() => r.Error).Message.ShouldBe("uninitialised result");
         Should.Throw<InvalidOperationException>(() => r.Value).Message.ShouldBe("uninitialised result");
 
         var plain = default(Result);
+#pragma warning restore WP0001
         plain.IsSuccess.ShouldBeFalse();
         Should.Throw<InvalidOperationException>(() => plain.Error).Message.ShouldBe("uninitialised result");
     }

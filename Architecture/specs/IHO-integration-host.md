@@ -94,6 +94,10 @@ already builds for in-process connectors (sink, device map, store, secrets, heal
 metrics, logging). Isolated/remote hosts **bridge** them over gRPC (§5.3); scheduling, request
 gate, HTTP client and time run **inside the host** (they need no node state).
 
+Default `HostMode` of a new connection once isolated hosts exist: `Isolated` for
+`isolatedRecommended` packages and packages not signed by Watchpoint, `InProcess` only for
+Watchpoint-signed `inProcessAllowed` packages ([ADR-003](../decisions/ADR-003-connector-isolation.md)).
+
 IRT changes made by T4.01: `ConnectionRuntime` resolves the host from `connection.HostMode`
 (`InProcess` → `InProcessHost`, `Isolated` → `IsolatedHostManager.GetOrStartHost(groupKey)`,
 `Remote` → `RemoteConnectionHost` for `HostId`), removing the M1 `irt.host.unavailable` refusal
@@ -164,7 +168,7 @@ Lost replies (link drop) → the node treats the request as failed with
 
 | Service | Bridge |
 |---|---|
-| Sink | Host buffers reports (same S1–S6 rules); sends `ObservationBatch` every 50 ms or 500 items; node ingests through IRT's sink then sends `ObservationAck(seq)` once durable (PIP ack). `FlushAsync` in the host completes when the ack for everything reported before it arrives |
+| Sink | Host buffers reports (same S1–S6 rules); sends an `ObservationBatch` as soon as the previous one is written, with what has accumulated (≤ 500 items; no fixed time window: [ADR-003](../decisions/ADR-003-connector-isolation.md)); node ingests through IRT's sink then sends `ObservationAck(seq)` once durable (PIP ack). `FlushAsync` in the host completes when the ack for everything reported before it arrives |
 | Device map | Node pushes full map at start, deltas on `Changed` |
 | Store | `ContextRequest store.get/set/delete` → node `IConnectionStore` (authoritative, replicated) |
 | Secrets | `ContextRequest secret.get(fieldId)` → node checks the field id is declared for that connection, returns the value **only over the encrypted link**; host keeps it in a pinned buffer, zeroed after use; never cached longer than the `Use*` call |
@@ -201,7 +205,9 @@ connection, stopped 60 s after its last connection stops.
   package manifest declares `hostArchitecture: x86`, the x86 host build is used (Windows only).
 - Readiness: `Hello` within 15 s, else kill and count a failure.
 - Liveness: `HostStatus` every 10 s; missing for 30 s → host **hung** → kill (process tree) →
-  restart.
+  restart. The heartbeat does not see a hung connector thread ([ADR-003](../decisions/ADR-003-connector-isolation.md)):
+  3 consecutive request timeouts (§5.2) for a connection, or a `StopConnection` timeout, also kill
+  the host.
 - Restart policy: delays 1, 2, 4, 8, 16, 32, 60 s; **crash loop** = 5 failures in 10 min → host
   `Faulted` for 10 min (connections `Faulted` with reason `irt.host.crash_loop`), system event
   `integrations.hostCrashLoop` (alarm-able), then one retry; manual "restart host" available.
@@ -220,15 +226,18 @@ connection, stopped 60 s after its last connection stops.
 
 `ResourceLimiter` chosen at start-up by capability probe; the choice is shown in host details.
 
-### 6.4 Performance targets (to be confirmed by spike T0.11)
+### 6.4 Performance targets (confirmed on Linux by spike T0.11, [ADR-003](../decisions/ADR-003-connector-isolation.md))
 
-| Metric | Target |
-|---|---|
-| Observation throughput per isolated host | ≥ 50,000 property reports/s |
-| Added latency report → event log (p99) | ≤ 5 ms over in-process |
-| Command round-trip overhead | ≤ 2 ms |
-| Host start to Ready | ≤ 2 s (excluding package load) |
-| Idle memory of an empty host | ≤ 60 MB |
+| Metric | Target | Spike (Linux x64, 4 vCPU) |
+|---|---|---|
+| Observation throughput per isolated host | ≥ 50,000 property reports/s | 2.0–2.4 M/s |
+| Added latency report → event log (p99) | ≤ 5 ms over in-process | +2.8 to +4.0 ms |
+| Command round-trip overhead | ≤ 2 ms | p99 0.25 ms |
+| Host start to Ready | ≤ 2 s (excluding package load) | 150 ms median |
+| Idle memory of an empty host | ≤ 60 MB | 46 MB (spike host) |
+
+Windows was not measured: T4.01 re-runs `tools/spikes/ConnectorIsolation` on the reference Windows
+machine before fixing the Windows transport (named pipe or Unix domain socket).
 
 ## 7. Host registry and API (T4.01)
 

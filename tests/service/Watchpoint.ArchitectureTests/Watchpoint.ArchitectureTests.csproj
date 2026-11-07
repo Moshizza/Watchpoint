@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Project dependency rules ARCH-1…ARCH-8 (Architecture/specs/TST-test-infrastructure.md §6). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Watchpoint.ArchitectureTests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="NetArchTest.Rules" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+  </ItemGroup>
+
+  <!-- Every service and integration project is referenced by pattern, so new modules are covered automatically. -->
+  <ItemGroup>
+    <ProjectReference Include="../../../src/service/Watchpoint.*/*.csproj"
+                      Exclude="../../../src/service/Watchpoint.Analyzers*/*.csproj" />
+    <ProjectReference Include="../../../src/integrations/Watchpoint.*/*.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -72,6 +72,7 @@ Every AI agent working on the project has a unique name, used as its branch pref
 |---|---|---|
 | `claude-atlas` | Mohcine (Moshizza) | 2026-11-03 |
 | `jules-1` | Mohcine (Moshizza) | 2026-11-05 |
+| `claude-orion` | Mohcine (Moshizza) | 2026-11-07 |
 
 ## 2. Tasks
 
@@ -86,13 +87,13 @@ spec that must exist and pass.
 | T0.02 | CI workflow `ci.yml`, issue and pull-request templates, Dependabot config, Semgrep and secret-scan jobs | README §10–§11 | T0.01 | CI-003 (workflow runs on PR), CI-004 (failing test fails CI) | [#2](https://github.com/Moshizza/Watchpoint/issues/2) | claude-atlas/T0.02-ci-workflow | done |
 | T0.03 | Kernel: typed ids, `Result`/`Error`/`ErrorKind`, `TimeProvider` helpers, paging and sorting | K §4–§7 | T0.01 | K-U-001…K-U-030 | [#3](https://github.com/Moshizza/Watchpoint/issues/3) | claude-atlas/T0.03-kernel-part1 | done |
 | T0.04 | Kernel: cursors, JSON options and converters, translatable texts, validation helpers, `WpValue`, `Watchpoint.Kernel.Testing` | K §7–§11 | T0.03 | K-U-031…K-U-062 | [#4](https://github.com/Moshizza/Watchpoint/issues/4) | — | todo |
-| T0.05 | Test infrastructure: `Watchpoint.Testing`, Testcontainers fixtures (PostgreSQL + TimescaleDB, NATS), architecture tests, test naming analyzer | TST | T0.03 | TST-U-001…TST-I-010 | [#5](https://github.com/Moshizza/Watchpoint/issues/5) | — | todo |
-| T0.06 | JSON Schemas: capability, device type, integration manifest; schema versioning | SCM §3–§5 | T0.01 | SCM-U-001…SCM-U-020 | [#6](https://github.com/Moshizza/Watchpoint/issues/6) | jules-1/T0.06-json-schemas | in review |
+| T0.05 | Test infrastructure: `Watchpoint.Testing`, Testcontainers fixtures (PostgreSQL + TimescaleDB, NATS), architecture tests, test naming analyzer | TST | T0.03 | TST-U-001…TST-I-010 | [#5](https://github.com/Moshizza/Watchpoint/issues/5) | claude-orion/T0.05-test-infrastructure | done |
+| T0.06 | JSON Schemas: capability, device type, integration manifest; schema versioning | SCM §3–§5 | T0.01 | SCM-U-001…SCM-U-020 | [#6](https://github.com/Moshizza/Watchpoint/issues/6) | jules-1/T0.06-json-schemas-14734361605283558806 | in review |
 | T0.07 | Standard type library v0 + `wptypes` validator CLI | SCM §6–§8 | T0.06 | SCM-U-021…SCM-U-040 | [#7](https://github.com/Moshizza/Watchpoint/issues/7) | — | todo |
-| T0.08 | UI workspace skeleton: package scaffolds, TypeScript strict, ESLint, Prettier, Vitest, Tailwind preset | README §7, UIC §3 | T0.01 | UIC-U-001…UIC-U-003 | [#8](https://github.com/Moshizza/Watchpoint/issues/8) | — | todo |
-| T0.09 | Spike: NATS JetStream as event log and KV lease store (throughput, replay, KV CAS) → decision record | PIP §5, CLU §4 | T0.05 | Spike report | [#9](https://github.com/Moshizza/Watchpoint/issues/9) | — | todo |
+| T0.08 | UI workspace skeleton: package scaffolds, TypeScript strict, ESLint, Prettier, Vitest, Tailwind preset | README §7, UIC §3 | T0.01 | UIC-U-001…UIC-U-003 | [#8](https://github.com/Moshizza/Watchpoint/issues/8) | claude-atlas/T0.08-ui-workspace-skeleton | done |
+| T0.09 | Spike: NATS JetStream as event log and KV lease store (throughput, replay, KV CAS) → decision record | PIP §5, CLU §4 | T0.05 | Spike report | [#9](https://github.com/Moshizza/Watchpoint/issues/9) | claude-orion/T0.09-spike-nats-jetstream | done |
 | T0.10 | Spike: go2rtc RTSP → WebRTC in Electron on Windows, Linux, macOS (H.264, H.265) → decision record | VID §4 | T0.01 | Spike report | [#10](https://github.com/Moshizza/Watchpoint/issues/10) | — | todo |
-| T0.11 | Spike: connector isolation — `AssemblyLoadContext` in-process vs gRPC isolated host (latency, crash behaviour) → decision record | IRT §5, IHO §4 | T0.03 | Spike report | [#11](https://github.com/Moshizza/Watchpoint/issues/11) | — | todo |
+| T0.11 | Spike: connector isolation — `AssemblyLoadContext` in-process vs gRPC isolated host (latency, crash behaviour) → decision record | IRT §5, IHO §4 | T0.03 | Spike report | [#11](https://github.com/Moshizza/Watchpoint/issues/11) | claude-atlas/T0.11-spike-connector-isolation | done |
 
 ### M1 — First device on screen
 
