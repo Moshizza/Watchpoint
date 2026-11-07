@@ -166,6 +166,8 @@ public interface IEventLogReader
 {
     // Ordered replay of one partition from a sequence (inclusive), until the current end.
     IAsyncEnumerable<LogRecord> ReadPartitionAsync(int partition, long fromSequence, CancellationToken ct);
+    // Ordered replay (global sequence order) of several partitions with ONE consumer: used by recovery (§7.4).
+    IAsyncEnumerable<LogRecord> ReadPartitionsAsync(IReadOnlySet<int> partitions, long fromSequence, CancellationToken ct);
     IAsyncEnumerable<LogRecord> ReadGlobalAsync(LogStream stream, long fromSequence, CancellationToken ct);
     ValueTask<long> GetLastSequenceAsync(CancellationToken ct);
     ValueTask<long> GetFirstAvailableSequenceAsync(CancellationToken ct);   // after retention
@@ -187,7 +189,23 @@ public sealed record LogConsumerOptions(int MaxBatch = 1000, TimeSpan? MaxWait =
 ```
 
 Replay of a partition uses an **ordered consumer** with filter `wp.log.<pp>.>` and
-`DeliverPolicy.ByStartSequence`.
+`DeliverPolicy.ByStartSequence`. `ReadPartitionsAsync` uses one ordered consumer with filter
+`wp.log.>` when all 64 partitions are requested, otherwise one filter per partition.
+Measured ([ADR-001](../decisions/ADR-001-nats-jetstream-event-log-and-leases.md)): whole-log
+replay ≈ 180k records/s; a filtered replay costs about the same as scanning the whole log range
+(one partition ≈ 16k records/s delivered), so recovery never runs 64 filtered consumers.
+
+Writer rules (ADR-001):
+
+- `AppendAsync` pipelines publishes with a bounded window of in-flight acks (default 1,024;
+  ≥ 256 needed for the 20,000 records/s budget) and preserves per-partition order (one NATS
+  connection per writer, publishes sent in order).
+- After a timeout or a connection loss the writer **re-sends the same envelope with the same
+  `Nats-Msg-Id`** until acked (the 2 min duplicate window makes this exactly-once in the log);
+  callers are completed only on ack.
+- M1 sends no expected-sequence headers (one owner). Fenced appends (CLU T9.01) use
+  `Nats-Expected-Last-Subject-Sequence` **with** `Nats-Expected-Last-Subject-Sequence-Subject =
+  wp.log.<pp>.>` (CLU §5).
 
 ## 6. Ingest contract (used by IRT)
 
@@ -331,7 +349,9 @@ public sealed class PartitionContext
 1. Workers are created but not started.
 2. Each subscriber's module restores its own snapshot (STA §8) and reports checkpoints.
 3. PIP replays each partition from `min(checkpoints of all subscribers for p) + 1` to the end,
-   calling `OnRecords` only for subscribers whose checkpoint is below the record sequence.
+   calling `OnRecords` only for subscribers whose checkpoint is below the record sequence. All
+   recovered partitions are read with one `ReadPartitionsAsync` from the smallest start sequence
+   (records below a partition's own start are skipped) and dispatched to the partition workers.
 4. `LastValueCache` is filled from STA's restored state.
 5. `OnRecoveryCompleted` for all subscribers; workers start consuming new input.
 
@@ -496,7 +516,7 @@ with real NATS (Testcontainers, scoped prefixes).
 | PIP-U-047 | U | `OnTick` cadence | TestClock advancing 5 s with idle worker → 5 ticks; during a long batch ticks are not concurrent |
 | PIP-I-001 | I | Streams provisioned on real NATS | Start module → three streams with expected subjects/retention |
 | PIP-I-002 | I | Provisioning idempotent | Restart → no error, configs unchanged |
-| PIP-I-003 | I | Append and replay one partition | 1,000 records over 4 partitions → replay of p returns its records in order |
+| PIP-I-003 | I | Append and replay one or several partitions | 1,000 records over 4 partitions → replay of p returns its records in order; `ReadPartitionsAsync({p, q})` returns the records of p and q in global sequence order, nothing else |
 | PIP-I-004 | I | Dedup within window | Same envelope id appended twice → one message |
 | PIP-I-005 | I | Durable consumer survives restart | Consume 500 of 1,000, ack, dispose; new consumer with same name → starts at 501 |
 | PIP-I-006 | I | NATS restart during append | Stop NATS container 3 s during load → appends retried, no loss, no duplicates (dedup) |
