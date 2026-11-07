@@ -214,6 +214,13 @@
           "xunit.v3.runner.common": "[4.0.2]"
         }
       },
+      "watchpoint.integration.abstractions": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.Extensions.Logging.Abstractions": "[10.0.14, )",
+          "Watchpoint.Kernel": "[1.0.0, )"
+        }
+      },
       "watchpoint.kernel": {
         "type": "Project",
         "dependencies": {

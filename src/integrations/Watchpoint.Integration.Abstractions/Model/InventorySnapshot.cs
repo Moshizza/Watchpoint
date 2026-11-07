@@ -33,7 +33,7 @@ public sealed record InventorySnapshot(IReadOnlyList<InventoryServerItem> Server
         var servers = new HashSet<string>(StringComparer.Ordinal);
         for (var i = 0; i < Servers.Count; i++)
         {
-            var path = Path("servers", i);
+            var path = Path("servers", i, "nativeId");
             if (CheckId(errors, path, Servers[i].NativeId) && !servers.Add(Servers[i].NativeId))
             {
                 errors.Add(CommonErrors.DuplicateAt(path, Servers[i].NativeId));
@@ -44,7 +44,7 @@ public sealed record InventorySnapshot(IReadOnlyList<InventoryServerItem> Server
         for (var i = 0; i < Devices.Count; i++)
         {
             var device = Devices[i];
-            var path = Path("devices", i);
+            var path = Path("devices", i, "nativeId");
             var serverKnown = CheckId(errors, Path("devices", i, "serverNativeId"), device.ServerNativeId);
             if (serverKnown && IsComplete && !servers.Contains(device.ServerNativeId))
             {
@@ -62,16 +62,15 @@ public sealed record InventorySnapshot(IReadOnlyList<InventoryServerItem> Server
 
     private static bool CheckId(List<FieldError> errors, string path, string? id)
     {
-        var idPath = path.EndsWith("NativeId", StringComparison.Ordinal) ? path : path + "/nativeId";
         if (string.IsNullOrWhiteSpace(id))
         {
-            errors.Add(CommonErrors.RequiredAt(idPath));
+            errors.Add(CommonErrors.RequiredAt(path));
             return false;
         }
 
         if (id.Length > MaxNativeIdLength)
         {
-            errors.Add(CommonErrors.TooLongAt(idPath, MaxNativeIdLength));
+            errors.Add(CommonErrors.TooLongAt(path, MaxNativeIdLength));
             return false;
         }
 
