@@ -1,0 +1,70 @@
+// Spike T0.11: a reduced IHO §5 HostLink protocol (one bidirectional session per host).
+syntax = "proto3";
+
+package watchpoint.spikes.isolation.v1;
+
+option csharp_namespace = "Watchpoint.Spikes.ConnectorIsolation.Protocol";
+
+service HostLink {
+  rpc Session(stream HostToNode) returns (stream NodeToHost);
+}
+
+message HostToNode {
+  oneof body {
+    Hello hello = 1;
+    ObservationBatch observations = 2;
+    Reply reply = 3;
+    HostStatus status = 4;
+  }
+}
+
+message Hello {
+  int32 pid = 1;
+  // Time spent loading the connector in the host's load context.
+  double load_ms = 2;
+}
+
+message Observation {
+  int32 device = 1;
+  double value = 2;
+  // Stopwatch timestamp (CLOCK_MONOTONIC: comparable across processes).
+  int64 timestamp = 3;
+}
+
+message ObservationBatch {
+  repeated Observation items = 1;
+}
+
+message Reply {
+  uint64 id = 1;
+  string result = 2;
+}
+
+message HostStatus {
+  int64 working_set = 1;
+}
+
+message NodeToHost {
+  oneof body {
+    Request request = 1;
+  }
+}
+
+message Request {
+  uint64 id = 1;
+  oneof kind {
+    Emit emit = 2;
+    Execute execute = 3;
+    int32 misbehave = 4;
+    bool shutdown = 5;
+  }
+}
+
+message Emit {
+  int32 count = 1;
+  int32 rate_per_second = 2;
+}
+
+message Execute {
+  string command = 1;
+}

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Watchpoint.Spikes.ConnectorIsolation.Host</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.Protobuf" />
+    <PackageReference Include="Grpc.Net.Client" />
+    <PackageReference Include="Grpc.Tools" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Protobuf Include="../Protos/host_link.proto" GrpcServices="Client" Link="Protos/host_link.proto" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Contract/Watchpoint.Spikes.ConnectorIsolation.Contract.csproj" />
+  </ItemGroup>
+
+</Project>
