@@ -16,4 +16,4 @@ dotnet run -c Release --project tools/spikes/ConnectorIsolation/Runner -- --out 
 dotnet run -c Release --project tools/spikes/ConnectorIsolation/Runner -- --quick   # smaller counts
 ```
 
-Linux only (memory from `/proc`, Unix domain socket). Spike code: not production quality, not shipped.
+Results of the run used by the ADR: [`results-linux-x64.md`](results-linux-x64.md). Linux only (memory from `/proc`, Unix domain socket). Spike code: not production quality, not shipped.
