@@ -1,0 +1,16 @@
+{
+  "name": "@watchpoint/i18n",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Translations, ICU messages and right-to-left support (spec UIC \u00a78).",
+  "license": "UNLICENSED",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "devDependencies": {
+    "vite": "8.3.6",
+    "vitest": "5.1.0"
+  }
+}
