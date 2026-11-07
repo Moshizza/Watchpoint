@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- INT-U-001…INT-U-010 (Architecture/specs/INT-integration-contract.md §13). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Watchpoint.Integration.Abstractions.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Shouldly" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../../src/integrations/Watchpoint.Integration.Abstractions/Watchpoint.Integration.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

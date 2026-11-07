@@ -13,6 +13,7 @@ internal static partial class ArchitectureRules
     public const string Host = "Watchpoint.Host";
     public const string IntegrationAbstractions = "Watchpoint.Integration.Abstractions";
     public const string IntegrationSdk = "Watchpoint.Integration.Sdk";
+    private const string LoggingAbstractions = "Microsoft.Extensions.Logging.Abstractions";
 
     private static readonly HashSet<string> _compositionRoots = new(StringComparer.Ordinal)
     {
@@ -83,13 +84,16 @@ internal static partial class ArchitectureRules
            select $"{a.Name} references EF Core provider {r}",
     ];
 
-    /// <summary>ARCH-6: <c>Watchpoint.Integration.Abstractions</c> depends only on <c>Watchpoint.Kernel</c> and the BCL.</summary>
+    /// <summary>
+    /// ARCH-6: <c>Watchpoint.Integration.Abstractions</c> depends only on <c>Watchpoint.Kernel</c>,
+    /// <c>Microsoft.Extensions.Logging.Abstractions</c> (INT §2: <c>ILoggerFactory</c> in the connector context) and the BCL.
+    /// </summary>
     public static IReadOnlyList<string> Arch6(IReadOnlyList<ArchAssembly> assemblies) =>
     [
         .. from a in assemblies
            where a.Name == IntegrationAbstractions
            from r in a.References
-           where r != Kernel && !IsBcl(r)
+           where r != Kernel && r != LoggingAbstractions && !IsBcl(r)
            select $"{a.Name} references {r}",
     ];
 
