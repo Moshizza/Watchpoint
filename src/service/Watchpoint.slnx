@@ -32,5 +32,6 @@
     <Project Path="../../tools/spikes/ConnectorIsolation/Host/Watchpoint.Spikes.ConnectorIsolation.Host.csproj" />
     <Project Path="../../tools/spikes/ConnectorIsolation/Runner/Watchpoint.Spikes.ConnectorIsolation.Runner.csproj" />
     <Project Path="../../tools/spikes/Watchpoint.Spikes.NatsJetStream/Watchpoint.Spikes.NatsJetStream.csproj" />
+    <Project Path="../../tools/wptypes/Watchpoint.Wptypes.csproj" />
   </Folder>
 </Solution>

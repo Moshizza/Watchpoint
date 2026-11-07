@@ -1,0 +1,37 @@
+{
+  "$schema": "https://schemas.watchpoint.dev/device-type/1.json",
+  "id": "intrusion.zone",
+  "version": "1.0.0",
+  "role": "device",
+  "category": "intrusion",
+  "extends": null,
+  "capabilities": [
+    {
+      "id": "health",
+      "version": "^1.0"
+    },
+    {
+      "id": "zoneInput",
+      "version": "^1.0"
+    },
+    {
+      "id": "bypassable",
+      "version": "^1.0"
+    },
+    {
+      "id": "tamper",
+      "version": "^1.0",
+      "optional": true
+    }
+  ],
+  "licenceClass": "light",
+  "display": {
+    "icon": "radar",
+    "symbol": "intrusion.zone",
+    "primaryProperty": "zoneInput.state"
+  },
+  "defaultAlarmRules": [
+    "std.intrusion.zone.activated",
+    "std.health.offline"
+  ]
+}

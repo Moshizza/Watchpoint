@@ -1,0 +1,31 @@
+{
+  "$schema": "https://schemas.watchpoint.dev/device-type/1.json",
+  "id": "intrusion.area",
+  "version": "1.0.0",
+  "role": "device",
+  "category": "intrusion",
+  "extends": null,
+  "capabilities": [
+    {
+      "id": "health",
+      "version": "^1.0"
+    },
+    {
+      "id": "armable",
+      "version": "^1.0"
+    }
+  ],
+  "allowedChildTypes": [
+    "intrusion.zone"
+  ],
+  "licenceClass": "full",
+  "display": {
+    "icon": "shield",
+    "symbol": "intrusion.area",
+    "primaryProperty": "armable.armState"
+  },
+  "defaultAlarmRules": [
+    "std.intrusion.area.alarm",
+    "std.health.offline"
+  ]
+}
