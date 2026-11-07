@@ -7,10 +7,12 @@
   </Folder>
   <Folder Name="/src/">
     <Project Path="Watchpoint.Kernel/Watchpoint.Kernel.csproj" />
+    <Project Path="Watchpoint.Model.Documents/Watchpoint.Model.Documents.csproj" />
   </Folder>
   <Folder Name="/integrations/" />
   <Folder Name="/tests/">
     <Project Path="../../tests/service/Watchpoint.Kernel.Tests/Watchpoint.Kernel.Tests.csproj" />
+    <Project Path="../../tests/service/Watchpoint.Model.Documents.Tests/Watchpoint.Model.Documents.Tests.csproj" />
   </Folder>
   <Folder Name="/tools/" />
 </Solution>

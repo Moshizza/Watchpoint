@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.watchpoint.dev/parameter/1.json",
+  "title": "Watchpoint Parameter Schema (Restricted Subset)",
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string",
+      "const": "object"
+    },
+    "properties": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/parameterField"
+      }
+    },
+    "required": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "x-wp-ui": {
+      "type": "object"
+    }
+  },
+  "required": ["type", "properties"],
+  "additionalProperties": false,
+  "patternProperties": {
+    "^x-": true
+  },
+  "$defs": {
+    "isoDuration": {
+      "type": "string",
+      "pattern": "^P(?!$)(?:\\d+D)?(?:T(?=\\d)(?:\\d+H)?(?:\\d+M)?(?:\\d+(?:\\.\\d+)?S)?)?$"
+    },
+    "scalarField": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["string", "integer", "number", "boolean", "duration", "timestamp", "entityRef"]
+        },
+        "enum": {
+          "type": "array",
+          "items": {
+            "type": ["string", "number", "boolean"]
+          }
+        },
+        "default": true,
+        "minimum": { "type": ["number", "string"] },
+        "maximum": { "type": ["number", "string"] },
+        "minLength": { "type": "integer", "minimum": 0 },
+        "maxLength": { "type": "integer", "minimum": 0 },
+        "pattern": { "type": "string" },
+        "format": {
+          "type": "string",
+          "enum": ["hostname", "ipv4", "ipv6", "uri", "email"]
+        },
+        "entity": {
+          "type": "string",
+          "enum": ["device", "server", "location", "user", "userGroup", "calendar"]
+        },
+        "deviceCategory": { "type": "string" },
+        "deviceType": { "type": "string" },
+        "capability": { "type": "string" }
+      },
+      "required": ["type"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": true
+      }
+    },
+    "arrayField": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "array"
+        },
+        "items": {
+          "$ref": "#/$defs/scalarField"
+        },
+        "minItems": { "type": "integer", "minimum": 0 },
+        "maxItems": { "type": "integer", "minimum": 0 },
+        "default": { "type": "array" }
+      },
+      "required": ["type", "items"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": true
+      }
+    },
+    "nestedObjectField": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "object"
+        },
+        "properties": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/scalarField"
+          }
+        },
+        "required": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "default": { "type": "object" }
+      },
+      "required": ["type", "properties"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": true
+      }
+    },
+    "parameterField": {
+      "oneOf": [
+        { "$ref": "#/$defs/scalarField" },
+        { "$ref": "#/$defs/arrayField" },
+        { "$ref": "#/$defs/nestedObjectField" }
+      ]
+    }
+  }
+}
