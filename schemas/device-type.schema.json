@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.watchpoint.dev/device-type/1.json",
+  "title": "Watchpoint Device / Server Type Document Schema",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "format": "uri"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9-]*){1,4}$",
+      "maxLength": 100
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
+    },
+    "role": {
+      "type": "string",
+      "enum": ["device", "server"]
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "accessControl",
+        "video",
+        "intrusion",
+        "fire",
+        "intercomAudio",
+        "perimeter",
+        "buildingManagement",
+        "smartCity",
+        "itInfrastructure",
+        "generic",
+        "system"
+      ]
+    },
+    "extends": {
+      "type": ["object", "null"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9-]*){1,4}$",
+          "maxLength": 100
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^(?:\\^|~)?(?:0|[1-9]\\d*)(?:\\.(?:0|[1-9]\\d*|x|X|\\*))?(?:\\.(?:0|[1-9]\\d*|x|X|\\*))?$"
+        }
+      },
+      "required": ["id", "version"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": true
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/capabilityUse" },
+      "minItems": 1
+    },
+    "attributes": {
+      "$ref": "https://schemas.watchpoint.dev/parameter/1.json"
+    },
+    "allowedChildTypes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^(?:[a-z][a-z0-9]*(\\.[a-z][a-z0-9-]*){1,4}|[a-z][a-zA-Z0-9]*\\.\\*)$"
+      }
+    },
+    "licenceClass": {
+      "type": "string",
+      "enum": ["full", "light", "free"]
+    },
+    "display": {
+      "type": "object",
+      "properties": {
+        "icon": { "type": "string" },
+        "symbol": { "type": "string" },
+        "primaryProperty": {
+          "type": "string",
+          "pattern": "^[a-z][a-zA-Z0-9]*(\\.[a-z][a-zA-Z0-9]*)?\\.[a-z][a-zA-Z0-9]*$"
+        }
+      },
+      "required": ["icon", "symbol", "primaryProperty"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": true
+      }
+    },
+    "stateSummary": {
+      "type": "object",
+      "properties": {
+        "overrides": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/stateOverride" }
+        }
+      },
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": true
+      }
+    },
+    "defaultAlarmRules": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "defaultLinks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/defaultLink" }
+    }
+  },
+  "required": ["$schema", "id", "version", "role", "category", "extends", "capabilities", "licenceClass", "display"],
+  "additionalProperties": false,
+  "patternProperties": {
+    "^x-": true
+  },
+  "$defs": {
+    "capabilityUse": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-zA-Z0-9]*(\\.[a-z][a-zA-Z0-9]*)?$",
+          "maxLength": 64
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^(?:\\^|~)?(?:0|[1-9]\\d*)(?:\\.(?:0|[1-9]\\d*|x|X|\\*))?(?:\\.(?:0|[1-9]\\d*|x|X|\\*))?$"
+        },
+        "optional": { "type": "boolean" },
+        "exclude": {
+          "type": "object",
+          "properties": {
+            "commands": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "events": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "enumValues": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
+          },
+          "additionalProperties": false,
+          "patternProperties": {
+            "^x-": true
+          }
+        }
+      },
+      "required": ["id", "version"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": true
+      }
+    },
+    "stateOverride": {
+      "type": "object",
+      "properties": {
+        "property": {
+          "type": "string",
+          "pattern": "^[a-z][a-zA-Z0-9]*(\\.[a-z][a-zA-Z0-9]*)?\\.[a-z][a-zA-Z0-9]*$"
+        },
+        "values": {
+          "type": "array",
+          "items": true
+        },
+        "state": {
+          "type": "string",
+          "enum": ["alarm", "fault", "warning", "normalActive", "normal", "maintenance", "disabled", "offline", "unknown"]
+        }
+      },
+      "required": ["property", "values", "state"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": true
+      }
+    },
+    "defaultLink": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["cameraViews", "memberOf", "controls", "powers", "partOf"]
+        },
+        "peerCategory": {
+          "type": "string",
+          "enum": [
+            "accessControl",
+            "video",
+            "intrusion",
+            "fire",
+            "intercomAudio",
+            "perimeter",
+            "buildingManagement",
+            "smartCity",
+            "itInfrastructure",
+            "generic",
+            "system"
+          ]
+        },
+        "peerType": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9-]*){1,4}$"
+        }
+      },
+      "required": ["kind"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": true
+      }
+    }
+  }
+}
