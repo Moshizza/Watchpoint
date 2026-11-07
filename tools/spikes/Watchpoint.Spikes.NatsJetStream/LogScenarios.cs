@@ -196,9 +196,11 @@ internal static class LogScenarios
     /// Fenced append at volume: one lane per partition; each record carries the expected last partition sequence,
     /// so a lane cannot pipeline (it needs the previous ack). Measures what fencing costs.
     /// </summary>
-    public static async Task<TimeSpan> FencedLanesAppendAsync(INatsJSContext js, int count)
+    public static async Task<(TimeSpan Elapsed, int Resolved)> FencedLanesAppendAsync(INatsJSContext js, int count)
     {
         var perLane = count / Partitions;
+        var resolved = 0;
+        var stream = await js.GetStreamAsync(Stream).ConfigureAwait(false);
         var sw = Stopwatch.StartNew();
         await Task.WhenAll(Enumerable.Range(0, Partitions).Select(async p =>
         {
@@ -207,17 +209,35 @@ internal static class LogScenarios
             for (var i = 0; i < perLane; i++)
             {
                 var id = Guid.CreateVersion7();
-                var ack = await js.PublishAsync(Subject(p), Envelope(id, p), opts: new NatsJSPubOpts
+                var data = Envelope(id, p);
+                var ack = await js.PublishAsync(Subject(p), data, opts: new NatsJSPubOpts
                 {
                     MsgId = id.ToString(),
                     ExpectedLastSubjectSequence = last,
                     ExpectedLastSubjectSequenceSubject = filter,
                 }, headers: Headers()).ConfigureAwait(false);
+                if (ack.Error is { ErrCode: 10071 } wrong)
+                {
+                    // "wrong last sequence: N". If record N is ours, an earlier attempt of this same publish was stored
+                    // (the client re-sent it): adopt N. Otherwise another writer appended: we are fenced out.
+                    var actual = ulong.Parse(wrong.Description!.Split(':')[1].Trim(), CultureInfo.InvariantCulture);
+                    var stored = await stream.GetAsync(new StreamMsgGetRequest { Seq = actual }).ConfigureAwait(false);
+                    var storedBody = Encoding.UTF8.GetString(stored.Message.Data.Span);
+                    if (!storedBody.Contains(id.ToString(), StringComparison.Ordinal))
+                    {
+                        throw new InvalidOperationException("fenced out by another writer: " + wrong.Description);
+                    }
+
+                    Interlocked.Increment(ref resolved);
+                    last = actual;
+                    continue;
+                }
+
                 ack.EnsureSuccess();
                 last = ack.Seq;
             }
         })).ConfigureAwait(false);
-        return sw.Elapsed;
+        return (sw.Elapsed, resolved);
     }
 
     /// <summary>

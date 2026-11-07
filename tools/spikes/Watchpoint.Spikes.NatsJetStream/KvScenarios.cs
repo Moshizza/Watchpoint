@@ -96,4 +96,48 @@ internal static class KvScenarios
 
         report.Row("Lease renew (CAS update) latency, " + label, Report.Latency(samples));
     }
+
+    /// <summary>One renewal round of many leases (CLU-I-006: 5,000 leases every 2 s), pipelined CAS updates.</summary>
+    public static async Task BulkRenewAsync(INatsKVStore kv, Report report, int leases, int window, int rounds)
+    {
+        var revs = new ulong[leases];
+        var keys = Enumerable.Range(0, leases).Select(i => string.Create(CultureInfo.InvariantCulture, $"connection.{i}")).ToArray();
+        await RunWindowedAsync(leases, window, async i => revs[i] = await kv.CreateAsync(keys[i], Value("A", 0)).ConfigureAwait(false))
+            .ConfigureAwait(false);
+        var samples = new List<double>();
+        for (var r = 1; r <= rounds; r++)
+        {
+            var sw = Stopwatch.StartNew();
+            await RunWindowedAsync(leases, window, async i => revs[i] = await kv.UpdateAsync(keys[i], Value("A", r), revs[i]).ConfigureAwait(false))
+                .ConfigureAwait(false);
+            samples.Add(sw.Elapsed.TotalMilliseconds);
+        }
+
+        report.Row(string.Create(CultureInfo.InvariantCulture, $"Renewal round of {leases:N0} leases, {window} CAS in flight ({rounds} rounds)"),
+            Report.Latency(samples));
+    }
+
+    private static async Task RunWindowedAsync(int count, int window, Func<int, Task> work)
+    {
+        using var gate = new SemaphoreSlim(window);
+        var tasks = new List<Task>(count);
+        for (var i = 0; i < count; i++)
+        {
+            await gate.WaitAsync().ConfigureAwait(false);
+            var index = i;
+            tasks.Add(Task.Run(async () =>
+            {
+                try
+                {
+                    await work(index).ConfigureAwait(false);
+                }
+                finally
+                {
+                    gate.Release();
+                }
+            }));
+        }
+
+        await Task.WhenAll(tasks).ConfigureAwait(false);
+    }
 }

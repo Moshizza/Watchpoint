@@ -37,8 +37,9 @@ await using (var node = await NatsCluster.StartAsync(server, Path.Combine(work, 
     await LogScenarios.FencingAsync(js, report).ConfigureAwait(false);
 
     js = await LogScenarios.ResetStreamAsync(nats, 1).ConfigureAwait(false);
+    var fenced = await LogScenarios.FencedLanesAppendAsync(js, mid).ConfigureAwait(false);
     report.Row("R1: fenced append, 64 lanes (one per partition), each awaits its ack",
-        Report.Rate(mid, await LogScenarios.FencedLanesAppendAsync(js, mid).ConfigureAwait(false)));
+        Report.Rate(mid, fenced.Elapsed) + Resolved(fenced.Resolved));
 
     foreach (var (batch, lanes) in new[] { (10, 32), (100, 32), (100, 64) })
     {
@@ -86,8 +87,8 @@ await using (var cluster = await NatsCluster.StartAsync(server, Path.Combine(wor
     report.Row("R3: pipelined append, 1024 in flight",
         Report.Rate(mid, await LogScenarios.WindowedAppendAsync(js, mid, 1024).ConfigureAwait(false)));
     js = await LogScenarios.ResetStreamAsync(nats, 3).ConfigureAwait(false);
-    report.Row("R3: fenced append, 64 lanes",
-        Report.Rate(mid / 2, await LogScenarios.FencedLanesAppendAsync(js, mid / 2).ConfigureAwait(false)));
+    var fenced = await LogScenarios.FencedLanesAppendAsync(js, mid / 2).ConfigureAwait(false);
+    report.Row("R3: fenced append, 64 lanes", Report.Rate(mid / 2, fenced.Elapsed) + Resolved(fenced.Resolved));
     await LogScenarios.ResetStreamAsync(nats, 3, atomic: true).ConfigureAwait(false);
     var (elapsed, error) = await LogScenarios.FencedAtomicBatchesAsync(nats, mid, 100, 32).ConfigureAwait(false);
     report.Row("R3: fenced atomic batches of 100, 32 concurrent batches", error is null ? Report.Rate(mid, elapsed) : "failed: " + error);
@@ -110,6 +111,8 @@ await using (var cluster = await NatsCluster.StartAsync(server, Path.Combine(wor
         var where = NatsCluster.NodeName(i) == leader ? "client on stream leader" : "client on follower";
         await KvScenarios.LatencyAsync(contenders[i], report, where + " " + NatsCluster.NodeName(i), 2000).ConfigureAwait(false);
     }
+
+    await KvScenarios.BulkRenewAsync(kv, report, 5000, 256, 10).ConfigureAwait(false);
 
     foreach (var c in connections)
     {
@@ -156,6 +159,10 @@ static async Task ReplaySetAsync(INatsJSContext js, Report report, string label)
         .ConfigureAwait(false);
     report.Row("Replay 16 partitions (one consumer, 16 filters) from seq 1, " + label, Report.Rate(n, t));
 }
+
+static string Resolved(int n) => n == 0
+    ? string.Empty
+    : string.Create(CultureInfo.InvariantCulture, $"; {n} publishes answered \"wrong last sequence\" although their own earlier attempt was stored (resolved by reading the record)");
 
 static string Spread(IEnumerable<TimeSpan> values)
 {
