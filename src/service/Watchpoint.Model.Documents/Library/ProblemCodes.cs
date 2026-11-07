@@ -18,7 +18,7 @@ public static class ProblemCodes
     public const string TypeExcludeUnknown = "scm.type.exclude_unknown";
     public const string CommandEffectPropertyUnknown = "scm.command.effect_property_unknown";
     public const string PropertyWritableWithoutSetter = "scm.property.writable_without_setter";
-    public const string I18nKeyMissing = "scm.i18n.key_missing";
+    public const string TranslationMissing = "scm.i18n.key_missing";
     public const string SymbolMissing = "scm.symbol.missing";
     public const string SymbolUnsafe = "scm.symbol.unsafe";
     public const string ManifestFileHashMismatch = "scm.manifest.file_hash_mismatch";

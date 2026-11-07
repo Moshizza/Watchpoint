@@ -395,7 +395,7 @@ public sealed class LibraryValidator : ILibraryValidator
                 {
                     var error = culture == "en" || options.StrictI18n;
                     Problems.Add(new DocumentProblem(error ? ProblemSeverity.Error : ProblemSeverity.Warning, file, string.Empty,
-                        ErrorCode.FromTrusted(ProblemCodes.I18nKeyMissing), new Dictionary<string, object?> { ["culture"] = culture, ["key"] = key }));
+                        ErrorCode.FromTrusted(ProblemCodes.TranslationMissing), new Dictionary<string, object?> { ["culture"] = culture, ["key"] = key }));
                 }
             }
         }
@@ -463,7 +463,7 @@ public sealed class LibraryValidator : ILibraryValidator
             for (var i = 0; i < manifest.Files.Count; i++)
             {
                 var file = manifest.Files[i];
-                var full = Path.GetFullPath(Path.Combine(root, file.Path));
+                var full = Path.GetFullPath(file.Path, root);
                 if (!full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.Ordinal) || !File.Exists(full))
                 {
                     Add(source.SourcePath, $"/files/{i}", ProblemCodes.ManifestFileMissing, ("file", file.Path));

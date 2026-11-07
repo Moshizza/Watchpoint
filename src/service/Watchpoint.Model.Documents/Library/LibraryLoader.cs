@@ -34,22 +34,24 @@ public static class LibraryLoader
         string symbols;
         string i18n;
 
-        var manifestPath = Path.Combine(root, "manifest.json");
+        var manifestPath = Path.Join(root, "manifest.json");
         if (File.Exists(manifestPath))
         {
             var doc = Read(root, manifestPath, problems, reader.ReadManifest);
             manifest = doc;
-            capabilityFiles = doc?.Document.Capabilities.Select(p => Path.Combine(root, p)) ?? [];
-            typeFiles = doc?.Document.Types.Select(p => Path.Combine(root, p)) ?? [];
-            symbols = Path.Combine(root, doc?.Document.Symbols ?? "symbols");
-            i18n = Path.Combine(root, doc?.Document.I18n ?? "i18n");
+
+            // Paths in a manifest are untrusted: anything resolving outside the package folder is refused.
+            capabilityFiles = Contained(root, doc?.Document.Capabilities ?? [], problems);
+            typeFiles = Contained(root, doc?.Document.Types ?? [], problems);
+            symbols = Contained(root, [doc?.Document.Symbols ?? "symbols"], problems).FirstOrDefault() ?? string.Empty;
+            i18n = Contained(root, [doc?.Document.I18n ?? "i18n"], problems).FirstOrDefault() ?? string.Empty;
         }
         else
         {
-            capabilityFiles = JsonFiles(Path.Combine(root, "capabilities"));
-            typeFiles = JsonFiles(Path.Combine(root, "device-types"));
-            symbols = Path.Combine(root, "symbols");
-            i18n = Path.Combine(root, "i18n");
+            capabilityFiles = JsonFiles(Path.Join(root, "capabilities"));
+            typeFiles = JsonFiles(Path.Join(root, "device-types"));
+            symbols = Path.Join(root, "symbols");
+            i18n = Path.Join(root, "i18n");
         }
 
         var capabilities = capabilityFiles.Select(f => Read(root, f, problems, reader.ReadCapability)).OfType<SourceDocument<CapabilityDocument>>().ToList();
@@ -135,6 +137,26 @@ public static class LibraryLoader
         }
 
         return null;
+    }
+
+    /// <summary>Full paths of <paramref name="relativePaths"/> that stay inside <paramref name="root"/>; others are reported.</summary>
+    private static List<string> Contained(string root, IEnumerable<string> relativePaths, List<DocumentProblem> problems)
+    {
+        var inside = new List<string>();
+        foreach (var relative in relativePaths)
+        {
+            var full = Path.GetFullPath(relative, root);
+            if (full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.Ordinal) || full == root)
+            {
+                inside.Add(full);
+            }
+            else
+            {
+                problems.Add(Invalid("manifest.json", $"path outside the package: {relative}"));
+            }
+        }
+
+        return inside;
     }
 
     private static DocumentProblem Invalid(string file, string reason) =>

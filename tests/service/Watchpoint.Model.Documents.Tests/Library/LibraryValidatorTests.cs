@@ -53,7 +53,7 @@ public sealed class LibraryValidatorTests : IDisposable
         resolved.DefaultAlarmRules.ShouldContain("std.ac.door.forced");
         resolved.Chain.Select(t => t.Value).ShouldBe(["test.battery-door", "ac.door"]);
         new LibraryValidator().Validate(set, new LibraryValidationOptions())
-            .Problems.Where(p => p.Severity == ProblemSeverity.Error && p.Code.Value != ProblemCodes.I18nKeyMissing).ShouldBeEmpty();
+            .Problems.Where(p => p.Severity == ProblemSeverity.Error && p.Code.Value != ProblemCodes.TranslationMissing).ShouldBeEmpty();
     }
 
     [Fact]
@@ -153,7 +153,7 @@ public sealed class LibraryValidatorTests : IDisposable
             .Write("i18n/fr.json", """{"capabilities":{"gadget":{"name":"Gadget","description":"Un gadget."}}}""")
             .Write("i18n/ar.json", """{"capabilities":{"gadget":{"name":"أداة","description":"أداة."}}}""");
 
-        var problems = _lib.Validate().WithCode(ProblemCodes.I18nKeyMissing).ToList();
+        var problems = _lib.Validate().WithCode(ProblemCodes.TranslationMissing).ToList();
 
         var en = problems.ShouldHaveSingleItem();
         en.Severity.ShouldBe(ProblemSeverity.Error);
@@ -162,7 +162,7 @@ public sealed class LibraryValidatorTests : IDisposable
 
         _lib.Write("i18n/en.json", """{"capabilities":{"gadget":{"name":"Gadget","description":"A gadget."}}}""")
             .Write("i18n/fr.json", """{"capabilities":{"gadget":{"name":"Gadget"}}}""");
-        var fr = _lib.Validate().WithCode(ProblemCodes.I18nKeyMissing).ShouldHaveSingleItem();
+        var fr = _lib.Validate().WithCode(ProblemCodes.TranslationMissing).ShouldHaveSingleItem();
         fr.Severity.ShouldBe(ProblemSeverity.Warning);
         fr.Args["culture"].ShouldBe("fr");
     }
@@ -175,10 +175,10 @@ public sealed class LibraryValidatorTests : IDisposable
             .Write("i18n/fr.json", """{"capabilities":{"gadget":{"name":"Gadget","description":"Un gadget."}}}""")
             .Write("i18n/ar.json", """{"capabilities":{"gadget":{"name":"أداة"}}}""");
 
-        _lib.Validate().WithCode(ProblemCodes.I18nKeyMissing).ShouldHaveSingleItem().Severity.ShouldBe(ProblemSeverity.Warning);
+        _lib.Validate().WithCode(ProblemCodes.TranslationMissing).ShouldHaveSingleItem().Severity.ShouldBe(ProblemSeverity.Warning);
         var strict = _lib.Validate(strictI18n: true);
 
-        var ar = strict.WithCode(ProblemCodes.I18nKeyMissing).ShouldHaveSingleItem();
+        var ar = strict.WithCode(ProblemCodes.TranslationMissing).ShouldHaveSingleItem();
         ar.Severity.ShouldBe(ProblemSeverity.Error);
         ar.Args["culture"].ShouldBe("ar");
         strict.HasErrors.ShouldBeTrue();
