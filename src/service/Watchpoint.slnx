@@ -11,6 +11,7 @@
     <Project Path="Watchpoint.Kernel/Watchpoint.Kernel.csproj" />
     <Project Path="Watchpoint.Kernel.Testing/Watchpoint.Kernel.Testing.csproj" />
     <Project Path="Watchpoint.Model.Documents/Watchpoint.Model.Documents.csproj" />
+    <Project Path="Watchpoint.Secrets/Watchpoint.Secrets.csproj" />
     <Project Path="Watchpoint.Storage.Postgres/Watchpoint.Storage.Postgres.csproj" />
     <Project Path="Watchpoint.Storage/Watchpoint.Storage.csproj" />
   </Folder>
