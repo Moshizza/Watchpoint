@@ -1,0 +1,278 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.watchpoint.dev/capability/1.json",
+  "title": "Watchpoint Capability Document Schema",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "format": "uri"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-zA-Z0-9]*(\\.[a-z][a-zA-Z0-9]*)?$",
+      "maxLength": 64
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
+    },
+    "properties": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/propertyDefinition" }
+    },
+    "commands": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/commandDefinition" }
+    },
+    "events": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/eventDefinition" }
+    }
+  },
+  "required": ["$schema", "id", "version", "properties", "commands", "events"],
+  "additionalProperties": false,
+  "patternProperties": {
+    "^x-": true
+  },
+  "$defs": {
+    "isoDuration": {
+      "type": "string",
+      "pattern": "^P(?!$)(?:\\d+D)?(?:T(?=\\d)(?:\\d+H)?(?:\\d+M)?(?:\\d+(?:\\.\\d+)?S)?)?$"
+    },
+    "commandTimeout": {
+      "type": "string",
+      "pattern": "^P(?!$)(?:0D)?(?:T(?=\\d)(?:(?:0H)?(?:(?:0|[1-9]|10)M(?:0S|0\\.0*S)?|(?:0|[1-9])M(?:[1-5]?\\d(?:\\.\\d+)?S)?|(?:[1-5]?\\d(?:\\.\\d+)?S))|(?:[1-5]?\\d(?:\\.\\d+)?S)))?$"
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["normal", "normalActive", "info", "warning", "alarm", "fault", "offline", "unknown"]
+    },
+    "memberId": {
+      "type": "string",
+      "pattern": "^[a-z][a-zA-Z0-9]*$",
+      "maxLength": 64
+    },
+    "valueType": {
+      "type": "string",
+      "enum": ["boolean", "integer", "decimal", "enum", "string", "timestamp", "duration", "geoPoint", "object", "list"]
+    },
+    "enumValue": {
+      "type": "object",
+      "properties": {
+        "code": { "$ref": "#/$defs/memberId" },
+        "severity": { "$ref": "#/$defs/severity" }
+      },
+      "required": ["code", "severity"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": true
+      }
+    },
+    "history": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["everyChange", "deadband", "periodic", "none"]
+        },
+        "type": {
+          "type": "string",
+          "enum": ["absolute", "percent"]
+        },
+        "threshold": {
+          "type": "number",
+          "minimum": 0
+        },
+        "interval": {
+          "$ref": "#/$defs/isoDuration"
+        }
+      },
+      "required": ["mode"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": true
+      }
+    },
+    "propertyDefinition": {
+      "type": "object",
+      "properties": {
+        "id": { "$ref": "#/$defs/memberId" },
+        "valueType": { "$ref": "#/$defs/valueType" },
+        "enumValues": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/enumValue" },
+          "minItems": 1
+        },
+        "unit": { "type": "string" },
+        "range": {
+          "type": "object",
+          "properties": {
+            "min": { "type": "number" },
+            "max": { "type": "number" }
+          },
+          "additionalProperties": false,
+          "patternProperties": {
+            "^x-": true
+          }
+        },
+        "decimals": { "type": "integer", "minimum": 0, "maximum": 6 },
+        "maxLength": { "type": "integer", "minimum": 1 },
+        "itemType": {
+          "type": "string",
+          "enum": ["boolean", "integer", "decimal", "enum", "string", "timestamp", "duration", "geoPoint"]
+        },
+        "objectSchema": {
+          "$ref": "https://schemas.watchpoint.dev/parameter/1.json"
+        },
+        "writable": { "type": "boolean" },
+        "history": { "$ref": "#/$defs/history" },
+        "staleAfter": { "$ref": "#/$defs/isoDuration" },
+        "default": true,
+        "booleanSeverity": {
+          "type": "object",
+          "properties": {
+            "true": { "$ref": "#/$defs/severity" },
+            "false": { "$ref": "#/$defs/severity" }
+          },
+          "required": ["true", "false"],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^x-": true
+          }
+        }
+      },
+      "required": ["id", "valueType"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": true
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "valueType": { "const": "enum" } } },
+          "then": { "required": ["enumValues"] }
+        },
+        {
+          "if": { "properties": { "valueType": { "const": "list" } } },
+          "then": { "required": ["itemType"] }
+        },
+        {
+          "if": { "properties": { "valueType": { "const": "object" } } },
+          "then": { "required": ["objectSchema"] }
+        },
+        {
+          "if": { "not": { "properties": { "valueType": { "enum": ["integer", "decimal"] } } } },
+          "then": {
+            "properties": {
+              "unit": false,
+              "range": false,
+              "decimals": false
+            }
+          }
+        },
+        {
+          "if": { "not": { "properties": { "valueType": { "const": "string" } } } },
+          "then": {
+            "properties": {
+              "maxLength": false
+            }
+          }
+        },
+        {
+          "if": { "not": { "properties": { "valueType": { "const": "boolean" } } } },
+          "then": {
+            "properties": {
+              "booleanSeverity": false
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["history"],
+            "properties": {
+              "history": {
+                "properties": {
+                  "mode": { "const": "deadband" }
+                },
+                "required": ["mode"]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "valueType": { "enum": ["integer", "decimal"] }
+            }
+          }
+        }
+      ]
+    },
+    "commandDefinition": {
+      "type": "object",
+      "properties": {
+        "id": { "$ref": "#/$defs/memberId" },
+        "parameters": {
+          "$ref": "https://schemas.watchpoint.dev/parameter/1.json"
+        },
+        "risk": {
+          "type": "string",
+          "enum": ["normal", "sensitive", "critical"]
+        },
+        "timeout": { "$ref": "#/$defs/commandTimeout" },
+        "idempotent": { "type": "boolean" },
+        "batchable": { "type": "boolean" },
+        "riskByArgument": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "enum": ["normal", "sensitive", "critical"]
+            }
+          }
+        },
+        "expectedEffect": {
+          "type": "object",
+          "properties": {
+            "property": {
+              "type": "string",
+              "pattern": "^[a-z][a-zA-Z0-9]*(\\.[a-z][a-zA-Z0-9]*)?\\.[a-z][a-zA-Z0-9]*$"
+            },
+            "equals": true,
+            "in": { "type": "array" },
+            "within": { "$ref": "#/$defs/isoDuration" }
+          },
+          "required": ["property"],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^x-": true
+          }
+        }
+      },
+      "required": ["id"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": true
+      }
+    },
+    "eventDefinition": {
+      "type": "object",
+      "properties": {
+        "id": { "$ref": "#/$defs/memberId" },
+        "severity": { "$ref": "#/$defs/severity" },
+        "payload": {
+          "$ref": "https://schemas.watchpoint.dev/parameter/1.json"
+        },
+        "personalData": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        }
+      },
+      "required": ["id"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": true
+      }
+    }
+  }
+}

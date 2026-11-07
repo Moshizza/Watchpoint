@@ -9,6 +9,8 @@
     <Project Path="Watchpoint.Analyzers/Watchpoint.Analyzers.csproj" />
     <Project Path="Watchpoint.Analyzers.CodeFixes/Watchpoint.Analyzers.CodeFixes.csproj" />
     <Project Path="Watchpoint.Kernel/Watchpoint.Kernel.csproj" />
+    <Project Path="Watchpoint.Kernel.Testing/Watchpoint.Kernel.Testing.csproj" />
+    <Project Path="Watchpoint.Model.Documents/Watchpoint.Model.Documents.csproj" />
   </Folder>
   <Folder Name="/integrations/" />
   <Folder Name="/tests/">
@@ -16,6 +18,7 @@
     <Project Path="../../tests/service/Watchpoint.ArchitectureTests/Watchpoint.ArchitectureTests.csproj" />
     <Project Path="../../tests/service/Watchpoint.IntegrationTests/Watchpoint.IntegrationTests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Kernel.Tests/Watchpoint.Kernel.Tests.csproj" />
+    <Project Path="../../tests/service/Watchpoint.Model.Documents.Tests/Watchpoint.Model.Documents.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Testing/Watchpoint.Testing.csproj" />
     <Project Path="../../tests/service/Watchpoint.Testing.Containers/Watchpoint.Testing.Containers.csproj" />
     <Project Path="../../tests/service/Watchpoint.Testing.Tests/Watchpoint.Testing.Tests.csproj" />

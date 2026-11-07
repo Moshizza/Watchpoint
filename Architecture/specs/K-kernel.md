@@ -13,8 +13,9 @@
 The Kernel holds the small set of types **every** .NET project of Watchpoint uses:
 identifiers, results and errors, time helpers, paging, JSON settings, translatable texts and
 validation helpers. It has **no dependency** on any other Watchpoint project and only on
-these packages: `NodaTime`, `Microsoft.Extensions.TimeProvider.Testing` (testing project
-only).
+these packages: `NodaTime`, `Microsoft.Extensions.Logging.Abstractions` (`KernelLog`, §11),
+`Microsoft.CodeAnalysis.PublicApiAnalyzers` (build-time only, public API snapshot, K-U-055),
+`Microsoft.Extensions.TimeProvider.Testing` (testing project only).
 
 Not in scope: logging setup (HST), persistence (STO), domain types of modules (each module).
 
@@ -43,26 +44,34 @@ Watchpoint.Kernel/
 │   └── ResultExtensions.cs     Map, Bind, Ensure, Match, async variants
 ├── Time/
 │   ├── TimeProviderExtensions.cs
-│   ├── SiteTimeZone.cs         NodaTime-based conversions
+│   ├── SiteTimeZone.cs         NodaTime-based conversions; AmbiguityPolicy.cs
 │   └── Iso8601DurationConverter.cs, UtcDateTimeOffsetConverter.cs
 ├── Paging/
-│   ├── PageRequest.cs, Page.cs, SortSpec.cs
-│   └── CursorCodec.cs
+│   ├── PageRequest.cs, Page.cs, SortSpec.cs, SortField.cs
+│   └── CursorCodec.cs, DecodedCursor.cs
 ├── Text/
 │   ├── Message.cs              translatable message (key + args)
 │   ├── LocalizedName.cs        user content with optional translations
 │   ├── SupportedCultures.cs
 │   └── NameRules.cs
 ├── Json/
-│   └── WatchpointJson.cs       options factory and converters registration
+│   ├── WatchpointJson.cs       options factory and converters registration; JsonProfile.cs
+│   └── KernelJsonContext.cs    source-generated metadata of Kernel types (LocalizedName)
 ├── Validation/
 │   ├── ValidationBuilder.cs
+│   ├── JsonPointer.cs          RFC 6901 pointer building and escaping
 │   └── Guard.cs
+├── Values/
+│   ├── WpValue.cs, WpValueKind.cs, GeoPoint.cs, Quality.cs, Connectivity.cs
+│   └── WpValueJsonConverter.cs (+ internal WpValueReader, CanonicalJson)
+├── PublicAPI.Shipped.txt, PublicAPI.Unshipped.txt   public API snapshot (PublicApiAnalyzers)
 └── KernelLog.cs                event ids 1000–1099 (LoggerMessage source-generated)
 
 Watchpoint.Kernel.Testing/
-├── ResultAssertions.cs         Shouldly-style helpers: ShouldBeSuccess(), ShouldFailWith(code)
-└── TestIds.cs                  deterministic id factory for tests
+├── ResultAssertions.cs         Shouldly-style helpers: ShouldBeSuccess(), ShouldFailWith(code),
+│                               ShouldHaveFieldError(path, code); throw ResultAssertionException
+├── TestIds.cs                  deterministic id factory for tests (TestIds.Device(1), TestIds.Of<TId>(n))
+└── TestTime.cs                 FakeTimeProvider at a fixed start instant
 ```
 
 ## 4. Identifiers
@@ -253,6 +262,7 @@ Anything else → `ArgumentException` (programming error). Names of arguments ar
 | `common.version.conflict` | PreconditionFailed | `expected`, `actual` | ETag mismatch |
 | `common.cursor.invalid` | Validation | — | Bad paging cursor |
 | `common.sort.invalid_field` | Validation | `field`, `allowed` | |
+| `common.time.invalid_local` | Validation | `local`, `reason` (`gap`/`overlap`) | Local time skipped or repeated by a DST change, rejected by `AmbiguityPolicy.Reject` |
 | `common.unauthenticated` | Unauthenticated | — | |
 | `common.forbidden` | Forbidden | `permission` | |
 | `common.rate_limited` | TooManyRequests | `retryAfterSeconds` | |
@@ -280,16 +290,23 @@ public sealed class SiteTimeZone
     public static Result<SiteTimeZone> FromIana(string tzId);   // "Europe/Paris"; invalid → common.value.invalid_format
     public string Id { get; }
     public LocalDateTime ToLocal(DateTimeOffset utc);
-    public DateTimeOffset ToUtc(LocalDateTime local, AmbiguityPolicy policy); // gaps/overlaps per policy
+    public Result<DateTimeOffset> ToUtc(LocalDateTime local, AmbiguityPolicy policy); // gaps/overlaps per policy
 }
 public enum AmbiguityPolicy { EarlierOffset, LaterOffset, Reject }
 ```
+
+  `EarlierOffset`/`LaterOffset` pick the earlier/later **instant**: in an overlap, the first or
+  second occurrence; in a gap, the local time read with the offset after the gap (earlier
+  instant) or shifted forward by the gap length (later instant; Paris 2026-03-29 02:30 → 01:30Z).
+  `Reject` fails with `common.time.invalid_local` for both.
 
 - JSON: `DateTimeOffset` written as `yyyy-MM-ddTHH:mm:ss.fffZ` (always UTC, `Z`); reading
   accepts any ISO 8601 with offset and converts to UTC; values without offset are rejected
   (`common.value.invalid_format`).
 - `TimeSpan` in configuration documents and API: ISO 8601 duration (`PT10S`, `PT1H30M`,
-  `P1D`); months and years are rejected (ambiguous). Converter: `Iso8601DurationConverter`.
+  `P1D`, `P1W`, fractional seconds, leading `-` for negative); months and years are rejected
+  (ambiguous). Written with days, hours, minutes, seconds (`P1DT2H`, zero = `PT0S`). Converter:
+  `Iso8601DurationConverter`. Date reading also truncates to milliseconds.
 
 ## 7. Paging, sorting, cursors
 
@@ -313,9 +330,14 @@ public static class CursorCodec
     // Cursor = base64url(UTF-8 JSON {"v":1,"k":[...last sort key values...],"id":"<uuid>"})
     public static string Encode(int version, IReadOnlyList<object?> keyValues, Guid lastId);
     public static Result<DecodedCursor> Decode(string cursor, int expectedVersion);
+    public static Result<DecodedCursor> Decode(string cursor, int expectedVersion, ILogger? logger); // logs 1001
 }
 public sealed record DecodedCursor(IReadOnlyList<JsonElement> KeyValues, Guid LastId);
 ```
+
+Key values: `null`, `string`, `bool`, `int`, `long`, `double`, `decimal`, `DateTimeOffset` (UTC
+ms string), `Guid`, ids, enums (as numbers); anything else → `ArgumentException`. Unknown or
+missing members in a decoded cursor → `common.cursor.invalid`.
 
 Keyset paging only (no offsets). The `id` tie-breaker makes paging stable. Cursors are
 opaque to clients; a cursor from another query or version → `common.cursor.invalid`.
@@ -332,35 +354,45 @@ public sealed record Message(string Key, IReadOnlyDictionary<string, object?> Ar
 ```
 
 Used for events, notices and anything shown to users that is produced by the system. Keys
-are lowercase dotted (`events.door.forced.title`). Argument rules as §5.4.
+are dotted, at least two segments, each starting with a lowercase letter
+(`^[a-z][a-zA-Z0-9_]*(\.[a-z][a-zA-Z0-9_]*)+$`, e.g. `events.door.forced.title`); an invalid key
+→ `ArgumentException`. Argument rules as §5.4 (checked in all builds).
 
 ### 8.2 `LocalizedName` (user content)
 
 ```csharp
 public sealed record LocalizedName(string Default, IReadOnlyDictionary<string, string> Translations)
 {
+    public static LocalizedName Of(string @default);           // no translations
     public string Resolve(string culture);  // exact culture → neutral ("fr-CA" → "fr") → Default
+    public IReadOnlyList<FieldError> Validate(string path);   // NameRules + culture keys
 }
 ```
 
 JSON: `{ "default": "Main entrance", "translations": { "fr": "Entrée principale", "ar": "المدخل الرئيسي" } }`.
-Translations keys must be in `SupportedCultures.All` (validation error otherwise).
+Translations keys must be in `SupportedCultures.All` (`common.value.not_allowed` at
+`<path>/translations/<key>` otherwise); `default` and translations follow `NameRules`. A missing
+`translations` member reads as empty.
 
 ### 8.3 `SupportedCultures`
 
-`All = ["en", "fr", "ar"]` (v1); `RightToLeft = ["ar"]`; `Default = "en"`. Adding a culture is
-a code change in one place.
+`All = ["en", "fr", "ar"]` (v1); `RightToLeft = ["ar"]`; `Default = "en"`; helpers
+`IsSupported(culture)`, `IsRightToLeft(culture)` (neutral culture used). Adding a culture is a
+code change in one place.
 
 ### 8.4 `NameRules`
 
 Display names (devices, servers, locations, users' display names, rules…):
 
-- trimmed; length 1–200; no control characters (Unicode category Cc); no
-  leading/trailing whitespace; Unicode normalised to NFC.
+- length 1–200 (UTF-16 code units after NFC); no control characters (Unicode category Cc); no
+  leading/trailing whitespace (rejected, not trimmed); stored NFC-normalised
+  (`NameRules.Normalize`). Errors: blank → `common.value.required`, too long →
+  `common.value.too_long`, control characters or outer whitespace → `common.value.invalid_format`.
 - Comparison for uniqueness (where a module requires it): `string.Compare(a, b,
   CultureInfo.InvariantCulture, CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace)`
   after NFC.
-- `NameRules.Validate(string? value, string path)` → `IReadOnlyList<FieldError>`.
+- `NameRules.Validate(string? value, string path)` → `IReadOnlyList<FieldError>`;
+  `NameRules.Compare(a, b)` / `AreEquivalent(a, b)` implement the uniqueness comparison.
 
 ## 9. JSON and validation helpers
 
@@ -399,8 +431,11 @@ v.Required("/name", dto.Name)
 Result result = v.Build();   // Success, or Error common.validation.failed with all field errors
 ```
 
-Collects **all** problems (does not stop at the first). Paths are JSON Pointers; helpers
-escape `~` and `/` in segment names.
+Collects **all** problems (does not stop at the first). Paths are JSON Pointers; `JsonPointer`
+(`Escape`, `Combine`, `Append`) escapes `~` and `/` in segment names. Rules other than `Required`
+skip `null` values. `Custom` errors carry paths relative to the given path, which is prefixed.
+`Add`/`AddRange` add ready-made field errors. `new ValidationBuilder(ILogger)` logs event 1002
+on failure.
 
 ### 9.3 `Guard`
 
@@ -451,7 +486,16 @@ public enum Connectivity { Online, Degraded, Offline, Unknown }
   `{"k":"geo","v":[48.85,2.35]}`, `{"k":"list","v":[…]}`, `{"k":"obj","v":{…}}`, `{"k":"null"}`.
   A **compact form** without kind (plain JSON value) is accepted where the target type is known
   (API inputs validated against a property definition); MOD converts it.
-- Size limits: strings 16 KB, lists 1,000 items, objects 16 KB serialised, depth 8.
+  The compact form is read with
+  `public static Result<WpValue> ReadCompact(JsonElement json, WpValueKind? targetKind)`: JSON
+  `null` → `Null`; decimals accept a number or a string; lists have no compact form; no target
+  kind → `common.value.invalid_format`.
+- `Object` requires a JSON object; `Geo` requires latitude −90…90, longitude −180…180, finite
+  values (`ArgumentOutOfRangeException`).
+- Size limits, enforced when **reading JSON** (full and compact forms): strings 16 KB (UTF-8),
+  lists 1,000 items, objects 16 KB serialised (canonical JSON), depth 8 (a scalar is depth 1; each
+  list level and each JSON object/array level of an `obj` adds one) → `JsonException` /
+  `common.value.too_long`.
 
 ## 11. Observability
 
@@ -536,7 +580,7 @@ All tests are unit tests in `tests/service/Watchpoint.Kernel.Tests`.
 | K-U-042 | `JsonProfile.Log` ignores unknown members | extra property → ignored |
 | K-U-043 | Enums as camelCase strings | `ErrorKind.PreconditionFailed` → `"preconditionFailed"`; numeric input rejected |
 | K-U-044 | `NaN` rejected | double NaN serialisation → exception |
-| K-U-045 | `Message.Of` arguments | stores args; disallowed type → `ArgumentException` (DEBUG) |
+| K-U-045 | `Message.Of` arguments | stores args; disallowed type → `ArgumentException` |
 | K-U-046 | `LocalizedName.Resolve` fallback | translations {fr} → `fr-CA` resolves fr; `de` resolves default |
 | K-U-047 | `LocalizedName` validation | translation key `de` → field error `/translations/de` `common.value.not_allowed` |
 | K-U-048 | `NameRules` valid names | "Main entrance", Arabic "المدخل", 200 chars → ok |

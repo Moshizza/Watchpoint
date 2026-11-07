@@ -12,14 +12,18 @@ are short on purpose: read them, then read only the spec sections your task name
 2. **Pick a task.** If you were given a task id, take it; otherwise take the **next available
    task**: `git fetch origin` then `python3 tools/next-task.py` (first task in dependency order
    that is `todo`, has all dependencies `done`, and has no remote branch `*/<task-id>-*` yet).
-   If it prints that no task is available, report that and stop. One task per session.
+   The script only sees remote branches, so also skip a task whose issue has a
+   `Taken by <agent>` comment or that has an open pull request (some agents, e.g. Jules,
+   cannot push before they submit; their claim is that issue comment). If it prints that no
+   task is available, report that and stop. One task per session.
 3. **Read only what the task needs**: its row in `tasks.md`, the spec sections it names,
    [`Architecture/README.md`](Architecture/README.md) (conventions), and the issue. Do not
    re-read the whole architecture.
 
 ## 2. Claim before coding
 
-Run `git fetch origin` and check again that no branch `*/<task-id>-*` exists (someone may have
+Run `git fetch origin` and check again that no branch `*/<task-id>-*` exists, that the issue
+has no `Taken by <agent>` comment and that no open pull request closes it (someone may have
 started meanwhile; if so, pick the next task). Create your branch `<agent-name>/<task-id>-<slug>`
 from `origin/main` (never work on `main`); the slug is 2–5 lowercase words from the task title. In your
 first commit on that branch, set the task's **Owner** to that exact branch name, for example

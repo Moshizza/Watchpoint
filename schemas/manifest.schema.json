@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.watchpoint.dev/manifest/1.json",
+  "title": "Watchpoint Integration Manifest Document Schema",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "format": "uri"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9-]*){1,5}$",
+      "maxLength": 128
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
+    },
+    "vendor": { "type": "string" },
+    "category": {
+      "type": "string",
+      "enum": [
+        "accessControl",
+        "video",
+        "intrusion",
+        "fire",
+        "intercomAudio",
+        "perimeter",
+        "buildingManagement",
+        "smartCity",
+        "itInfrastructure",
+        "generic",
+        "system"
+      ]
+    },
+    "contract": {
+      "type": "string",
+      "pattern": "^(?:\\^|~)?(?:0|[1-9]\\d*)(?:\\.(?:0|[1-9]\\d*|x|X|\\*))?(?:\\.(?:0|[1-9]\\d*|x|X|\\*))?$"
+    },
+    "minWatchpointVersion": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
+    },
+    "platforms": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["win-x64", "win-x86", "linux-x64", "linux-arm64"]
+      },
+      "uniqueItems": true
+    },
+    "nativeCode": { "type": "boolean" },
+    "isolation": {
+      "type": "string",
+      "enum": ["inProcessAllowed", "isolatedRecommended", "isolatedRequired"]
+    },
+    "licence": {
+      "type": "object",
+      "properties": {
+        "featureKey": { "type": "string" },
+        "class": {
+          "type": "string",
+          "enum": ["included", "standard", "advanced"]
+        }
+      },
+      "required": ["class"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": true
+      }
+    },
+    "connectors": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/connector" }
+    },
+    "types": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "capabilities": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "ruleTemplates": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "symbols": { "type": "string" },
+    "i18n": { "type": "string" },
+    "docs": { "type": "string" },
+    "privacy": {
+      "type": "object",
+      "properties": {
+        "personalData": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": true
+      }
+    },
+    "files": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/packageFile" }
+    }
+  },
+  "required": [
+    "$schema",
+    "id",
+    "version",
+    "vendor",
+    "category",
+    "contract",
+    "minWatchpointVersion",
+    "platforms",
+    "nativeCode",
+    "isolation",
+    "licence",
+    "connectors",
+    "types",
+    "capabilities",
+    "ruleTemplates",
+    "files"
+  ],
+  "additionalProperties": false,
+  "patternProperties": {
+    "^x-": true
+  },
+  "$defs": {
+    "connector": {
+      "type": "object",
+      "properties": {
+        "class": {
+          "type": "string",
+          "pattern": "^.+::.+$"
+        },
+        "serverType": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9-]*){1,4}$"
+        },
+        "supportedVendorVersions": { "type": "string" },
+        "features": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "discovery",
+              "liveObservation",
+              "stateRefresh",
+              "commandExecution",
+              "eventCatchUp",
+              "videoProvider",
+              "timeSync",
+              "lookup",
+              "configurationPush",
+              "diagnostics"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "settingsSchema": {
+          "oneOf": [
+            { "type": "string" },
+            { "$ref": "https://schemas.watchpoint.dev/parameter/1.json" }
+          ]
+        },
+        "secretsSchema": {
+          "type": "object",
+          "properties": {
+            "fields": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/secretField" }
+            }
+          },
+          "required": ["fields"],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^x-": true
+          }
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "devicesPerConnection": { "type": "integer", "minimum": 1 },
+            "commandsPerSecond": { "type": "integer", "minimum": 1 }
+          },
+          "additionalProperties": false,
+          "patternProperties": {
+            "^x-": true
+          }
+        }
+      },
+      "required": ["class", "serverType", "supportedVendorVersions", "features", "settingsSchema", "secretsSchema"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": true
+      }
+    },
+    "secretField": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-zA-Z0-9]*$"
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["password", "apiKey", "certificate", "privateKey", "token"]
+        },
+        "required": { "type": "boolean" }
+      },
+      "required": ["id", "kind", "required"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": true
+      }
+    },
+    "packageFile": {
+      "type": "object",
+      "properties": {
+        "path": { "type": "string" },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{64}$"
+        }
+      },
+      "required": ["path", "sha256"],
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": true
+      }
+    }
+  }
+}

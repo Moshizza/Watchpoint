@@ -97,6 +97,13 @@ public static class CommonErrors
     public static Error SortInvalidField(string field, IReadOnlyList<string> allowed) =>
         Validation(CommonErrorCodes.SortInvalidField, ("field", field), ("allowed", allowed));
 
+    /// <summary><c>common.time.invalid_local</c> (kind <see cref="ErrorKind.Validation"/>).</summary>
+    /// <param name="local">The local date and time, ISO 8601 without offset.</param>
+    /// <param name="reason"><c>gap</c> (skipped local time) or <c>overlap</c> (repeated local time).</param>
+    /// <returns>The error.</returns>
+    public static Error TimeInvalidLocal(string local, string reason) =>
+        Validation(CommonErrorCodes.TimeInvalidLocal, ("local", local), ("reason", reason));
+
     /// <summary><c>common.unauthenticated</c>.</summary>
     /// <returns>The error.</returns>
     public static Error Unauthenticated() => new() { Code = CommonErrorCodes.Unauthenticated, Kind = ErrorKind.Unauthenticated };

@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Watchpoint.Model.Documents.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Shouldly" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../../src/service/Watchpoint.Kernel/Watchpoint.Kernel.csproj" />
+    <ProjectReference Include="../../../src/service/Watchpoint.Model.Documents/Watchpoint.Model.Documents.csproj" />
+  </ItemGroup>
+
+</Project>
