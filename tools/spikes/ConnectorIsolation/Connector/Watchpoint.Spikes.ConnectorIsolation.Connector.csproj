@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Watchpoint.Spikes.ConnectorIsolation.Connector</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <!-- Behaves like a package: its deps.json is used by AssemblyDependencyResolver. -->
+    <GenerateDependencyFile>true</GenerateDependencyFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Shared assembly: compiled against, never loaded from the package folder. -->
+    <ProjectReference Include="../Contract/Watchpoint.Spikes.ConnectorIsolation.Contract.csproj" Private="false" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,16 @@
+{
+  "name": "@watchpoint/model",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared models and pure functions; generated document types (spec UIC \u00a77).",
+  "license": "UNLICENSED",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "devDependencies": {
+    "vite": "8.3.6",
+    "vitest": "5.1.0"
+  }
+}
