@@ -6,10 +6,13 @@
     <File Path="../../.editorconfig" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="Watchpoint.Analyzers/Watchpoint.Analyzers.csproj" />
+    <Project Path="Watchpoint.Analyzers.CodeFixes/Watchpoint.Analyzers.CodeFixes.csproj" />
     <Project Path="Watchpoint.Kernel/Watchpoint.Kernel.csproj" />
   </Folder>
   <Folder Name="/integrations/" />
   <Folder Name="/tests/">
+    <Project Path="../../tests/service/Watchpoint.Analyzers.Tests/Watchpoint.Analyzers.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Kernel.Tests/Watchpoint.Kernel.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Testing/Watchpoint.Testing.csproj" />
     <Project Path="../../tests/service/Watchpoint.Testing.Tests/Watchpoint.Testing.Tests.csproj" />
