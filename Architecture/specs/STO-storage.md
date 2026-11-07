@@ -440,7 +440,7 @@ the `CertificationContext` module whose provider migration each provider supplie
 | STO-I-008 | I | Snapshot upsert and read back | Write 3 items + checkpoint 10 → read items for partition → 3; checkpoints → {p: 10} |
 | STO-I-009 | I | Snapshot update and delete | Second batch updates 1, deletes 1 → read returns 2 with new payload |
 | STO-I-010 | I | Snapshot atomicity | Fault injected after upserts (test hook throwing before commit) → neither items nor checkpoint changed |
-| STO-I-011 | I | Large snapshot performance | 5,000 items batch → < 500 ms on CI runner (p95 of 5 runs) |
+| STO-I-011 | I | Large snapshot performance | 5,000 items batch → < 500 ms on CI runner (p95 of 20 runs, after one warm-up batch) |
 | STO-I-012 | I | Recovery stream ordering independence | Items read for partitions {1,3} only return those partitions |
 | STO-I-013 | I | Concurrency token enforced in database round-trip | Two contexts load same entity; both save → second gets `storage.concurrency.conflict` |
 | STO-I-014 | I | UTC precision | Save `…:30.1234567Z` → read `…:30.123Z` |
