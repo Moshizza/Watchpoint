@@ -41,6 +41,12 @@ public static class CommonErrorCodes
     /// <summary><c>common.sort.invalid_field</c>: unknown sort field (arguments <c>field</c>, <c>allowed</c>).</summary>
     public static readonly ErrorCode SortInvalidField = ErrorCode.FromTrusted("common.sort.invalid_field");
 
+    /// <summary>
+    /// <c>common.time.invalid_local</c>: a local time skipped (<c>reason</c> = <c>gap</c>) or repeated
+    /// (<c>reason</c> = <c>overlap</c>) by a daylight-saving change and rejected by policy (argument <c>local</c>).
+    /// </summary>
+    public static readonly ErrorCode TimeInvalidLocal = ErrorCode.FromTrusted("common.time.invalid_local");
+
     /// <summary><c>common.unauthenticated</c>.</summary>
     public static readonly ErrorCode Unauthenticated = ErrorCode.FromTrusted("common.unauthenticated");
 
