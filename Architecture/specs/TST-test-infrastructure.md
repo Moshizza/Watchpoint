@@ -279,7 +279,7 @@ Not applicable (test-only), except `SecretLeakDetector` (§4.4).
 | TST-U-013 | U | WP0005 reports `Thread.Sleep` in a test project | diagnostic |
 | TST-I-001 | I | PostgreSQL container starts with TimescaleDB | `SELECT extname FROM pg_extension` contains `timescaledb` |
 | TST-I-002 | I | Per-class databases are isolated | Two databases; table created in one not visible in the other |
-| TST-I-003 | I | Database creation from template under 500 ms | Measure 10 creations → p95 < 500 ms (CI) |
+| TST-I-003 | I | Database creation from template under 500 ms | Measure 20 creations → p95 < 500 ms (CI) |
 | TST-I-004 | I | Database dropped on dispose | After dispose, `pg_database` has no row |
 | TST-I-005 | I | NATS container has JetStream | Create stream with scope prefix → succeeds |
 | TST-I-006 | I | NATS scopes isolate subjects | Publish on scope A not received by consumer of scope B |
