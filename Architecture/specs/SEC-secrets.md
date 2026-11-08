@@ -34,10 +34,7 @@ Watchpoint.Secrets/
 │   ├── SecretRef.cs, SecretKind.cs, SecretValue.cs, SecretMetadata.cs
 │   ├── ISecretVault.cs
 │   ├── IBootstrapSecretStore.cs
-│   ├── ISiteCertificateService.cs   (+ ISecretsStartup)
-│   ├── SecretsOptions.cs            node facts (data folder, node id, site name) + settings
-│   ├── ISecretsAuditSink            (in ISecretVault.cs; AUD implements it from T3.06)
-│   ├── SecretsServiceCollectionExtensions.cs   AddWatchpointSecrets
+│   ├── ISiteCertificateService.cs
 │   └── SecretsErrors.cs
 ├── Internal/
 │   ├── MasterKey/IMasterKeyProvider.cs, FileMasterKeyProvider.cs, DpapiMasterKeyProvider.cs, EnvironmentMasterKeyProvider.cs
@@ -46,13 +43,8 @@ Watchpoint.Secrets/
 │   ├── BootstrapSecretStore.cs
 │   ├── SiteCertificateService.cs
 │   └── Storage/SecretsDbContext.cs (+ Postgres subclass and migrations)
+├── SecretsModule.cs
 └── SecretsLog.cs              event ids 2200–2299
-
-The host (T1.01) calls `ISecretsStartup.InitializeAsync` in phase `Infrastructure` (master key,
-legacy NATS token import, certificates) and plugs `ISiteCertificateService.GetServerCertificate`
-into Kestrel's `ServerCertificateSelector`. `AddWatchpointSecrets` replaces the storage module's
-`IDatabasePasswordProvider`: database passwords come from `PasswordDev` (Development) or a
-`bootstrap:` secret named by `Database:Databases:<key>:PasswordRef`.
 ```
 
 ## 4. Concepts
@@ -164,9 +156,7 @@ internal sealed class MasterKey : IDisposable { public string KeyId { get; } pub
 | `file` | Default on Linux | `<Data>/secrets/master.key` raw 32 bytes, mode 0400, owner service account | Warn (2203) if permissions are wider |
 | `environment` | Containers: `Secrets:MasterKeyProvider=environment` | `WATCHPOINT_MASTER_KEY` (base64, 32 bytes) or `WATCHPOINT_MASTER_KEY_FILE` (path) | Never created automatically |
 
-Settings `Secrets:MasterKeyProvider` overrides the default. The vault holds a key ring: the
-current master key plus retired keys still able to unwrap data keys until `RewrapAllAsync` has
-run (each stored item records the `key_id` that wraps it). Changing provider is done by
+Settings `Secrets:MasterKeyProvider` overrides the default. Changing provider is done by
 `wpctl secrets rewrap --to <provider>` (DEP): load old key, create new, re-wrap all DEKs and
 bootstrap file, then delete the old key.
 
@@ -176,8 +166,6 @@ bootstrap file, then delete the old key.
   `{ "version": 1, "keyId": "…", "items": { "<name>": { "nonce": "b64", "ciphertext": "b64" } } }`,
   each item encrypted directly with the master key (AES-GCM, AAD = `"wp-bootstrap|" + name`).
 - Written atomically (write temp file, flush, rename). Mode 0600 / ACL as master key.
-  An item sealed with another key than the file's `keyId` carries its own `"keyId"` (during a
-  rewrap).
 - Standard names: `database.<key>` (database passwords), `nats.token`, `cluster.join` (M9).
 - Migration step (runs once, phase Infrastructure): if `<Data>/nats/token` exists (HST
   §7.4), import it as `nats.token` and delete the file.
@@ -263,18 +251,14 @@ Only the latest version is kept (replace overwrites; history of values is not re
 | 2211 | Error | Secret {SecretId} integrity check failed |
 | 2212 | Warning | Secret {SecretId} access denied for {Module} |
 | 2220 | Information | Rewrapped {Count} data keys to master key {KeyId} |
-| 2230 | Information | Legacy NATS token imported as bootstrap secret nats.token |
-| 2231 | Information | Secret audit: {Action} {SecretId} by {Module} ({Count}) — logging audit sink used until AUD exists |
 | 2240 | Information | Node certificate renewed, expires {NotAfter} |
 | 2241 | Warning | Site CA expires on {NotAfter} |
-| 2242 | Information | Site CA {Subject} created, fingerprint {Fingerprint} |
 
 Metrics: `watchpoint.secrets.reads` (counter, tag `module`), `watchpoint.secrets.denied`
 (counter), `watchpoint.secrets.cert.days_left` (gauge, tag `cert`).
 
 Audit: every create/replace/delete/denied read produces an audit record through
-`ISecretsAuditSink` (implemented by AUD from T3.06; until then a logging implementation, event
-2231, is registered).
+`IAuditSink` (defined by AUD; before T3.06 a logging implementation is registered).
 Reads are audited in aggregate (one record per secret per hour with a count), to avoid
 flooding.
 
@@ -307,7 +291,7 @@ Unit: `tests/service/Watchpoint.Secrets.Tests`. Integration: `Watchpoint.Integra
 | SEC-U-012 | U | File key provider creates 0400 key | Linux path → 32 bytes, mode 0400; second load returns same KeyId |
 | SEC-U-013 | U | File key permissions warning | Mode 0644 → warning 2203 |
 | SEC-U-014 | U | Environment provider | `WATCHPOINT_MASTER_KEY` base64 of 32 bytes → loads; 31 bytes → `secrets.master_key.unavailable`; never creates |
-| SEC-U-015 | U | DPAPI provider (CI job "Secrets tests (Windows)"; skipped on Linux) | Create then load → same KeyId; file not readable as raw key |
+| SEC-U-015 | U | DPAPI provider (Windows CI job) | Create then load → same KeyId; file not readable as raw key |
 | SEC-U-016 | U | Bootstrap store atomic write | Simulated crash between temp write and rename → old file intact and readable |
 | SEC-U-017 | U | Bootstrap NATS token migration | `<Data>/nats/token` exists → imported as `nats.token`, file deleted |
 | SEC-U-018 | U | CA and node certificate generation | First start → CA (CA=true, pathlen 0, P-256, 10 y), node cert (SAN includes localhost and IPs, EKU serverAuth, chains to CA) |
@@ -315,7 +299,7 @@ Unit: `tests/service/Watchpoint.Secrets.Tests`. Integration: `Watchpoint.Integra
 | SEC-U-020 | U | Customer certificate overrides | `Http:Certificate:Path` set → selector returns customer cert; CA still generated |
 | SEC-I-001 | I | Vault persists and reads after restart | Create secret, new vault instance (same DB, same master key) → read ok |
 | SEC-I-002 | I | Rewrap to a new master key | Create 50 secrets; rotate key; `RewrapAllAsync` → 50; all readable with new key; old key removed → still readable |
-| SEC-I-003 | I | Database dump does not contain plaintext | Create secret "UniqueP@ss123"; textual dump of every row of `wp_secrets` (`row::text`) and the raw bytes of every `bytea` column → string not found (no `pg_dump` binary needed in the test) |
+| SEC-I-003 | I | Database dump does not contain plaintext | Create secret "UniqueP@ss123"; `pg_dump` of schema → string not found |
 | SEC-I-004 | I | No secret in logs | `SecretLeakDetector` registered with values; full create/read/replace cycle → no leak |
 | SEC-I-005 | I | `last_accessed_at` throttled | 100 reads within a minute → one update |
 

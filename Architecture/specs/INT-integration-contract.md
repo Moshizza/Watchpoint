@@ -21,24 +21,24 @@ Not in scope: how the runtime hosts connectors (IRT, IHO).
 
 | Uses | Used by |
 |---|---|
-| Abstractions: K only (+ `Microsoft.Extensions.Logging.Abstractions`; `Microsoft.CodeAnalysis.PublicApiAnalyzers` build-only). SDK: Abstractions, Polly (BSD-3), `System.IO.Pipelines` | All connector packages; IRT (implements the context) |
+| Abstractions: K only (+ `Microsoft.Extensions.Logging.Abstractions`). SDK: Abstractions, Polly (BSD-3), `System.IO.Pipelines` | All connector packages; IRT (implements the context) |
 
 ARCH-6 and ARCH-7 (TST §6) enforce these limits.
 
 ## 3. Project layout
 
 ```
-Watchpoint.Integration.Abstractions/     namespaces follow folders (…Abstractions, .Features, .Context, .Model)
-├── IConnector.cs, ConnectorAttribute.cs, IntegrationJson.cs (source-generated JSON resolver)
-├── ContractVersion.cs                     public const string Current = "1.0"; parsing and compatibility (§11)
-├── Features/IServerLocator.cs, IDiscovery.cs, IStateRefresh.cs, ICommandExecutor.cs (+ IBatchCommandExecutor),
-│            IEventCatchUp.cs, ITimeSync.cs, ILookup.cs, IDiagnostics.cs   (IVideoProvider: added by VID, M6)
-├── Context/IConnectorContext.cs (+ ConnectionInfo), IObservationSink.cs, IDeviceMap.cs, IConnectionStore.cs,
-│           Scheduling.cs (IConnectorScheduler, IRequestGate, IConnectionHealth, IConnectorMetrics),
-│           Secrets.cs (ISecretAccessor, ConnectorSecret), ISecureHttp.cs, IInboundEndpoints.cs (+ InboundAuth)
-├── Model/DeviceKey.cs, DeviceHandle.cs, InventorySnapshot.cs, CommandModel.cs (ConnectorCommand,
-│         ConnectorCommandResult, RefreshScope), ConnectionTestResult.cs, FailureCategory.cs, ConnectorMessage.cs
-└── PublicAPI.Shipped.txt, PublicAPI.Unshipped.txt   (Microsoft.CodeAnalysis.PublicApiAnalyzers, §11)
+Watchpoint.Integration.Abstractions/
+├── IConnector.cs
+├── Features/IServerLocator.cs, IDiscovery.cs, IStateRefresh.cs, ICommandExecutor.cs,
+│            IEventCatchUp.cs, IVideoProvider.cs, ITimeSync.cs, ILookup.cs, IDiagnostics.cs
+├── Context/IConnectorContext.cs, IObservationSink.cs, IDeviceMap.cs, IConnectionStore.cs,
+│           IConnectorScheduler.cs, IRequestGate.cs, ISecretAccessor.cs, IConnectionHealth.cs,
+│           ISecureHttp.cs, IInboundEndpoints.cs, IConnectorMetrics.cs
+├── Model/DeviceKey.cs, DeviceHandle.cs, InventorySnapshot.cs, ConnectorCommand.cs,
+│         ConnectorCommandResult.cs, ConnectionTestResult.cs, FailureCategory.cs, ConnectorMessage.cs
+├── ConnectorAttribute.cs
+└── ContractVersion.cs                     public const string Current = "1.0"
 
 Watchpoint.Integration.Sdk/
 ├── ConnectorBase.cs                       lifecycle + reconnect loop template
@@ -89,11 +89,7 @@ Lifecycle rules (verified by the conformance suite):
 
 ```csharp
 public sealed record ConnectionTestResult(bool Success, FailureCategory? Failure, ConnectorMessage? Message,
-    ServerIdentity? Identity)
-{
-    public static ConnectionTestResult Succeeded(ServerIdentity? identity = null);
-    public static ConnectionTestResult Failed(FailureCategory failure, ConnectorMessage message);
-}
+    ServerIdentity? Identity);
 public sealed record ServerIdentity(string? Model, string? Version, string? Serial, IReadOnlyDictionary<string, string> Extra);
 
 public enum FailureCategory
@@ -104,12 +100,9 @@ public enum FailureCategory
 }
 
 // A translatable message from the package's i18n bundle: key relative to "packages.<packageId>."
-// Key: one or more dot-separated segments, each ^[a-z][a-zA-Z0-9_]*$ (e.g. "connected", "errors.loginRefused").
-// Args: the Kernel rules (K §5.4) — camelCase names, allowed types only; violations throw ArgumentException.
 public sealed record ConnectorMessage(string Key, IReadOnlyDictionary<string, object?> Args)
 {
-    public static ConnectorMessage Of(string key, params (string Name, object? Value)[] args);
-    public Message ToMessage(string packageId);   // K Message with key "packages.<packageId>.<key>"
+    public static ConnectorMessage Of(string key, params (string, object?)[] args);
 }
 ```
 
@@ -117,14 +110,7 @@ public sealed record ConnectorMessage(string Key, IReadOnlyDictionary<string, ob
 
 ```csharp
 public sealed record InventorySnapshot(IReadOnlyList<InventoryServerItem> Servers,
-    IReadOnlyList<InventoryDeviceItem> Devices, bool IsComplete)
-{
-    public const int MaxNativeIdLength = 256;
-    // common.validation.failed with JSON-pointer paths (/servers/0/nativeId, /devices/3/serverNativeId…):
-    // empty or > 256 chars → value.required / value.too_long; duplicate server id, or device id per server →
-    // value.duplicate; complete snapshot: no server → /servers required, device on an unlisted server → value.not_allowed.
-    public Result Validate();
-}
+    IReadOnlyList<InventoryDeviceItem> Devices, bool IsComplete);
 
 public sealed record InventoryServerItem(string NativeId, string? ParentNativeId, string TypeId, string TypeVersion,
     string VendorName, IReadOnlyDictionary<string, WpValue> VendorAttributes);
@@ -158,27 +144,12 @@ not orphan anything, REG §8).
 | `IDiagnostics` | `ValueTask<IReadOnlyList<DiagnosticItem>> GetDiagnosticsAsync(ct)`, `ValueTask<Result<ConnectorMessage>> RunActionAsync(string actionId, JsonElement args, ct)` | Connection *Diagnostics* tab |
 
 ```csharp
-public sealed record RefreshScope(IReadOnlyList<DeviceHandle>? Devices /* null = all */, bool IncludeServers)
-{
-    public static RefreshScope All { get; }
-}
-
-// Supporting types of the features above
-public sealed record LocateRequest(TimeSpan Timeout, IReadOnlyList<string>? Networks = null /* CIDRs; null = local networks */);
-public sealed record LocatedServer(string Address /* as the settings expect it */, string? Name, ServerIdentity? Identity,
-    JsonElement? SuggestedSettings /* fragment pre-filling the wizard */);
-public sealed record DiscoveryProgress(int Done, int? Total, ConnectorMessage? Stage);
-public sealed record TimeSyncStatus(DateTimeOffset SystemTime, DateTimeOffset ReadAt /* node clock */, TimeSpan? RoundTrip);  // runtime computes drift
-public sealed record LookupRequest(string Kind /* declared in the manifest, e.g. "cardholder" */, string Reference, DeviceKey? Device);
-public sealed record LookupResult(bool Found, IReadOnlyDictionary<string, WpValue> Fields) { public static LookupResult NotFound { get; } }
-public sealed record DiagnosticItem(string Id, ConnectorMessage Label, WpValue Value, DiagnosticLevel Level = DiagnosticLevel.Info);
-public enum DiagnosticLevel { Info, Warning, Error }
+public sealed record RefreshScope(IReadOnlyList<DeviceHandle>? Devices /* null = all */, bool IncludeServers);
 
 public sealed record ConnectorCommand(Guid CommandId, DeviceHandle Target, string Command /* "openable.open" */,
     IReadOnlyDictionary<string, WpValue> Arguments, DateTimeOffset Deadline, int Attempt, CommandPriority Priority);
 public enum CommandPriority { Critical, High, Normal, Background }
 
-// Constructor enforces consistency: Failed ⇔ failure category and message present (ArgumentException otherwise).
 public sealed record ConnectorCommandResult(CommandOutcome Outcome, FailureCategory? Failure,
     ConnectorMessage? Message, string? VendorCode, string? VendorDetail /* never shown to operators; logged at debug */)
 {
@@ -223,7 +194,7 @@ public sealed record ConnectionInfo(Guid Id, string Name, string PackageId, stri
 ### 7.1 Observation sink
 
 ```csharp
-public readonly record struct DeviceKey(string ServerNativeId, string NativeId);   // ordinal comparison; null ids rejected
+public readonly record struct DeviceKey(string ServerNativeId, string NativeId);
 
 public interface IObservationSink
 {
@@ -263,11 +234,9 @@ public sealed record DeviceHandle(DeviceKey Key, string TypeId, string TypeVersi
 public interface IDeviceMap
 {
     IReadOnlyCollection<DeviceHandle> All { get; }                  // imported, enabled devices of this connection
-    bool TryGet(DeviceKey key, [NotNullWhen(true)] out DeviceHandle? handle);
+    bool TryGet(DeviceKey key, out DeviceHandle handle);
     event EventHandler<DeviceMapChangedEventArgs>? Changed;          // imports, deletions, enable/disable, attribute edits
 }
-public sealed class DeviceMapChangedEventArgs(IReadOnlyList<DeviceHandle> added, IReadOnlyList<DeviceHandle> updated,
-    IReadOnlyList<DeviceKey> removed) : EventArgs;          // Added (imported/enabled), Updated, Removed (deleted/disabled)
 ```
 
 ### 7.3 Other services
@@ -277,10 +246,8 @@ public interface ISecretAccessor
 {
     ValueTask<ConnectorSecret?> GetAsync(string fieldId, CancellationToken ct);   // fieldId from manifest secretsSchema
 }
-public sealed class ConnectorSecret : IDisposable        // created by the runtime from the UTF-8 bytes (copied)
+public sealed class ConnectorSecret : IDisposable
 {
-    public ConnectorSecret(ReadOnlySpan<byte> utf8Value);
-    // Dispose zeroes the bytes; any use afterwards throws ObjectDisposedException.
     public T UseAsString<T>(Func<string, T> use);
     public T UseBytes<T>(Func<ReadOnlySpan<byte>, T> use);
     public override string ToString() => "***";
@@ -331,8 +298,6 @@ public interface IInboundEndpoints
     ValueTask<InboundRegistration> RegisterUdpAsync(int port, IPAddress bindAddress, string? shareKey,
         Func<UdpDatagram, CancellationToken, ValueTask> handler, CancellationToken ct);   // M4 (C-SNMP): permission "inboundUdp"; same shareKey → one socket fanned out
 }
-// JSON: discriminator "kind" = sharedSecretHeader | hmacSignature | clientCertificate | sourceAddress, camelCase members;
-// metadata from IntegrationJson.Resolver (source-generated; pass it to WatchpointJson.Create).
 public abstract record InboundAuth
 {
     public sealed record SharedSecretHeader(string HeaderName, string SecretFieldId) : InboundAuth;
@@ -340,17 +305,6 @@ public abstract record InboundAuth
     public sealed record ClientCertificate(string PinnedSha256) : InboundAuth;
     public sealed record SourceAddress(IReadOnlyList<string> AllowedCidrs) : InboundAuth;   // combined with another
 }
-
-public sealed class InboundRegistration(string address /* public URL or bound endpoint */, Func<ValueTask> unregister)
-    : IAsyncDisposable;                                       // DisposeAsync unregisters (idempotent)
-public sealed record InboundRequest(string Method, string Path, string Query,
-    IReadOnlyDictionary<string, IReadOnlyList<string>> Headers, ReadOnlyMemory<byte> Body, IPAddress RemoteAddress);
-public sealed record InboundResponse(int StatusCode, ReadOnlyMemory<byte> Body = default, string? ContentType = null)
-{
-    public static InboundResponse Ok { get; }
-    public static InboundResponse NoContent { get; }
-}
-public sealed record UdpDatagram(ReadOnlyMemory<byte> Data, IPEndPoint Remote);
 
 public interface IConnectorMetrics
 {
@@ -421,14 +375,9 @@ Behaviour guaranteed by the base class:
 
 - `ContractVersion.Current = "1.0"`. Minor versions add optional features or members with
   default interface implementations; existing connectors keep working.
-- `ContractVersion.TryParse(text, out major, out minor)` (`major.minor`, digits only),
-  `Satisfies(requirement, version)` (`^M.m` = same major, minor ≥ m; plain `M.m` = exact) and
-  `IsSupported(requirement)` = `Satisfies(requirement, Current)`.
 - The manifest declares `contract: "^1.0"`; IRT refuses packages requiring an unknown major
   or a newer minor than the runtime implements (`irt.package.contract_unsupported`).
-- Public API of Abstractions is tracked with `PublicAPI.Shipped.txt` (additive only):
-  `Microsoft.CodeAnalysis.PublicApiAnalyzers` (build-only) fails the build on undeclared (RS0016) or
-  removed (RS0017) symbols; additions go to `PublicAPI.Unshipped.txt` and move to Shipped at release.
+- Public API of Abstractions is tracked with `PublicAPI.Shipped.txt` (additive only).
 
 ## 12. Conformance suite (T4.03, `Watchpoint.Integration.Testing`)
 

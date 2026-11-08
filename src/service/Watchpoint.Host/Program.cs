@@ -115,7 +115,7 @@ public static class Program
                 return ExitCodeElevated;
             }
 
-            Console.WriteLine("WARNING: Running as privileged process in Production (--allow-elevated passed).");
+            Console.Error.WriteLine("WARNING: Running as privileged process in Production (--allow-elevated passed).");
         }
 
         // Validate settings (spec HST §4, HST-U-003)
@@ -186,10 +186,7 @@ public static class Program
 
         // Hosting extensions: Windows Service & Systemd
         builder.Host.UseWindowsService(options => options.ServiceName = "Watchpoint");
-        // systemd: no UseSystemd(). Its SystemdLifetime sends READY=1 when the host has started,
-        // which is before Edge now that start-up runs after Kestrel listens (HST §5.3).
-        // StartupOrchestrator sends READY=1 after Edge and STOPPING=1 on shutdown; SIGTERM is
-        // handled by the default console lifetime; Serilog replaces the systemd console format.
+        builder.Host.UseSystemd();
 
         // Kestrel configuration
         builder.WebHost.ConfigureKestrel(options =>

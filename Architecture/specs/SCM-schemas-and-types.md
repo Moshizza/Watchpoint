@@ -315,7 +315,7 @@ types/
 | `armable` | `armState` (enum: disarmed normal, partial normalActive, full normalActive, arming info, exitDelay info, entryDelay warning, alarm alarm, unknown unknown) | `arm` {mode: full|partial} (sensitive), `disarm` (sensitive), `cancelArming` (normal) | `armed` {mode, byRef}, `disarmed` {byRef}, `armFailed` {reasons: array<string>, openZones: array<entityRef>} (warning) |
 | `zoneInput` | `state` (enum: normal normal, active alarm, tamper alarm, short fault, openCircuit fault, masked fault, fault fault) | — | `activated` (alarm), `restored` (info) |
 | `bypassable` | `bypassed` (boolean; true severity normalActive — booleans map: `"booleanSeverity": {"true": "normalActive", "false": "normal"}`) | `bypass`, `unbypass` (sensitive) | — |
-| `binaryValue` | `value` (boolean, severities configurable per device through attributes `trueSeverity`, `falseSeverity`, labels via device attributes `trueLabel`, `falseLabel` (`string`: the parameter schema has no LocalizedName type)) | — | `changed` |
+| `binaryValue` | `value` (boolean, severities configurable per device through attributes `trueSeverity`, `falseSeverity`, labels via device attributes `trueLabel`, `falseLabel` (LocalizedName)) | — | `changed` |
 | `switchable` | `on` (boolean) | `switchOn`, `switchOff`, `toggle` (normal, expectedEffect) | — |
 | `pulse` | — | `pulse` {duration PT0.1S–PT60S} (normal) | — |
 | `measurement` | `value` (decimal; unit, range and thresholds from device attributes `unit`, `min`, `max`, `warningAbove`, `alarmAbove`, `warningBelow`, `alarmBelow`) | — | `thresholdCrossed` {threshold: enum, value} |
@@ -369,23 +369,11 @@ public interface IDocumentReader
     Result<ManifestDocument>   ReadManifest(ReadOnlySpan<byte> utf8, string sourcePath);
 }
 
-public static class DocumentReaderFactory { public static DocumentReader FromEmbeddedSchemas(); } // schemas/ embedded
-
-// Namespace Watchpoint.Model.Documents.Library
-public static class LibraryLoader { public static LibraryFolder Load(string root, IDocumentReader reader); }
-// LibraryFolder: Root, Capabilities, Types (SourceDocument<T>(SourcePath, Document)), Bundles (culture → JSON),
-// Symbols (symbol → state → file), Manifest (package folders), LoadProblems (unreadable/invalid documents).
-// Layout: standard library (capabilities/, device-types/, symbols/, i18n/) or package (manifest.json lists files).
-public sealed record LibrarySet(LibraryFolder Primary, IReadOnlyList<LibraryFolder> Dependencies);
-
 public interface ILibraryValidator
 {
-    // Cross-document checks over a set (standard library + packages); only Primary's documents are reported:
-    LibraryValidationReport Validate(LibrarySet library, LibraryValidationOptions options);
+    // Cross-document checks over a set (standard library + packages):
+    LibraryValidationReport Validate(LibrarySet set, LibraryValidationOptions options);
 }
-// LibraryValidator.Resolve(set, typeId) → ResolvedType: the extends chain applied (capabilities parents first,
-// a child's use of a capability replaces the parent's; attributes merged; display/licence of the child;
-// defaultAlarmRules of the nearest type declaring some; overrides child first).
 public sealed record LibraryValidationReport(IReadOnlyList<DocumentProblem> Problems)
 { public bool HasErrors => Problems.Any(p => p.Severity == ProblemSeverity.Error); }
 public sealed record DocumentProblem(ProblemSeverity Severity, string SourcePath, string JsonPath,
@@ -415,14 +403,6 @@ Cross-document checks (`ILibraryValidator`):
 | `scm.manifest.native_requires_isolation` | |
 | `scm.manifest.connector_assembly_unlisted` | |
 | `scm.rule.template_unresolved` | Warning only until ALM exists |
-| `scm.type.missing` | `extends` names a type not in the set |
-| `scm.document.invalid` | A translation bundle is not valid JSON |
-
-Required translation keys (§3.2) per document: capability name and description; each property
-name and enum value; each command name, its parameters, and `confirm` when the risk is not
-`normal` or `riskByArgument` is set; each event name and title; type name, description and own
-attributes; `packages.<id>.name` for a package. Reader failures of individual documents are
-reported with the reader's field-error codes and paths.
 
 ## 8. `wptypes` CLI (`tools/wptypes`)
 
@@ -437,12 +417,7 @@ wptypes gen-ts <folder> --out <dir>
     Generates TypeScript types for the documents (used by UI packages).
 ```
 
-`gen-ts` writes `watchpoint-types.ts` (capability/type id unions, per-capability property,
-command-parameter and event-payload interfaces, `enumSeverities`, `typeCapabilities`).
-JSON output of `validate`: `{ errors, warnings, problems: [{ severity, file, path, code, args }] }`.
-
-CI runs `wptypes validate types --strict-i18n` (step "Validate type library") and, once packages
-exist, on every package folder.
+CI runs `wptypes validate types --strict-i18n` and on every package folder.
 
 ## 9. Observability, security
 
@@ -493,7 +468,7 @@ exist, on every package folder.
 | SCM-U-037 | **Standard library v0 is valid** | `wptypes validate types --strict-i18n` → exit 0 (this test runs the real `types/` folder) |
 | SCM-U-038 | `wptypes` exit codes | errors → 1; bad path → 2; JSON output parses and lists problems |
 | SCM-U-039 | `wptypes doc` output stable | snapshot test of generated Markdown for a small fixture library |
-| SCM-U-040 | `wptypes gen-ts` compiles | generated TypeScript of `types/` compiled with `tsc --noEmit --strict` (`npx -p typescript@6.0.3`) in the test; skipped where Node.js is absent (it is present in CI) |
+| SCM-U-040 | `wptypes gen-ts` compiles | generated TypeScript compiled with `tsc --noEmit` in the test (Node available in CI) |
 
 ## 11. Tasks
 

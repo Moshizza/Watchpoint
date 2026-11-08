@@ -188,11 +188,8 @@ remaining budget of `Shutdown:Timeout`; tasks exceeding it are abandoned with `H
 - `Program.cs` builds a `WebApplication`:
   - `builder.Host.UseWindowsService(o => o.ServiceName = "Watchpoint")` (no-op when not a
     Windows service);
-  - systemd: `UseSystemd()` is **not** used (its lifetime sends `READY=1` when the host has
-    started, before `Edge`). `StartupOrchestrator` sends `READY=1` after `Edge` and
-    `STOPPING=1` when shutdown begins, through `SystemdNotifier` (no-op without
-    `NOTIFY_SOCKET`). `WATCHDOG=1` pings are not implemented yet: until they are, the unit
-    must not set `WatchdogSec`;
+  - `builder.Host.UseSystemd()` (no-op when not under systemd; enables `sd_notify` watchdog
+    while suppressing premature ready so `READY=1` is sent explicitly after `Edge`);
   - Kestrel on `Http:Urls` (HTTP/1.1 + HTTP/2; HTTP/3 off in v1), max request body 10 MB
     (larger uploads use dedicated endpoints with their own limits), request header timeout
     30 s.
@@ -203,7 +200,7 @@ remaining budget of `Shutdown:Timeout`; tasks exceeding it are abandoned with `H
 - Exit codes: 0 normal, 70 start-up task failure, 78 invalid settings, 75 (`EX_TEMPFAIL`)
   when a required dependency (database) stayed unreachable for 5 minutes at start.
 - Windows service recovery actions (set by the installer, DEP): restart after 10 s, 30 s,
-  60 s. systemd unit: `Restart=always`, `RestartSec=5` (`WatchdogSec=60` once watchdog pings exist, see §6.1).
+  60 s. systemd unit: `Restart=always`, `RestartSec=5`, `WatchdogSec=60`.
 
 ### 6.2 Health
 

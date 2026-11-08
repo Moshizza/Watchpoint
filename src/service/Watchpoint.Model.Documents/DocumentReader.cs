@@ -14,40 +14,47 @@ public sealed class DocumentReader : IDocumentReader
     private readonly JsonSchema _manifestSchema;
     private readonly JsonSchema _parameterSchema;
 
-    /// <summary>Loads the four schemas from <paramref name="schemasDirectory"/> (the repository's <c>schemas/</c>).</summary>
-    /// <param name="schemasDirectory">The folder holding <c>*.schema.json</c>.</param>
+    private static readonly object _registryLock = new();
+    private static bool _schemasRegistered;
+
     public DocumentReader(string schemasDirectory)
-        : this(Build(name => File.ReadAllText(Path.Combine(schemasDirectory, name))))
     {
+        lock (_registryLock)
+        {
+            if (!_schemasRegistered)
+            {
+                _parameterSchema = JsonSchema.FromFile(Path.Combine(schemasDirectory, "parameter.schema.json"));
+                _capabilitySchema = JsonSchema.FromFile(Path.Combine(schemasDirectory, "capability.schema.json"));
+                _deviceTypeSchema = JsonSchema.FromFile(Path.Combine(schemasDirectory, "device-type.schema.json"));
+                _manifestSchema = JsonSchema.FromFile(Path.Combine(schemasDirectory, "manifest.schema.json"));
+
+                SchemaRegistry.Global.Register(_parameterSchema);
+                SchemaRegistry.Global.Register(_capabilitySchema);
+                SchemaRegistry.Global.Register(_deviceTypeSchema);
+                SchemaRegistry.Global.Register(_manifestSchema);
+                _schemasRegistered = true;
+            }
+            else
+            {
+                _parameterSchema = (JsonSchema)SchemaRegistry.Global.Get(new Uri("https://schemas.watchpoint.dev/parameter/1.json"))!;
+                _capabilitySchema = (JsonSchema)SchemaRegistry.Global.Get(new Uri("https://schemas.watchpoint.dev/capability/1.json"))!;
+                _deviceTypeSchema = (JsonSchema)SchemaRegistry.Global.Get(new Uri("https://schemas.watchpoint.dev/device-type/1.json"))!;
+                _manifestSchema = (JsonSchema)SchemaRegistry.Global.Get(new Uri("https://schemas.watchpoint.dev/manifest/1.json"))!;
+            }
+        }
     }
 
-    /// <summary>Uses already built schemas (their references must have been resolved when they were built).</summary>
     public DocumentReader(JsonSchema capabilitySchema, JsonSchema deviceTypeSchema, JsonSchema manifestSchema, JsonSchema parameterSchema)
     {
         _capabilitySchema = capabilitySchema;
         _deviceTypeSchema = deviceTypeSchema;
         _manifestSchema = manifestSchema;
         _parameterSchema = parameterSchema;
-    }
 
-    private DocumentReader((JsonSchema Capability, JsonSchema DeviceType, JsonSchema Manifest, JsonSchema Parameter) schemas)
-        : this(schemas.Capability, schemas.DeviceType, schemas.Manifest, schemas.Parameter)
-    {
-    }
-
-    /// <summary>Creates a reader from schema texts (file name → JSON), built in a private registry (never the global one).</summary>
-    internal static DocumentReader FromSchemaTexts(Func<string, string> read) => new(Build(read));
-
-    private static (JsonSchema, JsonSchema, JsonSchema, JsonSchema) Build(Func<string, string> read)
-    {
-        // A private registry: several readers (tests, tools) can coexist; the parameter schema is built first
-        // because the others reference it.
-        var options = new BuildOptions { SchemaRegistry = new SchemaRegistry() };
-        var parameter = JsonSchema.FromText(read("parameter.schema.json"), options);
-        var capability = JsonSchema.FromText(read("capability.schema.json"), options);
-        var deviceType = JsonSchema.FromText(read("device-type.schema.json"), options);
-        var manifest = JsonSchema.FromText(read("manifest.schema.json"), options);
-        return (capability, deviceType, manifest, parameter);
+        SchemaRegistry.Global.Register(_parameterSchema);
+        SchemaRegistry.Global.Register(_capabilitySchema);
+        SchemaRegistry.Global.Register(_deviceTypeSchema);
+        SchemaRegistry.Global.Register(_manifestSchema);
     }
 
     public Result<CapabilityDocument> ReadCapability(ReadOnlySpan<byte> utf8, string sourcePath)

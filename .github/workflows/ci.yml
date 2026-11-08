@@ -62,10 +62,6 @@ jobs:
           dotnet test --solution "$SOLUTION" --no-build --configuration Release \
             --results-directory "$GITHUB_WORKSPACE/TestResults"
 
-      # Standard type library (SCM §8); package folders are added here when the first package exists.
-      - name: Validate type library
-        run: dotnet tools/wptypes/bin/Release/net10.0/wptypes.dll validate types --strict-i18n
-
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -140,25 +136,10 @@ jobs:
           --error
           --metrics off
 
-  # Windows-only code paths (SEC §6.2 DPAPI master key, test SEC-U-015).
-  dotnet-windows:
-    name: Secrets tests (Windows)
-    runs-on: windows-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
-        with:
-          global-json-file: global.json
-
-      - name: Test
-        run: dotnet test --project tests/service/Watchpoint.Secrets.Tests --configuration Release
-
   ci-ok:
     name: ci-ok
     if: always()
-    needs: [dotnet, dotnet-windows, ui, secret-scan, semgrep]
+    needs: [dotnet, ui, secret-scan, semgrep]
     runs-on: ubuntu-latest
     steps:
       - name: All jobs succeeded

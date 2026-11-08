@@ -37,14 +37,13 @@
           "Grpc.Core.Api": "2.85.0"
         }
       },
-      "watchpoint.spikes.connectorisolation.contract": {
-        "type": "Project"
-      },
       "Microsoft.Extensions.DependencyInjection.Abstractions": {
-        "type": "CentralTransitive",
-        "requested": "[10.0.14, )",
+        "type": "Transitive",
         "resolved": "10.0.14",
         "contentHash": "QtpQzuSZVyTPCuHW058yCs9Nj0394uUkNyFHS813nOmK9UgUdBdaprJ5PPsBgsQIpxADTsTkbaMMonykem6qdw=="
+      },
+      "watchpoint.spikes.connectorisolation.contract": {
+        "type": "Project"
       },
       "Microsoft.Extensions.Logging.Abstractions": {
         "type": "CentralTransitive",
