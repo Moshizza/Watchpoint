@@ -1,0 +1,29 @@
+{
+  "$schema": "https://schemas.watchpoint.dev/capability/1.json",
+  "id": "binaryValue",
+  "version": "1.0.0",
+  "properties": [
+    {
+      "id": "value",
+      "valueType": "boolean",
+      "history": {
+        "mode": "everyChange"
+      }
+    }
+  ],
+  "commands": [],
+  "events": [
+    {
+      "id": "changed",
+      "severity": "info",
+      "payload": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  ]
+}

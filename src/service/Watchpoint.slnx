@@ -6,22 +6,35 @@
     <File Path="../../.editorconfig" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="Watchpoint.Host/Watchpoint.Host.csproj" />
+    <Project Path="Watchpoint.Hosting/Watchpoint.Hosting.csproj" />
     <Project Path="Watchpoint.Analyzers/Watchpoint.Analyzers.csproj" />
     <Project Path="Watchpoint.Analyzers.CodeFixes/Watchpoint.Analyzers.CodeFixes.csproj" />
     <Project Path="Watchpoint.Kernel/Watchpoint.Kernel.csproj" />
     <Project Path="Watchpoint.Kernel.Testing/Watchpoint.Kernel.Testing.csproj" />
     <Project Path="Watchpoint.Model.Documents/Watchpoint.Model.Documents.csproj" />
+    <Project Path="Watchpoint.Secrets/Watchpoint.Secrets.csproj" />
+    <Project Path="Watchpoint.Storage.Postgres/Watchpoint.Storage.Postgres.csproj" />
+    <Project Path="Watchpoint.Storage/Watchpoint.Storage.csproj" />
   </Folder>
-  <Folder Name="/integrations/" />
+  <Folder Name="/integrations/">
+    <Project Path="../integrations/Watchpoint.Integration.Abstractions/Watchpoint.Integration.Abstractions.csproj" />
+  </Folder>
   <Folder Name="/tests/">
+    <Project Path="../../tests/integrations/Watchpoint.Integration.Abstractions.Tests/Watchpoint.Integration.Abstractions.Tests.csproj" />
+    <Project Path="../../tests/service/Watchpoint.Hosting.Tests/Watchpoint.Hosting.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Analyzers.Tests/Watchpoint.Analyzers.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.ArchitectureTests/Watchpoint.ArchitectureTests.csproj" />
     <Project Path="../../tests/service/Watchpoint.IntegrationTests/Watchpoint.IntegrationTests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Kernel.Tests/Watchpoint.Kernel.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Model.Documents.Tests/Watchpoint.Model.Documents.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Testing/Watchpoint.Testing.csproj" />
+    <Project Path="../../tests/service/Watchpoint.Secrets.Tests/Watchpoint.Secrets.Tests.csproj" />
+    <Project Path="../../tests/service/Watchpoint.Storage.Certification/Watchpoint.Storage.Certification.csproj" />
+    <Project Path="../../tests/service/Watchpoint.Storage.Tests/Watchpoint.Storage.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Testing.Containers/Watchpoint.Testing.Containers.csproj" />
     <Project Path="../../tests/service/Watchpoint.Testing.Tests/Watchpoint.Testing.Tests.csproj" />
+    <Project Path="../../tests/tools/Wptypes.Tests/Wptypes.Tests.csproj" />
   </Folder>
   <Folder Name="/tools/">
     <Project Path="../../tools/spikes/ConnectorIsolation/Connector/Watchpoint.Spikes.ConnectorIsolation.Connector.csproj" />
@@ -29,5 +42,6 @@
     <Project Path="../../tools/spikes/ConnectorIsolation/Host/Watchpoint.Spikes.ConnectorIsolation.Host.csproj" />
     <Project Path="../../tools/spikes/ConnectorIsolation/Runner/Watchpoint.Spikes.ConnectorIsolation.Runner.csproj" />
     <Project Path="../../tools/spikes/Watchpoint.Spikes.NatsJetStream/Watchpoint.Spikes.NatsJetStream.csproj" />
+    <Project Path="../../tools/wptypes/Watchpoint.Wptypes.csproj" />
   </Folder>
 </Solution>

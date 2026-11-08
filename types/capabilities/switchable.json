@@ -1,0 +1,58 @@
+{
+  "$schema": "https://schemas.watchpoint.dev/capability/1.json",
+  "id": "switchable",
+  "version": "1.0.0",
+  "properties": [
+    {
+      "id": "on",
+      "valueType": "boolean",
+      "booleanSeverity": {
+        "true": "normalActive",
+        "false": "normal"
+      },
+      "history": {
+        "mode": "everyChange"
+      }
+    }
+  ],
+  "commands": [
+    {
+      "id": "switchOn",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      },
+      "risk": "normal",
+      "timeout": "PT30S",
+      "expectedEffect": {
+        "property": "switchable.on",
+        "equals": true,
+        "within": "PT10S"
+      }
+    },
+    {
+      "id": "switchOff",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      },
+      "risk": "normal",
+      "timeout": "PT30S",
+      "expectedEffect": {
+        "property": "switchable.on",
+        "equals": false,
+        "within": "PT10S"
+      }
+    },
+    {
+      "id": "toggle",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      },
+      "risk": "normal",
+      "timeout": "PT30S"
+    }
+  ],
+  "events": []
+}

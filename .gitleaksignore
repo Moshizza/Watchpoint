@@ -1,3 +1,5 @@
 # Findings reviewed and accepted (one fingerprint per line, with the reason above it).
 # Dummy secret_key in a test fixture of the prototype code deleted at project start (commit 727b60b).
 727b60b3f6119697671007bcf25b0f203499df96:tests/conftest.py:generic-api-key:15
+# Error-code constant "scm.i18n.key_missing" (not a secret), commit 42eb12c of T0.07; the constant was renamed afterwards.
+42eb12c71d420c3a940042691c80ffe5442f2f05:src/service/Watchpoint.Model.Documents/Library/ProblemCodes.cs:generic-api-key:21
