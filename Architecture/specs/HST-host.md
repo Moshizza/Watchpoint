@@ -197,8 +197,10 @@ with `HST1131` and the next tasks still run (with a cancelled token once the bud
   - systemd: `UseSystemd()` is **not** used (its lifetime sends `READY=1` when the host has
     started, before `Edge`). `StartupOrchestrator` sends `READY=1` after `Edge` and
     `STOPPING=1` when shutdown begins, through `SystemdNotifier` (no-op without
-    `NOTIFY_SOCKET`). `WATCHDOG=1` pings are not implemented yet: until they are, the unit
-    must not set `WatchdogSec`;
+    `NOTIFY_SOCKET`). The hosted service `SystemdWatchdog` sends `WATCHDOG=1` right away and
+    then every `WATCHDOG_USEC / 2` (`TimeProvider`) when `NOTIFY_SOCKET` and `WATCHDOG_USEC`
+    are set and `WATCHDOG_PID`, if present, is the current pid (log 1121); otherwise it does
+    nothing;
   - Kestrel on `Http:Urls` (HTTP/1.1 + HTTP/2; HTTP/3 off in v1), max request body 10 MB
     (larger uploads use dedicated endpoints with their own limits), request header timeout
     30 s.
@@ -209,7 +211,7 @@ with `HST1131` and the next tasks still run (with a cancelled token once the bud
 - Exit codes: 0 normal, 70 start-up task failure, 78 invalid settings, 75 (`EX_TEMPFAIL`)
   when a required dependency (database) stayed unreachable for 5 minutes at start.
 - Windows service recovery actions (set by the installer, DEP): restart after 10 s, 30 s,
-  60 s. systemd unit: `Restart=always`, `RestartSec=5` (`WatchdogSec=60` once watchdog pings exist, see §6.1).
+  60 s. systemd unit: `Restart=always`, `RestartSec=5`, `WatchdogSec=60`.
 
 ### 6.2 Health
 
@@ -417,6 +419,7 @@ Seed failures are logged (`HST1140`) and do not stop the node. The seed file sch
 | 1111 | Information | Startup task {Task} completed in {DurationMs} ms |
 | 1112 | Critical | Startup task {Task} failed |
 | 1120 | Information | Node ready in {DurationMs} ms |
+| 1121 | Information | systemd watchdog enabled, ping every {IntervalMs} ms |
 | 1130 | Information | Shutdown task {Task} completed in {DurationMs} ms |
 | 1131 | Warning | Shutdown task {Task} abandoned after timeout |
 | 1132 | Error | Shutdown task {Task} failed with exception |
@@ -478,17 +481,27 @@ Unit: `tests/service/Watchpoint.Hosting.Tests`. Integration: `Watchpoint.Integra
 | HST-I-001 | I | Host starts with compose infrastructure | PostgreSQL + NATS containers, Development settings → `/health/ready` 200 within 30 s |
 | HST-I-002 | I | Host reports not ready without database | Database unreachable → `/health/ready` 503 with reason `database`; exit 75 after 5 min (shortened via setting in test) |
 | HST-I-003 | I | Management endpoints only on management port | `/metrics` on 9464 → 200; on main port → 404 |
-| HST-I-004 | I | systemd notify | Run under a fake `NOTIFY_SOCKET` → receives `READY=1` after Edge |
+| HST-I-004 | I | systemd notify | Run under a fake `NOTIFY_SOCKET` with `WATCHDOG_USEC=2000000` → receives `READY=1` after Edge and `WATCHDOG=1` pings |
 | HST-I-005 | I | Bundled NATS starts and restarts | Real `nats-server` binary in test image; kill it → restarted, PIP connection recovers |
 | HST-I-006 | I | Children die with the host (Windows CI job, nightly) | Kill host process → nats-server gone within 5 s (Job Object) |
 | HST-I-007 | I | Leftover cleanup (Linux) | Stale pid file pointing to running nats-server → killed at start, log 1154 |
 | HST-I-008 | I | Dev seed creates site, users, simulator connection | Development + seed → admin can sign in; simulator devices visible via registry contract |
 
+### 13.1 T1.01 follow-up: systemd watchdog
+
+Unit tests in `tests/service/Watchpoint.Hosting.Tests/SystemdWatchdogTests.cs`; HST-I-004
+above also covers the watchdog end to end.
+
+| Id | Layer | Test | Given / When / Then |
+|---|---|---|---|
+| HST-U-026 | U | Watchdog pings every half interval | `WATCHDOG_USEC=60000000` (FakeTimeProvider, fake notifier) → `WATCHDOG=1` at start, then every 30 s; none after stop |
+| HST-U-027 | U | Watchdog disabled without settings or other pid | No `NOTIFY_SOCKET`, no/invalid `WATCHDOG_USEC`, or `WATCHDOG_PID` ≠ current pid → no ping; no `WATCHDOG_PID` → enabled |
+
 ## 14. Tasks
 
 | Task | Sections | Tests |
 |---|---|---|
-| T1.01 | §4, §5, §6, §10, §11 (host part), §12 | HST-U-001…HST-U-015, HST-I-001…HST-I-004 |
+| T1.01 | §4, §5, §6, §10, §11 (host part), §12 | HST-U-001…HST-U-015, HST-U-026, HST-U-027, HST-I-001…HST-I-004 |
 | T1.02 | §7, §8, §9, §11 (supervisor part) | HST-U-016…HST-U-025, HST-I-005…HST-I-008 |
 
 Note: HST-I-008 needs IRT, C-SIM and IDN; it is implemented in T1.02 but enabled when those
