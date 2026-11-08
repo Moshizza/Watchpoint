@@ -34,6 +34,9 @@ public static partial class HostingLog
     /// <summary>1120: Node ready.</summary>
     public static readonly EventId NodeReady = new(1120, nameof(NodeReady));
 
+    /// <summary>1121: systemd watchdog enabled.</summary>
+    public static readonly EventId SystemdWatchdogEnabled = new(1121, nameof(SystemdWatchdogEnabled));
+
     /// <summary>1130: Shutdown task completed.</summary>
     public static readonly EventId ShutdownTaskCompleted = new(1130, nameof(ShutdownTaskCompleted));
 
@@ -87,6 +90,9 @@ public static partial class HostingLog
 
     [LoggerMessage(EventId = 1120, Level = LogLevel.Information, Message = "Node ready in {DurationMs} ms")]
     public static partial void LogNodeReady(ILogger logger, long durationMs);
+
+    [LoggerMessage(EventId = 1121, Level = LogLevel.Information, Message = "systemd watchdog enabled, ping every {IntervalMs} ms")]
+    public static partial void LogSystemdWatchdogEnabled(ILogger logger, long intervalMs);
 
     [LoggerMessage(EventId = 1130, Level = LogLevel.Information, Message = "Shutdown task {Task} completed in {DurationMs} ms")]
     public static partial void LogShutdownTaskCompleted(ILogger logger, string task, long durationMs);

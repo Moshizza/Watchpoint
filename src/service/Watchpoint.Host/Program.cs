@@ -6,7 +6,9 @@ using System.Net;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Hosting.Systemd;
 using Serilog;
 using Watchpoint.Hosting;
 using Watchpoint.Storage.Contracts;
@@ -154,6 +156,7 @@ public static class Program
         // which is before Edge now that start-up runs after Kestrel listens (HST §5.3).
         // StartupOrchestrator sends READY=1 after Edge and STOPPING=1 on shutdown; SIGTERM is
         // handled by the default console lifetime; Serilog replaces the systemd console format.
+        // SystemdWatchdog sends WATCHDOG=1 every WATCHDOG_USEC / 2 when the unit sets WatchdogSec.
 
         // Kestrel configuration
         builder.WebHost.ConfigureKestrel(options =>
@@ -224,6 +227,8 @@ public static class Program
 
         builder.Services.AddHealthChecks();
         builder.Services.AddHostedService<StartupOrchestrator>();
+        builder.Services.TryAddSingleton<ISystemdNotifier, SystemdNotifier>();
+        builder.Services.AddHostedService<SystemdWatchdog>();
 
         // Configure Modules
         var moduleContext = new ModuleContext
