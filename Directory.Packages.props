@@ -53,6 +53,9 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.14" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.14" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+    <!-- Integration SDK & resilience -->
+    <PackageVersion Include="Polly.Core" Version="8.9.1" />
+
     <!-- Secrets (Windows DPAPI master key provider) -->
     <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.14" />
     <!-- Spikes (tools/spikes) -->

@@ -45,8 +45,9 @@ Watchpoint.Integration.Sdk/
 ├── Polling/PollingLoop.cs
 ├── Paging/BoundedPager.cs
 ├── Mapping/EnumMap.cs, ValueConverters.cs
-├── Net/TcpRequestClient.cs, FramedStream.cs
+├── Net/TcpRequestClient.cs, FramedStream.cs, SecureHttp.cs
 ├── Resilience/ResiliencePresets.cs
+├── Scheduling/RequestGate.cs
 └── Logging/RedactionExtensions.cs
 ```
 
