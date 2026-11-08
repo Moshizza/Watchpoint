@@ -178,8 +178,14 @@ health endpoints can serve 503 readiness responses while waiting for dependencie
 5. `Connections` phase runs after readiness (connections can take long; they report their
    own health).
 
+Storage (`StorageModule`, first module in the catalogue): `Infrastructure` task `StorageWait`
+(`IStorageStartup.WaitForDatabasesAsync`) and `Schema` task `StorageMigrations` (`MigrateAsync`);
+`StorageStartupException.ExitCode` becomes the exit code (75 database unreachable for
+`Database:StartupWait`, 78 invalid storage settings, 70 otherwise).
+
 Shutdown (`StoppingAsync`): run `IShutdownTask`s in descending phase order, each with the
-remaining budget of `Shutdown:Timeout`; tasks exceeding it are abandoned with `HST1131`.
+remaining budget of `Shutdown:Timeout`; a task still running when its budget ends is abandoned
+with `HST1131` and the next tasks still run (with a cancelled token once the budget is spent).
 
 ## 6. Hosting and endpoints
 
@@ -214,6 +220,9 @@ remaining budget of `Shutdown:Timeout`; tasks exceeding it are abandoned with `H
 | `GET /health/details` | JSON detail of every check (management port only) | All checks with status, duration, description |
 
 Response for `/health/ready`: `200 {"status":"ready"}` or `503 {"status":"notReady","reasons":["database"]}`.
+Reasons: `database` when the `storage` check (STO §6.4) is unhealthy, `startup` before `Edge` or while
+draining, otherwise the name of the failing `ready` check. Messages before Serilog is configured
+(elevation, invalid settings, node id) go through a console bootstrap `ILogger`, never `Console.*`.
 
 ### 6.3 Logging and telemetry
 
@@ -401,12 +410,16 @@ Seed failures are logged (`HST1140`) and do not stop the node. The seed file sch
 |---|---|---|
 | 1101 | Critical | Invalid node settings: {Problems} |
 | 1102 | Information | Node {NodeId} ({NodeName}) starting, version {Version}, environment {Environment} |
+| 1103 | Critical | Refusing to start as a privileged process (root/Administrator) in Production without --allow-elevated |
+| 1104 | Warning | Running as a privileged process (root/Administrator) in Production (--allow-elevated) |
+| 1105 | Warning | Could not persist Node:Id to {Path} |
 | 1110 | Information | Startup task {Task} (phase {Phase}) starting |
 | 1111 | Information | Startup task {Task} completed in {DurationMs} ms |
 | 1112 | Critical | Startup task {Task} failed |
 | 1120 | Information | Node ready in {DurationMs} ms |
 | 1130 | Information | Shutdown task {Task} completed in {DurationMs} ms |
 | 1131 | Warning | Shutdown task {Task} abandoned after timeout |
+| 1132 | Error | Shutdown task {Task} failed with exception |
 | 1150 | Information | Child {Name} started with pid {Pid} |
 | 1151 | Warning | Child {Name} exited unexpectedly with code {ExitCode}; restart {Attempt} in {DelayMs} ms |
 | 1152 | Error | Child {Name} failed: {Restarts} restarts within {Window} |
