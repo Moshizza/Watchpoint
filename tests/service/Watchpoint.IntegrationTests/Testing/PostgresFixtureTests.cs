@@ -48,7 +48,9 @@ public sealed class PostgresFixtureTests(PostgresContainerFixture postgres)
         var durations = new List<TimeSpan>();
         var clock = TimeProvider.System;
 
-        for (var i = 0; i < 10; i++)
+        // 20 samples: the p95 is the 19th fastest, so one slow outlier (CI I/O hiccup) does not fail the test,
+        // while a systematically slow template copy still does.
+        for (var i = 0; i < 20; i++)
         {
             var started = clock.GetTimestamp();
             await using var db = await postgres.CreateDatabaseAsync(nameof(TST_I_003_Database_creation_from_template_under_500_ms), Ct);
