@@ -1,0 +1,480 @@
+{
+  "capabilities": {
+    "accessEvents": {
+      "name": "Événements d'accès",
+      "description": "Décisions d'accès signalées par une porte ou un lecteur.",
+      "properties": {
+        "lastAccess": {
+          "name": "Dernier accès"
+        }
+      },
+      "events": {
+        "granted": {
+          "name": "Accès autorisé",
+          "title": "Accès autorisé pour {holderName}"
+        },
+        "denied": {
+          "name": "Accès refusé",
+          "title": "Accès refusé ({reason})"
+        },
+        "duress": {
+          "name": "Contrainte",
+          "title": "Code de contrainte utilisé"
+        }
+      }
+    },
+    "armable": {
+      "name": "Armement",
+      "description": "État d'armement d'une zone d'intrusion.",
+      "properties": {
+        "armState": {
+          "name": "État d'armement",
+          "values": {
+            "disarmed": "Désarmé",
+            "partial": "Armé partiellement",
+            "full": "Armé totalement",
+            "arming": "Armement en cours",
+            "exitDelay": "Délai de sortie",
+            "entryDelay": "Délai d'entrée",
+            "alarm": "Alarme",
+            "unknown": "Inconnu"
+          }
+        }
+      },
+      "commands": {
+        "arm": {
+          "name": "Armer",
+          "confirm": "Armer cette zone ?",
+          "parameters": {
+            "mode": {
+              "name": "Mode"
+            }
+          }
+        },
+        "disarm": {
+          "name": "Désarmer",
+          "confirm": "Désarmer cette zone ?"
+        },
+        "cancelArming": {
+          "name": "Annuler l'armement"
+        }
+      },
+      "events": {
+        "armed": {
+          "name": "Armé",
+          "title": "Zone armée ({mode})"
+        },
+        "disarmed": {
+          "name": "Désarmé",
+          "title": "Zone désarmée"
+        },
+        "armFailed": {
+          "name": "Échec de l'armement",
+          "title": "Échec de l'armement"
+        }
+      }
+    },
+    "battery": {
+      "name": "Batterie",
+      "description": "Niveau de batterie d'un équipement sur batterie.",
+      "properties": {
+        "level": {
+          "name": "Niveau de batterie"
+        },
+        "low": {
+          "name": "Batterie faible"
+        }
+      },
+      "events": {
+        "low": {
+          "name": "Batterie faible",
+          "title": "Batterie faible"
+        },
+        "restored": {
+          "name": "Batterie rétablie",
+          "title": "Niveau de batterie rétabli"
+        }
+      }
+    },
+    "binaryValue": {
+      "name": "Valeur binaire",
+      "description": "Une valeur à deux états, par exemple un contact sec.",
+      "properties": {
+        "value": {
+          "name": "Valeur"
+        }
+      },
+      "events": {
+        "changed": {
+          "name": "Changement",
+          "title": "Valeur modifiée"
+        }
+      }
+    },
+    "bypassable": {
+      "name": "Inhibition",
+      "description": "Une zone qui peut être inhibée (ignorée pendant l'armement).",
+      "properties": {
+        "bypassed": {
+          "name": "Inhibée"
+        }
+      },
+      "commands": {
+        "bypass": {
+          "name": "Inhiber",
+          "confirm": "Inhiber cette zone ?"
+        },
+        "unbypass": {
+          "name": "Lever l'inhibition",
+          "confirm": "Lever l'inhibition de cette zone ?"
+        }
+      }
+    },
+    "doorMode": {
+      "name": "Mode de porte",
+      "description": "Mode de fonctionnement d'une porte.",
+      "properties": {
+        "mode": {
+          "name": "Mode",
+          "values": {
+            "normal": "Normal",
+            "unlocked": "Déverrouillée",
+            "lockedDown": "Condamnée",
+            "emergencyOpen": "Ouverture d'urgence",
+            "emergencyClose": "Fermeture d'urgence"
+          }
+        }
+      },
+      "commands": {
+        "setMode": {
+          "name": "Changer de mode",
+          "confirm": "Changer le mode de cette porte ?",
+          "parameters": {
+            "mode": {
+              "name": "Mode"
+            },
+            "until": {
+              "name": "Jusqu'à"
+            }
+          }
+        }
+      },
+      "events": {
+        "modeChanged": {
+          "name": "Changement de mode",
+          "title": "Mode de la porte changé en {to}"
+        }
+      }
+    },
+    "doorPosition": {
+      "name": "Position de porte",
+      "description": "Indique si une porte est fermée, ouverte, maintenue ouverte ou forcée.",
+      "properties": {
+        "position": {
+          "name": "Position",
+          "values": {
+            "closed": "Fermée",
+            "open": "Ouverte",
+            "heldOpen": "Maintenue ouverte",
+            "forced": "Forcée",
+            "unknown": "Inconnue"
+          }
+        }
+      },
+      "events": {
+        "forced": {
+          "name": "Porte forcée",
+          "title": "Porte ouverte par effraction"
+        },
+        "heldOpen": {
+          "name": "Porte maintenue ouverte",
+          "title": "Porte maintenue ouverte depuis {openFor}"
+        },
+        "closedAgain": {
+          "name": "Porte refermée",
+          "title": "Porte refermée"
+        }
+      }
+    },
+    "health": {
+      "name": "État de santé",
+      "description": "Connectivité et défauts d'un équipement ou d'un serveur.",
+      "properties": {
+        "connectivity": {
+          "name": "Connectivité",
+          "values": {
+            "online": "En ligne",
+            "degraded": "Dégradé",
+            "offline": "Hors ligne",
+            "unknown": "Inconnu"
+          }
+        },
+        "faults": {
+          "name": "Défauts",
+          "values": {
+            "tamper": "Autoprotection",
+            "batteryLow": "Batterie faible",
+            "powerFail": "Coupure d'alimentation",
+            "commFail": "Défaut de communication",
+            "hardwareFault": "Défaut matériel",
+            "configError": "Erreur de configuration",
+            "clockDrift": "Dérive d'horloge",
+            "flooding": "Inondation d'événements"
+          }
+        },
+        "lastContact": {
+          "name": "Dernier contact"
+        }
+      },
+      "commands": {
+        "refresh": {
+          "name": "Actualiser"
+        }
+      },
+      "events": {
+        "wentOffline": {
+          "name": "Passage hors ligne",
+          "title": "L'équipement est hors ligne"
+        },
+        "cameOnline": {
+          "name": "Retour en ligne",
+          "title": "L'équipement est de nouveau en ligne"
+        },
+        "faultRaised": {
+          "name": "Défaut apparu",
+          "title": "Défaut : {fault}"
+        },
+        "faultCleared": {
+          "name": "Défaut disparu",
+          "title": "Défaut disparu : {fault}"
+        }
+      }
+    },
+    "lockable": {
+      "name": "Verrou",
+      "description": "État de verrouillage d'une porte ou d'une serrure.",
+      "properties": {
+        "lockState": {
+          "name": "État du verrou",
+          "values": {
+            "locked": "Verrouillé",
+            "unlocked": "Déverrouillé",
+            "unknown": "Inconnu"
+          }
+        }
+      },
+      "commands": {
+        "lock": {
+          "name": "Verrouiller",
+          "confirm": "Verrouiller cette porte ?"
+        },
+        "unlock": {
+          "name": "Déverrouiller",
+          "confirm": "Déverrouiller cette porte ?"
+        }
+      }
+    },
+    "measurement": {
+      "name": "Mesure",
+      "description": "Une valeur analogique mesurée, avec des seuils.",
+      "properties": {
+        "value": {
+          "name": "Valeur"
+        }
+      },
+      "events": {
+        "thresholdCrossed": {
+          "name": "Seuil franchi",
+          "title": "Seuil franchi ({threshold}) : {value}"
+        }
+      }
+    },
+    "openable": {
+      "name": "Ouverture momentanée",
+      "description": "Ouvre une porte pendant un court instant (accès donné par un opérateur).",
+      "commands": {
+        "open": {
+          "name": "Ouvrir",
+          "confirm": "Ouvrir cette porte ?",
+          "parameters": {
+            "duration": {
+              "name": "Durée"
+            }
+          }
+        }
+      },
+      "events": {
+        "opened": {
+          "name": "Ouverte",
+          "title": "Porte ouverte par commande"
+        }
+      }
+    },
+    "pulse": {
+      "name": "Impulsion",
+      "description": "Active une sortie pendant un court instant.",
+      "commands": {
+        "pulse": {
+          "name": "Impulsion",
+          "parameters": {
+            "duration": {
+              "name": "Durée"
+            }
+          }
+        }
+      }
+    },
+    "switchable": {
+      "name": "Commutateur",
+      "description": "Une sortie qui peut être allumée et éteinte.",
+      "properties": {
+        "on": {
+          "name": "Allumé"
+        }
+      },
+      "commands": {
+        "switchOn": {
+          "name": "Allumer"
+        },
+        "switchOff": {
+          "name": "Éteindre"
+        },
+        "toggle": {
+          "name": "Basculer"
+        }
+      }
+    },
+    "tamper": {
+      "name": "Autoprotection",
+      "description": "Détection d'autoprotection d'un équipement.",
+      "properties": {
+        "tampered": {
+          "name": "Autoprotection déclenchée"
+        }
+      },
+      "events": {
+        "tamper": {
+          "name": "Autoprotection",
+          "title": "Autoprotection déclenchée"
+        },
+        "tamperRestored": {
+          "name": "Autoprotection rétablie",
+          "title": "Autoprotection rétablie"
+        }
+      }
+    },
+    "zoneInput": {
+      "name": "Entrée de zone",
+      "description": "État d'une zone de détection d'intrusion.",
+      "properties": {
+        "state": {
+          "name": "État",
+          "values": {
+            "normal": "Normal",
+            "active": "Active",
+            "tamper": "Autoprotection",
+            "short": "Court-circuit",
+            "openCircuit": "Circuit ouvert",
+            "masked": "Masquée",
+            "fault": "Défaut"
+          }
+        }
+      },
+      "events": {
+        "activated": {
+          "name": "Activation",
+          "title": "Zone activée"
+        },
+        "restored": {
+          "name": "Retour au repos",
+          "title": "Zone revenue au repos"
+        }
+      }
+    }
+  },
+  "types": {
+    "ac": {
+      "door": {
+        "name": "Porte",
+        "description": "Une porte à contrôle d'accès.",
+        "attributes": {
+          "heldOpenAfter": {
+            "name": "Maintenue ouverte après"
+          }
+        }
+      },
+      "reader": {
+        "name": "Lecteur",
+        "description": "Un lecteur de badges."
+      }
+    },
+    "generic": {
+      "analog-input": {
+        "name": "Entrée analogique",
+        "description": "Une valeur mesurée avec des seuils.",
+        "attributes": {
+          "unit": {
+            "name": "Unité"
+          },
+          "min": {
+            "name": "Minimum"
+          },
+          "max": {
+            "name": "Maximum"
+          },
+          "warningAbove": {
+            "name": "Avertissement au-dessus de"
+          },
+          "alarmAbove": {
+            "name": "Alarme au-dessus de"
+          },
+          "warningBelow": {
+            "name": "Avertissement en dessous de"
+          },
+          "alarmBelow": {
+            "name": "Alarme en dessous de"
+          },
+          "hysteresis": {
+            "name": "Hystérésis"
+          }
+        }
+      },
+      "binary-input": {
+        "name": "Entrée binaire",
+        "description": "Une entrée à deux états, par exemple un contact sec.",
+        "attributes": {
+          "trueSeverity": {
+            "name": "Gravité à l'état actif"
+          },
+          "falseSeverity": {
+            "name": "Gravité à l'état inactif"
+          },
+          "trueLabel": {
+            "name": "Libellé à l'état actif"
+          },
+          "falseLabel": {
+            "name": "Libellé à l'état inactif"
+          }
+        }
+      },
+      "binary-output": {
+        "name": "Sortie binaire",
+        "description": "Une sortie qui peut être commutée ou activée par impulsion."
+      },
+      "server": {
+        "name": "Serveur",
+        "description": "Un serveur générique d'une intégration."
+      }
+    },
+    "intrusion": {
+      "area": {
+        "name": "Secteur d'intrusion",
+        "description": "Un secteur de centrale d'intrusion qui peut être armé."
+      },
+      "zone": {
+        "name": "Zone d'intrusion",
+        "description": "Une zone de détection d'une centrale d'intrusion."
+      }
+    }
+  }
+}

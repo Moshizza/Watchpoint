@@ -1,0 +1,52 @@
+{
+  "$schema": "https://schemas.watchpoint.dev/capability/1.json",
+  "id": "battery",
+  "version": "1.0.0",
+  "properties": [
+    {
+      "id": "level",
+      "valueType": "decimal",
+      "unit": "%",
+      "range": {
+        "min": 0,
+        "max": 100
+      },
+      "decimals": 0,
+      "history": {
+        "mode": "deadband",
+        "type": "absolute",
+        "threshold": 1
+      }
+    },
+    {
+      "id": "low",
+      "valueType": "boolean",
+      "booleanSeverity": {
+        "true": "warning",
+        "false": "normal"
+      },
+      "history": {
+        "mode": "everyChange"
+      }
+    }
+  ],
+  "commands": [],
+  "events": [
+    {
+      "id": "low",
+      "severity": "warning",
+      "payload": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "id": "restored",
+      "severity": "info",
+      "payload": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  ]
+}

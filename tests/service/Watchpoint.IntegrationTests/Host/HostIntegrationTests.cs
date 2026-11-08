@@ -446,6 +446,11 @@ public sealed class HostIntegrationTests(PostgresContainerFixture postgres, Nats
                     if (msg.Contains("READY=1"))
                     {
                         readyReceived = true;
+
+                        // READY=1 is sent only after Edge: readiness must already be 200.
+                        using var readyClient = new HttpClient();
+                        var readyResp = await readyClient.GetAsync($"http://127.0.0.1:{mgmtPort}/health/ready", Ct);
+                        readyResp.StatusCode.ShouldBe(HttpStatusCode.OK);
                         break;
                     }
                 }

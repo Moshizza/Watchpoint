@@ -126,14 +126,16 @@ public sealed class StartupOrchestrator : IHostedLifecycleService
         }
     }
 
-    private static void NotifySystemdReady()
+    private static void NotifySystemdReady() => NotifySystemd(Microsoft.Extensions.Hosting.Systemd.ServiceState.Ready);
+
+    private static void NotifySystemd(Microsoft.Extensions.Hosting.Systemd.ServiceState state)
     {
         try
         {
             var notifier = new Microsoft.Extensions.Hosting.Systemd.SystemdNotifier();
             if (notifier.IsEnabled)
             {
-                notifier.Notify(Microsoft.Extensions.Hosting.Systemd.ServiceState.Ready);
+                notifier.Notify(state);
             }
         }
         catch
@@ -146,6 +148,7 @@ public sealed class StartupOrchestrator : IHostedLifecycleService
     public async Task StoppingAsync(CancellationToken cancellationToken)
     {
         _readiness.SetDraining();
+        NotifySystemd(Microsoft.Extensions.Hosting.Systemd.ServiceState.Stopping);
 
         var timeout = _settings.Shutdown.TimeoutDuration;
         var startTimestamp = _timeProvider.GetTimestamp();

@@ -11,7 +11,6 @@
     <PackageReference Include="Shouldly" />
     <PackageReference Include="NATS.Net" />
     <PackageReference Include="Npgsql" />
-      <PackageReference Include="Microsoft.AspNetCore.TestHost" />
   </ItemGroup>
 
   <ItemGroup>
@@ -21,6 +20,10 @@
   <ItemGroup>
     <ProjectReference Include="../../../src/service/Watchpoint.Hosting/Watchpoint.Hosting.csproj" />
     <ProjectReference Include="../../../src/service/Watchpoint.Host/Watchpoint.Host.csproj" />
+    <ProjectReference Include="../../../src/service/Watchpoint.Storage/Watchpoint.Storage.csproj" />
+    <ProjectReference Include="../../../src/service/Watchpoint.Secrets/Watchpoint.Secrets.csproj" />
+    <ProjectReference Include="../../../src/service/Watchpoint.Storage.Postgres/Watchpoint.Storage.Postgres.csproj" />
+    <ProjectReference Include="../Watchpoint.Storage.Certification/Watchpoint.Storage.Certification.csproj" />
     <ProjectReference Include="../Watchpoint.Testing/Watchpoint.Testing.csproj" />
     <ProjectReference Include="../Watchpoint.Testing.Containers/Watchpoint.Testing.Containers.csproj" />
   </ItemGroup>

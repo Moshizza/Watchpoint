@@ -1,0 +1,41 @@
+{
+  "$schema": "https://schemas.watchpoint.dev/capability/1.json",
+  "id": "openable",
+  "version": "1.0.0",
+  "properties": [],
+  "commands": [
+    {
+      "id": "open",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "duration": {
+            "type": "duration",
+            "minimum": "PT1S",
+            "maximum": "PT60S",
+            "default": "PT5S"
+          }
+        }
+      },
+      "risk": "sensitive",
+      "timeout": "PT30S",
+      "idempotent": true,
+      "batchable": true,
+      "expectedEffect": {
+        "property": "doorPosition.position",
+        "equals": "open",
+        "within": "PT10S"
+      }
+    }
+  ],
+  "events": [
+    {
+      "id": "opened",
+      "severity": "info",
+      "payload": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  ]
+}
