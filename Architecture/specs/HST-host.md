@@ -164,14 +164,17 @@ public static readonly IWatchpointModule[] All =
 
 ### 5.3 Startup orchestration
 
-`StartupOrchestrator` is an `IHostedLifecycleService` that runs in `StartingAsync`:
+`StartupOrchestrator` is an `IHostedLifecycleService` whose startup execution runs after
+Kestrel starts listening (in `StartedAsync` via an unblocked background task), ensuring HTTP
+health endpoints can serve 503 readiness responses while waiting for dependencies (e.g. database):
 
 1. Group tasks by phase; run phases in ascending order; inside a phase run tasks by `Order`
    **sequentially** (determinism first; parallelism can be added per phase later).
 2. Log `HST1110` before each task and `HST1111` after with duration.
 3. A throwing task → log `HST1112` (critical) with the exception, then stop the host with
    exit code **70** (`EX_SOFTWARE`).
-4. After `Edge`, mark readiness (§6.2) and log `HST1120 Node ready in {Duration}`.
+4. After `Edge`, mark readiness (§6.2), send `READY=1` via `ISystemdNotifier`, and log
+   `HST1120 Node ready in {Duration}`.
 5. `Connections` phase runs after readiness (connections can take long; they report their
    own health).
 
@@ -185,11 +188,13 @@ remaining budget of `Shutdown:Timeout`; tasks exceeding it are abandoned with `H
 - `Program.cs` builds a `WebApplication`:
   - `builder.Host.UseWindowsService(o => o.ServiceName = "Watchpoint")` (no-op when not a
     Windows service);
-  - `builder.Host.UseSystemd()` (no-op when not under systemd; enables `sd_notify` READY
-    and watchdog);
+  - `builder.Host.UseSystemd()` (no-op when not under systemd; enables `sd_notify` watchdog
+    while suppressing premature ready so `READY=1` is sent explicitly after `Edge`);
   - Kestrel on `Http:Urls` (HTTP/1.1 + HTTP/2; HTTP/3 off in v1), max request body 10 MB
     (larger uploads use dedicated endpoints with their own limits), request header timeout
     30 s.
+  - Until `Edge` phase is reached, non-health endpoints return 503 (`Service Unavailable`),
+    while `/health/live` returns 200 and `/health/ready` returns 503 with reasons.
   - Management endpoints on `Management:Urls` through a second Kestrel endpoint filtered
     with `RequireHost` (only `/health/*` and `/metrics` respond there).
 - Exit codes: 0 normal, 70 start-up task failure, 78 invalid settings, 75 (`EX_TEMPFAIL`)
