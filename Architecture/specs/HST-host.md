@@ -164,19 +164,28 @@ public static readonly IWatchpointModule[] All =
 
 ### 5.3 Startup orchestration
 
-`StartupOrchestrator` is an `IHostedLifecycleService` that runs in `StartingAsync`:
+`StartupOrchestrator` is an `IHostedLifecycleService` whose startup execution runs after
+Kestrel starts listening (in `StartedAsync` via an unblocked background task), ensuring HTTP
+health endpoints can serve 503 readiness responses while waiting for dependencies (e.g. database):
 
 1. Group tasks by phase; run phases in ascending order; inside a phase run tasks by `Order`
    **sequentially** (determinism first; parallelism can be added per phase later).
 2. Log `HST1110` before each task and `HST1111` after with duration.
 3. A throwing task → log `HST1112` (critical) with the exception, then stop the host with
    exit code **70** (`EX_SOFTWARE`).
-4. After `Edge`, mark readiness (§6.2) and log `HST1120 Node ready in {Duration}`.
+4. After `Edge`, mark readiness (§6.2), send `READY=1` via `ISystemdNotifier`, and log
+   `HST1120 Node ready in {Duration}`.
 5. `Connections` phase runs after readiness (connections can take long; they report their
    own health).
 
+Storage (`StorageModule`, first module in the catalogue): `Infrastructure` task `StorageWait`
+(`IStorageStartup.WaitForDatabasesAsync`) and `Schema` task `StorageMigrations` (`MigrateAsync`);
+`StorageStartupException.ExitCode` becomes the exit code (75 database unreachable for
+`Database:StartupWait`, 78 invalid storage settings, 70 otherwise).
+
 Shutdown (`StoppingAsync`): run `IShutdownTask`s in descending phase order, each with the
-remaining budget of `Shutdown:Timeout`; tasks exceeding it are abandoned with `HST1131`.
+remaining budget of `Shutdown:Timeout`; a task still running when its budget ends is abandoned
+with `HST1131` and the next tasks still run (with a cancelled token once the budget is spent).
 
 ## 6. Hosting and endpoints
 
@@ -185,17 +194,22 @@ remaining budget of `Shutdown:Timeout`; tasks exceeding it are abandoned with `H
 - `Program.cs` builds a `WebApplication`:
   - `builder.Host.UseWindowsService(o => o.ServiceName = "Watchpoint")` (no-op when not a
     Windows service);
-  - `builder.Host.UseSystemd()` (no-op when not under systemd; enables `sd_notify` READY
-    and watchdog);
+  - systemd: `UseSystemd()` is **not** used (its lifetime sends `READY=1` when the host has
+    started, before `Edge`). `StartupOrchestrator` sends `READY=1` after `Edge` and
+    `STOPPING=1` when shutdown begins, through `SystemdNotifier` (no-op without
+    `NOTIFY_SOCKET`). `WATCHDOG=1` pings are not implemented yet: until they are, the unit
+    must not set `WatchdogSec`;
   - Kestrel on `Http:Urls` (HTTP/1.1 + HTTP/2; HTTP/3 off in v1), max request body 10 MB
     (larger uploads use dedicated endpoints with their own limits), request header timeout
     30 s.
+  - Until `Edge` phase is reached, non-health endpoints return 503 (`Service Unavailable`),
+    while `/health/live` returns 200 and `/health/ready` returns 503 with reasons.
   - Management endpoints on `Management:Urls` through a second Kestrel endpoint filtered
     with `RequireHost` (only `/health/*` and `/metrics` respond there).
 - Exit codes: 0 normal, 70 start-up task failure, 78 invalid settings, 75 (`EX_TEMPFAIL`)
   when a required dependency (database) stayed unreachable for 5 minutes at start.
 - Windows service recovery actions (set by the installer, DEP): restart after 10 s, 30 s,
-  60 s. systemd unit: `Restart=always`, `RestartSec=5`, `WatchdogSec=60`.
+  60 s. systemd unit: `Restart=always`, `RestartSec=5` (`WatchdogSec=60` once watchdog pings exist, see §6.1).
 
 ### 6.2 Health
 
@@ -206,6 +220,9 @@ remaining budget of `Shutdown:Timeout`; tasks exceeding it are abandoned with `H
 | `GET /health/details` | JSON detail of every check (management port only) | All checks with status, duration, description |
 
 Response for `/health/ready`: `200 {"status":"ready"}` or `503 {"status":"notReady","reasons":["database"]}`.
+Reasons: `database` when the `storage` check (STO §6.4) is unhealthy, `startup` before `Edge` or while
+draining, otherwise the name of the failing `ready` check. Messages before Serilog is configured
+(elevation, invalid settings, node id) go through a console bootstrap `ILogger`, never `Console.*`.
 
 ### 6.3 Logging and telemetry
 
@@ -393,12 +410,16 @@ Seed failures are logged (`HST1140`) and do not stop the node. The seed file sch
 |---|---|---|
 | 1101 | Critical | Invalid node settings: {Problems} |
 | 1102 | Information | Node {NodeId} ({NodeName}) starting, version {Version}, environment {Environment} |
+| 1103 | Critical | Refusing to start as a privileged process (root/Administrator) in Production without --allow-elevated |
+| 1104 | Warning | Running as a privileged process (root/Administrator) in Production (--allow-elevated) |
+| 1105 | Warning | Could not persist Node:Id to {Path} |
 | 1110 | Information | Startup task {Task} (phase {Phase}) starting |
 | 1111 | Information | Startup task {Task} completed in {DurationMs} ms |
 | 1112 | Critical | Startup task {Task} failed |
 | 1120 | Information | Node ready in {DurationMs} ms |
 | 1130 | Information | Shutdown task {Task} completed in {DurationMs} ms |
 | 1131 | Warning | Shutdown task {Task} abandoned after timeout |
+| 1132 | Error | Shutdown task {Task} failed with exception |
 | 1150 | Information | Child {Name} started with pid {Pid} |
 | 1151 | Warning | Child {Name} exited unexpectedly with code {ExitCode}; restart {Attempt} in {DelayMs} ms |
 | 1152 | Error | Child {Name} failed: {Restarts} restarts within {Window} |
