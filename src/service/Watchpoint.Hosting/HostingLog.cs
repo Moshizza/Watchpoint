@@ -13,6 +13,15 @@ public static partial class HostingLog
     /// <summary>1102: Node starting.</summary>
     public static readonly EventId NodeStarting = new(1102, nameof(NodeStarting));
 
+    /// <summary>1103: Privileged process refused in Production.</summary>
+    public static readonly EventId ElevatedRefused = new(1103, nameof(ElevatedRefused));
+
+    /// <summary>1104: Privileged process allowed in Production by <c>--allow-elevated</c>.</summary>
+    public static readonly EventId ElevatedAllowed = new(1104, nameof(ElevatedAllowed));
+
+    /// <summary>1105: The generated node id could not be written to <c>watchpoint.json</c>.</summary>
+    public static readonly EventId NodeIdPersistFailed = new(1105, nameof(NodeIdPersistFailed));
+
     /// <summary>1110: Startup task starting.</summary>
     public static readonly EventId StartupTaskStarting = new(1110, nameof(StartupTaskStarting));
 
@@ -57,6 +66,15 @@ public static partial class HostingLog
 
     [LoggerMessage(EventId = 1102, Level = LogLevel.Information, Message = "Node {NodeId} ({NodeName}) starting, version {Version}, environment {Environment}")]
     public static partial void LogNodeStarting(ILogger logger, Guid nodeId, string nodeName, string version, NodeEnvironment environment);
+
+    [LoggerMessage(EventId = 1103, Level = LogLevel.Critical, Message = "Refusing to start as a privileged process (root/Administrator) in Production without --allow-elevated")]
+    public static partial void LogElevatedRefused(ILogger logger);
+
+    [LoggerMessage(EventId = 1104, Level = LogLevel.Warning, Message = "Running as a privileged process (root/Administrator) in Production (--allow-elevated)")]
+    public static partial void LogElevatedAllowed(ILogger logger);
+
+    [LoggerMessage(EventId = 1105, Level = LogLevel.Warning, Message = "Could not persist Node:Id to {Path}")]
+    public static partial void LogNodeIdPersistFailed(ILogger logger, string path, Exception exception);
 
     [LoggerMessage(EventId = 1110, Level = LogLevel.Information, Message = "Startup task {Task} (phase {Phase}) starting")]
     public static partial void LogStartupTaskStarting(ILogger logger, string task, StartupPhase phase);

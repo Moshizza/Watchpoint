@@ -1,3 +1,4 @@
+using Watchpoint.Host.Modules;
 using Watchpoint.Hosting;
 
 namespace Watchpoint.Host;
@@ -13,8 +14,10 @@ public static class ModuleCatalog
     /// </summary>
     public static readonly IWatchpointModule[] All =
     [
-        // Other modules will be added as they are implemented:
-        // new KernelModule(), new SecretsModule(), new StorageModule(), new ModelModule(),
+        new StorageModule(),
+
+        // Other modules are added by their tasks, in this order (HST §5.2):
+        // new KernelModule(), new SecretsModule(), [StorageModule], new ModelModule(),
         // new RegistryModule(), new PipelineModule(), new StateModule(), new IdentityModule(),
         // new IntegrationRuntimeModule(), new ApiModule(),
     ];

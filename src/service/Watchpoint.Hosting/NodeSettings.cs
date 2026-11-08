@@ -59,9 +59,6 @@ public sealed class NodeSettings : IValidatableObject
     /// <summary>Shutdown options.</summary>
     public ShutdownSection Shutdown { get; set; } = new();
 
-    /// <summary>Database options.</summary>
-    public DatabaseSection Database { get; set; } = new();
-
     /// <inheritdoc />
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
@@ -307,20 +304,4 @@ public sealed class ShutdownSection
 
     /// <summary>Gets the resolved timeout TimeSpan.</summary>
     public TimeSpan TimeoutDuration => _timeout;
-}
-
-/// <summary>Database settings.</summary>
-public sealed class DatabaseSection
-{
-    private TimeSpan _startupWait = TimeSpan.FromMinutes(5);
-
-    /// <summary>Duration start-up waits for the database before exit 75.</summary>
-    public string StartupWait
-    {
-        get => System.Xml.XmlConvert.ToString(_startupWait);
-        set => _startupWait = System.Xml.XmlConvert.ToTimeSpan(value);
-    }
-
-    /// <summary>Gets the resolved startup wait TimeSpan.</summary>
-    public TimeSpan StartupWaitDuration => _startupWait;
 }

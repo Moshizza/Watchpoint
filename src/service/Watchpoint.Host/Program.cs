@@ -6,8 +6,10 @@ using System.Net;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Serilog;
 using Watchpoint.Hosting;
+using Watchpoint.Storage.Contracts;
 
 namespace Watchpoint.Host;
 
@@ -22,10 +24,11 @@ public static class Program
     /// <summary>Exit code for elevated execution refusal in production (EX_CONFIG).</summary>
     public const int ExitCodeElevated = 78;
 
-    /// <summary>Exit code for temporary failure when required dependency stayed unreachable (EX_TEMPFAIL).</summary>
-    public const int ExitCodeTempFail = 75;
+    /// <summary>Readiness reason while start-up has not passed <c>Edge</c> or the node is draining (HST §6.2).</summary>
+    public const string StartupReason = "startup";
 
-    private static readonly string[] StartupReasons = ["startup"];
+    /// <summary>Readiness reason when the <c>storage</c> health check is unhealthy (HST §6.2).</summary>
+    public const string DatabaseReason = "database";
     private static readonly JsonSerializerOptions IndentedJsonOptions = new() { WriteIndented = true };
 
     /// <summary>
@@ -38,24 +41,7 @@ public static class Program
         IReadOnlyDictionary<string, string?>? envSource = null,
         string[]? args = null)
     {
-        var pathsEarly = NodePaths.Resolve();
-        watchpointJsonPath ??= Path.Combine(pathsEarly.Data, "watchpoint.json");
-
-        // Check for --config custom argument
-        if (args is not null)
-        {
-            for (var i = 0; i < args.Length; i++)
-            {
-                if (args[i].StartsWith("--config=", StringComparison.OrdinalIgnoreCase))
-                {
-                    watchpointJsonPath = args[i]["--config=".Length..];
-                }
-                else if (string.Equals(args[i], "--config", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
-                {
-                    watchpointJsonPath = args[i + 1];
-                }
-            }
-        }
+        watchpointJsonPath ??= ResolveWatchpointJsonPath(args ?? []);
 
         configBuilder.AddJsonFile(watchpointJsonPath, optional: true, reloadOnChange: true);
 
@@ -88,58 +74,36 @@ public static class Program
         // 1. Configuration sources: appsettings.json -> watchpoint.json -> WATCHPOINT__* env -> CLI
         ConfigureConfiguration(builder.Configuration, args: args);
 
-        var pathsEarly = NodePaths.Resolve();
-        var watchpointJsonPath = Path.Combine(pathsEarly.Data, "watchpoint.json");
-        for (var i = 0; i < args.Length; i++)
-        {
-            if (args[i].StartsWith("--config=", StringComparison.OrdinalIgnoreCase))
-            {
-                watchpointJsonPath = args[i]["--config=".Length..];
-            }
-            else if (string.Equals(args[i], "--config", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
-            {
-                watchpointJsonPath = args[i + 1];
-            }
-        }
+        var watchpointJsonPath = ResolveWatchpointJsonPath(args);
 
         // Bind NodeSettings
         var settings = new NodeSettings();
         builder.Configuration.Bind(settings);
 
-        // Check privileged execution in Production
-        if (isPrivileged && settings.Node.Environment == NodeEnvironment.Production)
+        // Until Serilog is configured, start-up problems are logged through a console bootstrap logger.
+        using (var bootstrapLoggers = new Serilog.Extensions.Logging.SerilogLoggerFactory(
+            new LoggerConfiguration().WriteTo.Console(formatProvider: CultureInfo.InvariantCulture).CreateLogger(),
+            dispose: true))
         {
-            if (!allowElevated)
+            var bootstrap = bootstrapLoggers.CreateLogger("Watchpoint.Host");
+
+            // Check privileged execution in Production (spec HST §12, HST-U-014)
+            if (CheckElevation(isPrivileged, settings.Node.Environment, allowElevated, bootstrap) is { } elevatedExit)
             {
-                Console.Error.WriteLine("CRITICAL: Watchpoint refusing to start as privileged process (root/Administrator) in Production without --allow-elevated.");
-                return ExitCodeElevated;
+                return elevatedExit;
             }
 
-            Console.WriteLine("WARNING: Running as privileged process in Production (--allow-elevated passed).");
-        }
-
-        // Validate settings (spec HST §4, HST-U-003)
-        var validationContext = new ValidationContext(settings);
-        var validationResults = settings.Validate(validationContext).ToList();
-        if (validationResults.Count > 0)
-        {
-            var problems = string.Join("; ", validationResults.Select(r => r.ErrorMessage));
-            Console.Error.WriteLine($"CRITICAL [HST1101]: Invalid node settings: {problems}");
-            return ExitCodeConfig;
-        }
-
-        // Node ID persistence (spec HST §4, HST-U-004)
-        if (settings.Node.Id == Guid.Empty)
-        {
-            settings.Node.Id = Guid.CreateVersion7();
-            try
+            // Validate settings (spec HST §4, HST-U-003)
+            var validationResults = settings.Validate(new ValidationContext(settings)).ToList();
+            if (validationResults.Count > 0)
             {
-                PersistNodeId(watchpointJsonPath, settings.Node.Id);
+                var problems = string.Join("; ", validationResults.Select(r => r.ErrorMessage));
+                HostingLog.LogInvalidNodeSettings(bootstrap, problems);
+                return ExitCodeConfig;
             }
-            catch (Exception ex)
-            {
-                Console.Error.WriteLine($"Warning: Failed to persist Node:Id to '{watchpointJsonPath}': {ex.Message}");
-            }
+
+            // Node ID persistence (spec HST §4, HST-U-004)
+            EnsureNodeId(settings, watchpointJsonPath, bootstrap);
         }
 
         // Resolve paths and ensure directories
@@ -258,30 +222,7 @@ public static class Program
         builder.Services.AddSingleton(paths);
         builder.Services.AddSingleton<INodeReadiness, NodeReadiness>();
 
-        var healthBuilder = builder.Services.AddHealthChecks();
-        var dbKey = builder.Configuration["Database:Stores:Configuration"] ?? "default";
-        var dbHost = builder.Configuration[$"Database:Databases:{dbKey}:Host"];
-        var dbPortStr = builder.Configuration[$"Database:Databases:{dbKey}:Port"];
-        if (!string.IsNullOrEmpty(dbHost) && int.TryParse(dbPortStr, out var dbPort))
-        {
-            builder.Services.AddStartupTask<DatabaseConnectionStartupTask>();
-            healthBuilder.AddAsyncCheck("database", async ct =>
-            {
-                try
-                {
-                    using var tcp = new System.Net.Sockets.TcpClient();
-                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                    cts.CancelAfter(TimeSpan.FromSeconds(1));
-                    await tcp.ConnectAsync(dbHost, dbPort, cts.Token);
-                    return Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy();
-                }
-                catch (Exception ex)
-                {
-                    return Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Unhealthy("Database unreachable", ex);
-                }
-            }, tags: ["ready"]);
-        }
-
+        builder.Services.AddHealthChecks();
         builder.Services.AddHostedService<StartupOrchestrator>();
 
         // Configure Modules
@@ -367,33 +308,13 @@ public static class Program
         });
 
         // /health/ready: 200 {"status":"ready"} or 503 {"status":"notReady","reasons":[...]}
-        app.MapGet("/health/ready", async (INodeReadiness readiness, Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckService healthCheckService) =>
+        app.MapGet("/health/ready", async (INodeReadiness readiness, HealthCheckService healthCheckService, CancellationToken ct) =>
         {
-            var report = await healthCheckService.CheckHealthAsync(check => check.Tags.Contains("ready"));
-            var reasons = new List<string>();
-
-            if (report.Status != Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Healthy)
-            {
-                foreach (var entry in report.Entries)
-                {
-                    if (entry.Value.Status != Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Healthy)
-                    {
-                        reasons.Add(entry.Key);
-                    }
-                }
-            }
-
-            if (!readiness.IsReady && !reasons.Contains("startup"))
-            {
-                reasons.Add("startup");
-            }
-
-            if (reasons.Count > 0)
-            {
-                return Microsoft.AspNetCore.Http.Results.Json(new { status = "notReady", reasons }, statusCode: 503);
-            }
-
-            return Microsoft.AspNetCore.Http.Results.Ok(new { status = "ready" });
+            var report = await healthCheckService.CheckHealthAsync(check => check.Tags.Contains("ready"), ct);
+            var (statusCode, reasons) = EvaluateReadiness(readiness.IsReady, report);
+            return statusCode == StatusCodes.Status200OK
+                ? Microsoft.AspNetCore.Http.Results.Ok(new { status = "ready" })
+                : Microsoft.AspNetCore.Http.Results.Json(new { status = "notReady", reasons }, statusCode: statusCode);
         });
 
         // /health/details: management port only
@@ -420,6 +341,119 @@ public static class Program
             // If request reached here (not handled by branched prometheus pipeline because port mismatch), return 404
             return Microsoft.AspNetCore.Http.Results.NotFound();
         });
+    }
+
+    /// <summary>Path of <c>watchpoint.json</c>: <c>--config</c> / <c>--config=</c> when given, else <c>&lt;Data&gt;/watchpoint.json</c>.</summary>
+    /// <param name="args">Command-line arguments.</param>
+    /// <returns>The path.</returns>
+    public static string ResolveWatchpointJsonPath(string[] args)
+    {
+        ArgumentNullException.ThrowIfNull(args);
+        var path = Path.Combine(NodePaths.Resolve().Data, "watchpoint.json");
+        for (var i = 0; i < args.Length; i++)
+        {
+            if (args[i].StartsWith("--config=", StringComparison.OrdinalIgnoreCase))
+            {
+                path = args[i]["--config=".Length..];
+            }
+            else if (string.Equals(args[i], "--config", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            {
+                path = args[i + 1];
+            }
+        }
+
+        return path;
+    }
+
+    /// <summary>
+    /// Refuses a privileged process in Production unless <c>--allow-elevated</c> is passed (spec HST §12): logs
+    /// <c>HST1103</c> and returns exit code 78, or logs the warning <c>HST1104</c> and returns <see langword="null"/>.
+    /// </summary>
+    /// <param name="isPrivileged">Whether the process runs as root/Administrator.</param>
+    /// <param name="environment">The node environment.</param>
+    /// <param name="allowElevated">Whether <c>--allow-elevated</c> was passed.</param>
+    /// <param name="logger">The logger.</param>
+    /// <returns>The exit code to stop with, or <see langword="null"/> to continue.</returns>
+    public static int? CheckElevation(bool isPrivileged, NodeEnvironment environment, bool allowElevated, Microsoft.Extensions.Logging.ILogger logger)
+    {
+        ArgumentNullException.ThrowIfNull(logger);
+        if (!isPrivileged || environment != NodeEnvironment.Production)
+        {
+            return null;
+        }
+
+        if (!allowElevated)
+        {
+            HostingLog.LogElevatedRefused(logger);
+            return ExitCodeElevated;
+        }
+
+        HostingLog.LogElevatedAllowed(logger);
+        return null;
+    }
+
+    /// <summary>
+    /// Generates a v7 <c>Node:Id</c> when none is set and writes it to <paramref name="watchpointJsonPath"/> (spec HST §4);
+    /// a write failure logs <c>HST1105</c> and keeps the generated id for this run.
+    /// </summary>
+    /// <param name="settings">The node settings (updated in place).</param>
+    /// <param name="watchpointJsonPath">The <c>watchpoint.json</c> path.</param>
+    /// <param name="logger">The logger.</param>
+    /// <returns>The node id.</returns>
+    public static Guid EnsureNodeId(NodeSettings settings, string watchpointJsonPath, Microsoft.Extensions.Logging.ILogger logger)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(logger);
+        if (settings.Node.Id != Guid.Empty)
+        {
+            return settings.Node.Id;
+        }
+
+        settings.Node.Id = Guid.CreateVersion7();
+        try
+        {
+            PersistNodeId(watchpointJsonPath, settings.Node.Id);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            HostingLog.LogNodeIdPersistFailed(logger, watchpointJsonPath, ex);
+        }
+
+        return settings.Node.Id;
+    }
+
+    /// <summary>
+    /// Readiness response (spec HST §6.2): 200 when start-up passed <c>Edge</c>, the node is not draining and every
+    /// <c>ready</c> check is healthy; else 503 with the reasons (<c>storage</c> check → <c>database</c>, start-up →
+    /// <c>startup</c>, other checks by name).
+    /// </summary>
+    /// <param name="isReady">Whether start-up passed <c>Edge</c> and the node is not draining.</param>
+    /// <param name="report">The report of the checks tagged <c>ready</c>.</param>
+    /// <returns>The status code and reasons.</returns>
+    public static (int StatusCode, IReadOnlyList<string> Reasons) EvaluateReadiness(bool isReady, HealthReport report)
+    {
+        ArgumentNullException.ThrowIfNull(report);
+        var reasons = new List<string>();
+        foreach (var (name, entry) in report.Entries)
+        {
+            if (entry.Status != HealthStatus.Healthy)
+            {
+                var reason = string.Equals(name, StorageServiceCollectionExtensions.HealthCheckName, StringComparison.Ordinal)
+                    ? DatabaseReason
+                    : name;
+                if (!reasons.Contains(reason))
+                {
+                    reasons.Add(reason);
+                }
+            }
+        }
+
+        if (!isReady)
+        {
+            reasons.Add(StartupReason);
+        }
+
+        return (reasons.Count == 0 ? StatusCodes.Status200OK : StatusCodes.Status503ServiceUnavailable, reasons);
     }
 
     private static void PersistNodeId(string path, Guid id)
@@ -486,49 +520,6 @@ public static class Program
                     Data[normalizedKey] = value;
                 }
             }
-        }
-    }
-
-    private sealed class DatabaseConnectionStartupTask(
-        IConfiguration configuration,
-        Microsoft.Extensions.Hosting.IHostApplicationLifetime lifetime,
-        TimeProvider? timeProvider = null) : IStartupTask
-    {
-        private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
-
-        public StartupPhase Phase => StartupPhase.Infrastructure;
-        public int Order => 0;
-        public string Name => "DatabaseConnection";
-
-        public async Task ExecuteAsync(CancellationToken ct)
-        {
-            var dbKey = configuration["Database:Stores:Configuration"] ?? "default";
-            var dbHost = configuration[$"Database:Databases:{dbKey}:Host"] ?? "localhost";
-            var dbPort = int.TryParse(configuration[$"Database:Databases:{dbKey}:Port"], out var p) ? p : 5432;
-            var waitDurationStr = configuration["Database:StartupWait"] ?? "PT5M";
-            var waitDuration = System.Xml.XmlConvert.ToTimeSpan(waitDurationStr);
-
-            var started = _clock.GetTimestamp();
-            while (_clock.GetElapsedTime(started) < waitDuration)
-            {
-                ct.ThrowIfCancellationRequested();
-                try
-                {
-                    using var tcp = new System.Net.Sockets.TcpClient();
-                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                    cts.CancelAfter(TimeSpan.FromSeconds(1));
-                    await tcp.ConnectAsync(dbHost, dbPort, cts.Token);
-                    return;
-                }
-                catch
-                {
-                    await Task.Delay(TimeSpan.FromMilliseconds(100), _clock, ct);
-                }
-            }
-
-            System.Environment.ExitCode = ExitCodeTempFail;
-            lifetime.StopApplication();
-            throw new InvalidOperationException("Database unreachable after startup wait period.");
         }
     }
 }
