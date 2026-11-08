@@ -1,16 +1,18 @@
 using System.ComponentModel.DataAnnotations;
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using Microsoft.Extensions.Time.Testing;
 using Serilog.Core;
 using Serilog.Events;
 using Shouldly;
 using Watchpoint.Host;
+using Watchpoint.Testing.Logging;
+using Watchpoint.Testing.Time;
 using Xunit;
 
 namespace Watchpoint.Hosting.Tests;
@@ -107,31 +109,29 @@ public sealed class HostUnitTests
         var tempDir = Path.Combine(Path.GetTempPath(), "wp_test_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tempDir);
         var watchpointJsonPath = Path.Combine(tempDir, "watchpoint.json");
+        using var logs = new LogCollector();
+        var logger = logs.CreateLogger("Watchpoint.Host");
 
         try
         {
-            // First run: file does not exist, node id generated and written back
-            var generatedId = Guid.CreateVersion7();
-            NodeSettings.IsValidV7(generatedId).ShouldBeTrue();
+            File.WriteAllText(watchpointJsonPath, """{"Node": {"Name": "n1"}}""");
 
-            var root = new JsonObject
-            {
-                ["Node"] = new JsonObject
-                {
-                    ["Id"] = generatedId.ToString()
-                }
-            };
-            File.WriteAllText(watchpointJsonPath, JsonSerializer.Serialize(root, IndentedJsonOptions));
+            // First start: no Node:Id -> generated v7 and written back, other keys kept.
+            var first = Bind(watchpointJsonPath);
+            var generated = Program.EnsureNodeId(first, watchpointJsonPath, logger);
+            NodeSettings.IsValidV7(generated).ShouldBeTrue();
+            var written = JsonNode.Parse(File.ReadAllText(watchpointJsonPath))!;
+            written["Node"]!["Id"]!.GetValue<string>().ShouldBe(generated.ToString());
+            written["Node"]!["Name"]!.GetValue<string>().ShouldBe("n1");
+            var writtenAt = File.GetLastWriteTimeUtc(watchpointJsonPath);
 
-            // Second run: reads back the persisted id
-            var config = new ConfigurationBuilder()
-                .AddJsonFile(watchpointJsonPath)
-                .Build();
-
-            var readSettings = new NodeSettings();
-            config.Bind(readSettings);
-
-            readSettings.Node.Id.ShouldBe(generatedId);
+            // Second start: reads the persisted id and does not write again.
+            File.SetLastWriteTimeUtc(watchpointJsonPath, writtenAt.AddMinutes(-5));
+            var second = Bind(watchpointJsonPath);
+            second.Node.Id.ShouldBe(generated);
+            Program.EnsureNodeId(second, watchpointJsonPath, logger).ShouldBe(generated);
+            File.GetLastWriteTimeUtc(watchpointJsonPath).ShouldBe(writtenAt.AddMinutes(-5));
+            logs.WithEventId(HostingLog.NodeIdPersistFailed.Id).ShouldBeEmpty();
         }
         finally
         {
@@ -139,6 +139,13 @@ public sealed class HostUnitTests
             {
                 Directory.Delete(tempDir, recursive: true);
             }
+        }
+
+        static NodeSettings Bind(string path)
+        {
+            var settings = new NodeSettings();
+            new ConfigurationBuilder().AddJsonFile(path).Build().Bind(settings);
+            return settings;
         }
     }
 
@@ -169,32 +176,36 @@ public sealed class HostUnitTests
     public async Task HST_U_006_Tasks_in_a_phase_run_sequentially()
     {
         var log = new List<string>();
-        var timeProvider = new FakeTimeProvider();
+        var clock = new TestClock();
+        var start = clock.GetTimestamp();
 
-        var task1 = new TestStartupTask("Task1", StartupPhase.Runtime, 1, async () =>
+        IStartupTask DelayedTask(string id, int order) => new TestStartupTask("Task" + id, StartupPhase.Runtime, order, async () =>
         {
-            log.Add("start-1");
-            await Task.Yield();
-            log.Add("end-1");
+            lock (log)
+            {
+                log.Add($"start-{id}@{clock.GetElapsedTime(start).TotalSeconds:0}");
+            }
+
+            await Task.Delay(TimeSpan.FromSeconds(1), clock);
+            lock (log)
+            {
+                log.Add($"end-{id}@{clock.GetElapsedTime(start).TotalSeconds:0}");
+            }
         });
 
-        var task2 = new TestStartupTask("Task2", StartupPhase.Runtime, 2, async () =>
+        var orchestrator = new StartupOrchestrator(
+            [DelayedTask("2", 2), DelayedTask("1", 1)], [], new NodeReadiness(), new FakeHostApplicationLifetime(),
+            Options.Create(new NodeSettings()), NullLogger<StartupOrchestrator>.Instance, clock);
+
+        var run = orchestrator.RunStartupTasksAsync(CancellationToken.None);
+        for (var i = 0; i < 500 && !run.IsCompleted; i++)
         {
-            log.Add("start-2");
-            await Task.Yield();
-            log.Add("end-2");
-        });
+            clock.Advance(TimeSpan.FromMilliseconds(100));
+            await Task.Delay(TimeSpan.FromMilliseconds(5), TimeProvider.System, TestContext.Current.CancellationToken);
+        }
 
-        var tasks = new IStartupTask[] { task2, task1 };
-        var readiness = new NodeReadiness();
-        var lifetime = new FakeHostApplicationLifetime();
-        var logger = new LoggerFactory().CreateLogger<StartupOrchestrator>();
-        var settings = Options.Create(new NodeSettings());
-
-        var orchestrator = new StartupOrchestrator(tasks, [], readiness, lifetime, settings, logger, timeProvider);
-        await orchestrator.RunStartupTasksAsync(CancellationToken.None);
-
-        log.ShouldBe(["start-1", "end-1", "start-2", "end-2"]);
+        await run;
+        log.ShouldBe(["start-1@0", "end-1@1", "start-2@1", "end-2@2"]);
     }
 
     [Fact]
@@ -219,44 +230,63 @@ public sealed class HostUnitTests
         var settings = Options.Create(new NodeSettings());
 
         var orchestrator = new StartupOrchestrator([task1, task2], [], readiness, lifetime, settings, logger);
-        await orchestrator.RunStartupTasksAsync(CancellationToken.None);
+        try
+        {
+            await orchestrator.RunStartupTasksAsync(CancellationToken.None);
 
-        schemaRan.ShouldBeTrue();
-        runtimeRan.ShouldBeFalse();
-        readiness.IsReady.ShouldBeFalse();
-        lifetime.StopRequested.ShouldBeTrue();
-        Environment.ExitCode.ShouldBe(StartupOrchestrator.ExitCodeStartupFailure);
+            schemaRan.ShouldBeTrue();
+            runtimeRan.ShouldBeFalse();
+            readiness.IsReady.ShouldBeFalse();
+            lifetime.StopRequested.ShouldBeTrue();
+            Environment.ExitCode.ShouldBe(StartupOrchestrator.ExitCodeStartupFailure);
+        }
+        finally
+        {
+            Environment.ExitCode = 0;
+        }
     }
 
     [Fact]
     public async Task HST_U_008_Readiness_flips_after_Edge()
     {
         var readiness = new NodeReadiness();
-        bool? readinessDuringRuntime = null;
-        bool? readinessDuringConnections = null;
+        var healthy = new HealthReport(
+            new Dictionary<string, HealthReportEntry>
+            {
+                ["storage"] = new(HealthStatus.Healthy, null, TimeSpan.Zero, null, null),
+            },
+            TimeSpan.Zero);
+        (int StatusCode, IReadOnlyList<string> Reasons)? beforeEdge = null;
 
         var taskRuntime = new TestStartupTask("Runtime", StartupPhase.Runtime, 0, () =>
         {
-            readinessDuringRuntime = readiness.IsReady;
+            beforeEdge = Program.EvaluateReadiness(readiness.IsReady, healthy);
         });
         var taskEdge = new TestStartupTask("Edge", StartupPhase.Edge, 0, () => { });
-        var taskConn = new TestStartupTask("Connections", StartupPhase.Connections, 0, () =>
-        {
-            readinessDuringConnections = readiness.IsReady;
-        });
 
-        var lifetime = new FakeHostApplicationLifetime();
-        var logger = new LoggerFactory().CreateLogger<StartupOrchestrator>();
-        var settings = Options.Create(new NodeSettings());
-
-        var orchestrator = new StartupOrchestrator([taskRuntime, taskEdge, taskConn], [], readiness, lifetime, settings, logger);
-
-        readiness.IsReady.ShouldBeFalse();
+        var orchestrator = new StartupOrchestrator(
+            [taskEdge, taskRuntime], [], readiness, new FakeHostApplicationLifetime(),
+            Options.Create(new NodeSettings()), NullLogger<StartupOrchestrator>.Instance);
         await orchestrator.RunStartupTasksAsync(CancellationToken.None);
 
-        readinessDuringRuntime.ShouldBe(false);
-        readinessDuringConnections.ShouldBe(true);
-        readiness.IsReady.ShouldBeTrue();
+        beforeEdge.ShouldNotBeNull();
+        beforeEdge.Value.StatusCode.ShouldBe(503);
+        beforeEdge.Value.Reasons.ShouldBe([Program.StartupReason]);
+
+        var afterEdge = Program.EvaluateReadiness(readiness.IsReady, healthy);
+        afterEdge.StatusCode.ShouldBe(200);
+        afterEdge.Reasons.ShouldBeEmpty();
+
+        // An unhealthy storage check keeps the node not ready, with reason "database".
+        var databaseDown = new HealthReport(
+            new Dictionary<string, HealthReportEntry>
+            {
+                ["storage"] = new(HealthStatus.Unhealthy, "database unreachable: default", TimeSpan.Zero, null, null),
+            },
+            TimeSpan.Zero);
+        var notReady = Program.EvaluateReadiness(readiness.IsReady, databaseDown);
+        notReady.StatusCode.ShouldBe(503);
+        notReady.Reasons.ShouldBe([Program.DatabaseReason]);
     }
 
     [Fact]
@@ -306,34 +336,32 @@ public sealed class HostUnitTests
     [Fact]
     public async Task HST_U_011_Shutdown_timeout_abandons_slow_task()
     {
-        var task1Ran = false;
-        var task2Ran = false;
+        var slowStarted = false;
+        var nextRan = false;
+        var clock = new TestClock();
+        using var logs = new LogCollector();
 
-        var timeProvider = new FakeTimeProvider();
-
+        // Ignores its cancellation token and would run for 5 minutes; the budget is 30 s.
         var slowTask = new TestShutdownTask("SlowTask", StartupPhase.Edge, async () =>
         {
-            task1Ran = true;
-            // Advance time past the 30s timeout
-            timeProvider.Advance(TimeSpan.FromSeconds(35));
-            await Task.Yield();
+            slowStarted = true;
+            await Task.Delay(TimeSpan.FromMinutes(5), clock);
         });
+        var nextTask = new TestShutdownTask("NextTask", StartupPhase.Infrastructure, () => nextRan = true);
 
-        var nextTask = new TestShutdownTask("NextTask", StartupPhase.Infrastructure, () =>
-        {
-            task2Ran = true;
-        });
+        var orchestrator = new StartupOrchestrator(
+            [], [slowTask, nextTask], new NodeReadiness(), new FakeHostApplicationLifetime(),
+            Options.Create(new NodeSettings { Shutdown = new ShutdownSection { Timeout = "PT30S" } }),
+            new Logger<StartupOrchestrator>(new LoggerFactory([logs])), clock);
 
-        var readiness = new NodeReadiness();
-        var lifetime = new FakeHostApplicationLifetime();
-        var logger = new LoggerFactory().CreateLogger<StartupOrchestrator>();
-        var settings = Options.Create(new NodeSettings { Shutdown = new ShutdownSection { Timeout = "PT30S" } });
+        var stopping = orchestrator.StoppingAsync(CancellationToken.None);
+        slowStarted.ShouldBeTrue();
+        clock.Advance(TimeSpan.FromSeconds(31));
+        await stopping.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
-        var orchestrator = new StartupOrchestrator([], [slowTask, nextTask], readiness, lifetime, settings, logger, timeProvider);
-        await orchestrator.StoppingAsync(CancellationToken.None);
-
-        task1Ran.ShouldBeTrue();
-        task2Ran.ShouldBeFalse(); // Abandoned due to timeout budget exceeded
+        logs.WithEventId(HostingLog.ShutdownTaskAbandoned.Id).Select(e => e.Properties["Task"]).ShouldBe(["SlowTask"]);
+        nextRan.ShouldBeTrue();
+        logs.WithEventId(HostingLog.ShutdownTaskCompleted.Id).Select(e => e.Properties["Task"]).ShouldBe(["NextTask"]);
     }
 
     [Fact]
@@ -388,46 +416,49 @@ public sealed class HostUnitTests
     [Fact]
     public void HST_U_014_Elevated_process_refused_in_Production()
     {
-        // Program.Main check simulation:
-        // isPrivileged && Environment == Production without --allow-elevated -> ExitCode 78
-        var isPrivileged = true;
-        var environment = NodeEnvironment.Production;
-        var allowElevated = false;
+        using var logs = new LogCollector();
+        var logger = logs.CreateLogger("Watchpoint.Host");
 
-        var shouldRefuse = isPrivileged && environment == NodeEnvironment.Production && !allowElevated;
-        shouldRefuse.ShouldBeTrue();
+        // Privileged in Production without --allow-elevated -> exit 78 with a critical log.
+        Program.CheckElevation(isPrivileged: true, NodeEnvironment.Production, allowElevated: false, logger).ShouldBe(Program.ExitCodeElevated);
+        logs.WithEventId(HostingLog.ElevatedRefused.Id).Single().Level.ShouldBe(LogLevel.Critical);
 
-        // With --allow-elevated -> allowed with warning
-        allowElevated = true;
-        var shouldRefuseWithFlag = isPrivileged && environment == NodeEnvironment.Production && !allowElevated;
-        shouldRefuseWithFlag.ShouldBeFalse();
+        // With --allow-elevated -> warning only, start-up continues.
+        logs.Clear();
+        Program.CheckElevation(isPrivileged: true, NodeEnvironment.Production, allowElevated: true, logger).ShouldBeNull();
+        logs.Entries.Single().EventId.ShouldBe(HostingLog.ElevatedAllowed.Id);
+        logs.Entries.Single().Level.ShouldBe(LogLevel.Warning);
+
+        // Not privileged, or Development -> nothing logged.
+        logs.Clear();
+        Program.CheckElevation(isPrivileged: false, NodeEnvironment.Production, allowElevated: false, logger).ShouldBeNull();
+        Program.CheckElevation(isPrivileged: true, NodeEnvironment.Development, allowElevated: false, logger).ShouldBeNull();
+        logs.Entries.ShouldBeEmpty();
     }
 
     [Fact]
     public void HST_U_015_Dev_seed_skipped_outside_Development()
     {
-        var settingsProd = new NodeSettings
+        using var logs = new LogCollector();
+        var logger = logs.CreateLogger("Watchpoint.Host");
+
+        var production = new NodeSettings
         {
             Node = new NodeSection { Environment = NodeEnvironment.Production },
             Dev = new DevSection { SeedFile = "seed/sample-site.json" }
         };
+        DevSeedGate.ShouldRun(production, logger).ShouldBeFalse();
+        logs.WithEventId(HostingLog.DevSeedFailed.Id).ShouldHaveSingleItem();
 
-        var shouldExecuteSeedProd = settingsProd.Node.Environment == NodeEnvironment.Development &&
-                                    !string.IsNullOrWhiteSpace(settingsProd.Dev.SeedFile);
-        shouldExecuteSeedProd.ShouldBeFalse();
-
-        var settingsDev = new NodeSettings
+        logs.Clear();
+        var development = new NodeSettings
         {
             Node = new NodeSection { Environment = NodeEnvironment.Development },
             Dev = new DevSection { SeedFile = "seed/sample-site.json" }
         };
-
-        var shouldExecuteSeedDev = settingsDev.Node.Environment == NodeEnvironment.Development &&
-                                   !string.IsNullOrWhiteSpace(settingsDev.Dev.SeedFile);
-        shouldExecuteSeedDev.ShouldBeTrue();
+        DevSeedGate.ShouldRun(development, logger).ShouldBeTrue();
+        logs.Entries.ShouldBeEmpty();
     }
-
-    private static readonly JsonSerializerOptions IndentedJsonOptions = new() { WriteIndented = true };
 
     private sealed class PropertyFactory : ILogEventPropertyFactory
     {

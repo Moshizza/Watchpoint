@@ -161,33 +161,48 @@ public sealed class StartupOrchestrator : IHostedLifecycleService
         {
             foreach (var task in phaseGroup)
             {
-                var elapsed = _timeProvider.GetElapsedTime(startTimestamp);
-                var remaining = timeout - elapsed;
-                if (remaining <= TimeSpan.Zero)
-                {
-                    HostingLog.LogShutdownTaskAbandoned(_logger, task.Name);
-                    continue;
-                }
-
-                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                cts.CancelAfter(remaining);
-
-                var taskStart = _timeProvider.GetTimestamp();
-                try
-                {
-                    await task.ExecuteAsync(cts.Token);
-                    var durationMs = (long)_timeProvider.GetElapsedTime(taskStart).TotalMilliseconds;
-                    HostingLog.LogShutdownTaskCompleted(_logger, task.Name, durationMs);
-                }
-                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-                {
-                    HostingLog.LogShutdownTaskAbandoned(_logger, task.Name);
-                }
-                catch (Exception ex)
-                {
-                    HostingLog.LogShutdownTaskFailed(_logger, task.Name, ex);
-                }
+                await RunShutdownTaskAsync(task, timeout - _timeProvider.GetElapsedTime(startTimestamp), cancellationToken);
             }
+        }
+    }
+
+    /// <summary>
+    /// Runs one shutdown task within <paramref name="budget"/> (what is left of <c>Shutdown:Timeout</c>). A task still
+    /// running when the budget ends is abandoned (<c>HST1131</c>) and the next tasks still run; once the budget is spent
+    /// they get a cancelled token and only what they do synchronously is waited for.
+    /// </summary>
+    private async Task RunShutdownTaskAsync(IShutdownTask task, TimeSpan budget, CancellationToken cancellationToken)
+    {
+        if (budget < TimeSpan.Zero)
+        {
+            budget = TimeSpan.Zero;
+        }
+
+        using var budgetCts = new CancellationTokenSource(budget == TimeSpan.Zero ? Timeout.InfiniteTimeSpan : budget, _timeProvider);
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, budgetCts.Token);
+        if (budget == TimeSpan.Zero)
+        {
+            await cts.CancelAsync();
+        }
+
+        var taskStart = _timeProvider.GetTimestamp();
+        try
+        {
+            await task.ExecuteAsync(cts.Token).WaitAsync(budget, _timeProvider, cancellationToken);
+            var durationMs = (long)_timeProvider.GetElapsedTime(taskStart).TotalMilliseconds;
+            HostingLog.LogShutdownTaskCompleted(_logger, task.Name, durationMs);
+        }
+        catch (TimeoutException)
+        {
+            HostingLog.LogShutdownTaskAbandoned(_logger, task.Name);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            HostingLog.LogShutdownTaskAbandoned(_logger, task.Name);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            HostingLog.LogShutdownTaskFailed(_logger, task.Name, ex);
         }
     }
 
