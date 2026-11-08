@@ -478,8 +478,6 @@ Unit: `tests/service/Watchpoint.Hosting.Tests`. Integration: `Watchpoint.Integra
 | HST-U-023 | U | NATS config generation | Settings → nats.conf content (snapshot) with loopback, store path, token from file |
 | HST-U-024 | U | NATS token file created owner-only | First start → file exists, 32 bytes entropy, permissions 0600 (Linux) |
 | HST-U-025 | U | Seed document validated | Invalid seed (unknown location key) → validation error, nothing applied |
-| HST-U-026 | U | Watchdog pings every half interval | `WATCHDOG_USEC=60000000` (FakeTimeProvider, fake notifier) → `WATCHDOG=1` at start, then every 30 s; none after stop |
-| HST-U-027 | U | Watchdog disabled without settings or other pid | No `NOTIFY_SOCKET`, no/invalid `WATCHDOG_USEC`, or `WATCHDOG_PID` ≠ current pid → no ping; no `WATCHDOG_PID` → enabled |
 | HST-I-001 | I | Host starts with compose infrastructure | PostgreSQL + NATS containers, Development settings → `/health/ready` 200 within 30 s |
 | HST-I-002 | I | Host reports not ready without database | Database unreachable → `/health/ready` 503 with reason `database`; exit 75 after 5 min (shortened via setting in test) |
 | HST-I-003 | I | Management endpoints only on management port | `/metrics` on 9464 → 200; on main port → 404 |
@@ -489,11 +487,21 @@ Unit: `tests/service/Watchpoint.Hosting.Tests`. Integration: `Watchpoint.Integra
 | HST-I-007 | I | Leftover cleanup (Linux) | Stale pid file pointing to running nats-server → killed at start, log 1154 |
 | HST-I-008 | I | Dev seed creates site, users, simulator connection | Development + seed → admin can sign in; simulator devices visible via registry contract |
 
+### 13.1 T1.01 follow-up: systemd watchdog
+
+Unit tests in `tests/service/Watchpoint.Hosting.Tests/SystemdWatchdogTests.cs`; HST-I-004
+above also covers the watchdog end to end.
+
+| Id | Layer | Test | Given / When / Then |
+|---|---|---|---|
+| HST-U-026 | U | Watchdog pings every half interval | `WATCHDOG_USEC=60000000` (FakeTimeProvider, fake notifier) → `WATCHDOG=1` at start, then every 30 s; none after stop |
+| HST-U-027 | U | Watchdog disabled without settings or other pid | No `NOTIFY_SOCKET`, no/invalid `WATCHDOG_USEC`, or `WATCHDOG_PID` ≠ current pid → no ping; no `WATCHDOG_PID` → enabled |
+
 ## 14. Tasks
 
 | Task | Sections | Tests |
 |---|---|---|
-| T1.01 | §4, §5, §6, §10, §11 (host part), §12 | HST-U-001…HST-U-015, HST-U-026…HST-U-027, HST-I-001…HST-I-004 |
+| T1.01 | §4, §5, §6, §10, §11 (host part), §12 | HST-U-001…HST-U-015, HST-U-026, HST-U-027, HST-I-001…HST-I-004 |
 | T1.02 | §7, §8, §9, §11 (supervisor part) | HST-U-016…HST-U-025, HST-I-005…HST-I-008 |
 
 Note: HST-I-008 needs IRT, C-SIM and IDN; it is implemented in T1.02 but enabled when those
