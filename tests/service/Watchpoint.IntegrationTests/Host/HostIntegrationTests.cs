@@ -104,19 +104,27 @@ public sealed class HostIntegrationTests(PostgresContainerFixture postgres, Nats
             await using var host = HostProcess.Start(
                 "i004",
                 new Dictionary<string, JsonNode> { ["Database"] = HostProcess.DatabaseSection(db.ConnectionString) },
-                new Dictionary<string, string> { ["NOTIFY_SOCKET"] = socketPath });
+                new Dictionary<string, string> { ["NOTIFY_SOCKET"] = socketPath, ["WATCHDOG_USEC"] = "2000000" });
 
             var buffer = new byte[1024];
             var readyReceived = false;
+            var watchdogPings = 0;
             var sw = Stopwatch.StartNew();
-            while (sw.Elapsed < TimeSpan.FromSeconds(30) && !host.HasExited && !readyReceived)
+
+            // WATCHDOG_USEC = 2 s → a WATCHDOG=1 ping every second; wait for READY=1 and two pings.
+            while (sw.Elapsed < TimeSpan.FromSeconds(30) && !host.HasExited && !(readyReceived && watchdogPings >= 2))
             {
                 using var receive = CancellationTokenSource.CreateLinkedTokenSource(Ct);
                 receive.CancelAfter(TimeSpan.FromMilliseconds(500));
                 try
                 {
                     var received = await socket.ReceiveAsync(buffer, SocketFlags.None, receive.Token);
-                    readyReceived = System.Text.Encoding.UTF8.GetString(buffer, 0, received).Contains("READY=1", StringComparison.Ordinal);
+                    var message = System.Text.Encoding.UTF8.GetString(buffer, 0, received);
+                    readyReceived |= message.Contains("READY=1", StringComparison.Ordinal);
+                    if (message.Contains("WATCHDOG=1", StringComparison.Ordinal))
+                    {
+                        watchdogPings++;
+                    }
                 }
                 catch (OperationCanceledException) when (!Ct.IsCancellationRequested)
                 {
@@ -124,6 +132,7 @@ public sealed class HostIntegrationTests(PostgresContainerFixture postgres, Nats
             }
 
             readyReceived.ShouldBeTrue();
+            watchdogPings.ShouldBeGreaterThanOrEqualTo(2);
 
             // READY=1 is sent only after Edge: readiness must already be 200.
             using var http = new HttpClient();
