@@ -99,7 +99,7 @@ spec that must exist and pass.
 
 | ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| T1.01 | Host: generic host, node settings, module registration, Windows service / systemd hosting, health endpoints | HST §4–§6 | T0.04 | HST-U-001…HST-U-015, HST-I-001…HST-I-004 | [#12](https://github.com/Moshizza/Watchpoint/issues/12) | jules-9198567472642441231-f86062db | done |
+| T1.01 | Host: generic host, node settings, module registration, Windows service / systemd hosting, health endpoints | HST §4–§6 | T0.04 | HST-U-001…HST-U-015, HST-I-001…HST-I-004 | [#12](https://github.com/Moshizza/Watchpoint/issues/12) | claude-orion/T1.01-host-finish | in progress |
 | T1.02 | Host: process supervisor, bundled NATS start/stop, dev compose stack | HST §7–§8 | T1.01 | HST-U-016…HST-U-025, HST-I-005…HST-I-008 | [#13](https://github.com/Moshizza/Watchpoint/issues/13) | — | todo |
 | T1.03 | Storage: store contracts, provider model, connection manager, migration runner, PostgreSQL provider skeleton | STO §4–§6 | T0.05 | STO-U-001…STO-U-015, STO-I-001…STO-I-006 | [#14](https://github.com/Moshizza/Watchpoint/issues/14) | claude-atlas/T1.03-storage-contracts | done |
 | T1.04 | Storage: configuration store base (EF context per module, versioning column), state store (snapshot upserts) | STO §7–§8 | T1.03 | STO-U-016…STO-U-025, STO-I-007…STO-I-015 | [#15](https://github.com/Moshizza/Watchpoint/issues/15) | claude-atlas/T1.04-storage-state-store | done |
