@@ -176,7 +176,7 @@ spec that must exist and pass.
 |---|---|---|---|---|---|---|---|
 | T4.01 | Isolated integration host process, gRPC protocol, resource limits, restart policy | IHO §4–§7 | T1.16, T0.11 | IHO-U-001…IHO-U-030, IHO-I-001…IHO-I-008 | [#70](https://github.com/Moshizza/Watchpoint/issues/70) | — | todo |
 | T4.02 | Remote integration host: pairing, mTLS, outbound connection, package push, buffering | IHO §8–§10 | T4.01, T1.05 | IHO-U-031…IHO-U-050, IHO-I-009…IHO-I-014, ALM-U-126 | [#71](https://github.com/Moshizza/Watchpoint/issues/71) | — | todo |
-| T4.03 | Connector conformance suite (`Watchpoint.Integration.Testing`) applied to C-SIM | INT §12 | T1.17 | INT-C-001…INT-C-040 | [#72](https://github.com/Moshizza/Watchpoint/issues/72) | jules-1/T4.03-connector-conformance-suite | done |
+| T4.03 | Connector conformance suite (`Watchpoint.Integration.Testing`) applied to C-SIM | INT §12 | T1.17 | INT-C-001…INT-C-040 | [#72](https://github.com/Moshizza/Watchpoint/issues/72) | jules-1/T4.03-connector-conformance-suite-4547813729490188497 | done |
 | T4.04 | Ping / HTTP check connector | C-PING | T4.03 | PING-U-001…PING-U-020, PING-I-001…PING-I-004, conformance | [#73](https://github.com/Moshizza/Watchpoint/issues/73) | — | todo |
 | T4.05 | Modbus TCP connector with mapping templates | C-MODBUS | T4.03 | MODB-U-001…MODB-U-030, MODB-I-001…MODB-I-006, conformance | [#74](https://github.com/Moshizza/Watchpoint/issues/74) | — | todo |
 | T4.06 | MQTT connector | C-MQTT | T4.03 | MQTT-U-001…MQTT-U-022, MQTT-I-001…MQTT-I-006, conformance | [#75](https://github.com/Moshizza/Watchpoint/issues/75) | — | todo |
