@@ -570,6 +570,18 @@
           "Watchpoint.Integration.Abstractions": "[1.0.0, )"
         }
       },
+      "watchpoint.integration.simulator": {
+        "type": "Project",
+        "dependencies": {
+          "Watchpoint.Integration.Abstractions": "[1.0.0, )",
+          "Watchpoint.Integration.Sdk": "[1.0.0, )",
+          "Watchpoint.Integration.Simulator.Engine": "[1.0.0, )",
+          "Watchpoint.Kernel": "[1.0.0, )"
+        }
+      },
+      "watchpoint.integration.simulator.engine": {
+        "type": "Project"
+      },
       "watchpoint.kernel": {
         "type": "Project",
         "dependencies": {
