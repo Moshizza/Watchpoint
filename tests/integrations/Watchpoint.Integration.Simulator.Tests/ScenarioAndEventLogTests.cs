@@ -82,7 +82,8 @@ public sealed class ScenarioAndEventLogTests
 
         var connector = new SimulatorConnector();
         await connector.InitializeAsync(context, CancellationToken.None);
-        await connector.StartAsync(CancellationToken.None);
+        // No StartAsync: the background connect loop runs its own catch-up, which would race with
+        // the explicit CatchUpAsync below and report ev2/ev3 twice. Catch-up needs only InitializeAsync.
 
         var site = connector.EmbeddedSite!;
         ulong seq1 = site.EmitEvent("door-0001", "ev1", new Dictionary<string, object?>(), time.GetUtcNow());
