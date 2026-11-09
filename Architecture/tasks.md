@@ -136,7 +136,7 @@ spec that must exist and pass.
 | T2.03 | Commands: verification and group commands | CMD §9–§10 | T2.02 | CMD-U-051…CMD-U-065 | [#39](https://github.com/Moshizza/Watchpoint/issues/39) | — | todo |
 | T2.04 | Commands: REST + live messages, command journal queries | CMD §11 | T2.03, T1.20 | CMD-I-009…CMD-I-015 | [#40](https://github.com/Moshizza/Watchpoint/issues/40) | — | todo |
 | T2.05 | Events: model, event type registry, operator notes, journal query API | EVT | T1.10, T1.19 | EVT-U-001…EVT-U-020, EVT-I-001…EVT-I-008 | [#41](https://github.com/Moshizza/Watchpoint/issues/41) | — | todo |
-| T2.06 | Expressions: CEL subset in C# (parser, type checker against the model, cost-limited evaluator) | EXP §4–§7 | T1.06 | EXP-U-001…EXP-U-040 | [#42](https://github.com/Moshizza/Watchpoint/issues/42) | — | todo |
+| T2.06 | Expressions: CEL subset in C# (parser, type checker against the model, cost-limited evaluator) | EXP §4–§7 | T1.06 | EXP-U-001…EXP-U-040 | [#42](https://github.com/Moshizza/Watchpoint/issues/42) | jules-1/T2.06-expressions-cel-subset | done |
 | T2.07 | Expressions: CEL subset in TypeScript + shared conformance vectors | EXP §8–§9 | T2.06, T1.21 | EXP-U-041…EXP-U-060, EXP-C-001 | [#43](https://github.com/Moshizza/Watchpoint/issues/43) | — | todo |
 | T2.08 | Scheduling: calendars, holiday sets (ICS import), time triggers, site time zones | SCH | T1.04 | SCH-U-001…SCH-U-030 | [#44](https://github.com/Moshizza/Watchpoint/issues/44) | jules-17736694224672813908-6b9354a8 | done |
 | T2.09 | Alarms: rule model, rule index, trigger evaluation (event, state, health, expression) | ALM §4–§6 | T2.05, T2.06 | ALM-U-001…ALM-U-035 | [#45](https://github.com/Moshizza/Watchpoint/issues/45) | — | todo |
