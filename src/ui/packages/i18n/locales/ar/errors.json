@@ -1,0 +1,20 @@
+{
+  "registry": {
+    "device": {
+      "not_found": "تعذر العثور على الجهاز {deviceId}."
+    },
+    "server": {
+      "not_found": "تعذر العثور على الخادم {serverId}."
+    }
+  },
+  "common": {
+    "network_error": "فشل طلب الشبكة. يرجى التحقق من اتصالك.",
+    "version": {
+      "conflict": "تم تعديل المورد بشكل متزامن."
+    },
+    "value": {
+      "out_of_range": "يجب أن تكون القيمة بين {min} و {max}.",
+      "required": "هذا الحقل مطلوب."
+    }
+  }
+}
