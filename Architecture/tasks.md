@@ -73,6 +73,7 @@ Every AI agent working on the project has a unique name, used as its branch pref
 | `claude-atlas` | Mohcine (Moshizza) | 2026-11-03 |
 | `jules-1` | Mohcine (Moshizza) | 2026-11-05 |
 | `claude-orion` | Mohcine (Moshizza) | 2026-11-07 |
+| `jules-3` | Mohcine (Moshizza) | 2026-11-09 |
 
 ## 2. Tasks
 
@@ -104,7 +105,7 @@ spec that must exist and pass.
 | T1.03 | Storage: store contracts, provider model, connection manager, migration runner, PostgreSQL provider skeleton | STO §4–§6 | T0.05 | STO-U-001…STO-U-015, STO-I-001…STO-I-006 | [#14](https://github.com/Moshizza/Watchpoint/issues/14) | claude-atlas/T1.03-storage-contracts | done |
 | T1.04 | Storage: configuration store base (EF context per module, versioning column), state store (snapshot upserts) | STO §7–§8 | T1.03 | STO-U-016…STO-U-025, STO-I-007…STO-I-015 | [#15](https://github.com/Moshizza/Watchpoint/issues/15) | claude-atlas/T1.04-storage-state-store | done |
 | T1.05 | Secrets vault: master key providers (file, DPAPI), AES-GCM, secret API, access audit hook | SEC | T1.04 | SEC-U-001…SEC-U-020, SEC-I-001…SEC-I-005 | [#16](https://github.com/Moshizza/Watchpoint/issues/16) | claude-atlas/T1.05-secrets-vault | done |
-| T1.06 | Model: type catalogue (load standard library and package types, resolve `extends`, validate, query) | MOD | T0.07, T1.04 | MOD-U-001…MOD-U-035, MOD-I-001…MOD-I-004 | [#17](https://github.com/Moshizza/Watchpoint/issues/17) | — | todo |
+| T1.06 | Model: type catalogue (load standard library and package types, resolve `extends`, validate, query) | MOD | T0.07, T1.04 | MOD-U-001…MOD-U-035, MOD-I-001…MOD-I-004 | [#17](https://github.com/Moshizza/Watchpoint/issues/17) | jules-3/T1.06-model-type-catalogue | in review |
 | T1.07 | Registry: servers, devices, locations, tags, links — entities, persistence, queries | REG §4–§7 | T1.06 | REG-U-001…REG-U-030, REG-I-001…REG-I-006, REG-I-008…REG-I-010 | [#18](https://github.com/Moshizza/Watchpoint/issues/18) | — | todo |
 | T1.08 | Registry: inventory reconciliation (rediscovery by native id, orphans, vendor names) | REG §8 | T1.07 | REG-U-031…REG-U-045, REG-I-007 | [#19](https://github.com/Moshizza/Watchpoint/issues/19) | — | todo |
 | T1.09 | Pipeline: event log streams, envelope, partition router, log writer/reader, consumer helpers | PIP §4–§6 | T1.02, T0.09 | PIP-U-001…PIP-U-020, PIP-I-001…PIP-I-008 | [#20](https://github.com/Moshizza/Watchpoint/issues/20) | — | todo |

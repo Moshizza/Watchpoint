@@ -38,6 +38,7 @@ internal static partial class ArchitectureRules
     public static bool IsModule(string name) =>
         IsWatchpoint(name)
         && name != Kernel
+        && name != "Watchpoint.Model.Documents"
         && !_compositionRoots.Contains(name)
         && !name.StartsWith("Watchpoint.Integration.", StringComparison.Ordinal)
         && !name.StartsWith("Watchpoint.Analyzers", StringComparison.Ordinal)
