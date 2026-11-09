@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Wptypes.Tests" />
+    <InternalsVisibleTo Include="Watchpoint.Integration.Simulator.Tests" />
   </ItemGroup>
 
 </Project>

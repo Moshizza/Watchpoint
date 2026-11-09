@@ -570,6 +570,18 @@
           "Watchpoint.Integration.Abstractions": "[1.0.0, )"
         }
       },
+      "watchpoint.integration.simulator": {
+        "type": "Project",
+        "dependencies": {
+          "Watchpoint.Integration.Abstractions": "[1.0.0, )",
+          "Watchpoint.Integration.Sdk": "[1.0.0, )",
+          "Watchpoint.Integration.Simulator.Engine": "[1.0.0, )",
+          "Watchpoint.Kernel": "[1.0.0, )"
+        }
+      },
+      "watchpoint.integration.simulator.engine": {
+        "type": "Project"
+      },
       "watchpoint.kernel": {
         "type": "Project",
         "dependencies": {
@@ -601,6 +613,18 @@
         "dependencies": {
           "JsonSchema.Net": "[8.0.5, )",
           "Watchpoint.Kernel": "[1.0.0, )"
+        }
+      },
+      "watchpoint.scheduling": {
+        "type": "Project",
+        "dependencies": {
+          "Cronos": "[0.13.0, )",
+          "Microsoft.EntityFrameworkCore.Relational": "[10.0.14, )",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.14, )",
+          "Microsoft.Extensions.Logging.Abstractions": "[10.0.14, )",
+          "Microsoft.Extensions.Options": "[10.0.14, )",
+          "Watchpoint.Kernel": "[1.0.0, )",
+          "Watchpoint.Storage": "[1.0.0, )"
         }
       },
       "watchpoint.secrets": {
@@ -639,6 +663,12 @@
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )",
           "Watchpoint.Storage": "[1.0.0, )"
         }
+      },
+      "Cronos": {
+        "type": "CentralTransitive",
+        "requested": "[0.13.0, )",
+        "resolved": "0.13.0",
+        "contentHash": "Nkve+Yi0+ol3ntSBRHeW0ka9cJQ8vndSUvvkXqF9LVqwpoqWueyxu/HS275r98RDOmF7/mzRnZW5XXUBXob+TA=="
       },
       "EFCore.NamingConventions": {
         "type": "CentralTransitive",
