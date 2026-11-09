@@ -1,0 +1,78 @@
+{
+  "devices": {
+    "list": {
+      "title": "Appareils"
+    },
+    "count": "{count, plural, =0 {Aucun appareil} one {# appareil} other {# appareils}}"
+  },
+  "servers": {
+    "count": "{count, plural, =0 {Aucun serveur} one {# serveur} other {# serveurs}}"
+  },
+  "items": {
+    "count": "{count, plural, =0 {Aucun élément} one {# élément} other {# éléments}}"
+  },
+  "connection": {
+    "connected": "Connecté",
+    "connecting": "Connexion en cours",
+    "reconnecting": "Reconnexion en cours",
+    "disconnected": "Déconnecté",
+    "lastUpdateAt": "Dernière mise à jour à {time}"
+  },
+  "nav": {
+    "home": "Accueil",
+    "devices": "Appareils",
+    "servers": "Serveurs",
+    "alarms": "Alarmes",
+    "events": "Événements",
+    "settings": "Paramètres"
+  },
+  "tree": {
+    "collapse": "Réduire",
+    "expand": "Développer",
+    "empty": "Aucun élément à afficher"
+  },
+  "datagrid": {
+    "empty": "Aucune donnée disponible",
+    "loading": "Chargement des données...",
+    "loadMore": "Charger plus",
+    "rowsSelected": "{count, plural, =0 {Aucune ligne sélectionnée} one {# ligne sélectionnée} other {# lignes sélectionnées}}",
+    "filterPlaceholder": "Filtrer...",
+    "columns": "Colonnes"
+  },
+  "property": {
+    "stale": "Donnée obsolète",
+    "lastSeen": "Dernière mise à jour: {time}"
+  },
+  "picker": {
+    "search": "Rechercher...",
+    "noResults": "Aucun résultat trouvé",
+    "select": "Sélectionner une entité"
+  },
+  "dialog": {
+    "confirm": "Confirmer",
+    "cancel": "Annuler",
+    "close": "Fermer",
+    "warning": "Avertissement",
+    "destructiveWarning": "Cette action est irréversible."
+  },
+  "form": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "required": "Ce champ est obligatoire",
+    "secretSet": "•••• (défini)",
+    "secretReplace": "Remplacer le secret",
+    "secretKeep": "Conserver le secret existant",
+    "advanced": "Paramètres avancés",
+    "defaultLanguage": "Nom par défaut",
+    "translations": "Traductions",
+    "hoursUnit": "h",
+    "minutesUnit": "min",
+    "secondsUnit": "s"
+  },
+  "error": {
+    "generic": "Une erreur inattendue est survenue",
+    "traceId": "ID de suivi",
+    "copyTraceId": "Copier l'identifiant de suivi",
+    "copied": "Copié dans le presse-papiers"
+  }
+}

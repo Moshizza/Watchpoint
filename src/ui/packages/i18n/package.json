@@ -2,7 +2,7 @@
   "name": "@watchpoint/i18n",
   "version": "0.0.0",
   "private": true,
-  "description": "Translations, ICU messages and right-to-left support (spec UIC \u00a78).",
+  "description": "Translations, ICU messages and right-to-left support (spec UIC §8).",
   "license": "UNLICENSED",
   "type": "module",
   "sideEffects": false,
@@ -10,7 +10,16 @@
     ".": "./src/index.ts"
   },
   "devDependencies": {
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "react": "19.3.1",
     "vite": "8.3.6",
     "vitest": "5.1.0"
+  },
+  "dependencies": {
+    "i18next": "27.0.1",
+    "i18next-icu": "2.7.0",
+    "intl-messageformat": "12.1.5",
+    "react-i18next": "18.0.1"
   }
 }

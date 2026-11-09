@@ -1,0 +1,36 @@
+{
+  "ok": "موافق",
+  "cancel": "إلغاء",
+  "save": "حفظ",
+  "delete": "حذف",
+  "edit": "تعديل",
+  "add": "إضافة",
+  "search": "بحث",
+  "filter": "تصفية",
+  "close": "إغلاق",
+  "loading": "جارٍ التحميل...",
+  "none": "لا شيء",
+  "all": "الكل",
+  "back": "رجوع",
+  "next": "التالي",
+  "refresh": "تحديث",
+  "unit": {
+    "celsius": "°م",
+    "fahrenheit": "°ف",
+    "percent": "٪",
+    "volt": "فولت",
+    "ampere": "أمبير",
+    "watt": "واط"
+  },
+  "states": {
+    "alarm": "إنذار",
+    "fault": "عطل",
+    "warning": "تحذير",
+    "normal-active": "نشط",
+    "normal": "طبيعي",
+    "maintenance": "صيانة",
+    "disabled": "معطل",
+    "offline": "غير متصل",
+    "unknown": "غير معروف"
+  }
+}
