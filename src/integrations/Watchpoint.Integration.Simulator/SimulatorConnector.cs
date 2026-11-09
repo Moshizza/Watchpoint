@@ -23,11 +23,21 @@ public sealed class SimulatorConnector : ConnectorBase,
     IEventCatchUp,
     IDiagnostics
 {
+    private readonly SimulatedSite? _preconfiguredSite;
     private SimulatorSettings _settings = new();
     private EmbeddedTransport? _embeddedTransport;
     private RemoteTransport? _remoteTransport;
 
     public SimulatedSite? EmbeddedSite => _embeddedTransport?.Site;
+
+    public SimulatorConnector() : this(null)
+    {
+    }
+
+    public SimulatorConnector(SimulatedSite? site)
+    {
+        _preconfiguredSite = site;
+    }
 
     public override async ValueTask<Result> InitializeAsync(IConnectorContext context, CancellationToken ct)
     {
@@ -46,7 +56,7 @@ public sealed class SimulatorConnector : ConnectorBase,
 
         if (string.Equals(_settings.Mode, "embedded", StringComparison.OrdinalIgnoreCase))
         {
-            _embeddedTransport = new EmbeddedTransport(Context, _settings);
+            _embeddedTransport = new EmbeddedTransport(Context, _settings, _preconfiguredSite);
         }
         else
         {
@@ -132,6 +142,10 @@ public sealed class SimulatorConnector : ConnectorBase,
 
     protected override async ValueTask DisconnectAsync(CancellationToken ct)
     {
+        if (_embeddedTransport != null)
+        {
+            await _embeddedTransport.DisposeAsync();
+        }
         if (_remoteTransport != null)
         {
             await _remoteTransport.DisconnectAsync(ct);
@@ -268,6 +282,11 @@ public sealed class SimulatorConnector : ConnectorBase,
             if (result.Success)
             {
                 return ConnectorCommandResult.Succeeded();
+            }
+
+            if (string.Equals(result.FailureCategory, "NotSupported", StringComparison.OrdinalIgnoreCase))
+            {
+                return ConnectorCommandResult.NotSupported();
             }
 
             if (!Enum.TryParse<FailureCategory>(result.FailureCategory, out var cat))

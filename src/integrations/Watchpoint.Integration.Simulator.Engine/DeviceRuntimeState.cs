@@ -106,6 +106,11 @@ public sealed class DeviceRuntimeState
         DateTimeOffset now,
         SimulatedSite site)
     {
+        if (command == "openable.open" && Device.TypeId != "ac.door")
+        {
+            return new CommandExecutionResult(false, "NotSupported", "sim.errors.notSupported");
+        }
+
         switch (command)
         {
             case "openable.open":

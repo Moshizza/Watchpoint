@@ -21,6 +21,7 @@
   <Folder Name="/integrations/">
     <Project Path="../integrations/Watchpoint.Integration.Abstractions/Watchpoint.Integration.Abstractions.csproj" />
     <Project Path="../integrations/Watchpoint.Integration.Sdk/Watchpoint.Integration.Sdk.csproj" />
+    <Project Path="../integrations/Watchpoint.Integration.Testing/Watchpoint.Integration.Testing.csproj" />
     <Project Path="../integrations/Watchpoint.Integration.Simulator.Engine/Watchpoint.Integration.Simulator.Engine.csproj" />
     <Project Path="../integrations/Watchpoint.Integration.Simulator/Watchpoint.Integration.Simulator.csproj" />
   </Folder>
