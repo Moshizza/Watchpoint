@@ -42,6 +42,11 @@ internal class ModelDbContext(DbContextOptions options, StorageContextInfo info)
         doc.ToTable("documents");
         doc.HasKey(d => new { d.Kind, d.Id, d.Version });
         doc.Property(d => d.Sha256).HasMaxLength(64).IsFixedLength();
+
+        if (Database.ProviderName?.Contains("Npgsql", StringComparison.Ordinal) == true)
+        {
+            doc.Property(d => d.Content).HasColumnType("jsonb");
+        }
     }
 }
 
