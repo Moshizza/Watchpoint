@@ -281,4 +281,4 @@ The conformance suite (INT §12) runs against this connector in remote mode in T
 
 | Task | Sections | Tests |
 |---|---|---|
-| T1.17 | All | SIM-U-001…SIM-U-030, SIM-I-002, SIM-I-003 |
+| T1.17 | All | SIM-U-001…SIM-U-030, SIM-I-001…SIM-I-005 |

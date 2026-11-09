@@ -56,7 +56,27 @@ internal sealed class TypeCatalog : ITypeCatalog, IDisposable
             WriteIndented = false,
         };
         options.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false));
+        options.Converters.Add(new SemVersionJsonConverter());
+        options.Converters.Add(new SemVersionRangeJsonConverter());
         return options;
+    }
+
+    private sealed class SemVersionJsonConverter : System.Text.Json.Serialization.JsonConverter<SemVersion>
+    {
+        public override SemVersion? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
+            SemVersion.Parse(reader.GetString()).Value;
+
+        public override void Write(Utf8JsonWriter writer, SemVersion value, JsonSerializerOptions options) =>
+            writer.WriteStringValue(value.ToString());
+    }
+
+    private sealed class SemVersionRangeJsonConverter : System.Text.Json.Serialization.JsonConverter<SemVersionRange>
+    {
+        public override SemVersionRange? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
+            SemVersionRange.Parse(reader.GetString()).Value;
+
+        public override void Write(Utf8JsonWriter writer, SemVersionRange value, JsonSerializerOptions options) =>
+            writer.WriteStringValue(value.ToString());
     }
     private readonly IDbContextFactory<ModelDbContext>? _dbFactory;
     private readonly IDocumentReader _reader;
@@ -117,7 +137,7 @@ internal sealed class TypeCatalog : ITypeCatalog, IDisposable
                 if (record is not null)
                 {
                     var readRes = _reader.ReadDeviceType(Encoding.UTF8.GetBytes(record.Content), record.Id);
-                    if (readRes.TryGetValue(out var doc, out _))
+                    if (readRes.TryGetValue(out var doc, out var readErr))
                     {
                         var sourceDesc = $"{record.Source}@{record.SourceVersion} (removed)";
                         var resolved = TypeResolver.Resolve(
@@ -126,11 +146,22 @@ internal sealed class TypeCatalog : ITypeCatalog, IDisposable
                             (id, ver) => LookupTypeDoc(id, ver, db),
                             (id, ver) => LookupCapDef(id, ver, db));
 
-                        if (resolved.TryGetValue(out var historicalDef, out _))
+                        if (resolved.TryGetValue(out var historicalDef, out var resolveErr))
                         {
                             return historicalDef;
                         }
+
+                        ModelLog.DocumentWarning(_logger, "historical_type_resolve_error", type.Id.Value, resolveErr.MessageKey);
                     }
+                    else
+                    {
+                        var fields = string.Join(", ", readErr.FieldErrors.Select(f => $"{f.Path}: {f.Code.Value}"));
+                        ModelLog.DocumentWarning(_logger, "historical_type_read_error", type.Id.Value, $"{readErr.MessageKey}: {fields} -- json: {record.Content}");
+                    }
+                }
+                else
+                {
+                    ModelLog.DocumentWarning(_logger, "historical_type_not_in_db", type.Id.Value, type.Version.ToString());
                 }
             }
             catch (Exception ex)
@@ -811,8 +842,38 @@ internal sealed class TypeCatalog : ITypeCatalog, IDisposable
         };
     }
 
-    private static string SerializeDoc<T>(T doc) =>
-        JsonSerializer.Serialize(doc, _jsonOptions);
+    private static string SerializeDoc<T>(T doc)
+    {
+        var json = JsonSerializer.Serialize(doc, _jsonOptions);
+        using var jsonDoc = JsonDocument.Parse(json);
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            writer.WriteStartObject();
+            if (doc is DeviceTypeDocument)
+            {
+                writer.WriteString("$schema", "https://schemas.watchpoint.dev/device-type/1.json");
+                // Ensure extends is written as null if null
+                if (!jsonDoc.RootElement.TryGetProperty("extends", out _))
+                {
+                    writer.WriteNull("extends");
+                }
+            }
+            else if (doc is CapabilityDocument)
+            {
+                writer.WriteString("$schema", "https://schemas.watchpoint.dev/capability/1.json");
+            }
+
+            foreach (var prop in jsonDoc.RootElement.EnumerateObject())
+            {
+                prop.WriteTo(writer);
+            }
+
+            writer.WriteEndObject();
+        }
+
+        return Encoding.UTF8.GetString(stream.ToArray());
+    }
 
     private static string HashSha256(string content) =>
         Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(content)));

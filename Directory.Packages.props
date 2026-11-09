@@ -53,9 +53,6 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.14" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.14" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
-    <!-- Scheduling & time triggers (spec SCH §2) -->
-    <PackageVersion Include="Cronos" Version="0.13.0" />
-
     <!-- Integration SDK & resilience -->
     <PackageVersion Include="Polly.Core" Version="8.9.1" />
 
