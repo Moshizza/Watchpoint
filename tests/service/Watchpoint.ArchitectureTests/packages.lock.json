@@ -582,6 +582,18 @@
       "watchpoint.integration.simulator.engine": {
         "type": "Project"
       },
+      "watchpoint.integration.testing": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.Extensions.TimeProvider.Testing": "[10.11.0, )",
+          "Shouldly": "[4.3.0, )",
+          "Watchpoint.Integration.Abstractions": "[1.0.0, )",
+          "Watchpoint.Integration.Sdk": "[1.0.0, )",
+          "Watchpoint.Kernel.Testing": "[1.0.0, )",
+          "xunit.v3.assert": "[4.0.2, )",
+          "xunit.v3.extensibility.core": "[4.0.2, )"
+        }
+      },
       "watchpoint.kernel": {
         "type": "Project",
         "dependencies": {
