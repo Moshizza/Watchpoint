@@ -13,6 +13,7 @@
     <Project Path="Watchpoint.Kernel/Watchpoint.Kernel.csproj" />
     <Project Path="Watchpoint.Kernel.Testing/Watchpoint.Kernel.Testing.csproj" />
     <Project Path="Watchpoint.Model.Documents/Watchpoint.Model.Documents.csproj" />
+    <Project Path="Watchpoint.Scheduling/Watchpoint.Scheduling.csproj" />
     <Project Path="Watchpoint.Secrets/Watchpoint.Secrets.csproj" />
     <Project Path="Watchpoint.Storage.Postgres/Watchpoint.Storage.Postgres.csproj" />
     <Project Path="Watchpoint.Storage/Watchpoint.Storage.csproj" />
@@ -30,6 +31,7 @@
     <Project Path="../../tests/service/Watchpoint.IntegrationTests/Watchpoint.IntegrationTests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Kernel.Tests/Watchpoint.Kernel.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Model.Documents.Tests/Watchpoint.Model.Documents.Tests.csproj" />
+    <Project Path="../../tests/service/Watchpoint.Scheduling.Tests/Watchpoint.Scheduling.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Testing/Watchpoint.Testing.csproj" />
     <Project Path="../../tests/service/Watchpoint.Secrets.Tests/Watchpoint.Secrets.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Storage.Certification/Watchpoint.Storage.Certification.csproj" />
