@@ -136,7 +136,7 @@ spec that must exist and pass.
 | T2.05 | Events: model, event type registry, operator notes, journal query API | EVT | T1.10, T1.19 | EVT-U-001…EVT-U-020, EVT-I-001…EVT-I-008 | [#41](https://github.com/Moshizza/Watchpoint/issues/41) | — | todo |
 | T2.06 | Expressions: CEL subset in C# (parser, type checker against the model, cost-limited evaluator) | EXP §4–§7 | T1.06 | EXP-U-001…EXP-U-040 | [#42](https://github.com/Moshizza/Watchpoint/issues/42) | — | todo |
 | T2.07 | Expressions: CEL subset in TypeScript + shared conformance vectors | EXP §8–§9 | T2.06, T1.21 | EXP-U-041…EXP-U-060, EXP-C-001 | [#43](https://github.com/Moshizza/Watchpoint/issues/43) | — | todo |
-| T2.08 | Scheduling: calendars, holiday sets (ICS import), time triggers, site time zones | SCH | T1.04 | SCH-U-001…SCH-U-030 | [#44](https://github.com/Moshizza/Watchpoint/issues/44) | — | todo |
+| T2.08 | Scheduling: calendars, holiday sets (ICS import), time triggers, site time zones | SCH | T1.04 | SCH-U-001…SCH-U-030 | [#44](https://github.com/Moshizza/Watchpoint/issues/44) | jules-17736694224672813908-6b9354a8 | done |
 | T2.09 | Alarms: rule model, rule index, trigger evaluation (event, state, health, expression) | ALM §4–§6 | T2.05, T2.06 | ALM-U-001…ALM-U-035 | [#45](https://github.com/Moshizza/Watchpoint/issues/45) | — | todo |
 | T2.10 | Alarms: alarm lifecycle state machine, partition-safe transitions, store, REST + live | ALM §7–§9 | T2.09 | ALM-U-036…ALM-U-070, ALM-I-001…ALM-I-010 | [#46](https://github.com/Moshizza/Watchpoint/issues/46) | — | todo |
 | T2.11 | Alarms: start/end delays, composite rules, escalation, procedures, audience | ALM §10–§13 | T2.10, T2.08 | ALM-U-071…ALM-U-110 | [#47](https://github.com/Moshizza/Watchpoint/issues/47) | — | todo |
