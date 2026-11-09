@@ -277,6 +277,22 @@ public sealed class DocumentReader : IDocumentReader
                         within);
                 }
 
+                Dictionary<string, IReadOnlyDictionary<string, string>>? riskByArg = null;
+                if (c.TryGetProperty("riskByArgument", out var rbaElem) && rbaElem.ValueKind == JsonValueKind.Object)
+                {
+                    riskByArg = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal);
+                    foreach (var argProp in rbaElem.EnumerateObject())
+                    {
+                        var overrides = new Dictionary<string, string>(StringComparer.Ordinal);
+                        foreach (var valProp in argProp.Value.EnumerateObject())
+                        {
+                            overrides[valProp.Name] = valProp.Value.GetString()!;
+                        }
+
+                        riskByArg[argProp.Name] = overrides;
+                    }
+                }
+
                 cmdList.Add(new CommandDefinitionDoc(
                     idResult.IsSuccess ? idResult.Value : MemberId.FromTrusted("dummy"),
                     paramSchema,
@@ -284,7 +300,7 @@ public sealed class DocumentReader : IDocumentReader
                     timeout,
                     c.TryGetProperty("idempotent", out var idemp) && idemp.GetBoolean(),
                     c.TryGetProperty("batchable", out var batch) && batch.GetBoolean(),
-                    null,
+                    riskByArg,
                     expectedEffect));
 
                 cmdIdx++;

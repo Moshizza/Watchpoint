@@ -1,0 +1,47 @@
+{
+  "packages": {
+    "watchpoint": {
+      "integration": {
+        "simulator": {
+          "name": "المحاكي",
+          "description": "نظام محاكاة للتحكم في الوصول والاقتحام",
+          "connected": "المحاكي متصل",
+          "connectionLost": "فقد الاتصال بالمحاكي",
+          "errors": {
+            "lockedDown": "الباب في وضع الإغلاق التام",
+            "zonesOpen": "{count, plural, zero {لا توجد مناطق مفتوحة} one {المنطقة {zones} مفتوحة} two {المنطقتان {zones} مفتوحتان} few {المناطق {zones} مفتوحة} many {المناطق {zones} مفتوحة} other {المناطق {zones} مفتوحة}}",
+            "refused": "تم رفض الأمر بواسطة النظام المحاكى",
+            "notArming": "المنطقة ليست قيد التفعيل",
+            "notFound": "الجهاز غير موجود في المحاكي",
+            "offline": "الجهاز غير متصل",
+            "notSupported": "الأمر غير مدعوم",
+            "timeout": "انتهت مهلة الأمر"
+          },
+          "diag": {
+            "mode": "وضع المحاكاة",
+            "profile": "الملف التعريفي",
+            "devicesCount": "إجمالي الأجهزة",
+            "eventsEmitted": "الأحداث الصادرة",
+            "commandsExecuted": "الأوامر المنفذة",
+            "lastSeq": "رقم التسلسل الحالي",
+            "injectEvent": "حقن حدث",
+            "setProperty": "تعيين خاصية",
+            "pauseActivity": "إيقاف النشاط مؤقتاً",
+            "resumeActivity": "استئناف النشاط",
+            "setFailures": "تعيين قواعد الأعطال",
+            "regenerate": "إعادة توليد الموقع",
+            "actionExecuted": "تم تنفيذ الإجراء بنجاح"
+          }
+        }
+      }
+    }
+  },
+  "types": {
+    "sim": {
+      "server": {
+        "name": "خادم المحاكي",
+        "description": "خادم تكامل محاكى"
+      }
+    }
+  }
+}

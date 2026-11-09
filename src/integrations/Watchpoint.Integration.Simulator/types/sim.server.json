@@ -1,0 +1,23 @@
+{
+  "$schema": "https://schemas.watchpoint.dev/device-type/1.json",
+  "id": "sim.server",
+  "version": "1.0.0",
+  "role": "server",
+  "category": "generic",
+  "extends": {
+    "id": "generic.server",
+    "version": "^1.0"
+  },
+  "capabilities": [
+    {
+      "id": "health",
+      "version": "^1.0"
+    }
+  ],
+  "licenceClass": "free",
+  "display": {
+    "icon": "server",
+    "symbol": "generic.server",
+    "primaryProperty": "health.connectivity"
+  }
+}
