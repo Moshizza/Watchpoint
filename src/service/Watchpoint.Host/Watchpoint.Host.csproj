@@ -9,6 +9,7 @@
     <ProjectReference Include="../Watchpoint.Hosting/Watchpoint.Hosting.csproj" />
     <ProjectReference Include="../Watchpoint.Storage/Watchpoint.Storage.csproj" />
     <ProjectReference Include="../Watchpoint.Storage.Postgres/Watchpoint.Storage.Postgres.csproj" />
+    <ProjectReference Include="../Watchpoint.Identity/Watchpoint.Identity.csproj" />
   </ItemGroup>
 
   <ItemGroup>

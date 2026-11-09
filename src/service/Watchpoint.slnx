@@ -8,6 +8,7 @@
   <Folder Name="/src/">
     <Project Path="Watchpoint.Host/Watchpoint.Host.csproj" />
     <Project Path="Watchpoint.Hosting/Watchpoint.Hosting.csproj" />
+    <Project Path="Watchpoint.Identity/Watchpoint.Identity.csproj" />
     <Project Path="Watchpoint.Analyzers/Watchpoint.Analyzers.csproj" />
     <Project Path="Watchpoint.Analyzers.CodeFixes/Watchpoint.Analyzers.CodeFixes.csproj" />
     <Project Path="Watchpoint.Kernel/Watchpoint.Kernel.csproj" />
@@ -34,6 +35,7 @@
     <Project Path="../../tests/service/Watchpoint.Analyzers.Tests/Watchpoint.Analyzers.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.ArchitectureTests/Watchpoint.ArchitectureTests.csproj" />
     <Project Path="../../tests/service/Watchpoint.IntegrationTests/Watchpoint.IntegrationTests.csproj" />
+    <Project Path="../../tests/service/Watchpoint.Identity.Tests/Watchpoint.Identity.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Kernel.Tests/Watchpoint.Kernel.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Model.Tests/Watchpoint.Model.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Model.Documents.Tests/Watchpoint.Model.Documents.Tests.csproj" />

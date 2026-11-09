@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Watchpoint.Identity</RootNamespace>
+    <Description>Identity module of Watchpoint (spec IDN): accounts, Argon2id, tokens and sessions.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Konscious.Security.Cryptography.Argon2" />
+    <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Watchpoint.Kernel/Watchpoint.Kernel.csproj" />
+    <ProjectReference Include="../Watchpoint.Storage/Watchpoint.Storage.csproj" />
+    <ProjectReference Include="../Watchpoint.Secrets/Watchpoint.Secrets.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Internal/Passwords/breached-passwords-100k.txt.gz" LogicalName="Watchpoint.Identity.Internal.Passwords.breached-passwords-100k.txt.gz" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Watchpoint.Identity.Tests" />
+    <InternalsVisibleTo Include="Watchpoint.IntegrationTests" />
+  </ItemGroup>
+
+</Project>
