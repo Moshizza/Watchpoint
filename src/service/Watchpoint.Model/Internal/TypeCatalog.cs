@@ -45,7 +45,19 @@ internal sealed record RegisteredPackage(
 /// </summary>
 internal sealed class TypeCatalog : ITypeCatalog, IDisposable
 {
-    private static readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = false };
+    private static readonly JsonSerializerOptions _jsonOptions = CreateJsonOptions();
+
+    private static JsonSerializerOptions CreateJsonOptions()
+    {
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+            WriteIndented = false,
+        };
+        options.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false));
+        return options;
+    }
     private readonly IDbContextFactory<ModelDbContext>? _dbFactory;
     private readonly IDocumentReader _reader;
     private readonly ILogger<TypeCatalog> _logger;
@@ -595,6 +607,17 @@ internal sealed class TypeCatalog : ITypeCatalog, IDisposable
 
     private Result<DeviceTypeDocument> LookupTypeDoc(TypeId id, SemVersionRange range, ModelDbContext db)
     {
+        var snapshot = Volatile.Read(ref _snapshot);
+        var snapshotMatch = snapshot.Types.Values
+            .Where(t => t.Ref.Id == id && range.Satisfies(t.Ref.Version))
+            .OrderByDescending(t => t.Ref.Version)
+            .FirstOrDefault();
+
+        if (snapshotMatch is not null)
+        {
+            return ToDeviceTypeDocument(snapshotMatch);
+        }
+
         var records = db.Documents
             .AsNoTracking()
             .Where(d => d.Kind == "type" && d.Id == id.Value)
@@ -617,6 +640,19 @@ internal sealed class TypeCatalog : ITypeCatalog, IDisposable
 
     private Result<CapabilityDefinition> LookupCapDef(CapabilityId id, SemVersionRange range, ModelDbContext db)
     {
+        // First check in current snapshot (which includes standard library capabilities)
+        var snapshot = Volatile.Read(ref _snapshot);
+        var snapshotMatch = snapshot.Capabilities
+            .Where(c => c.Key.Item1 == id && range.Satisfies(c.Key.Item2))
+            .OrderByDescending(c => c.Key.Item2)
+            .Select(c => c.Value)
+            .FirstOrDefault();
+
+        if (snapshotMatch is not null)
+        {
+            return snapshotMatch;
+        }
+
         var records = db.Documents
             .AsNoTracking()
             .Where(d => d.Kind == "capability" && d.Id == id.Value)
