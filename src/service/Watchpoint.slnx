@@ -12,8 +12,8 @@
     <Project Path="Watchpoint.Analyzers.CodeFixes/Watchpoint.Analyzers.CodeFixes.csproj" />
     <Project Path="Watchpoint.Kernel/Watchpoint.Kernel.csproj" />
     <Project Path="Watchpoint.Kernel.Testing/Watchpoint.Kernel.Testing.csproj" />
+    <Project Path="Watchpoint.Model/Watchpoint.Model.csproj" />
     <Project Path="Watchpoint.Model.Documents/Watchpoint.Model.Documents.csproj" />
-    <Project Path="Watchpoint.Scheduling/Watchpoint.Scheduling.csproj" />
     <Project Path="Watchpoint.Secrets/Watchpoint.Secrets.csproj" />
     <Project Path="Watchpoint.Storage.Postgres/Watchpoint.Storage.Postgres.csproj" />
     <Project Path="Watchpoint.Storage/Watchpoint.Storage.csproj" />
@@ -21,20 +21,17 @@
   <Folder Name="/integrations/">
     <Project Path="../integrations/Watchpoint.Integration.Abstractions/Watchpoint.Integration.Abstractions.csproj" />
     <Project Path="../integrations/Watchpoint.Integration.Sdk/Watchpoint.Integration.Sdk.csproj" />
-    <Project Path="../integrations/Watchpoint.Integration.Simulator.Engine/Watchpoint.Integration.Simulator.Engine.csproj" />
-    <Project Path="../integrations/Watchpoint.Integration.Simulator/Watchpoint.Integration.Simulator.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="../../tests/integrations/Watchpoint.Integration.Abstractions.Tests/Watchpoint.Integration.Abstractions.Tests.csproj" />
     <Project Path="../../tests/integrations/Watchpoint.Integration.Sdk.Tests/Watchpoint.Integration.Sdk.Tests.csproj" />
-    <Project Path="../../tests/integrations/Watchpoint.Integration.Simulator.Tests/Watchpoint.Integration.Simulator.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Hosting.Tests/Watchpoint.Hosting.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Analyzers.Tests/Watchpoint.Analyzers.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.ArchitectureTests/Watchpoint.ArchitectureTests.csproj" />
     <Project Path="../../tests/service/Watchpoint.IntegrationTests/Watchpoint.IntegrationTests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Kernel.Tests/Watchpoint.Kernel.Tests.csproj" />
+    <Project Path="../../tests/service/Watchpoint.Model.Tests/Watchpoint.Model.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Model.Documents.Tests/Watchpoint.Model.Documents.Tests.csproj" />
-    <Project Path="../../tests/service/Watchpoint.Scheduling.Tests/Watchpoint.Scheduling.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Testing/Watchpoint.Testing.csproj" />
     <Project Path="../../tests/service/Watchpoint.Secrets.Tests/Watchpoint.Secrets.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Storage.Certification/Watchpoint.Storage.Certification.csproj" />
@@ -50,6 +47,5 @@
     <Project Path="../../tools/spikes/ConnectorIsolation/Runner/Watchpoint.Spikes.ConnectorIsolation.Runner.csproj" />
     <Project Path="../../tools/spikes/Watchpoint.Spikes.NatsJetStream/Watchpoint.Spikes.NatsJetStream.csproj" />
     <Project Path="../../tools/wptypes/Watchpoint.Wptypes.csproj" />
-    <Project Path="../../tools/wpsim/Watchpoint.Wpsim.csproj" />
   </Folder>
 </Solution>

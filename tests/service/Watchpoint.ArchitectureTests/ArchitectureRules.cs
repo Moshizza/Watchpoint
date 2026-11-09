@@ -32,13 +32,13 @@ internal static partial class ArchitectureRules
     /// <summary>Gets whether the assembly is a connector package (<c>Watchpoint.Integration.&lt;Name&gt;</c>).</summary>
     public static bool IsConnector(string name) =>
         name.StartsWith("Watchpoint.Integration.", StringComparison.Ordinal)
-        && name is not IntegrationAbstractions and not IntegrationSdk and not "Watchpoint.Integration.Testing"
-        && !name.EndsWith(".Engine", StringComparison.Ordinal);
+        && name is not IntegrationAbstractions and not IntegrationSdk and not "Watchpoint.Integration.Testing";
 
     /// <summary>Gets whether the assembly is a service module (discovered by name; contracts and hosts excluded).</summary>
     public static bool IsModule(string name) =>
         IsWatchpoint(name)
         && name != Kernel
+        && name != "Watchpoint.Model.Documents"
         && !_compositionRoots.Contains(name)
         && !name.StartsWith("Watchpoint.Integration.", StringComparison.Ordinal)
         && !name.StartsWith("Watchpoint.Analyzers", StringComparison.Ordinal)
@@ -98,13 +98,13 @@ internal static partial class ArchitectureRules
            select $"{a.Name} references {r}",
     ];
 
-    /// <summary>ARCH-7: connectors reference only Kernel, Integration.Abstractions, Integration.Sdk, and their own Engine among Watchpoint assemblies.</summary>
+    /// <summary>ARCH-7: connectors reference only Kernel, Integration.Abstractions and Integration.Sdk among Watchpoint assemblies.</summary>
     public static IReadOnlyList<string> Arch7(IReadOnlyList<ArchAssembly> assemblies) =>
     [
         .. from a in assemblies
            where IsConnector(a.Name)
            from r in a.References
-           where IsWatchpoint(r) && r is not Kernel and not IntegrationAbstractions and not IntegrationSdk && r != $"{a.Name}.Engine"
+           where IsWatchpoint(r) && r is not Kernel and not IntegrationAbstractions and not IntegrationSdk
            select $"{a.Name} references {r}",
     ];
 

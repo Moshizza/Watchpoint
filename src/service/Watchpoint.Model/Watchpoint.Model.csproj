@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Watchpoint.Model</RootNamespace>
+    <Description>Type catalogue, document inheritance flattening, value validation and overall state evaluator (spec MOD).</Description>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Watchpoint.Kernel/Watchpoint.Kernel.csproj" />
+    <ProjectReference Include="../Watchpoint.Model.Documents/Watchpoint.Model.Documents.csproj" />
+    <ProjectReference Include="../Watchpoint.Storage/Watchpoint.Storage.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Watchpoint.Model.Tests" />
+    <InternalsVisibleTo Include="Watchpoint.IntegrationTests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Embed standard library from types/ (relative path from this project is ../../../types/) -->
+    <EmbeddedResource Include="../../../types/**/*" LogicalName="types/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>
