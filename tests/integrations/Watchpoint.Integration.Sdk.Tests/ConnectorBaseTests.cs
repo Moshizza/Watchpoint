@@ -137,7 +137,7 @@ public sealed class ConnectorBaseTests
         startTask.IsCompleted.ShouldBeTrue();
 
         // Wait until 1st attempt has run and failed
-        for (var i = 0; i < 50 && context.FakeHealth.Reports.Count < 2; i++)
+        for (var i = 0; i < 1000 && context.FakeHealth.Reports.Count < 2; i++)
         {
             await Task.Delay(TimeSpan.FromMilliseconds(5), TimeProvider.System, TestContext.Current.CancellationToken);
         }
@@ -145,19 +145,25 @@ public sealed class ConnectorBaseTests
         context.FakeHealth.Reports[0].Status.ShouldBe(ConnectionStatus.Connecting);
         context.FakeHealth.Reports[1].Status.ShouldBe(ConnectionStatus.Disconnected);
 
-        // Advance past 1st reconnect delay (1s ±20%)
-        clock.Advance(TimeSpan.FromSeconds(2));
-        for (var i = 0; i < 50 && context.FakeHealth.Reports.Count < 4; i++)
+        // Advance past 1st reconnect delay (1s ±20%). Step the clock: the delay timer may not
+        // exist yet when the Disconnected report is visible, so a single Advance can be lost.
+        for (var i = 0; i < 400 && context.FakeHealth.Reports.Count < 4; i++)
         {
+            clock.Advance(TimeSpan.FromMilliseconds(100));
             await Task.Delay(TimeSpan.FromMilliseconds(5), TimeProvider.System, TestContext.Current.CancellationToken);
         }
         context.FakeHealth.Reports.Count.ShouldBeGreaterThanOrEqualTo(4);
         context.FakeHealth.Reports[2].Status.ShouldBe(ConnectionStatus.Connecting);
         context.FakeHealth.Reports[3].Status.ShouldBe(ConnectionStatus.Disconnected);
 
-        // Advance past 2nd reconnect delay (2s ±20%)
-        clock.Advance(TimeSpan.FromSeconds(3));
-        await connector.ConnectedTcs.Task.WaitAsync(TimeSpan.FromSeconds(5), clock, TestContext.Current.CancellationToken);
+        // Advance past 2nd reconnect delay (2s ±20%), stepping for the same reason.
+        for (var i = 0; i < 400 && !connector.ConnectedTcs.Task.IsCompleted; i++)
+        {
+            clock.Advance(TimeSpan.FromMilliseconds(100));
+            await Task.Delay(TimeSpan.FromMilliseconds(5), TimeProvider.System, TestContext.Current.CancellationToken);
+        }
+
+        await connector.ConnectedTcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TimeProvider.System, TestContext.Current.CancellationToken);
 
         var statuses = context.FakeHealth.Reports.Select(r => r.Status).ToList();
         statuses.ShouldContain(ConnectionStatus.Connecting);
