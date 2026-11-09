@@ -6,6 +6,7 @@
     <File Path="../../.editorconfig" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="Watchpoint.Expressions/Watchpoint.Expressions.csproj" />
     <Project Path="Watchpoint.Host/Watchpoint.Host.csproj" />
     <Project Path="Watchpoint.Hosting/Watchpoint.Hosting.csproj" />
     <Project Path="Watchpoint.Identity/Watchpoint.Identity.csproj" />
@@ -34,6 +35,7 @@
     <Project Path="../../tests/service/Watchpoint.Hosting.Tests/Watchpoint.Hosting.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Analyzers.Tests/Watchpoint.Analyzers.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.ArchitectureTests/Watchpoint.ArchitectureTests.csproj" />
+    <Project Path="../../tests/service/Watchpoint.Expressions.Tests/Watchpoint.Expressions.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.IntegrationTests/Watchpoint.IntegrationTests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Identity.Tests/Watchpoint.Identity.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Kernel.Tests/Watchpoint.Kernel.Tests.csproj" />
