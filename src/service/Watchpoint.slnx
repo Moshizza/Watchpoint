@@ -6,8 +6,10 @@
     <File Path="../../.editorconfig" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="Watchpoint.Expressions/Watchpoint.Expressions.csproj" />
     <Project Path="Watchpoint.Host/Watchpoint.Host.csproj" />
     <Project Path="Watchpoint.Hosting/Watchpoint.Hosting.csproj" />
+    <Project Path="Watchpoint.Identity/Watchpoint.Identity.csproj" />
     <Project Path="Watchpoint.Analyzers/Watchpoint.Analyzers.csproj" />
     <Project Path="Watchpoint.Analyzers.CodeFixes/Watchpoint.Analyzers.CodeFixes.csproj" />
     <Project Path="Watchpoint.Kernel/Watchpoint.Kernel.csproj" />
@@ -23,6 +25,7 @@
   <Folder Name="/integrations/">
     <Project Path="../integrations/Watchpoint.Integration.Abstractions/Watchpoint.Integration.Abstractions.csproj" />
     <Project Path="../integrations/Watchpoint.Integration.Sdk/Watchpoint.Integration.Sdk.csproj" />
+    <Project Path="../integrations/Watchpoint.Integration.Testing/Watchpoint.Integration.Testing.csproj" />
     <Project Path="../integrations/Watchpoint.Integration.Simulator.Engine/Watchpoint.Integration.Simulator.Engine.csproj" />
     <Project Path="../integrations/Watchpoint.Integration.Simulator/Watchpoint.Integration.Simulator.csproj" />
   </Folder>
@@ -33,7 +36,9 @@
     <Project Path="../../tests/service/Watchpoint.Hosting.Tests/Watchpoint.Hosting.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Analyzers.Tests/Watchpoint.Analyzers.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.ArchitectureTests/Watchpoint.ArchitectureTests.csproj" />
+    <Project Path="../../tests/service/Watchpoint.Expressions.Tests/Watchpoint.Expressions.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.IntegrationTests/Watchpoint.IntegrationTests.csproj" />
+    <Project Path="../../tests/service/Watchpoint.Identity.Tests/Watchpoint.Identity.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Kernel.Tests/Watchpoint.Kernel.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Model.Tests/Watchpoint.Model.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Model.Documents.Tests/Watchpoint.Model.Documents.Tests.csproj" />

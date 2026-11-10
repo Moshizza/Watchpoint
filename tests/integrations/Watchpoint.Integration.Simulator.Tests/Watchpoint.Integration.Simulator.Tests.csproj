@@ -18,6 +18,7 @@
     <ProjectReference Include="../../../tools/wptypes/Watchpoint.Wptypes.csproj" />
     <ProjectReference Include="../../../src/service/Watchpoint.Model.Documents/Watchpoint.Model.Documents.csproj" />
     <ProjectReference Include="../../../src/service/Watchpoint.Kernel.Testing/Watchpoint.Kernel.Testing.csproj" />
+    <ProjectReference Include="../../../src/integrations/Watchpoint.Integration.Testing/Watchpoint.Integration.Testing.csproj" />
   </ItemGroup>
 
 </Project>

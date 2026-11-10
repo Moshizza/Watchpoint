@@ -1,0 +1,20 @@
+{
+  "registry": {
+    "device": {
+      "not_found": "L'appareil {deviceId} est introuvable."
+    },
+    "server": {
+      "not_found": "Le serveur {serverId} est introuvable."
+    }
+  },
+  "common": {
+    "network_error": "Échec de la requête réseau. Veuillez vérifier votre connexion.",
+    "version": {
+      "conflict": "La ressource a été modifiée simultanément."
+    },
+    "value": {
+      "out_of_range": "La valeur doit être comprise entre {min} et {max}.",
+      "required": "Ce champ est obligatoire."
+    }
+  }
+}

@@ -14,10 +14,10 @@ public sealed class EmbeddedTransport : IAsyncDisposable
 
     public SimulatedSite Site => _site;
 
-    public EmbeddedTransport(IConnectorContext context, SimulatorSettings settings)
+    public EmbeddedTransport(IConnectorContext context, SimulatorSettings settings, SimulatedSite? existingSite = null)
     {
         _context = context;
-        _site = new SimulatedSite(settings);
+        _site = existingSite ?? new SimulatedSite(settings);
 
         _site.EventEmitted += OnEventEmitted;
         _site.ChangeEmitted += OnChangeEmitted;

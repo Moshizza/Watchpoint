@@ -1,0 +1,78 @@
+{
+  "devices": {
+    "list": {
+      "title": "Devices"
+    },
+    "count": "{count, plural, =0 {No devices} one {# device} other {# devices}}"
+  },
+  "servers": {
+    "count": "{count, plural, =0 {No servers} one {# server} other {# servers}}"
+  },
+  "items": {
+    "count": "{count, plural, =0 {No items} one {# item} other {# items}}"
+  },
+  "connection": {
+    "connected": "Connected",
+    "connecting": "Connecting",
+    "reconnecting": "Reconnecting",
+    "disconnected": "Disconnected",
+    "lastUpdateAt": "Last update at {time}"
+  },
+  "nav": {
+    "home": "Home",
+    "devices": "Devices",
+    "servers": "Servers",
+    "alarms": "Alarms",
+    "events": "Events",
+    "settings": "Settings"
+  },
+  "tree": {
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "empty": "No items to display"
+  },
+  "datagrid": {
+    "empty": "No data available",
+    "loading": "Loading data...",
+    "loadMore": "Load more",
+    "rowsSelected": "{count, plural, =0 {No rows selected} one {# row selected} other {# rows selected}}",
+    "filterPlaceholder": "Filter...",
+    "columns": "Columns"
+  },
+  "property": {
+    "stale": "Stale data",
+    "lastSeen": "Last seen: {time}"
+  },
+  "picker": {
+    "search": "Search...",
+    "noResults": "No results found",
+    "select": "Select an entity"
+  },
+  "dialog": {
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "close": "Close",
+    "warning": "Warning",
+    "destructiveWarning": "This action cannot be undone."
+  },
+  "form": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "required": "This field is required",
+    "secretSet": "•••• (set)",
+    "secretReplace": "Replace secret",
+    "secretKeep": "Keep existing secret",
+    "advanced": "Advanced settings",
+    "defaultLanguage": "Default name",
+    "translations": "Translations",
+    "hoursUnit": "h",
+    "minutesUnit": "min",
+    "secondsUnit": "s"
+  },
+  "error": {
+    "generic": "An unexpected error occurred",
+    "traceId": "Trace ID",
+    "copyTraceId": "Copy trace ID",
+    "copied": "Copied to clipboard"
+  }
+}

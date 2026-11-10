@@ -82,6 +82,27 @@ public sealed class SimulatedSite
     public void PauseActivity() => _activityPaused = true;
     public void ResumeActivity() => _activityPaused = false;
 
+    public void RenameDevice(string nativeId, string newDisplayName)
+    {
+        lock (_sync)
+        {
+            var newDevices = new List<SimDevice>(_inventory.Devices.Count);
+            foreach (var dev in _inventory.Devices)
+            {
+                if (dev.NativeId == nativeId)
+                {
+                    newDevices.Add(dev with { VendorName = newDisplayName });
+                }
+                else
+                {
+                    newDevices.Add(dev);
+                }
+            }
+            _inventory = _inventory with { Devices = newDevices };
+            InventoryChanged?.Invoke(_inventory);
+        }
+    }
+
     public void Regenerate(int? newSeed = null)
     {
         lock (_sync)

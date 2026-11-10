@@ -1,0 +1,78 @@
+{
+  "devices": {
+    "list": {
+      "title": "الأجهزة"
+    },
+    "count": "{count, plural, zero {لا توجد أجهزة} one {جهاز واحد} two {جهازان} few {# أجهزة} many {# جهازاً} other {# جهاز}}"
+  },
+  "servers": {
+    "count": "{count, plural, zero {لا توجد خوادم} one {خادم واحد} two {خادمان} few {# خوادم} many {# خادماً} other {# خادم}}"
+  },
+  "items": {
+    "count": "{count, plural, zero {لا توجد عناصر} one {عنصر واحد} two {عنصران} few {# عناصر} many {# عنصراً} other {# عنصر}}"
+  },
+  "connection": {
+    "connected": "متصل",
+    "connecting": "جارٍ الاتصال",
+    "reconnecting": "جارٍ إعادة الاتصال",
+    "disconnected": "غير متصل",
+    "lastUpdateAt": "آخر تحديث في {time}"
+  },
+  "nav": {
+    "home": "الرئيسية",
+    "devices": "الأجهزة",
+    "servers": "الخوادم",
+    "alarms": "الإنذارات",
+    "events": "الأحداث",
+    "settings": "الإعدادات"
+  },
+  "tree": {
+    "collapse": "طوي",
+    "expand": "توسيع",
+    "empty": "لا توجد عناصر للعرض"
+  },
+  "datagrid": {
+    "empty": "لا توجد بيانات متاحة",
+    "loading": "جارٍ تحميل البيانات...",
+    "loadMore": "تحميل المزيد",
+    "rowsSelected": "{count, plural, zero {لم يتم تحديد أي صف} one {صف واحد محدد} two {صفان محددان} few {# صفوف محددة} many {# صفاً محدداً} other {# صف محدد}}",
+    "filterPlaceholder": "تصفية...",
+    "columns": "الأعمدة"
+  },
+  "property": {
+    "stale": "بيانات قديمة",
+    "lastSeen": "آخر ظهور: {time}"
+  },
+  "picker": {
+    "search": "بحث...",
+    "noResults": "لم يتم العثور على نتائج",
+    "select": "حدد كياناً"
+  },
+  "dialog": {
+    "confirm": "تأكيد",
+    "cancel": "إلغاء",
+    "close": "إغلاق",
+    "warning": "تحذير",
+    "destructiveWarning": "لا يمكن التراجع عن هذا الإجراء."
+  },
+  "form": {
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "required": "هذا الحقل مطلوب",
+    "secretSet": "•••• (محدد)",
+    "secretReplace": "استبدال السر",
+    "secretKeep": "الاحتفاظ بالسر الحالي",
+    "advanced": "إعدادات متقدمة",
+    "defaultLanguage": "الاسم الافتراضي",
+    "translations": "الترجمات",
+    "hoursUnit": "س",
+    "minutesUnit": "د",
+    "secondsUnit": "ث"
+  },
+  "error": {
+    "generic": "حدث خطأ غير متوقع",
+    "traceId": "معرف التتبع",
+    "copyTraceId": "نسخ معرف التتبع",
+    "copied": "تم النسخ إلى الحافظة"
+  }
+}
