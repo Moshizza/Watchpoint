@@ -20,7 +20,7 @@ using Xunit;
 namespace Watchpoint.Registry.Tests;
 
 [SuppressMessage("Naming", "CA1707:Identifiers should not contain underscores", Justification = "Test naming convention")]
-public sealed class RegistryUnitTests : IDisposable
+public sealed partial class RegistryUnitTests : IDisposable
 {
     private readonly SqliteConnection _connection;
     private readonly DbContextOptions<RegistryDbContext> _options;

@@ -15,4 +15,10 @@ internal static partial class RegistryLog
 
     [LoggerMessage(EventId = 4, Level = LogLevel.Warning, Message = "Registry invariant violation: {Rule} - {ErrorMessage}")]
     public static partial void InvariantViolation(ILogger logger, string rule, string errorMessage);
+
+    [LoggerMessage(EventId = 1510, Level = LogLevel.Information, Message = "Reconciled connection {ConnectionId}: {Updated} updated, {Orphaned} orphaned, {Restored} restored, {New} new, {Imported} imported")]
+    public static partial void ConnectionReconciled(ILogger logger, Guid connectionId, int updated, int orphaned, int restored, int @new, int imported);
+
+    [LoggerMessage(EventId = 1511, Level = LogLevel.Warning, Message = "Reconcile warning {Code} for {NativeId}")]
+    public static partial void ReconcileWarning(ILogger logger, string code, string nativeId);
 }

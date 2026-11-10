@@ -15,6 +15,7 @@ internal class RegistryDbContext(DbContextOptions options, StorageContextInfo in
     public DbSet<DeviceRecord> Devices => Set<DeviceRecord>();
     public DbSet<DeviceLinkRecord> DeviceLinks => Set<DeviceLinkRecord>();
     public DbSet<CustomFieldRecord> CustomFields => Set<CustomFieldRecord>();
+    public DbSet<DiscoveredItemRecord> DiscoveredItems => Set<DiscoveredItemRecord>();
 
     protected override void OnModuleModelCreating(ModelBuilder modelBuilder)
     {
@@ -115,6 +116,16 @@ internal class RegistryDbContext(DbContextOptions options, StorageContextInfo in
                 b.Property(e => e.DefaultValue).HasColumnType("jsonb");
             }
             b.HasIndex(e => new { e.Target, e.Key }).IsUnique();
+        });
+
+        modelBuilder.Entity<DiscoveredItemRecord>(b =>
+        {
+            b.ToTable("discovered_items");
+            b.HasKey(e => new { e.ConnectionId, e.NativeId });
+            if (Database.ProviderName?.Contains("Npgsql", StringComparison.Ordinal) == true)
+            {
+                b.Property(e => e.VendorAttributes).HasColumnType("jsonb");
+            }
         });
     }
 }

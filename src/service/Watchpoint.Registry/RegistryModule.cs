@@ -54,6 +54,7 @@ public static class RegistryModule
 
         services.TryAddSingleton<IRegistryReader, RegistryReader>();
         services.TryAddSingleton<IRegistryWriter, RegistryWriter>();
+        services.TryAddSingleton<IInventoryReconciler, InventoryReconciler>();
 
         return services;
     }
