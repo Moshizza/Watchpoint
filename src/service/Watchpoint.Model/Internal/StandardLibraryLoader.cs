@@ -139,7 +139,7 @@ internal static class StandardLibraryLoader
             }
         }
 
-        return new LoadedLibrary(capabilities, types, bundles, symbolsMap);
+        return new LoadedLibrary(capabilities, types, bundles, symbolsMap, folder);
     }
 }
 
@@ -147,4 +147,5 @@ internal sealed record LoadedLibrary(
     IReadOnlyList<SourceDocument<CapabilityDocument>> Capabilities,
     IReadOnlyList<SourceDocument<DeviceTypeDocument>> Types,
     IReadOnlyDictionary<string, SourceDocument<JsonElement>> Bundles,
-    IReadOnlyDictionary<string, ReadOnlyMemory<byte>> Symbols);
+    IReadOnlyDictionary<string, ReadOnlyMemory<byte>> Symbols,
+    LibraryFolder Folder) : Contracts.IStandardLibrary;

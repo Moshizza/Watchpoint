@@ -10,6 +10,7 @@
     <Project Path="Watchpoint.Host/Watchpoint.Host.csproj" />
     <Project Path="Watchpoint.Hosting/Watchpoint.Hosting.csproj" />
     <Project Path="Watchpoint.Identity/Watchpoint.Identity.csproj" />
+    <Project Path="Watchpoint.Integrations/Watchpoint.Integrations.csproj" />
     <Project Path="Watchpoint.Analyzers/Watchpoint.Analyzers.csproj" />
     <Project Path="Watchpoint.Analyzers.CodeFixes/Watchpoint.Analyzers.CodeFixes.csproj" />
     <Project Path="Watchpoint.Kernel/Watchpoint.Kernel.csproj" />
