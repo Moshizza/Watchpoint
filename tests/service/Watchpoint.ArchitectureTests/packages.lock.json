@@ -615,6 +615,18 @@
           "Watchpoint.Kernel": "[1.0.0, )"
         }
       },
+      "watchpoint.registry": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore.Relational": "[10.0.14, )",
+          "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )",
+          "Watchpoint.Hosting": "[1.0.0, )",
+          "Watchpoint.Kernel": "[1.0.0, )",
+          "Watchpoint.Model": "[1.0.0, )",
+          "Watchpoint.Storage": "[1.0.0, )",
+          "Watchpoint.Storage.Postgres": "[1.0.0, )"
+        }
+      },
       "watchpoint.scheduling": {
         "type": "Project",
         "dependencies": {

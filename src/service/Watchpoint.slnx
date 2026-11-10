@@ -54,4 +54,6 @@
     <Project Path="../../tools/wptypes/Watchpoint.Wptypes.csproj" />
     <Project Path="../../tools/wpsim/Watchpoint.Wpsim.csproj" />
   </Folder>
+  <Project Path="../../tests/service/Watchpoint.Registry.Tests/Watchpoint.Registry.Tests.csproj" />
+  <Project Path="Watchpoint.Registry/Watchpoint.Registry.csproj" />
 </Solution>
