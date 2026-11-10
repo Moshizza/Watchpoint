@@ -1,0 +1,27 @@
+{
+  "$schema": "https://schemas.watchpoint.dev/device-type/1.json",
+  "id": "mqtt.device",
+  "version": "1.0.0",
+  "role": "device",
+  "category": "generic",
+  "extends": {
+    "id": "generic.analog-input",
+    "version": "^1.0"
+  },
+  "capabilities": [
+    {
+      "id": "health",
+      "version": "^1.0"
+    },
+    {
+      "id": "measurement",
+      "version": "^1.0"
+    }
+  ],
+  "licenceClass": "free",
+  "display": {
+    "icon": "sensor",
+    "symbol": "generic.analog-input",
+    "primaryProperty": "measurement.value"
+  }
+}
