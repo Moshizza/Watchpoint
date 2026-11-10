@@ -72,16 +72,17 @@ public sealed class ModbusIntegrationTests
     [Fact]
     public async Task MODB_I_005_Pymodbus_ContainerInteroperability()
     {
-        const string image = "python:3.12-alpine@sha256:d6b63c7676c5f78b1ffecb5103fc844fc8b97d197607a016625bf9c4a5c53be9";
+        const string image = "python:3.12-alpine@sha256:e064671ca452259bab50e8e2c7bd896e39e9a343bb06ca25234adf6fe18d0fc7";
 
         var container = new ContainerBuilder(image)
             .WithPortBinding(5020, true)
+            .WithWaitStrategy(Wait.ForUnixContainer().UntilInternalTcpPortIsAvailable(5020))
             .WithCommand("sh", "-c", "pip install --no-cache-dir pymodbus==3.8.3 && python -c 'from pymodbus.server import StartAsyncTcpServer; from pymodbus.datastore import ModbusSequentialDataBlock, ModbusServerContext, ModbusSlaveContext; import asyncio; block = ModbusSequentialDataBlock(0, [100]*10); context = ModbusServerContext(slaves=ModbusSlaveContext(di=block, co=block, hr=block, ir=block), single=True); asyncio.run(StartAsyncTcpServer(context=context, address=(\"0.0.0.0\", 5020)))'")
             .Build();
 
         try
         {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(3));
             await container.StartAsync(cts.Token);
 
             var mappedPort = container.GetMappedPublicPort(5020);
@@ -94,7 +95,7 @@ public sealed class ModbusIntegrationTests
 
             await client.DisposeAsync();
         }
-        catch (Exception ex)
+        catch (DockerUnavailableException ex)
         {
             Assert.Skip($"Docker environment unavailable for pymodbus test: {ex.Message}");
         }
