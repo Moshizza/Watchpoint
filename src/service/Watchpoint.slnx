@@ -26,11 +26,13 @@
     <Project Path="../integrations/Watchpoint.Integration.Testing/Watchpoint.Integration.Testing.csproj" />
     <Project Path="../integrations/Watchpoint.Integration.Simulator.Engine/Watchpoint.Integration.Simulator.Engine.csproj" />
     <Project Path="../integrations/Watchpoint.Integration.Simulator/Watchpoint.Integration.Simulator.csproj" />
+    <Project Path="../integrations/Watchpoint.Integration.Modbus/Watchpoint.Integration.Modbus.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="../../tests/integrations/Watchpoint.Integration.Abstractions.Tests/Watchpoint.Integration.Abstractions.Tests.csproj" />
     <Project Path="../../tests/integrations/Watchpoint.Integration.Sdk.Tests/Watchpoint.Integration.Sdk.Tests.csproj" />
     <Project Path="../../tests/integrations/Watchpoint.Integration.Simulator.Tests/Watchpoint.Integration.Simulator.Tests.csproj" />
+    <Project Path="../../tests/integrations/Watchpoint.Integration.Modbus.Tests/Watchpoint.Integration.Modbus.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Hosting.Tests/Watchpoint.Hosting.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Analyzers.Tests/Watchpoint.Analyzers.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.ArchitectureTests/Watchpoint.ArchitectureTests.csproj" />

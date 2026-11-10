@@ -609,6 +609,13 @@
           "Watchpoint.Kernel": "[1.0.0, )"
         }
       },
+      "watchpoint.integration.modbus": {
+        "type": "Project",
+        "dependencies": {
+          "Watchpoint.Integration.Abstractions": "[1.0.0, )",
+          "Watchpoint.Integration.Sdk": "[1.0.0, )"
+        }
+      },
       "watchpoint.integration.sdk": {
         "type": "Project",
         "dependencies": {

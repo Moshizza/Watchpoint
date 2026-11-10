@@ -1,0 +1,91 @@
+{
+  "id": "generic-io-8di-8do",
+  "name": {
+    "en": "Generic 8 DI / 8 DO Module",
+    "fr": "Module g\u00e9n\u00e9rique 8 DI / 8 DO",
+    "ar": "\u0648\u062d\u062f\u0629 \u0639\u0627\u0645\u0629 8 \u0645\u062f\u062e\u0644\u0627\u062a / 8 \u0645\u062e\u0631\u062c\u0627\u062a \u0631\u0642\u0645\u064a\u0629"
+  },
+  "description": {
+    "en": "8 discrete inputs and 8 coil outputs mapped to generic binary types.",
+    "fr": "8 entr\u00e9es TOR et 8 sorties relais mapp\u00e9es vers des types binaires g\u00e9n\u00e9riques.",
+    "ar": "8 \u0645\u062f\u062e\u0644\u0627\u062a \u0631\u0642\u0645\u064a\u0629 \u0648 8 \u0645\u062e\u0631\u062c\u0627\u062a \u0645\u0631\u062d\u0644 \u0645\u0639\u064a\u0646\u0629 \u0625\u0644\u0649 \u0623\u0646\u0648\u0627\u0639 \u062b\u0646\u0627\u0626\u064a\u0629 \u0639\u0627\u0645\u0629."
+  },
+  "vendor": "Generic",
+  "model": "8DI8DO",
+  "devices": [
+    {
+      "key": "di-{index}",
+      "type": "generic.binary-input",
+      "repeat": {
+        "count": 8,
+        "step": 1
+      },
+      "name": {
+        "en": "Digital Input {index}",
+        "fr": "Entr\u00e9e TOR {index}",
+        "ar": "\u0645\u062f\u062e\u0644 \u0631\u0642\u0645\u064a {index}"
+      },
+      "points": [
+        {
+          "property": "state",
+          "table": "discreteInput",
+          "address": "{index - 1}",
+          "dataType": "bit"
+        }
+      ]
+    },
+    {
+      "key": "do-{index}",
+      "type": "generic.binary-output",
+      "repeat": {
+        "count": 8,
+        "step": 1
+      },
+      "name": {
+        "en": "Digital Output {index}",
+        "fr": "Sortie TOR {index}",
+        "ar": "\u0645\u062e\u0631\u062c \u0631\u0642\u0645\u064a {index}"
+      },
+      "points": [
+        {
+          "property": "state",
+          "table": "coil",
+          "address": "{index - 1}",
+          "dataType": "bit"
+        }
+      ],
+      "commands": {
+        "switchable.turnOn": {
+          "write": [
+            {
+              "table": "coil",
+              "address": "{index - 1}",
+              "value": true
+            }
+          ],
+          "verify": {
+            "table": "coil",
+            "address": "{index - 1}",
+            "expected": true,
+            "timeoutMs": 500
+          }
+        },
+        "switchable.turnOff": {
+          "write": [
+            {
+              "table": "coil",
+              "address": "{index - 1}",
+              "value": false
+            }
+          ],
+          "verify": {
+            "table": "coil",
+            "address": "{index - 1}",
+            "expected": false,
+            "timeoutMs": 500
+          }
+        }
+      }
+    }
+  ]
+}

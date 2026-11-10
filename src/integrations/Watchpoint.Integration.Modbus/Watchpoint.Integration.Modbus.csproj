@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Watchpoint.Integration.Modbus</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Watchpoint.Integration.Abstractions\Watchpoint.Integration.Abstractions.csproj" />
+    <ProjectReference Include="..\Watchpoint.Integration.Sdk\Watchpoint.Integration.Sdk.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="manifest.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="settings\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="types\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="schemas\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="templates\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="docs\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="i18n\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="knownTypes.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

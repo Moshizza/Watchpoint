@@ -1,0 +1,300 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "id": "https://watchpoint.dev/schemas/modbus-template.schema.json",
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "devices"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "object",
+      "required": [
+        "en"
+      ],
+      "properties": {
+        "en": {
+          "type": "string"
+        },
+        "fr": {
+          "type": "string"
+        },
+        "ar": {
+          "type": "string"
+        }
+      }
+    },
+    "description": {
+      "type": "object",
+      "properties": {
+        "en": {
+          "type": "string"
+        },
+        "fr": {
+          "type": "string"
+        },
+        "ar": {
+          "type": "string"
+        }
+      }
+    },
+    "vendor": {
+      "type": "string"
+    },
+    "model": {
+      "type": "string"
+    },
+    "defaultPollIntervalMs": {
+      "type": "integer",
+      "minimum": 50,
+      "default": 1000
+    },
+    "defaultMaxGap": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 10
+    },
+    "defaultMaxRegisters": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 125,
+      "default": 120
+    },
+    "devices": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "key",
+          "type",
+          "points"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "repeat": {
+            "type": "object",
+            "required": [
+              "count",
+              "step"
+            ],
+            "properties": {
+              "count": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "step": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "asArray": {
+                "type": "boolean",
+                "default": false
+              }
+            }
+          },
+          "name": {
+            "type": "object",
+            "properties": {
+              "en": {
+                "type": "string"
+              },
+              "fr": {
+                "type": "string"
+              },
+              "ar": {
+                "type": "string"
+              }
+            }
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "property",
+                "table",
+                "address",
+                "dataType"
+              ],
+              "properties": {
+                "property": {
+                  "type": "string"
+                },
+                "table": {
+                  "type": "string",
+                  "enum": [
+                    "coil",
+                    "discreteInput",
+                    "holding",
+                    "input"
+                  ]
+                },
+                "address": {
+                  "type": [
+                    "integer",
+                    "string"
+                  ]
+                },
+                "dataType": {
+                  "type": "string"
+                },
+                "wordOrder": {
+                  "type": "string",
+                  "enum": [
+                    "bigEndian",
+                    "littleEndian"
+                  ],
+                  "default": "bigEndian"
+                },
+                "byteOrder": {
+                  "type": "string",
+                  "enum": [
+                    "bigEndian",
+                    "littleEndian"
+                  ],
+                  "default": "bigEndian"
+                },
+                "bit": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 15
+                },
+                "scale": {
+                  "type": "number",
+                  "default": 1.0
+                },
+                "offset": {
+                  "type": "number",
+                  "default": 0.0
+                },
+                "enumMap": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "commands": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "write"
+              ],
+              "properties": {
+                "write": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "table",
+                      "address",
+                      "value"
+                    ],
+                    "properties": {
+                      "table": {
+                        "type": "string",
+                        "enum": [
+                          "coil",
+                          "holding"
+                        ]
+                      },
+                      "address": {
+                        "type": [
+                          "integer",
+                          "string"
+                        ]
+                      },
+                      "value": {}
+                    }
+                  }
+                },
+                "pulse": {
+                  "type": "object",
+                  "required": [
+                    "thenAfterMs",
+                    "thenWrite"
+                  ],
+                  "properties": {
+                    "thenAfterMs": {
+                      "type": "integer",
+                      "minimum": 10
+                    },
+                    "thenWrite": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "table",
+                          "address",
+                          "value"
+                        ],
+                        "properties": {
+                          "table": {
+                            "type": "string",
+                            "enum": [
+                              "coil",
+                              "holding"
+                            ]
+                          },
+                          "address": {
+                            "type": [
+                              "integer",
+                              "string"
+                            ]
+                          },
+                          "value": {}
+                        }
+                      }
+                    }
+                  }
+                },
+                "verify": {
+                  "type": "object",
+                  "required": [
+                    "table",
+                    "address",
+                    "expected"
+                  ],
+                  "properties": {
+                    "table": {
+                      "type": "string",
+                      "enum": [
+                        "coil",
+                        "discreteInput",
+                        "holding",
+                        "input"
+                      ]
+                    },
+                    "address": {
+                      "type": [
+                        "integer",
+                        "string"
+                      ]
+                    },
+                    "expected": {},
+                    "timeoutMs": {
+                      "type": "integer",
+                      "default": 1000
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

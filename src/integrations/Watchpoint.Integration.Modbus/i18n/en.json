@@ -1,0 +1,60 @@
+{
+  "packages": {
+    "watchpoint": {
+      "integration": {
+        "modbus": {
+          "name": "Modbus TCP Connector",
+          "description": "Modbus TCP and RTU-over-TCP connector with configurable mapping templates.",
+          "settings": {
+            "host": {
+              "label": "Host",
+              "description": "IP address or hostname of the Modbus gateway/device."
+            },
+            "port": {
+              "label": "Port",
+              "description": "Modbus TCP port (typically 502)."
+            },
+            "transport": {
+              "label": "Transport",
+              "description": "Framing protocol: tcp (MBAP) or rtuOverTcp."
+            },
+            "connectTimeoutMs": {
+              "label": "Connect Timeout (ms)",
+              "description": "TCP connection timeout in milliseconds."
+            },
+            "requestTimeoutMs": {
+              "label": "Request Timeout (ms)",
+              "description": "Modbus transaction timeout in milliseconds."
+            },
+            "maxInFlight": {
+              "label": "Max In Flight",
+              "description": "Maximum concurrent pipelined requests."
+            },
+            "units": {
+              "label": "Units",
+              "description": "Modbus slave units configured on this connector."
+            }
+          },
+          "errors": {
+            "refused": "Modbus command refused by remote device (exception code: {reason}).",
+            "timeout": "Modbus request timed out: {reason}.",
+            "crcError": "Modbus RTU CRC mismatch.",
+            "connectionLost": "Modbus TCP connection lost: {reason}."
+          }
+        }
+      }
+    }
+  },
+  "types": {
+    "modbus": {
+      "server": {
+        "name": "Modbus Server",
+        "description": "Modbus gateway or server device"
+      },
+      "unit": {
+        "name": "Modbus Unit",
+        "description": "Modbus unit or slave controller"
+      }
+    }
+  }
+}

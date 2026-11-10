@@ -269,4 +269,4 @@ address 40001 — check the address style (zero-based vs 4xxxx)").
 
 | Task | Sections | Tests |
 |---|---|---|
-| T4.05 | all | MODB-U-001…MODB-U-030, MODB-I-001…MODB-I-006, conformance |
+| T4.05 | all | MODB-U-001…MODB-U-030, MODB-I-001, MODB-I-003…MODB-I-006, conformance (MODB-I-002 moved to T1.17b) |

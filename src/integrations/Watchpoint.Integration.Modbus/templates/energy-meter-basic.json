@@ -1,0 +1,56 @@
+{
+  "id": "energy-meter-basic",
+  "name": {
+    "en": "Basic 3-Phase Energy Meter",
+    "fr": "Compteur d'\u00e9nergie triphas\u00e9 de base",
+    "ar": "\u0639\u062f\u0627\u062f \u0637\u0627\u0642\u0629 \u062b\u0644\u0627\u062b\u064a \u0627\u0644\u0623\u0637\u0648\u0627\u0631 \u0623\u0633\u0627\u0633\u064a"
+  },
+  "description": {
+    "en": "Voltage, current, active power, and energy registers.",
+    "fr": "Registres de tension, courant, puissance active et \u00e9nergie.",
+    "ar": "\u0633\u062c\u0644\u0627\u062a \u0627\u0644\u062c\u0647\u062f \u0648\u0627\u0644\u062a\u064a\u0627\u0631 \u0648\u0627\u0644\u0642\u062f\u0631\u0629 \u0627\u0644\u0641\u0639\u0627\u0644\u0629 \u0648\u0627\u0644\u0637\u0627\u0642\u0629."
+  },
+  "vendor": "Generic",
+  "model": "EM3P",
+  "devices": [
+    {
+      "key": "meter",
+      "type": "generic.analog-input",
+      "name": {
+        "en": "Main Energy Meter",
+        "fr": "Compteur d'\u00e9nergie principal",
+        "ar": "\u0639\u062f\u0627\u062f \u0627\u0644\u0637\u0627\u0642\u0629 \u0627\u0644\u0631\u0626\u064a\u0633\u064a"
+      },
+      "points": [
+        {
+          "property": "voltage",
+          "table": "holding",
+          "address": 0,
+          "dataType": "float32",
+          "scale": 0.1
+        },
+        {
+          "property": "current",
+          "table": "holding",
+          "address": 2,
+          "dataType": "float32",
+          "scale": 0.01
+        },
+        {
+          "property": "power",
+          "table": "holding",
+          "address": 4,
+          "dataType": "float32",
+          "scale": 1.0
+        },
+        {
+          "property": "energy",
+          "table": "holding",
+          "address": 6,
+          "dataType": "uint32",
+          "scale": 1.0
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "id": "generic-analog-4ai",
+  "name": {
+    "en": "Generic 4-Channel Analog Input",
+    "fr": "Entr\u00e9e analogique g\u00e9n\u00e9rique 4 canaux",
+    "ar": "\u0645\u062f\u062e\u0644 \u062a\u0645\u0627\u062b\u0644\u064a \u0639\u0627\u0645 \u0630\u0648 4 \u0642\u0646\u0648\u0627\u062a"
+  },
+  "description": {
+    "en": "4 analog input channels reading 32-bit floats with scaling.",
+    "fr": "4 canaux d'entr\u00e9e analogique lisant des flottants 32 bits avec mise \u00e0 l'\u00e9chelle.",
+    "ar": "4 \u0642\u0646\u0648\u0627\u062a \u0625\u062f\u062e\u0627\u0644 \u062a\u0645\u0627\u062b\u0644\u064a \u0644\u0642\u0631\u0627\u0621\u0629 \u0623\u0631\u0642\u0627\u0645 \u0639\u0634\u0631\u064a\u0629 32 \u0628\u062a \u0645\u0639 \u062a\u063a\u064a\u064a\u0631 \u0627\u0644\u0645\u0642\u064a\u0627\u0633."
+  },
+  "vendor": "Generic",
+  "model": "4AI",
+  "devices": [
+    {
+      "key": "ai-{index}",
+      "type": "generic.analog-input",
+      "repeat": {
+        "count": 4,
+        "step": 2
+      },
+      "name": {
+        "en": "Analog Input {index}",
+        "fr": "Entr\u00e9e analogique {index}",
+        "ar": "\u0645\u062f\u062e\u0644 \u062a\u0645\u0627\u062b\u0644\u064a {index}"
+      },
+      "points": [
+        {
+          "property": "value",
+          "table": "input",
+          "address": "{ (index - 1) * 2 }",
+          "dataType": "float32",
+          "wordOrder": "bigEndian"
+        }
+      ]
+    }
+  ]
+}
