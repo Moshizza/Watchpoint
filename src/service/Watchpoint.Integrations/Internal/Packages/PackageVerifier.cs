@@ -187,7 +187,7 @@ internal sealed class PackageVerifier(IDocumentReader reader, ILibraryValidator 
                 continue;
             }
 
-            JsonElement? hints = schema.ValueKind == JsonValueKind.Object && schema.TryGetProperty("x-ui", out var ui) ? ui.Clone() : null;
+            JsonElement? hints = schema.ValueKind == JsonValueKind.Object && schema.TryGetProperty("x-wp-ui", out var ui) ? ui.Clone() : null;
             schemas[connector.ServerType] = new ConnectionSettingsSchema(connector.ServerType, schema.Clone(),
                 [.. (connector.SecretsSchema?.Fields ?? []).Select(f => new SecretFieldSchema(f.Id, f.Kind, f.Required))], hints);
         }

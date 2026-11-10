@@ -363,7 +363,7 @@ internal sealed class PackageCatalog : IPackageCatalog, IDisposable
             var registered = await _types.RegisterPackageAsync(manifest.Id, manifest.Version, Documents(folder), ct).ConfigureAwait(false);
             if (!registered.IsSuccess)
             {
-                PackageUnpacker.TryDelete(cacheDir);
+                DeleteCache(cacheDir);
                 createdCache = null;
                 return await PublishInvalidAsync(source, manifest, PackageProblems.FromError(registered.Error, PackageProblems.ManifestFile), verification.SignedByDevelopmentKey, ct).ConfigureAwait(false);
             }
@@ -397,7 +397,7 @@ internal sealed class PackageCatalog : IPackageCatalog, IDisposable
             // Anything unexpected: the package is invalid, nothing of it stays behind.
             if (createdCache is not null)
             {
-                PackageUnpacker.TryDelete(createdCache);
+                DeleteCache(createdCache);
             }
 
             return await PublishInvalidAsync(source, null,
@@ -462,7 +462,7 @@ internal sealed class PackageCatalog : IPackageCatalog, IDisposable
         Volatile.Write(ref _entries, _entries.Remove(entry.Key));
         if (entry.CacheDir is not null)
         {
-            PackageUnpacker.TryDelete(entry.CacheDir);
+            DeleteCache(entry.CacheDir);
         }
 
         var removed = info with { State = PackageState.Removed };
@@ -558,6 +558,22 @@ internal sealed class PackageCatalog : IPackageCatalog, IDisposable
     // ------------------------------------------------------------------ helpers
 
     private static readonly IReadOnlyDictionary<string, ConnectionSettingsSchema> _noSchemas = new Dictionary<string, ConnectionSettingsSchema>();
+
+    /// <summary>Deletes a cached copy, and the package's cache folder once its last version is gone.</summary>
+    private static void DeleteCache(string cacheDir)
+    {
+        PackageUnpacker.TryDelete(cacheDir);
+        try
+        {
+            if (Path.GetDirectoryName(cacheDir) is { } parent && Directory.Exists(parent) && !Directory.EnumerateFileSystemEntries(parent).Any())
+            {
+                Directory.Delete(parent);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+        }
+    }
 
     private static string PackageKey(PackageId id, SemVersion version) => $"pkg:{id.Value}@{version}";
 

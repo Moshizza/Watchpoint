@@ -28,8 +28,9 @@ internal static class PackageUnpacker
     /// <exception cref="IOException">The archive cannot be opened (e.g. still being written by another process).</exception>
     public static Result Unpack(string archive, string targetDir, UnpackLimits limits)
     {
-        // FileShare.Read: a writer still holding the file makes this throw, and the caller retries later.
-        using var file = new FileStream(archive, FileMode.Open, FileAccess.Read, FileShare.Read);
+        // No FileShare.Write: a writer still holding the file makes this throw, and the caller retries later.
+        // FileShare.Delete: the file may be deleted while it is read (the next scan sees it gone).
+        using var file = new FileStream(archive, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
         return Unpack(file, targetDir, limits);
     }
 
@@ -249,7 +250,7 @@ internal static class PackageUnpacker
                 }
 
                 Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-                using var input = new FileStream(entry.FullName, FileMode.Open, FileAccess.Read, FileShare.Read);
+                using var input = new FileStream(entry.FullName, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
                 using var output = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None);
                 input.CopyTo(output);
             }

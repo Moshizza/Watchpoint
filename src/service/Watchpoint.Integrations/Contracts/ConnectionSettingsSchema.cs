@@ -6,7 +6,7 @@ namespace Watchpoint.Integrations.Contracts;
 /// <param name="ServerType">The connector's server type.</param>
 /// <param name="Settings">The settings schema (parameter schema, SCM §5.4).</param>
 /// <param name="Secrets">The secret fields.</param>
-/// <param name="UiHints">The schema's <c>x-ui</c> extension, when present.</param>
+/// <param name="UiHints">The schema's <c>x-wp-ui</c> extension, when present.</param>
 public sealed record ConnectionSettingsSchema(string ServerType, JsonElement Settings,
     IReadOnlyList<SecretFieldSchema> Secrets, JsonElement? UiHints);
 
