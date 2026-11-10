@@ -34,13 +34,15 @@ internal sealed record PackageVerification(
 /// </summary>
 internal sealed class PackageVerifier(IDocumentReader reader, ILibraryValidator validator, SignatureVerifier signatures, IntegrationsOptions options)
 {
+    private const string FirstPartyPrefix = "watchpoint.";
     private static readonly IReadOnlyDictionary<string, bool> _noLocators = new Dictionary<string, bool>();
     private static readonly IReadOnlyDictionary<string, ConnectionSettingsSchema> _noSchemas = new Dictionary<string, ConnectionSettingsSchema>();
 
     /// <summary>Verifies the package unpacked in <paramref name="packageDir"/>.</summary>
     /// <param name="packageDir">The staging folder.</param>
     /// <param name="dependencies">The standard library and the other active packages.</param>
-    public PackageVerification Verify(string packageDir, IReadOnlyList<LibraryFolder> dependencies)
+    /// <param name="builtin">Whether the package comes from the builtin folder.</param>
+    public PackageVerification Verify(string packageDir, IReadOnlyList<LibraryFolder> dependencies, bool builtin = false)
     {
         var problems = new List<DocumentProblem>();
 
@@ -80,6 +82,14 @@ internal sealed class PackageVerifier(IDocumentReader reader, ILibraryValidator 
         {
             problems.AddRange(PackageProblems.FromError(signatureError, SignatureVerifier.SignatureFile));
             return Failed(manifest, manifestSha, problems);
+        }
+
+        // The first-party namespace (exempt from MOD's `vendor.` rule) cannot be claimed with a development key
+        // outside the product's own folder.
+        if (manifest.Id.Value.StartsWith(FirstPartyPrefix, StringComparison.Ordinal) && developmentKey && !builtin)
+        {
+            problems.Add(PackageProblems.Error(IntegrationErrors.PackageReservedId, PackageProblems.ManifestFile, ("package", manifest.Id.Value)));
+            return Failed(manifest, manifestSha, problems, developmentKey);
         }
 
         // 4. File hashes.

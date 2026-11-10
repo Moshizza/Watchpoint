@@ -223,6 +223,8 @@ internal sealed class TypeCatalog : ITypeCatalog, IDisposable
         return ModelErrors.CapabilityNotFoundError(id, version);
     }
 
+    private const string FirstPartyPackagePrefix = "watchpoint.";
+
     public async Task<Result<CatalogChange>> RegisterPackageAsync(
         PackageId package,
         SemVersion packageVersion,
@@ -231,9 +233,12 @@ internal sealed class TypeCatalog : ITypeCatalog, IDisposable
     {
         ArgumentNullException.ThrowIfNull(documents);
 
+        // First-party packages (id `watchpoint.*`, e.g. the simulator's `sim.server`) may define ids outside `vendor.`;
+        // the integration runtime only lets such a package through from the builtin folder or with a release signature.
+        var firstParty = package.Value.StartsWith(FirstPartyPackagePrefix, StringComparison.Ordinal);
         foreach (var typeDoc in documents.Types)
         {
-            if (!typeDoc.Id.Value.StartsWith("vendor.", StringComparison.Ordinal))
+            if (!firstParty && !typeDoc.Id.Value.StartsWith("vendor.", StringComparison.Ordinal))
             {
                 return ModelErrors.ReservedNamespaceError(typeDoc.Id.Value);
             }
@@ -241,7 +246,7 @@ internal sealed class TypeCatalog : ITypeCatalog, IDisposable
 
         foreach (var capDoc in documents.Capabilities)
         {
-            if (!capDoc.Id.Value.StartsWith("vendor.", StringComparison.Ordinal))
+            if (!firstParty && !capDoc.Id.Value.StartsWith("vendor.", StringComparison.Ordinal))
             {
                 return ModelErrors.ReservedNamespaceError(capDoc.Id.Value);
             }

@@ -6,12 +6,13 @@
     <Description>Integration runtime: package discovery, verification, catalogue and load contexts (spec IRT).</Description>
   </PropertyGroup>
 
+  <!-- ASP.NET Core shared framework: the package endpoints (IRT §10), health checks, logging and metrics abstractions. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
-    <PackageReference Include="Microsoft.Extensions.Diagnostics" />
-    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="NSec.Cryptography" />
   </ItemGroup>
 

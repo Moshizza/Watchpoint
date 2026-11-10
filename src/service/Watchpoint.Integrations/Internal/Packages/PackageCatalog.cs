@@ -30,6 +30,7 @@ internal sealed class PackageCatalog : IPackageCatalog, IDisposable
 {
     private const string StagingFolder = ".staging";
     private const string DevKeysFolder = "dev-keys";
+    private const string DocsFolder = "docs";
     private const string PackageExtension = ".wpkg";
     private const long MaxUploadBytes = 500L * 1024 * 1024;
     private static readonly SemVersion _unknownVersion = new(0, 0, 0);
@@ -127,6 +128,36 @@ internal sealed class PackageCatalog : IPackageCatalog, IDisposable
         return entry is { Info.State: PackageState.Active, CacheDir: not null, Manifest: not null }
             ? (entry.CacheDir, entry.Manifest)
             : IntegrationErrors.NotActive(id, version.ToString());
+    }
+
+    /// <summary>The Markdown files of the package's <c>docs/</c> folder, relative to it (API §10 docs index).</summary>
+    public IReadOnlyList<string> ListDocumentation(PackageId id, SemVersion version)
+    {
+        if (!Volatile.Read(ref _entries).TryGetValue(PackageKey(id, version), out var entry) || entry.CacheDir is null)
+        {
+            return [];
+        }
+
+        var docs = Path.Combine(entry.CacheDir, DocsFolder);
+        return Directory.Exists(docs)
+            ? [.. Directory.EnumerateFiles(docs, "*.md", SearchOption.AllDirectories).Select(f => LibraryLoader.Relative(docs, f)).Order(StringComparer.Ordinal)]
+            : [];
+    }
+
+    /// <summary>Full path of a documentation file of the package; only Markdown files inside its <c>docs/</c> folder.</summary>
+    public Result<string> GetDocumentationFile(PackageId id, SemVersion version, string path)
+    {
+        if (!Volatile.Read(ref _entries).TryGetValue(PackageKey(id, version), out var entry) || entry.CacheDir is null
+            || !PackageUnpacker.IsSafeRelativePath(path) || !path.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
+        {
+            return IntegrationErrors.NotFound(id, version.ToString()).WithArg("path", path);
+        }
+
+        var docs = Path.Combine(entry.CacheDir, DocsFolder);
+        var file = Path.GetFullPath(Path.Combine(docs, path));
+        return file.StartsWith(docs + Path.DirectorySeparatorChar, StringComparison.Ordinal) && File.Exists(file)
+            ? file
+            : IntegrationErrors.NotFound(id, version.ToString()).WithArg("path", path);
     }
 
     /// <inheritdoc/>
@@ -299,7 +330,7 @@ internal sealed class PackageCatalog : IPackageCatalog, IDisposable
                 return await PublishInvalidAsync(source, null, PackageProblems.FromError(unpacked.Error, Path.GetFileName(source.Path)), false, ct).ConfigureAwait(false);
             }
 
-            var verification = _verifier.Verify(staging, Dependencies(source.Path));
+            var verification = _verifier.Verify(staging, Dependencies(source.Path), builtin: source.Source == PackageInfo.BuiltinSource);
             if (!verification.IsValid)
             {
                 return await PublishInvalidAsync(source, verification.Manifest, verification.Problems, verification.SignedByDevelopmentKey, ct).ConfigureAwait(false);

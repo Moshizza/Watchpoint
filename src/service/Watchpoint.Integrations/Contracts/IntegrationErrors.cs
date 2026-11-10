@@ -23,6 +23,7 @@ public static class IntegrationErrors
     public const string PackageVersionConflict = "irt.package.version_conflict";
     public const string PackageUnreadable = "irt.package.unreadable";
     public const string PackageFileMissing = "irt.package.file_missing";
+    public const string PackageReservedId = "irt.package.reserved_id";
     public const string PackageFileNameInvalid = "irt.package.file_name_invalid";
 #pragma warning restore CS1591
 

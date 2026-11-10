@@ -170,6 +170,14 @@ public sealed class PackageVerificationTests
             package.SignedByDevelopmentKey.ShouldBeTrue();
             development.Logs.WithEventId(1804).ShouldHaveSingleItem();
             development.Catalog.List().ShouldNotContain(p => p.Id.Value == "unknown.package", "dev-keys is not scanned for packages");
+
+            // The first-party namespace cannot be claimed with a development key, except from the builtin folder.
+            var claimed = await development.InstallAsync(new TestPackage("watchpoint.fake").WithConnector(), devKey);
+            claimed.State.ShouldBe(PackageState.Invalid);
+            RuntimeHarness.ErrorCodes(claimed).ShouldBe([IntegrationErrors.PackageReservedId]);
+            new TestPackage("watchpoint.own").WithConnector().WriteFolder(development.BuiltinFile("watchpoint.own"), devKey);
+            await development.Catalog.ScanAsync(Ct);
+            development.Catalog.List().Single(p => p.Id.Value == "watchpoint.own").State.ShouldBe(PackageState.Active);
         }
     }
 
