@@ -236,6 +236,66 @@ public sealed class RegistryIntegrationTests(PostgresContainerFixture postgres) 
     }
 
     [Fact]
+    public async Task REG_I_007_Discovered_items_persisted()
+    {
+        var db = await DatabaseAsync(nameof(REG_I_007_Discovered_items_persisted));
+        await using var node = await NodeAsync(db);
+
+        var siteId = SiteId.New();
+        var rootId = LocationId.New();
+        var connId = ConnectionId.New();
+
+        var site = new Site(siteId, new LocalizedName("Main Site", new Dictionary<string, string>()), "UTC", 0);
+        var root = new Location(rootId, null, new LocalizedName("Campus", new Dictionary<string, string>()), LocationKind.Site, "", 0, null, null, null, 0, 0);
+
+        await node.Writer.ApplyAsync(new RegistryChangeBatch([
+            new RegistryChange.UpdateSite(site),
+            new RegistryChange.UpsertLocation(root)
+        ]), _context, Ct);
+
+        var serverType = new TypeRef(TypeId.FromTrusted("generic.server"), SemVersion.Parse("1.0.0").Value);
+        var devType = new TypeRef(TypeId.FromTrusted("ac.door"), SemVersion.Parse("1.0.0").Value);
+
+        var report = new InventoryReport(
+            Servers: [new InventoryServer("srv-1", null, serverType, "VendorServer", new Dictionary<string, WpValue>())],
+            Devices: [new InventoryDevice("door-101", "srv-1", null, devType, "Front Door", new Dictionary<string, WpValue>(), new HashSet<CapabilityId>(), [])],
+            IsComplete: true);
+
+        // Reconcile with AutoImportNew = false -> writes to discovered_items table
+        var recResult = await node.Reconciler.ReconcileAsync(connId, report, new ReconcileOptions(AutoImportNew: false, DefaultLocation: rootId), Ct);
+        recResult.IsSuccess.ShouldBeTrue();
+        recResult.Value.NewDiscovered.ShouldBe(1);
+
+        // Verify row exists directly in Postgres DB
+        var rowCount = await ScalarAsync<long>(db.ConnectionString, $"SELECT COUNT(*) FROM wp_registry.discovered_items WHERE connection_id = '{connId.Value}' AND native_id = 'door-101';");
+        rowCount.ShouldBe(1L);
+
+        var dbStatus = await ScalarAsync<string>(db.ConnectionString, $"SELECT status FROM wp_registry.discovered_items WHERE connection_id = '{connId.Value}' AND native_id = 'door-101';");
+        dbStatus.ShouldBe("new");
+
+        // Verify query through reconciler
+        var discoveredItems = await node.Reconciler.GetDiscoveredAsync(connId, DiscoveredStatus.New, Ct);
+        discoveredItems.Count.ShouldBe(1);
+        discoveredItems[0].NativeId.ShouldBe("door-101");
+        discoveredItems[0].Status.ShouldBe(DiscoveredStatus.New);
+
+        // Import the discovered item
+        var importResult = await node.Reconciler.ImportAsync(connId, new ImportRequest(NativeIds: ["door-101"]), _context, Ct);
+        importResult.IsSuccess.ShouldBeTrue();
+
+        // Verify status updated in Postgres DB
+        var updatedDbStatus = await ScalarAsync<string>(db.ConnectionString, $"SELECT status FROM wp_registry.discovered_items WHERE connection_id = '{connId.Value}' AND native_id = 'door-101';");
+        updatedDbStatus.ShouldBe("imported");
+
+        // Verify device now exists in registry reader
+        var servers = node.Reader.QueryServers(new ServerQuery(ConnectionId: connId), new PageRequest()).Items;
+        servers.Count.ShouldBe(1);
+        var devResult = node.Reader.GetDeviceByNativeId(servers[0].Id, "door-101");
+        devResult.IsSuccess.ShouldBeTrue();
+        devResult.Value.VendorName.ShouldBe("Front Door");
+    }
+
+    [Fact]
     public async Task REG_I_009_Load_time_50000_devices()
     {
         var db = await DatabaseAsync(nameof(REG_I_009_Load_time_50000_devices));
@@ -353,6 +413,8 @@ public sealed class RegistryIntegrationTests(PostgresContainerFixture postgres) 
         public IRegistryReader Reader => Services.GetRequiredService<IRegistryReader>();
 
         public IRegistryWriter Writer => Services.GetRequiredService<IRegistryWriter>();
+
+        public IInventoryReconciler Reconciler => Services.GetRequiredService<IInventoryReconciler>();
 
         public async ValueTask DisposeAsync()
         {

@@ -14,6 +14,23 @@ internal sealed class SiteRecord
     public DateTimeOffset UpdatedAt { get; set; }
 }
 
+[Table("discovered_items", Schema = "wp_registry")]
+internal sealed class DiscoveredItemRecord
+{
+    public Guid ConnectionId { get; set; }
+    public string NativeId { get; set; } = null!;
+    public string Kind { get; set; } = "device";
+    public string ServerNativeId { get; set; } = null!;
+    public string? ParentNativeId { get; set; }
+    public string TypeId { get; set; } = null!;
+    public string TypeVersion { get; set; } = null!;
+    public string VendorName { get; set; } = null!;
+    public string VendorAttributes { get; set; } = "{}";
+    public string Status { get; set; } = "new";
+    public DateTimeOffset FirstSeen { get; set; }
+    public DateTimeOffset LastSeen { get; set; }
+}
+
 [Table("locations", Schema = "wp_registry")]
 internal sealed class LocationRecord
 {

@@ -24,4 +24,10 @@ public static class RegistryErrors
             Kind = ErrorKind.Validation,
             DeveloperDetail = $"Invariant {rule} violated: {message}"
         };
+
+    /// <summary>Reconcile warning code for major type changes.</summary>
+    public const string ReconcileTypeMajorChange = "registry.reconcile.type_major_change";
+
+    /// <summary>Reconcile warning code for unresolved links.</summary>
+    public const string ReconcileLinkUnresolved = "registry.reconcile.link_unresolved";
 }
