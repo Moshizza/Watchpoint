@@ -451,5 +451,5 @@ Integration: `Watchpoint.IntegrationTests/Api` (full host with PostgreSQL, NATS,
 
 | Task | Sections | Tests |
 |---|---|---|
-| T1.19 | §4–§7, §9, §10 (REST parts) | API-U-001…API-U-030, API-I-001…API-I-015 |
+| T1.19 | §4–§7, §9, §10 (REST parts) | API-U-001…API-U-030, API-I-001…API-I-015, REG-I-008, REG-I-010 |
 | T1.20 | §8, §9, §10 (live parts) | API-U-031…API-U-055, API-I-016…API-I-025 |
