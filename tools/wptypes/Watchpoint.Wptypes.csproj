@@ -14,6 +14,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Wptypes.Tests" />
     <InternalsVisibleTo Include="Watchpoint.Integration.Simulator.Tests" />
+    <InternalsVisibleTo Include="Watchpoint.Integration.Modbus.Tests" />
   </ItemGroup>
 
 </Project>

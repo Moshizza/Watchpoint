@@ -1,0 +1,36 @@
+{
+  "deviceTypes": [
+    "generic.server",
+    "generic.binary-input",
+    "generic.binary-output",
+    "generic.analog-input",
+    "ac.door",
+    "ac.reader",
+    "intrusion.area",
+    "intrusion.zone"
+  ],
+  "properties": {
+    "state": "bool",
+    "value": "decimal",
+    "voltage": "decimal",
+    "current": "decimal",
+    "power": "decimal",
+    "energy": "decimal",
+    "health": "enum"
+  },
+  "dataTypes": [
+    "bit",
+    "int16",
+    "uint16",
+    "int32",
+    "uint32",
+    "int64",
+    "uint64",
+    "float32",
+    "float64",
+    "bcd16",
+    "bcd32",
+    "stringAscii",
+    "stringUtf8"
+  ]
+}

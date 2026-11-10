@@ -1,0 +1,60 @@
+{
+  "packages": {
+    "watchpoint": {
+      "integration": {
+        "modbus": {
+          "name": "Connecteur Modbus TCP",
+          "description": "Connecteur Modbus TCP et RTU-over-TCP avec mod\u00e8les de mappage configurables.",
+          "settings": {
+            "host": {
+              "label": "H\u00f4te",
+              "description": "Adresse IP ou nom d'h\u00f4te de la passerelle ou de l'\u00e9quipement Modbus."
+            },
+            "port": {
+              "label": "Port",
+              "description": "Port TCP Modbus (g\u00e9n\u00e9ralement 502)."
+            },
+            "transport": {
+              "label": "Transport",
+              "description": "Protocole de trame : tcp (MBAP) ou rtuOverTcp."
+            },
+            "connectTimeoutMs": {
+              "label": "D\u00e9lai de connexion (ms)",
+              "description": "D\u00e9lai d'attente de connexion TCP en millisecondes."
+            },
+            "requestTimeoutMs": {
+              "label": "D\u00e9lai de requ\u00eate (ms)",
+              "description": "D\u00e9lai d'attente de transaction Modbus en millisecondes."
+            },
+            "maxInFlight": {
+              "label": "Requ\u00eates en vol max",
+              "description": "Nombre maximal de requ\u00eates simultan\u00e9es en pipeline."
+            },
+            "units": {
+              "label": "Unit\u00e9s",
+              "description": "Unit\u00e9s esclaves Modbus configur\u00e9es sur ce connecteur."
+            }
+          },
+          "errors": {
+            "refused": "Commande Modbus refus\u00e9e par l'appareil distant (code d'exception : {reason}).",
+            "timeout": "La requ\u00eate Modbus a expir\u00e9 : {reason}.",
+            "crcError": "Erreur de contr\u00f4le CRC Modbus RTU.",
+            "connectionLost": "Connexion TCP Modbus perdue : {reason}."
+          }
+        }
+      }
+    }
+  },
+  "types": {
+    "modbus": {
+      "server": {
+        "name": "Serveur Modbus",
+        "description": "Passerelle ou serveur Modbus"
+      },
+      "unit": {
+        "name": "Unit\u00e9 Modbus",
+        "description": "Unit\u00e9 ou contr\u00f4leur esclave Modbus"
+      }
+    }
+  }
+}

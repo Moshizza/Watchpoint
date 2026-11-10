@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "host",
+    "port"
+  ],
+  "properties": {
+    "host": {
+      "type": "string"
+    },
+    "port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535,
+      "default": 502
+    },
+    "transport": {
+      "type": "string",
+      "enum": [
+        "tcp",
+        "rtuOverTcp"
+      ],
+      "default": "tcp"
+    },
+    "connectTimeoutMs": {
+      "type": "integer",
+      "minimum": 100,
+      "maximum": 60000,
+      "default": 5000
+    },
+    "requestTimeoutMs": {
+      "type": "integer",
+      "minimum": 50,
+      "maximum": 60000,
+      "default": 1000
+    },
+    "maxInFlight": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 16,
+      "default": 1
+    },
+    "units": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "unitId",
+          "template"
+        ],
+        "properties": {
+          "unitId": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255
+          },
+          "template": {
+            "type": "string"
+          },
+          "pollIntervalMs": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 3600000,
+            "default": 1000
+          },
+          "maxGap": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100,
+            "default": 10
+          },
+          "maxRegisters": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 125,
+            "default": 120
+          },
+          "offset": {
+            "type": "integer",
+            "default": 0
+          },
+          "prefix": {
+            "type": "string",
+            "default": ""
+          },
+          "customNames": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "exclude": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}
