@@ -1,0 +1,55 @@
+{
+  "$schema": "https://schemas.watchpoint.dev/manifest/1.json",
+  "id": "watchpoint.integration.mqtt",
+  "version": "1.0.0",
+  "vendor": "Watchpoint",
+  "category": "generic",
+  "contract": "^1.0",
+  "minWatchpointVersion": "1.0.0",
+  "platforms": ["win-x64", "linux-x64"],
+  "nativeCode": false,
+  "isolation": "inProcessAllowed",
+  "licence": {
+    "class": "included"
+  },
+  "connectors": [
+    {
+      "class": "Watchpoint.Integration.Mqtt::Watchpoint.Integration.Mqtt.MqttConnector",
+      "serverType": "mqtt.broker",
+      "supportedVendorVersions": "*",
+      "features": [
+        "commandExecution",
+        "diagnostics"
+      ],
+      "settingsSchema": "settings/mqtt.settings.json",
+      "secretsSchema": {
+        "fields": [
+          {
+            "id": "password",
+            "kind": "password",
+            "required": false
+          },
+          {
+            "id": "clientCertificate",
+            "kind": "certificate",
+            "required": false
+          },
+          {
+            "id": "clientKey",
+            "kind": "privateKey",
+            "required": false
+          }
+        ]
+      }
+    }
+  ],
+  "types": [
+    "types/mqtt.broker.json",
+    "types/mqtt.device.json"
+  ],
+  "capabilities": [],
+  "ruleTemplates": [],
+  "i18n": "i18n/",
+  "docs": "docs/",
+  "files": []
+}

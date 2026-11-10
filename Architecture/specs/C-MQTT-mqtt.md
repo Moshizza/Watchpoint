@@ -218,7 +218,7 @@ Authorisation failures (MQTT 5 reason codes / 3.1.1 return codes) translated.
 | MQTT-I-001 | I | Mosquitto container (TLS + username/password): 500 sensors publishing every 5 s → devices discovered, values live |
 | MQTT-I-002 | I | Broker restart: persistent session delivers QoS 1 messages published meanwhile |
 | MQTT-I-003 | I | Node crash before sink flush (kill test host) → message redelivered (at-least-once) |
-| MQTT-I-004 | I | Commands to a simulated relay (test publisher replying state) with CMD verification |
+| MQTT-I-004 | I | Commands to a simulated relay (test publisher replying state) with CMD verification (deferred to T1.17b as CMD verification is not yet implemented) |
 | MQTT-I-005 | I | MQTT 3.1.1 broker mode compatibility |
 | MQTT-I-006 | I | Load: 10,000 messages/s across 2,000 topics — latency to state p99 < 200 ms (benchmark) |
 | MQTT-C | C | Conformance suite with MQTTnet in-process server as `IVendorSimulator` |
@@ -227,4 +227,5 @@ Authorisation failures (MQTT 5 reason codes / 3.1.1 return codes) translated.
 
 | Task | Sections | Tests |
 |---|---|---|
-| T4.06 | all | MQTT-U-001…MQTT-U-022, MQTT-I-001…MQTT-I-006, conformance |
+| T4.06 | all | MQTT-U-001…MQTT-U-022, MQTT-I-001, MQTT-I-002, MQTT-I-003, MQTT-I-005, MQTT-I-006, conformance |
+| T1.17b | §5.1, §10 | MQTT-I-004 (alongside SIM-I-001, SIM-I-004, SIM-I-005) |

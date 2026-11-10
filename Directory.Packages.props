@@ -61,6 +61,7 @@
     <PackageVersion Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.23.0" />
 
     <!-- Integration SDK & resilience -->
+    <PackageVersion Include="MQTTnet" Version="4.3.7.1207" />
     <PackageVersion Include="Polly.Core" Version="8.9.1" />
 
     <!-- Secrets (Windows DPAPI master key provider) -->
