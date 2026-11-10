@@ -1,0 +1,20 @@
+{
+  "registry": {
+    "device": {
+      "not_found": "Device {deviceId} was not found."
+    },
+    "server": {
+      "not_found": "Server {serverId} was not found."
+    }
+  },
+  "common": {
+    "network_error": "Network request failed. Please check your connection.",
+    "version": {
+      "conflict": "The resource was modified concurrently."
+    },
+    "value": {
+      "out_of_range": "Value must be between {min} and {max}.",
+      "required": "This field is required."
+    }
+  }
+}

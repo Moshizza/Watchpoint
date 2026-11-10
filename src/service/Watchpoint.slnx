@@ -6,6 +6,7 @@
     <File Path="../../.editorconfig" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="Watchpoint.Expressions/Watchpoint.Expressions.csproj" />
     <Project Path="Watchpoint.Host/Watchpoint.Host.csproj" />
     <Project Path="Watchpoint.Hosting/Watchpoint.Hosting.csproj" />
     <Project Path="Watchpoint.Identity/Watchpoint.Identity.csproj" />
@@ -15,6 +16,7 @@
     <Project Path="Watchpoint.Kernel.Testing/Watchpoint.Kernel.Testing.csproj" />
     <Project Path="Watchpoint.Model/Watchpoint.Model.csproj" />
     <Project Path="Watchpoint.Model.Documents/Watchpoint.Model.Documents.csproj" />
+    <Project Path="Watchpoint.Registry/Watchpoint.Registry.csproj" />
     <Project Path="Watchpoint.Scheduling/Watchpoint.Scheduling.csproj" />
     <Project Path="Watchpoint.Secrets/Watchpoint.Secrets.csproj" />
     <Project Path="Watchpoint.Storage.Postgres/Watchpoint.Storage.Postgres.csproj" />
@@ -27,20 +29,24 @@
     <Project Path="../integrations/Watchpoint.Integration.Simulator.Engine/Watchpoint.Integration.Simulator.Engine.csproj" />
     <Project Path="../integrations/Watchpoint.Integration.Simulator/Watchpoint.Integration.Simulator.csproj" />
     <Project Path="../integrations/Watchpoint.Integration.Modbus/Watchpoint.Integration.Modbus.csproj" />
+    <Project Path="../integrations/Watchpoint.Integration.Mqtt/Watchpoint.Integration.Mqtt.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="../../tests/integrations/Watchpoint.Integration.Abstractions.Tests/Watchpoint.Integration.Abstractions.Tests.csproj" />
+    <Project Path="../../tests/integrations/Watchpoint.Integration.Mqtt.Tests/Watchpoint.Integration.Mqtt.Tests.csproj" />
     <Project Path="../../tests/integrations/Watchpoint.Integration.Sdk.Tests/Watchpoint.Integration.Sdk.Tests.csproj" />
     <Project Path="../../tests/integrations/Watchpoint.Integration.Simulator.Tests/Watchpoint.Integration.Simulator.Tests.csproj" />
     <Project Path="../../tests/integrations/Watchpoint.Integration.Modbus.Tests/Watchpoint.Integration.Modbus.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Hosting.Tests/Watchpoint.Hosting.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Analyzers.Tests/Watchpoint.Analyzers.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.ArchitectureTests/Watchpoint.ArchitectureTests.csproj" />
+    <Project Path="../../tests/service/Watchpoint.Expressions.Tests/Watchpoint.Expressions.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.IntegrationTests/Watchpoint.IntegrationTests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Identity.Tests/Watchpoint.Identity.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Kernel.Tests/Watchpoint.Kernel.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Model.Tests/Watchpoint.Model.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Model.Documents.Tests/Watchpoint.Model.Documents.Tests.csproj" />
+    <Project Path="../../tests/service/Watchpoint.Registry.Tests/Watchpoint.Registry.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Scheduling.Tests/Watchpoint.Scheduling.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Testing/Watchpoint.Testing.csproj" />
     <Project Path="../../tests/service/Watchpoint.Secrets.Tests/Watchpoint.Secrets.Tests.csproj" />

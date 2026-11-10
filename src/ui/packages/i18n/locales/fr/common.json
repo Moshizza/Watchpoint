@@ -1,0 +1,36 @@
+{
+  "ok": "OK",
+  "cancel": "Annuler",
+  "save": "Enregistrer",
+  "delete": "Supprimer",
+  "edit": "Modifier",
+  "add": "Ajouter",
+  "search": "Rechercher",
+  "filter": "Filtrer",
+  "close": "Fermer",
+  "loading": "Chargement...",
+  "none": "Aucun",
+  "all": "Tous",
+  "back": "Retour",
+  "next": "Suivant",
+  "refresh": "Actualiser",
+  "unit": {
+    "celsius": "°C",
+    "fahrenheit": "°F",
+    "percent": "%",
+    "volt": "V",
+    "ampere": "A",
+    "watt": "W"
+  },
+  "states": {
+    "alarm": "Alarme",
+    "fault": "Défaut",
+    "warning": "Avertissement",
+    "normal-active": "Actif",
+    "normal": "Normal",
+    "maintenance": "Maintenance",
+    "disabled": "Désactivé",
+    "offline": "Hors ligne",
+    "unknown": "Inconnu"
+  }
+}

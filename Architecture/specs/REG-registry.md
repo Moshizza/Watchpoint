@@ -461,5 +461,5 @@ persistence fake). Integration: `Watchpoint.IntegrationTests/Registry`.
 
 | Task | Sections | Tests |
 |---|---|---|
-| T1.07 | §4–§7, §9–§13 (except reconciliation) | REG-U-001…REG-U-030, REG-I-001…REG-I-006, REG-I-008…REG-I-010 |
+| T1.07 | §4–§7, §9–§13 (except reconciliation) | REG-U-001…REG-U-030, REG-I-001…REG-I-004, REG-I-006, REG-I-009 |
 | T1.08 | §8 | REG-U-031…REG-U-045, REG-I-007 |
