@@ -251,6 +251,9 @@ public sealed class NatsSection
 
     /// <summary>NATS JetStream store path.</summary>
     public string? StorePath { get; set; }
+
+    /// <summary>Authentication token of an External NATS server (the bundled server generates its own). Never logged.</summary>
+    public string? Token { get; set; }
 }
 
 /// <summary>Logging settings.</summary>
