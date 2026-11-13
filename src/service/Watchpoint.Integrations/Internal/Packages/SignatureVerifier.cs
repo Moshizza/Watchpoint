@@ -19,7 +19,7 @@ internal sealed class SignatureVerifier(TrustedKeys keys)
     /// <returns>Whether the key is a development key; or <c>irt.package.unsigned</c> / <c>signature_invalid</c> / <c>untrusted_key</c>.</returns>
     public Result<bool> Verify(string packageDir, ReadOnlySpan<byte> manifestBytes)
     {
-        var file = Path.Combine(packageDir, SignatureFile);
+        var file = Path.Join(packageDir, SignatureFile);
         if (!File.Exists(file))
         {
             return Error.Create(ErrorKind.Validation, IntegrationErrors.PackageUnsigned);

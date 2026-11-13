@@ -47,7 +47,7 @@ internal sealed class PackageVerifier(IDocumentReader reader, ILibraryValidator 
         var problems = new List<DocumentProblem>();
 
         // 2. Manifest and documents.
-        var manifestPath = Path.Combine(packageDir, PackageProblems.ManifestFile);
+        var manifestPath = Path.Join(packageDir, PackageProblems.ManifestFile);
         if (!File.Exists(manifestPath))
         {
             problems.Add(PackageProblems.Error(ProblemCodes.ManifestFileMissing, PackageProblems.ManifestFile, ("file", PackageProblems.ManifestFile)));
