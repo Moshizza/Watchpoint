@@ -1,7 +1,7 @@
 using System.Text.Json.Nodes;
 using NSec.Cryptography;
 
-namespace Watchpoint.Integrations.Tests.Support;
+namespace Watchpoint.Integrations.Testing;
 
 /// <summary>An Ed25519 key pair for signing test packages.</summary>
 public sealed class TestKey : IDisposable

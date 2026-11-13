@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 
-namespace Watchpoint.Integrations.Tests.Support;
+namespace Watchpoint.Integrations.Testing;
 
 /// <summary>Compiles small assemblies for test packages (connectors, private dependencies).</summary>
 public static class TestAssemblies
@@ -38,17 +38,32 @@ public static class TestAssemblies
         }
         """;
 
+    private static bool SameAssembly(MetadataReference platform, PortableExecutableReference @private)
+    {
+        var name = Path.GetFileNameWithoutExtension(platform.Display);
+        return name is not null && string.Equals(name, AssemblyName(@private), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? AssemblyName(PortableExecutableReference reference)
+    {
+        var metadata = reference.GetMetadata() as AssemblyMetadata;
+        return metadata?.GetModules()[0].Name is { } module ? Path.GetFileNameWithoutExtension(module) : null;
+    }
+
     /// <summary>Compiles <paramref name="source"/> into an assembly named <paramref name="assemblyName"/>.</summary>
     public static byte[] Compile(string assemblyName, string source, string version = "1.0.0.0", params byte[][] references) =>
         _cache.GetOrAdd($"{assemblyName}|{version}|{source}|{string.Join(',', references.Select(r => r.Length))}", _ =>
         {
-            var tree = CSharpSyntaxTree.ParseText(source, cancellationToken: TestContext.Current.CancellationToken);
-            var attributes = CSharpSyntaxTree.ParseText($"[assembly: System.Reflection.AssemblyVersion(\"{version}\")]", cancellationToken: TestContext.Current.CancellationToken);
+            var tree = CSharpSyntaxTree.ParseText(source, cancellationToken: CancellationToken.None);
+            var attributes = CSharpSyntaxTree.ParseText($"[assembly: System.Reflection.AssemblyVersion(\"{version}\")]", cancellationToken: CancellationToken.None);
+            // A private dependency replaces any copy of the same assembly the test host happens to have.
+            var privateReferences = references.Select(r => MetadataReference.CreateFromImage(r)).ToList();
+            var platform = _platform.Value.Where(p => !privateReferences.Any(r => SameAssembly(p, r)));
             var compilation = CSharpCompilation.Create(assemblyName, [tree, attributes],
-                [.. _platform.Value, .. references.Select(r => MetadataReference.CreateFromImage(r))],
+                [.. platform, .. privateReferences],
                 new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, optimizationLevel: OptimizationLevel.Release));
             using var stream = new MemoryStream();
-            var result = compilation.Emit(stream, cancellationToken: TestContext.Current.CancellationToken);
+            var result = compilation.Emit(stream, cancellationToken: CancellationToken.None);
             if (!result.Success)
             {
                 throw new InvalidOperationException("Test assembly does not compile: " + string.Join("; ", result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error)));

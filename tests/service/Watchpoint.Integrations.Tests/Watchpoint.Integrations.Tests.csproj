@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Unit tests of the integration runtime, package side (IRT-U-001…025). Test packages are built at test time:
-       connector assemblies compiled with Roslyn, manifests signed with a test Ed25519 key. -->
+  <!-- Unit tests of the integration runtime, package side (IRT-U-001…025). Test packages are built at test time by
+       Watchpoint.Integrations.Testing (Roslyn-compiled connectors, manifests signed with a test Ed25519 key). -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <RootNamespace>Watchpoint.Integrations.Tests</RootNamespace>
@@ -10,8 +10,6 @@
   <ItemGroup>
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="Shouldly" />
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
-    <PackageReference Include="NSec.Cryptography" />
   </ItemGroup>
 
   <ItemGroup>
@@ -21,6 +19,7 @@
     <ProjectReference Include="../../../src/service/Watchpoint.Integrations/Watchpoint.Integrations.csproj" />
     <ProjectReference Include="../../../src/integrations/Watchpoint.Integration.Abstractions/Watchpoint.Integration.Abstractions.csproj" />
     <ProjectReference Include="../../../src/integrations/Watchpoint.Integration.Sdk/Watchpoint.Integration.Sdk.csproj" />
+    <ProjectReference Include="../Watchpoint.Integrations.Testing/Watchpoint.Integrations.Testing.csproj" />
     <ProjectReference Include="../Watchpoint.Testing/Watchpoint.Testing.csproj" />
   </ItemGroup>
 

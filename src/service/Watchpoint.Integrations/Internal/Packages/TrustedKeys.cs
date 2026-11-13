@@ -44,7 +44,7 @@ internal sealed class TrustedKeys(IntegrationsOptions options, TimeProvider time
     private TrustedKey? FindDevelopmentKey(string keyId)
     {
         // The key id becomes a file name: only plain names, so that it cannot leave the folder.
-        if (keyId.Length is 0 or > 64 || keyId.AsSpan().ContainsAnyExcept(KeyIdChars) || !Directory.Exists(options.DevKeysPath))
+        if (keyId.Length is 0 or > 64 || keyId.AsSpan().ContainsAnyExcept(_keyIdChars) || !Directory.Exists(options.DevKeysPath))
         {
             return null;
         }
@@ -80,6 +80,6 @@ internal sealed class TrustedKeys(IntegrationsOptions options, TimeProvider time
         }
     }
 
-    private static readonly System.Buffers.SearchValues<char> KeyIdChars =
+    private static readonly System.Buffers.SearchValues<char> _keyIdChars =
         System.Buffers.SearchValues.Create("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.");
 }

@@ -6,6 +6,7 @@ using Shouldly;
 using Watchpoint.Integration.Abstractions;
 using Watchpoint.Integrations.Contracts;
 using Watchpoint.Integrations.Internal.Packages;
+using Watchpoint.Integrations.Testing;
 using Watchpoint.Integrations.Tests.Support;
 using Watchpoint.Kernel.Values;
 using Watchpoint.Model.Documents.Library;

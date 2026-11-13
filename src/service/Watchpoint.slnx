@@ -39,6 +39,7 @@
     <Project Path="../../tests/service/Watchpoint.Expressions.Tests/Watchpoint.Expressions.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.IntegrationTests/Watchpoint.IntegrationTests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Identity.Tests/Watchpoint.Identity.Tests.csproj" />
+    <Project Path="../../tests/service/Watchpoint.Integrations.Testing/Watchpoint.Integrations.Testing.csproj" />
     <Project Path="../../tests/service/Watchpoint.Integrations.Tests/Watchpoint.Integrations.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Kernel.Tests/Watchpoint.Kernel.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Model.Tests/Watchpoint.Model.Tests.csproj" />

@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Text.Json.Nodes;
 using Shouldly;
 using Watchpoint.Integrations.Contracts;
+using Watchpoint.Integrations.Testing;
 using Watchpoint.Integrations.Tests.Support;
 using Watchpoint.Kernel.Ids;
 using Watchpoint.Kernel.Results;

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Watchpoint.Integrations.Contracts;
 using Watchpoint.Integrations.Internal.Packages;
+using Watchpoint.Integrations.Testing;
 using Watchpoint.Kernel.Ids;
 using Watchpoint.Model.Documents;
 using Watchpoint.Model.Documents.Library;

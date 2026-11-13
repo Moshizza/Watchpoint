@@ -4,7 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-namespace Watchpoint.Integrations.Tests.Support;
+namespace Watchpoint.Integrations.Testing;
 
 /// <summary>Builds a test package (folder or <c>.wpkg</c>): manifest with file hashes, one server type, translations, signature.</summary>
 public sealed class TestPackage
