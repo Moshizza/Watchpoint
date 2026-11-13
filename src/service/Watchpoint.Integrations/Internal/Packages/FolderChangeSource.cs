@@ -60,7 +60,7 @@ internal sealed class FileSystemFolderChangeSource : IFolderChangeSource
         Changed?.Invoke();
     }
 
-    public sealed class Factory : IFolderChangeSourceFactory
+    internal sealed class Factory : IFolderChangeSourceFactory
     {
         public IFolderChangeSource Create(string folder) => new FileSystemFolderChangeSource(folder);
     }
