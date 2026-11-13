@@ -534,5 +534,5 @@ with real NATS (Testcontainers, scoped prefixes).
 
 | Task | Sections | Tests |
 |---|---|---|
-| T1.09 | §4, §5, §6 (contracts), §10 (log settings), §11, §12 (log part) | PIP-U-001…PIP-U-020, PIP-I-001…PIP-I-008 |
+| T1.09 | §4, §5, §6 (contracts), §10 (log settings), §11, §12 (log part) | PIP-U-001…PIP-U-020, PIP-I-001…PIP-I-008, REG-I-005 |
 | T1.10 | §7, §8, §9, §10 (ingest settings), §12 (ingest part), §13 | PIP-U-021…PIP-U-047, PIP-I-009…PIP-I-015 |

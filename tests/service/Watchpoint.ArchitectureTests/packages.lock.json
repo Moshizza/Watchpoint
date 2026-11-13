@@ -626,6 +626,22 @@
           "Watchpoint.Kernel": "[1.0.0, )"
         }
       },
+      "watchpoint.integration.modbus": {
+        "type": "Project",
+        "dependencies": {
+          "Watchpoint.Integration.Abstractions": "[1.0.0, )",
+          "Watchpoint.Integration.Sdk": "[1.0.0, )"
+        }
+      },
+      "watchpoint.integration.mqtt": {
+        "type": "Project",
+        "dependencies": {
+          "MQTTnet": "[4.3.7.1207, )",
+          "Watchpoint.Integration.Abstractions": "[1.0.0, )",
+          "Watchpoint.Integration.Sdk": "[1.0.0, )",
+          "Watchpoint.Kernel": "[1.0.0, )"
+        }
+      },
       "watchpoint.integration.sdk": {
         "type": "Project",
         "dependencies": {
@@ -702,6 +718,16 @@
         "dependencies": {
           "JsonSchema.Net": "[8.0.5, )",
           "Watchpoint.Kernel": "[1.0.0, )"
+        }
+      },
+      "watchpoint.registry": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore.Relational": "[10.0.14, )",
+          "Watchpoint.Hosting": "[1.0.0, )",
+          "Watchpoint.Kernel": "[1.0.0, )",
+          "Watchpoint.Model": "[1.0.0, )",
+          "Watchpoint.Storage": "[1.0.0, )"
         }
       },
       "watchpoint.scheduling": {
@@ -941,6 +967,12 @@
         "dependencies": {
           "Microsoft.IdentityModel.Tokens": "8.23.0"
         }
+      },
+      "MQTTnet": {
+        "type": "CentralTransitive",
+        "requested": "[4.3.7.1207, )",
+        "resolved": "4.3.7.1207",
+        "contentHash": "ah7aHXoedWp5m5a4zy2u4phOEVj0QFYzOb5tFKQeV8RRBrxp+1QREF4ymZuG8D+hzB2dhtrrG81WxTFv0PzOeQ=="
       },
       "NodaTime": {
         "type": "CentralTransitive",

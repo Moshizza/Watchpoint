@@ -1,0 +1,46 @@
+{
+  "$schema": "https://schemas.watchpoint.dev/manifest/1.json",
+  "id": "watchpoint.integration.modbus",
+  "version": "1.0.0",
+  "vendor": "Watchpoint",
+  "category": "buildingManagement",
+  "contract": "^1.0",
+  "minWatchpointVersion": "1.0.0",
+  "platforms": [
+    "win-x64",
+    "linux-x64"
+  ],
+  "nativeCode": false,
+  "isolation": "inProcessAllowed",
+  "licence": {
+    "class": "included"
+  },
+  "connectors": [
+    {
+      "class": "Watchpoint.Integration.Modbus::Watchpoint.Integration.Modbus.ModbusConnector",
+      "serverType": "modbus.server",
+      "supportedVendorVersions": "*",
+      "features": [
+        "discovery",
+        "stateRefresh",
+        "commandExecution"
+      ],
+      "settingsSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "secretsSchema": {
+        "fields": []
+      }
+    }
+  ],
+  "types": [
+    "types/modbus.server.json",
+    "types/modbus.unit.json"
+  ],
+  "capabilities": [],
+  "ruleTemplates": [],
+  "i18n": "i18n/",
+  "docs": "docs/",
+  "files": []
+}

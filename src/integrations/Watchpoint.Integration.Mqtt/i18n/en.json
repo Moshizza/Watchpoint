@@ -1,0 +1,24 @@
+{
+  "packages": {
+    "watchpoint": {
+      "integration": {
+        "mqtt": {
+          "name": "MQTT Connector",
+          "description": "MQTT 5.0 and 3.1.1 connector"
+        }
+      }
+    }
+  },
+  "types": {
+    "mqtt": {
+      "broker": {
+        "name": "MQTT Broker",
+        "description": "MQTT Broker Server"
+      },
+      "device": {
+        "name": "Generic MQTT Device",
+        "description": "Generic MQTT Device"
+      }
+    }
+  }
+}
