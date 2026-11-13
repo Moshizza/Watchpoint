@@ -108,7 +108,8 @@ public sealed class IntegrationRuntimeIntegrationTests(PostgresContainerFixture 
 
         await using var restarted = await NodeAsync(name, node);
         await restarted.Start();
-        restarted.Catalog.Get(_simulator, new SemVersion(1, 0, 0)).Value.State.ShouldBe(PackageState.Disabled);
+        var restartedPackage = restarted.Catalog.Get(_simulator, new SemVersion(1, 0, 0)).Value;
+        restartedPackage.State.ShouldBe(PackageState.Disabled, string.Join("; ", restartedPackage.Problems));
         restarted.Types.GetLatest(TypeId.FromTrusted("sim.server"), 1).IsSuccess.ShouldBeTrue("types stay registered");
     }
 
@@ -280,7 +281,7 @@ public sealed class IntegrationRuntimeIntegrationTests(PostgresContainerFixture 
             ["Database:Databases:default:Tls"] = "Disable",
             ["Database:AllowInsecureRemote"] = "true",
         };
-        var node = new Node(db, previous?.Root);
+        var node = new Node(db, previous);
         var builder = WebApplication.CreateSlimBuilder();
         builder.Configuration.AddInMemoryCollection(settings);
         builder.WebHost.UseUrls("http://127.0.0.1:0");
@@ -303,10 +304,12 @@ public sealed class IntegrationRuntimeIntegrationTests(PostgresContainerFixture 
 
     private sealed class Node : IAsyncDisposable
     {
-        public Node(PostgresDatabase database, string? root)
+        public Node(PostgresDatabase database, Node? previous)
         {
             Database = database;
-            Root = root ?? Directory.CreateTempSubdirectory("wp-irt-i-").FullName;
+            Root = previous?.Root ?? Directory.CreateTempSubdirectory("wp-irt-i-").FullName;
+            DevKey = previous?.DevKey ?? new TestKey("dev-test");
+            _ownsKey = previous is null;
             Options = new IntegrationsOptions
             {
                 BuiltinPath = Path.Combine(Root, "builtin"),
@@ -329,7 +332,9 @@ public sealed class IntegrationRuntimeIntegrationTests(PostgresContainerFixture 
 
         public IntegrationsOptions Options { get; }
 
-        public TestKey DevKey { get; } = new("dev-test");
+        private readonly bool _ownsKey;
+
+        public TestKey DevKey { get; }
 
         public LogCollector Logs { get; } = new();
 
@@ -349,7 +354,11 @@ public sealed class IntegrationRuntimeIntegrationTests(PostgresContainerFixture 
         {
             await App.Services.GetRequiredService<PackageWatcher>().DisposeAsync();
             await App.DisposeAsync();
-            DevKey.Dispose();
+            if (_ownsKey)
+            {
+                DevKey.Dispose();
+            }
+
             Logs.Dispose();
             try
             {

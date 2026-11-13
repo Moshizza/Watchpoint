@@ -94,7 +94,8 @@ internal sealed class EfPackageStore(IDbContextFactory<IntegrationsDbContext> fa
     public async Task SaveAsync(PackageRow row, CancellationToken ct)
     {
         await using var db = await factory.CreateDbContextAsync(ct).ConfigureAwait(false);
-        var record = await db.Packages.FirstOrDefaultAsync(p => p.Id == row.Id && p.Version == row.Version, ct).ConfigureAwait(false);
+        // The storage layer defaults to no-tracking queries: track this one so that the update is saved.
+        var record = await db.Packages.AsTracking().FirstOrDefaultAsync(p => p.Id == row.Id && p.Version == row.Version, ct).ConfigureAwait(false);
         if (record is null)
         {
             record = new PackageRecord { Id = row.Id, Version = row.Version };
