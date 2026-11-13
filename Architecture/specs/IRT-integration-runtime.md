@@ -36,8 +36,9 @@ Watchpoint.Integrations/
 │   ├── ConnectionSettingsSchema.cs
 │   └── IntegrationErrors.cs
 ├── Internal/
-│   ├── Packages/PackageWatcher.cs, PackageUnpacker.cs, SignatureVerifier.cs, TrustedKeys.cs,
-│   │            PackageCatalog.cs, PackageLoadContext.cs, SharedAssemblies.cs
+│   ├── Packages/PackageWatcher.cs, FolderChangeSource.cs, PackageUnpacker.cs, PackageVerifier.cs,
+│   │            SignatureVerifier.cs, TrustedKeys.cs, ConnectorCodeChecker.cs, PackageCatalog.cs,
+│   │            PackageLoadContext.cs, PackageLoadContextPool.cs, SharedAssemblies.cs
 │   ├── Connections/ConnectionManager.cs, ConnectionRuntime.cs (state machine per connection),
 │   │               ConnectionWatchdog.cs, InventoryCoordinator.cs
 │   ├── Hosting/IConnectionHost.cs, InProcessHost.cs
@@ -45,8 +46,13 @@ Watchpoint.Integrations/
 │   │           Scheduler.cs, RequestGate.cs, SecretAccessor.cs, ConnectionHealthReporter.cs,
 │   │           SecureHttp.cs, InboundEndpoints.cs, ConnectorMetrics.cs
 │   └── Storage/IntegrationsDbContext.cs (+ Postgres subclass, migrations)
-├── IntegrationRuntimeModule.cs
+├── Contracts/PackageEndpoints.cs  the package endpoints (§10), mapped by the host module
 └── IntegrationLog.cs              event ids 1800–1999
+
+The host module (`Watchpoint.Host/Modules/IntegrationRuntimeModule.cs`) registers the services, the
+start-up task (phase `Catalogue`, order 10) and maps the endpoints. Test helpers that build packages
+(signed with a test key, connectors compiled at test time, the simulator staged from its build output)
+live in `tests/service/Watchpoint.Integrations.Testing`.
 ```
 
 ## 4. Packages
@@ -62,6 +68,13 @@ Watchpoint.Integrations/
 `PackageWatcher` scans both folders at start (phase `Catalogue`, order 10) and watches the
 user folder (`FileSystemWatcher` + a 30 s periodic rescan as safety net; changes debounced
 2 s). Uploads through the API (§10) write into the user folder.
+Names starting with a dot (`.cache`, upload temp files) and `dev-keys/` are never packages. A file
+another process still writes (locked, or unreadable) is retried after the next quiet period, never
+declared invalid. Lost watcher events (buffer overflow) trigger a full rescan. A rescan verifies only
+sources whose fingerprint (size, last write, file count) changed; the manifest SHA-256 identifies the
+content, so a rewritten file with the same content changes nothing. A second file providing an id and
+version already present is `Invalid` (`irt.package.version_conflict`); a changed file under a version
+that connections run on is refused the same way and the loaded version stays.
 
 ### 4.2 Package states
 
@@ -134,6 +147,15 @@ embedded in the product (release keys, with validity dates) and, **only when
 Packages signed with a development key show `SignedByDevelopmentKey = true` (red badge in
 clients, HLT warning). Unsigned packages are always `Invalid` (`irt.package.unsigned`), even
 in Development (developers sign with a dev key using `wppack`).
+
+The release keys are the `TrustedKeys.EmbeddedReleaseKeys` list; the verification code is complete
+(release key, validity dates, signature), but **the list is empty until the release process adds the
+first key** (key ceremony, `wppack` signing; tracked with T6.x release engineering). Until then every
+package is `untrusted_key` outside Development, which is the intended fail-closed behaviour.
+Development keys are read from `dev-keys/<keyId>.pub` (base64 of the 32-byte public key; the key id is
+the file name). A package whose id starts with `watchpoint.` (first-party, exempt from MOD's `vendor.`
+namespace rule) is accepted with a development key **only from the builtin folder**; from the user
+folder it is `Invalid` (`irt.package.reserved_id`).
 
 ### 4.5 Activation
 
@@ -339,6 +361,11 @@ Checks every 10 s per running connection:
 | `GET /api/v1/packages/{id}/versions/{version}/connectors/{serverType}/settings-schema` | same | Settings schema + secrets fields + UI hints |
 | `POST /api/v1/packages` (multipart, ≤ 500 MB) | `config.integrations.install` | Install `.wpkg` → verification result |
 | `POST /api/v1/packages/{id}/versions/{version}/enable` / `disable` | `config.integrations.install` | |
+
+Until the API framework and its permission filter exist (T1.19), the endpoints that change the node
+(`POST`) are mapped only when `Node:Environment = Development`; the `GET` endpoints are always mapped.
+Package rows (§6) hold only verified packages; invalid ones are not persisted (the file is the source
+of truth and is verified again at the next scan).
 | `GET /api/v1/connections` | `config.integrations.view` (operators see status via HLT later) | List with status |
 | `GET /api/v1/connections/{id}` | same | Connection + status (secrets shown as `{ "fieldId": "set" }`) |
 | `POST /api/v1/connections` | `config.integrations.edit` | Create (`NewConnection`) |
@@ -378,6 +405,11 @@ Live stream topic `connections` (API §8): status changes.
 | `irt.package.contract_unsupported` / `product_too_old` / `platform_unsupported` | Validation | §4.3 step 5 |
 | `irt.package.connector_invalid` | Validation | §4.3 step 7 (args `class`, `reason`) |
 | `irt.package.not_active` | Unprocessable | Creating a connection on a non-active version |
+| `irt.package.version_conflict` | Validation (package problem) | §4.1: another file already provides this id and version |
+| `irt.package.unreadable` | Validation (package problem) | The source could not be read or processed (details in `reason`) |
+| `irt.package.file_missing` | (warning) | §4.1: file deleted while connections use the version |
+| `irt.package.reserved_id` | Validation (package problem) | §4.4: `watchpoint.*` id with a development key outside the builtin folder |
+| `irt.package.file_name_invalid` | Validation | Upload file name is not `<name>.wpkg` |
 | `irt.package.shared_assembly_shadowed` | (warning) | §5 |
 | `irt.connection.not_found` | NotFound | |
 | `irt.connection.isolation_required` | Validation | §7.1 |
@@ -419,7 +451,8 @@ Health check (`ready`): package catalogue scan completed (connections are not pa
 ## 15. Tests
 
 Unit: `tests/service/Watchpoint.Integrations.Tests` (fake MOD/REG/PIP/SEC, test packages
-built at test time by a helper that produces signed `.wpkg` files with a test key).
+built at test time by `tests/service/Watchpoint.Integrations.Testing`: signed `.wpkg` files with a test
+key, connector assemblies compiled with Roslyn, the simulator package staged from its build output).
 Integration: `Watchpoint.IntegrationTests/Integrations` (real PostgreSQL, NATS, simulator package).
 
 | Id | Layer | Test | Given / When / Then |
