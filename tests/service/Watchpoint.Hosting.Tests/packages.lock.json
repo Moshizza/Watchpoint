@@ -320,6 +320,13 @@
           "NodaTime": "[3.3.7, )"
         }
       },
+      "watchpoint.kernel.testing": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.Extensions.TimeProvider.Testing": "[10.11.0, )",
+          "Watchpoint.Kernel": "[1.0.0, )"
+        }
+      },
       "watchpoint.secrets": {
         "type": "Project",
         "dependencies": {

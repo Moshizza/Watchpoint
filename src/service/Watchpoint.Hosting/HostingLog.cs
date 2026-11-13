@@ -64,6 +64,24 @@ public static partial class HostingLog
     /// <summary>1154: Killed leftover child process.</summary>
     public static readonly EventId ChildKilledLeftover = new(1154, nameof(ChildKilledLeftover));
 
+    /// <summary>1155: Child output lines dropped because the logger was slower than the child.</summary>
+    public static readonly EventId ChildOutputDropped = new(1155, nameof(ChildOutputDropped));
+
+    /// <summary>1156: A line of child output.</summary>
+    public static readonly EventId ChildOutput = new(1156, nameof(ChildOutput));
+
+    /// <summary>1157: A child could not be killed.</summary>
+    public static readonly EventId ChildKillFailed = new(1157, nameof(ChildKillFailed));
+
+    /// <summary>1158: A pid file could not be read, written or removed.</summary>
+    public static readonly EventId PidFileFailed = new(1158, nameof(PidFileFailed));
+
+    /// <summary>1159: The supervision of a child stopped on an internal error.</summary>
+    public static readonly EventId SupervisorLoopFailed = new(1159, nameof(SupervisorLoopFailed));
+
+    /// <summary>1160: A <c>StateChanged</c> handler threw.</summary>
+    public static readonly EventId StateHandlerFailed = new(1160, nameof(StateHandlerFailed));
+
     [LoggerMessage(EventId = 1101, Level = LogLevel.Critical, Message = "Invalid node settings: {Problems}")]
     public static partial void LogInvalidNodeSettings(ILogger logger, string problems);
 
@@ -105,4 +123,37 @@ public static partial class HostingLog
 
     [LoggerMessage(EventId = 1140, Level = LogLevel.Error, Message = "Development seed failed at {Step}: {Error}")]
     public static partial void LogDevSeedFailed(ILogger logger, string step, string error);
+
+    [LoggerMessage(EventId = 1150, Level = LogLevel.Information, Message = "Child {Name} started with pid {Pid}")]
+    public static partial void LogChildStarted(ILogger logger, string name, int pid);
+
+    [LoggerMessage(EventId = 1151, Level = LogLevel.Warning, Message = "Child {Name} exited unexpectedly ({Reason}) with code {ExitCode}; restart {Attempt} in {DelayMs} ms")]
+    public static partial void LogChildExitedUnexpectedly(ILogger logger, string name, string reason, int? exitCode, int attempt, long delayMs);
+
+    [LoggerMessage(EventId = 1152, Level = LogLevel.Error, Message = "Child {Name} failed: {Restarts} restarts within {Window}")]
+    public static partial void LogChildFailed(ILogger logger, string name, int restarts, TimeSpan window);
+
+    [LoggerMessage(EventId = 1153, Level = LogLevel.Information, Message = "Child {Name} stopped")]
+    public static partial void LogChildStopped(ILogger logger, string name);
+
+    [LoggerMessage(EventId = 1154, Level = LogLevel.Warning, Message = "Killed leftover process {Pid} for child {Name}")]
+    public static partial void LogChildKilledLeftover(ILogger logger, int pid, string name);
+
+    [LoggerMessage(EventId = 1155, Level = LogLevel.Warning, Message = "Child {Name} output: {Dropped} lines dropped (logging slower than the child)")]
+    public static partial void LogChildOutputDropped(ILogger logger, string name, long dropped);
+
+    [LoggerMessage(EventId = 1156, Message = "{Child}: {Line}")]
+    public static partial void LogChildOutput(ILogger logger, LogLevel level, string child, string line);
+
+    [LoggerMessage(EventId = 1157, Level = LogLevel.Error, Message = "Child {Name} (pid {Pid}) could not be killed")]
+    public static partial void LogChildKillFailed(ILogger logger, string name, int pid, Exception? exception);
+
+    [LoggerMessage(EventId = 1158, Level = LogLevel.Warning, Message = "Pid file of child {Name} could not be read, written or removed")]
+    public static partial void LogPidFileFailed(ILogger logger, string name, Exception exception);
+
+    [LoggerMessage(EventId = 1159, Level = LogLevel.Critical, Message = "Supervision of child {Name} stopped on an internal error")]
+    public static partial void LogSupervisorLoopFailed(ILogger logger, string name, Exception exception);
+
+    [LoggerMessage(EventId = 1160, Level = LogLevel.Error, Message = "StateChanged handler of child {Name} failed")]
+    public static partial void LogStateHandlerFailed(ILogger logger, string name, Exception exception);
 }
