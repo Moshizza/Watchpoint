@@ -106,11 +106,8 @@ public sealed class SupervisorIntegrationTests
             output.ShouldContain(e => e.RenderedMessage.Contains("Server is ready", StringComparison.Ordinal));
             output.ShouldAllBe(e => e.Level == LogLevel.Information && (string?)e.Properties["Child"] == "nats");
             logs.Entries.ShouldAllBe(e => !e.RenderedMessage.Contains(endpoint.Token!, StringComparison.Ordinal));
-            if (!OperatingSystem.IsWindows())
-            {
-                // SIGTERM reached the server: it shut down by itself within the grace period.
-                output.ShouldContain(e => e.RenderedMessage.Contains("Initiating Shutdown", StringComparison.Ordinal));
-            }
+            // The polite signal (SIGTERM, CTRL_BREAK on Windows) reached the server: it shut down by itself.
+            output.ShouldContain(e => e.RenderedMessage.Contains("Initiating Shutdown", StringComparison.Ordinal));
         }
         finally
         {
