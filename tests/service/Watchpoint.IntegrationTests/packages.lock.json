@@ -601,6 +601,17 @@
           "Watchpoint.Kernel": "[1.0.0, )"
         }
       },
+      "watchpoint.pipeline": {
+        "type": "Project",
+        "dependencies": {
+          "NATS.Net": "[3.3.2, )",
+          "System.IO.Hashing": "[10.0.14, )",
+          "Watchpoint.Hosting": "[1.0.0, )",
+          "Watchpoint.Kernel": "[1.0.0, )",
+          "Watchpoint.Model": "[1.0.0, )",
+          "Watchpoint.Registry": "[1.0.0, )"
+        }
+      },
       "watchpoint.registry": {
         "type": "Project",
         "dependencies": {
@@ -873,6 +884,12 @@
         "dependencies": {
           "Serilog": "4.2.0"
         }
+      },
+      "System.IO.Hashing": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.14, )",
+        "resolved": "10.0.14",
+        "contentHash": "lVqovhCt3HlZe7ONG5ydaj6BYwYI004gldVfMMkJl/lR5ueeCtWNpW4nejOX75sPmzm8vXCxB69GqwHaYCnyUQ=="
       },
       "System.Security.Cryptography.ProtectedData": {
         "type": "CentralTransitive",
