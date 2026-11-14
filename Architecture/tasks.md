@@ -101,7 +101,7 @@ spec that must exist and pass.
 | T0.10 | Spike: go2rtc RTSP → WebRTC in Electron on Windows, Linux, macOS (H.264, H.265) → decision record | VID §4 | T0.01 | Spike report | [#10](https://github.com/Moshizza/Watchpoint/issues/10) | — | todo |
 | T0.11 | Spike: connector isolation — `AssemblyLoadContext` in-process vs gRPC isolated host (latency, crash behaviour) → decision record | IRT §5, IHO §4 | T0.03 | Spike report | [#11](https://github.com/Moshizza/Watchpoint/issues/11) | claude-atlas/T0.11-spike-connector-isolation | done |
 | T0.12 | Fix intermittent INT-U-020 and HST-I-005 | INT §10, HST §7 | — | INT-U-020, HST-I-005 | — | claude-rigel/flaky-int-u-020-hst-i-005 | done |
-| T0.13 | Make wall-clock timing tests CI-safe | TST §10, STO §12 | — | STO-I-011, timing-test audit | — | claude-deneb/T0.13-ci-safe-timing-tests | in progress |
+| T0.13 | Make wall-clock timing tests CI-safe | TST §4.7, STO §12, REG §14 | — | STO-I-011, REG-I-009, TST-I-003, TST-U-014, INT-C-012 (Modbus) | — | claude-deneb/T0.13-ci-safe-timing-tests | in review |
 
 ### M1 — First device on screen
 
