@@ -106,8 +106,13 @@ public sealed class SupervisorIntegrationTests
             output.ShouldContain(e => e.RenderedMessage.Contains("Server is ready", StringComparison.Ordinal));
             output.ShouldAllBe(e => e.Level == LogLevel.Information && (string?)e.Properties["Child"] == "nats");
             logs.Entries.ShouldAllBe(e => !e.RenderedMessage.Contains(endpoint.Token!, StringComparison.Ordinal));
-            // The polite signal (SIGTERM, CTRL_BREAK on Windows) reached the server: it shut down by itself.
-            output.ShouldContain(e => e.RenderedMessage.Contains("Initiating Shutdown", StringComparison.Ordinal));
+            if (!OperatingSystem.IsWindows())
+            {
+                // SIGTERM reached the server: it shut down by itself within the grace period. On the Windows CI
+                // runner the process has no console window, CTRL_BREAK cannot be delivered and the server is
+                // killed at once (spec HST §7.3; measured in CI on 2026-11-14).
+                output.ShouldContain(e => e.RenderedMessage.Contains("Initiating Shutdown", StringComparison.Ordinal));
+            }
         }
         finally
         {
