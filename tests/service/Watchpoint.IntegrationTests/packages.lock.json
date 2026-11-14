@@ -120,6 +120,14 @@
         "resolved": "4.4.0",
         "contentHash": "gwJEfIGS7FhykvtZoscwXj/XwW+mJY6UbAZk+qtLKFUGWC95kfKXnj8VkxsZQnWBxJemM/q664rGLN5nf+OHZw=="
       },
+      "Fido2.Models": {
+        "type": "Transitive",
+        "resolved": "4.3.3",
+        "contentHash": "G/Q8MYgptOwMrbWgDoGsy90u3J5GTdNAHub8aZRg/mQrUETzB5CqFzstGdTXE9UhL0qD6sRynOoPUnqCwKRnMw==",
+        "dependencies": {
+          "Microsoft.Bcl.Memory": "9.0.14"
+        }
+      },
       "Humanizer.Core": {
         "type": "Transitive",
         "resolved": "3.0.1",
@@ -163,6 +171,11 @@
         "type": "Transitive",
         "resolved": "10.0.2",
         "contentHash": "LG9Yll3B5aNpxv0+D47g6LiOiKBIlodhcHdQwcYzo8VeexFLGqx5ymetmA2aBRyo9cCcWsQWrFsdbsr8LvmWDw=="
+      },
+      "Microsoft.Bcl.Memory": {
+        "type": "Transitive",
+        "resolved": "9.0.14",
+        "contentHash": "laQCcjTM2FnbyznkAu9hwBuQh3z2/OtJKwjGkJOUevylFpFXZIUVq/+MU2jM0HQm1n5wsjjwtLIDOiWJ6Nai3A=="
       },
       "Microsoft.CodeAnalysis.Analyzers": {
         "type": "Transitive",
@@ -523,6 +536,7 @@
       "watchpoint.identity": {
         "type": "Project",
         "dependencies": {
+          "Fido2": "[4.3.3, )",
           "Konscious.Security.Cryptography.Argon2": "[1.3.1, )",
           "Microsoft.EntityFrameworkCore.Relational": "[10.0.14, )",
           "Microsoft.IdentityModel.JsonWebTokens": "[8.23.0, )",
@@ -683,6 +697,17 @@
         "dependencies": {
           "Microsoft.EntityFrameworkCore": "[10.0.1, 11.0.0)",
           "Microsoft.EntityFrameworkCore.Relational": "[10.0.1, 11.0.0)"
+        }
+      },
+      "Fido2": {
+        "type": "CentralTransitive",
+        "requested": "[4.3.3, )",
+        "resolved": "4.3.3",
+        "contentHash": "++G8ohXlhp9AH49FXIvYqziXUAEpuCtT+z5HBevX6+Pl6sYz9zfDHGTgvne6t3UEhM0hudesgMudyNG7RlpaEA==",
+        "dependencies": {
+          "Fido2.Models": "4.3.3",
+          "Microsoft.IdentityModel.JsonWebTokens": "8.2.0",
+          "NSec.Cryptography": "25.4.0"
         }
       },
       "JsonSchema.Net": {

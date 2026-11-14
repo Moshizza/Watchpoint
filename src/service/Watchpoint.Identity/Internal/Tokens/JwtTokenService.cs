@@ -62,6 +62,12 @@ internal sealed class JwtTokenService : ITokenService
             claims["wks"] = session.WorkstationId;
         }
 
+        if (session.WorkstationVerified)
+        {
+            // The workstation proved its certificate (spec IDN §12); absent = not verified (UI warning).
+            claims["wkv"] = true;
+        }
+
         var descriptor = new SecurityTokenDescriptor
         {
             Issuer = Issuer,
@@ -194,6 +200,12 @@ internal sealed class JwtTokenService : ITokenService
             lang = langObj.Value;
         }
 
+        var wkv = false;
+        if (jsonToken.TryGetClaim("wkv", out var wkvObj))
+        {
+            wkv = wkvObj.Value is "true" or "True";
+        }
+
         var jti = jsonToken.Id ?? string.Empty;
 
         return new AccessTokenClaims(
@@ -207,6 +219,7 @@ internal sealed class JwtTokenService : ITokenService
             _options.Audience,
             jsonToken.IssuedAt,
             jsonToken.ValidTo,
-            jti);
+            jti,
+            wkv);
     }
 }

@@ -15,6 +15,7 @@ namespace Watchpoint.Identity.Contracts;
 /// <param name="IssuedAt">Issued at instant (<c>iat</c>).</param>
 /// <param name="ExpiresAt">Expiration instant (<c>exp</c>).</param>
 /// <param name="TokenId">Token identifier (<c>jti</c>).</param>
+/// <param name="WorkstationVerified">Workstation verified by its certificate (<c>wkv</c>, spec IDN §12).</param>
 public sealed record AccessTokenClaims(
     UserId UserId,
     SessionId SessionId,
@@ -26,7 +27,8 @@ public sealed record AccessTokenClaims(
     string Audience,
     DateTimeOffset IssuedAt,
     DateTimeOffset ExpiresAt,
-    string TokenId);
+    string TokenId,
+    bool WorkstationVerified = false);
 
 /// <summary>Token issuance and validation service (spec IDN §6.2).</summary>
 public interface ITokenService

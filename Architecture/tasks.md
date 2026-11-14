@@ -81,6 +81,7 @@ Every AI agent working on the project has a unique name, used as its branch pref
 | `claude-sirius` | Mohcine (Moshizza) | 2026-11-14 |
 | `claude-deneb` | Mohcine (Moshizza) | 2026-11-14 |
 | `claude-altair` | Mohcine (Moshizza) | 2026-11-14 |
+| `claude-polaris` | Mohcine (Moshizza) | 2026-11-14 |
 
 ## 2. Tasks
 
@@ -119,6 +120,7 @@ spec that must exist and pass.
 | T1.07 | Registry: servers, devices, locations, tags, links — entities, persistence, queries | REG §4–§7 | T1.06 | REG-U-001…REG-U-030, REG-I-001…REG-I-004, REG-I-006, REG-I-009 | [#18](https://github.com/Moshizza/Watchpoint/issues/18) | jules-3/T1.07-registry-core-1150500357666495793 | done |
 | T1.08 | Registry: inventory reconciliation (rediscovery by native id, orphans, vendor names) | REG §8 | T1.07 | REG-U-031…REG-U-045, REG-I-007 | [#19](https://github.com/Moshizza/Watchpoint/issues/19) | jules-7325543338548804014-454e7657 | done |
 | T1.09 | Pipeline: event log streams, envelope, partition router, log writer/reader, consumer helpers | PIP §4–§6 | T1.02, T0.09 | PIP-U-001…PIP-U-020, PIP-I-001…PIP-I-008, REG-I-005 | [#20](https://github.com/Moshizza/Watchpoint/issues/20) | `claude-nova/T1.09-pipeline-event-log` | in review |
+| T1.09b | Registry transactional outbox: persist the revision and change records in the registry transaction, publish to the log from the outbox (no lost or out-of-order registry changes across restarts or log outages) | PIP §5, REG §9 | T1.09 | (tests to define) | — | — | todo |
 | T1.10 | Pipeline: ingest (type validation, units, dedup, deadband, enrichment), back-pressure, side-effect dispatcher | PIP §7–§9 | T1.09, T1.07 | PIP-U-021…PIP-U-047, PIP-I-009…PIP-I-015 | [#21](https://github.com/Moshizza/Watchpoint/issues/21) | — | todo |
 | T1.11 | State: live store, overall state computation, aggregates, queries, change feed | STA §4–§7 | T1.10 | STA-U-001…STA-U-035 | [#22](https://github.com/Moshizza/Watchpoint/issues/22) | — | todo |
 | T1.12 | State: snapshotter and recovery (snapshot + replay) | STA §8 | T1.11 | STA-U-036…STA-U-045, STA-I-001…STA-I-006 | [#23](https://github.com/Moshizza/Watchpoint/issues/23) | — | todo |
@@ -130,7 +132,7 @@ spec that must exist and pass.
 | T1.17b | Simulator, Modbus and MQTT end-to-end tests | C-SIM, C-MODBUS, C-MQTT | T1.16, T1.07, T1.09, T4.05, T4.06 | SIM-I-001, SIM-I-004, SIM-I-005, MODB-I-002, MQTT-I-004 | — | — | todo |
 | T1.18 | Identity minimal: local users, Argon2id, sign-in, access/refresh tokens, bootstrap admin, session registry | IDN §4–§7 | T1.04 | IDN-U-001…IDN-U-030, IDN-I-001…IDN-I-006 | [#29](https://github.com/Moshizza/Watchpoint/issues/29) | jules-14674020379193774426-43566f4b | done |
 | T1.18r | Identity security review and fixes (T1.18 code) | IDN §4–§7 | T1.18 | IDN-U-*, IDN-I-*, new tests (IDN-U-101…IDN-U-124) | — | claude-sirius/T1.18r-identity-security-review | done |
-| T1.18s | Identity settings binding (§7.1) and per-site token issuer | IDN §6–§7 | T1.18r | (tests to define) | — | — | todo |
+| T1.18s | Identity settings binding (§7.1) and per-site token issuer | IDN §6–§7 | T1.18r | IDN-U-125…IDN-U-129, HST-U-046, HST-U-047 | — | claude-polaris/T3.08-identity-mfa-lockout | done |
 | T1.19 | API: REST framework (problem details, paging, ETag, idempotency, permission filter, OpenAPI) + endpoints for registry, state, connections, types, dev seed | API §4–§7 | T1.11, T1.16, T1.18 | API-U-001…API-U-030, API-I-001…API-I-015, REG-I-008, REG-I-010 | [#30](https://github.com/Moshizza/Watchpoint/issues/30) | — | todo |
 | T1.20 | API: live hub (subscriptions, snapshots + deltas, sequences, resume, coalescing, limits) | API §8–§10 | T1.19 | API-U-031…API-U-055, API-I-016…API-I-025 | [#31](https://github.com/Moshizza/Watchpoint/issues/31) | — | todo |
 | T1.21 | UI core: generated API client, live connection client, model package | UIC §4–§6 | T1.20, T0.08 | UIC-U-004…UIC-U-030 | [#32](https://github.com/Moshizza/Watchpoint/issues/32) | — | todo |
@@ -172,7 +174,7 @@ spec that must exist and pass.
 | T3.05 | Rights: user groups, template users, rights-copy (preview, apply, undo, re-apply), drift indicator, escalation protection | RGT §8–§10 | T3.04, T3.02 | RGT-U-051…RGT-U-090, RGT-I-005…RGT-I-007 | [#58](https://github.com/Moshizza/Watchpoint/issues/58) | — | todo |
 | T3.06 | Audit trail: writer, hash chain, verification, query API | AUD | T2.13 | AUD-U-001…AUD-U-020, AUD-I-001…AUD-I-005 | [#59](https://github.com/Moshizza/Watchpoint/issues/59) | — | todo |
 | T3.07 | Identity: LDAP/AD, OIDC sign-in, directory group → template mapping | IDN §8–§9 | T3.05 | IDN-U-031…IDN-U-050, IDN-I-007…IDN-I-012 | [#60](https://github.com/Moshizza/Watchpoint/issues/60) | — | todo |
-| T3.08 | Identity: MFA (TOTP, WebAuthn), lockout, session management, break-glass, client kind binding | IDN §10–§12 | T1.18 | IDN-U-051…IDN-U-080 | [#61](https://github.com/Moshizza/Watchpoint/issues/61) | — | todo |
+| T3.08 | Identity: MFA (TOTP, WebAuthn), lockout, session management, break-glass, client kind binding | IDN §10–§12 | T1.18, T1.18s | IDN-U-051…IDN-U-080, IDN-U-130…IDN-U-134 | [#61](https://github.com/Moshizza/Watchpoint/issues/61) | claude-polaris/T3.08-identity-mfa-lockout | done |
 | T3.09 | Maintenance mode (site and location scope, session gate, auto-end, notifications hook) | MNT | T3.08, T3.04 | MNT-U-001…MNT-U-020, MNT-I-001…MNT-I-004 | [#62](https://github.com/Moshizza/Watchpoint/issues/62) | — | todo |
 | T3.10 | UI configuration: shell, side switch, draft bar, schema-generated forms, validation panel | UIF §4–§6 | T3.02, T1.23 | UIF-U-001…UIF-U-030 | [#63](https://github.com/Moshizza/Watchpoint/issues/63) | — | todo |
 | T3.11 | UI configuration: integrations catalogue, connection wizard (test, discovery, import), connection details | UIF §7 | T3.10, T1.16 | UIF-U-031…UIF-U-050 | [#64](https://github.com/Moshizza/Watchpoint/issues/64) | — | todo |

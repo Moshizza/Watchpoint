@@ -781,8 +781,7 @@ public sealed class IdentitySecurityTests : IDisposable
     }
 
     private AuthenticationService AuthWith(Argon2PasswordHasher hasher) =>
-        new(_harness.DbFactory, _harness.UserDirectory, hasher, _harness.TokenService, _harness.RefreshStore, _harness.SessionRegistry,
-            _harness.LockoutService, new SignInRateLimiter(_harness.Clock, new SignInRateLimiterOptions(1000, 1000)), [], _harness.Clock);
+        _harness.CreateAuthService(new SignInRateLimiter(_harness.Clock, new SignInRateLimiterOptions(1000, 1000)), hasher);
 
     private async Task<DateTimeOffset?> FailAsync(UserId uid, int times)
     {

@@ -321,6 +321,18 @@ unless excluded).
 Attribute validation errors come from MOD (`model.value.*`) with paths
 `/changes/<i>/device/attributes/<key>`.
 
+**Known limitation (until T1.09b).** The `registry.changed` record is published after the registry
+transaction committed, and the revision is counted in memory:
+
+- the revision restarts at 1 when the node restarts;
+- if the event log stays unavailable for `Log:AppendTimeout` (30 s) after the commit, the change is
+  kept, error 1611 is logged (PIP §12) and no record is published — consumers see a gap in the
+  revisions and must read the registry again; a node that stops between commit and publish loses the
+  record the same way.
+
+T1.09b replaces this with a transactional outbox: revision and change record are stored in the
+registry transaction and published to the log from the outbox, in order.
+
 ## 10. Data (`wp_registry` schema)
 
 | Table | Columns (type) | Keys and indexes |

@@ -150,6 +150,91 @@ public sealed class HostUnitTests
     }
 
     [Fact]
+    public void HST_U_046_Site_id_generated_once_persisted_and_validated()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "wp_test_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var watchpointJsonPath = Path.Combine(tempDir, "watchpoint.json");
+        using var logs = new LogCollector();
+        var logger = logs.CreateLogger("Watchpoint.Host");
+
+        try
+        {
+            File.WriteAllText(watchpointJsonPath, """{"Node": {"Name": "n1"}}""");
+
+            // First start: no Site:Id -> generated v7 and written back next to Node:Id, other keys kept.
+            var first = Bind(watchpointJsonPath);
+            var nodeId = Program.EnsureNodeId(first, watchpointJsonPath, logger);
+            var siteId = Program.EnsureSiteId(first, watchpointJsonPath, logger);
+            NodeSettings.IsValidV7(siteId).ShouldBeTrue();
+            siteId.ShouldNotBe(nodeId);
+            var written = JsonNode.Parse(File.ReadAllText(watchpointJsonPath))!;
+            written["Site"]!["Id"]!.GetValue<string>().ShouldBe(siteId.ToString());
+            written["Node"]!["Id"]!.GetValue<string>().ShouldBe(nodeId.ToString());
+            written["Node"]!["Name"]!.GetValue<string>().ShouldBe("n1");
+
+            // Second start: the persisted id is read and kept (the token issuer must not change over a restart).
+            var second = Bind(watchpointJsonPath);
+            second.Site.Id.ShouldBe(siteId);
+            Program.EnsureSiteId(second, watchpointJsonPath, logger).ShouldBe(siteId);
+            logs.WithEventId(HostingLog.NodeIdPersistFailed.Id).ShouldBeEmpty();
+
+            // Validation: a set id must be a v7 UUID.
+            var invalid = new NodeSettings();
+            invalid.Site.Id = Guid.NewGuid();
+            invalid.Validate(new ValidationContext(invalid)).ShouldContain(r => r.ErrorMessage != null && r.ErrorMessage.Contains("Site:Id"));
+            var empty = new NodeSettings();
+            empty.Validate(new ValidationContext(empty)).ShouldNotContain(r => r.ErrorMessage != null && r.ErrorMessage.Contains("Site:Id"));
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
+        }
+
+        static NodeSettings Bind(string path)
+        {
+            var settings = new NodeSettings();
+            new ConfigurationBuilder().AddJsonFile(path).Build().Bind(settings);
+            return settings;
+        }
+    }
+
+    [Fact]
+    public void HST_U_047_Module_with_invalid_settings_stops_the_start()
+    {
+        var siteId = Guid.CreateVersion7();
+        var valid = Context([("Site:Id", siteId.ToString()), ("Identity:Lockout:Threshold", "3")]);
+        var settings = Watchpoint.Host.Modules.IdentityModule.BindSettings(valid);
+        settings.Lockout.Threshold.ShouldBe(3);
+        settings.Jwt.SiteId.ShouldBe(siteId.ToString());
+
+        // An invalid or unknown Identity key is refused with the key named (never a value), as HST §4 does for node settings.
+        var invalid = Context([("Site:Id", siteId.ToString()), ("Identity:Lockout:Threshold", "0"), ("Identity:Lockuot:Window", "PT1M")]);
+        var ex = Should.Throw<InvalidSettingsException>(() => Watchpoint.Host.Modules.IdentityModule.BindSettings(invalid));
+        ex.Module.ShouldBe("Identity");
+        ex.Problems.ShouldContain("Identity:Lockout:Threshold: common.value.out_of_range");
+        ex.Problems.ShouldContain("Identity:Lockuot:Window: identity.settings.unknown_key");
+        ex.Problems.ShouldNotContain("PT1M");
+
+        // Without a site id there is no issuer: refused as well (the host generates one before the modules are composed).
+        Should.Throw<InvalidSettingsException>(() => Watchpoint.Host.Modules.IdentityModule.BindSettings(Context([])))
+            .Problems.ShouldContain("Site:Id");
+
+        static ModuleContext Context(IEnumerable<(string Key, string Value)> values)
+        {
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(values.Select(v => new KeyValuePair<string, string?>(v.Key, v.Value)))
+                .Build();
+            var node = new NodeSettings();
+            configuration.Bind(node);
+            return new ModuleContext { Node = node, Configuration = configuration, Paths = NodePaths.Resolve(node.Paths), IsDevelopment = true };
+        }
+    }
+
+    [Fact]
     public async Task HST_U_005_Phases_run_in_order()
     {
         var executionLog = new List<string>();

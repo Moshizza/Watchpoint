@@ -107,8 +107,9 @@ public static class Program
                 return ExitCodeConfig;
             }
 
-            // Node ID persistence (spec HST §4, HST-U-004)
+            // Node and site ID persistence (spec HST §4, HST-U-004, HST-U-046)
             EnsureNodeId(settings, watchpointJsonPath, bootstrap);
+            EnsureSiteId(settings, watchpointJsonPath, bootstrap);
         }
 
         // Resolve paths and ensure directories
@@ -258,9 +259,23 @@ public static class Program
             IsDevelopment = settings.Node.Environment == NodeEnvironment.Development
         };
 
-        foreach (var module in ModuleCatalog.All)
+        try
         {
-            module.ConfigureServices(builder.Services, moduleContext);
+            foreach (var module in ModuleCatalog.All)
+            {
+                module.ConfigureServices(builder.Services, moduleContext);
+            }
+        }
+        catch (InvalidSettingsException ex)
+        {
+            // A module refused its settings (spec HST §4): same outcome as invalid node settings, exit code 78.
+            using var loggers = new Serilog.Extensions.Logging.SerilogLoggerFactory(
+                new LoggerConfiguration().WriteTo.Console(formatProvider: CultureInfo.InvariantCulture).CreateLogger(),
+                dispose: true);
+            var problems = ex.Module + ": " + ex.Problems;
+            var settingsLogger = loggers.CreateLogger("Watchpoint.Host");
+            HostingLog.LogInvalidNodeSettings(settingsLogger, problems);
+            return ExitCodeConfig;
         }
 
         var app = builder.Build();
@@ -436,7 +451,7 @@ public static class Program
         settings.Node.Id = Guid.CreateVersion7();
         try
         {
-            PersistNodeId(watchpointJsonPath, settings.Node.Id);
+            PersistId(watchpointJsonPath, "Node", settings.Node.Id);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
@@ -444,6 +459,37 @@ public static class Program
         }
 
         return settings.Node.Id;
+    }
+
+    /// <summary>
+    /// Generates a v7 <c>Site:Id</c> when none is set and writes it to <paramref name="watchpointJsonPath"/> (spec HST §4,
+    /// IDN §6.2: the id forms the token issuer, so it must be stable across restarts and shared by the nodes of a site);
+    /// a write failure logs <c>HST1105</c> and keeps the generated id for this run.
+    /// </summary>
+    /// <param name="settings">The node settings (updated in place).</param>
+    /// <param name="watchpointJsonPath">The <c>watchpoint.json</c> path.</param>
+    /// <param name="logger">The logger.</param>
+    /// <returns>The site id.</returns>
+    public static Guid EnsureSiteId(NodeSettings settings, string watchpointJsonPath, Microsoft.Extensions.Logging.ILogger logger)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(logger);
+        if (settings.Site.Id != Guid.Empty)
+        {
+            return settings.Site.Id;
+        }
+
+        settings.Site.Id = Guid.CreateVersion7();
+        try
+        {
+            PersistId(watchpointJsonPath, "Site", settings.Site.Id);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            HostingLog.LogNodeIdPersistFailed(logger, watchpointJsonPath, ex);
+        }
+
+        return settings.Site.Id;
     }
 
     /// <summary>
@@ -480,7 +526,7 @@ public static class Program
         return (reasons.Count == 0 ? StatusCodes.Status200OK : StatusCodes.Status503ServiceUnavailable, reasons);
     }
 
-    private static void PersistNodeId(string path, Guid id)
+    private static void PersistId(string path, string section, Guid id)
     {
         JsonObject root;
         if (File.Exists(path))
@@ -499,16 +545,13 @@ public static class Program
             root = new JsonObject();
         }
 
-        if (!root.ContainsKey("Node"))
+        if (root[section] is not JsonObject sectionObj)
         {
-            root["Node"] = new JsonObject();
+            sectionObj = new JsonObject();
+            root[section] = sectionObj;
         }
 
-        var nodeObj = root["Node"]?.AsObject();
-        if (nodeObj is not null)
-        {
-            nodeObj["Id"] = id.ToString();
-        }
+        sectionObj["Id"] = id.ToString();
 
         File.WriteAllText(path, JsonSerializer.Serialize(root, _indentedJsonOptions));
     }

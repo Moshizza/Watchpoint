@@ -108,6 +108,64 @@ internal sealed class SessionEntity
     public DateTimeOffset? RevokedAt { get; set; }
 
     public string? RevokedReason { get; set; }
+
+    public bool WorkstationVerified { get; set; }
+}
+
+/// <summary>EF Core entity for a TOTP enrolment (spec IDN §10 table <c>mfa_totp</c>): the secret lives in the vault, only its id is here.</summary>
+internal sealed class TotpEntity
+{
+    public UserId UserId { get; set; }
+
+    public Guid SecretId { get; set; }
+
+    public DateTimeOffset CreatedAt { get; set; }
+
+    public DateTimeOffset? ConfirmedAt { get; set; }
+
+    // Last accepted RFC 6238 step: a code of this step or an earlier one is a replay. Concurrency token, so two nodes
+    // cannot both accept the same code.
+    public long LastUsedStep { get; set; } = -1;
+}
+
+/// <summary>EF Core entity for a recovery code (spec IDN §10 table <c>mfa_recovery_codes</c>): Argon2 hash, single use.</summary>
+internal sealed class RecoveryCodeEntity
+{
+    public Guid Id { get; set; }
+
+    public UserId UserId { get; set; }
+
+    public string Hash { get; set; } = string.Empty;
+
+    public DateTimeOffset CreatedAt { get; set; }
+
+    // Concurrency token: a code used twice at once on two nodes is accepted once.
+    public DateTimeOffset? UsedAt { get; set; }
+}
+
+/// <summary>EF Core entity for a WebAuthn credential (spec IDN §10 table <c>webauthn_credentials</c>).</summary>
+internal sealed class WebAuthnCredentialEntity
+{
+    public Guid Id { get; set; }
+
+    public UserId UserId { get; set; }
+
+    public byte[] CredentialId { get; set; } = [];
+
+    public byte[] PublicKey { get; set; } = [];
+
+    // Concurrency token: an assertion is counted once even when two nodes verify it at the same time.
+    public long SignCount { get; set; }
+
+    public string TransportsJson { get; set; } = "[]";
+
+    public string Name { get; set; } = string.Empty;
+
+    public Guid AaGuid { get; set; }
+
+    public DateTimeOffset CreatedAt { get; set; }
+
+    public DateTimeOffset? LastUsedAt { get; set; }
 }
 
 /// <summary>EF Core entity for refresh token (spec IDN §7.3 table <c>refresh_tokens</c>).</summary>
@@ -152,6 +210,12 @@ internal class IdentityDbContext(DbContextOptions options, StorageContextInfo in
     public DbSet<RefreshTokenEntity> RefreshTokens => Set<RefreshTokenEntity>();
 
     public DbSet<LockoutEntity> Lockouts => Set<LockoutEntity>();
+
+    public DbSet<TotpEntity> Totp => Set<TotpEntity>();
+
+    public DbSet<RecoveryCodeEntity> RecoveryCodes => Set<RecoveryCodeEntity>();
+
+    public DbSet<WebAuthnCredentialEntity> WebAuthnCredentials => Set<WebAuthnCredentialEntity>();
 
     protected override void OnModuleModelCreating(ModelBuilder modelBuilder)
     {
@@ -221,7 +285,49 @@ internal class IdentityDbContext(DbContextOptions options, StorageContextInfo in
             b.Property(s => s.ExpiresAt).HasColumnName("expires_at");
             b.Property(s => s.RevokedAt).HasColumnName("revoked_at");
             b.Property(s => s.RevokedReason).HasColumnName("revoked_reason");
+            b.Property(s => s.WorkstationVerified).HasColumnName("workstation_verified").HasDefaultValue(false);
             b.HasIndex(s => s.UserId);
+        });
+
+        modelBuilder.Entity<TotpEntity>(b =>
+        {
+            b.ToTable("mfa_totp");
+            b.HasKey(t => t.UserId);
+            b.Property(t => t.UserId).HasColumnName("user_id");
+            b.Property(t => t.SecretId).HasColumnName("secret_id");
+            b.Property(t => t.CreatedAt).HasColumnName("created_at");
+            b.Property(t => t.ConfirmedAt).HasColumnName("confirmed_at");
+            b.Property(t => t.LastUsedStep).HasColumnName("last_used_step").IsConcurrencyToken();
+        });
+
+        modelBuilder.Entity<RecoveryCodeEntity>(b =>
+        {
+            b.ToTable("mfa_recovery_codes");
+            b.HasKey(r => r.Id);
+            b.Property(r => r.Id).HasColumnName("id");
+            b.Property(r => r.UserId).HasColumnName("user_id");
+            b.Property(r => r.Hash).HasColumnName("hash");
+            b.Property(r => r.CreatedAt).HasColumnName("created_at");
+            b.Property(r => r.UsedAt).HasColumnName("used_at").IsConcurrencyToken();
+            b.HasIndex(r => r.UserId);
+        });
+
+        modelBuilder.Entity<WebAuthnCredentialEntity>(b =>
+        {
+            b.ToTable("webauthn_credentials");
+            b.HasKey(w => w.Id);
+            b.Property(w => w.Id).HasColumnName("id");
+            b.Property(w => w.UserId).HasColumnName("user_id");
+            b.Property(w => w.CredentialId).HasColumnName("credential_id").IsRequired();
+            b.HasIndex(w => w.CredentialId).IsUnique();
+            b.Property(w => w.PublicKey).HasColumnName("public_key").IsRequired();
+            b.Property(w => w.SignCount).HasColumnName("sign_count").IsConcurrencyToken();
+            b.Property(w => w.TransportsJson).HasColumnName("transports").HasColumnType("text");
+            b.Property(w => w.Name).HasColumnName("name").HasMaxLength(64).IsRequired();
+            b.Property(w => w.AaGuid).HasColumnName("aaguid");
+            b.Property(w => w.CreatedAt).HasColumnName("created_at");
+            b.Property(w => w.LastUsedAt).HasColumnName("last_used_at");
+            b.HasIndex(w => w.UserId);
         });
 
         modelBuilder.Entity<RefreshTokenEntity>(b =>
@@ -407,5 +513,92 @@ internal sealed class InitialIdentityMigration : Migration
         migrationBuilder.DropTable(name: "sessions", schema: "wp_identity");
         migrationBuilder.DropTable(name: "password_history", schema: "wp_identity");
         migrationBuilder.DropTable(name: "users", schema: "wp_identity");
+    }
+}
+
+[DbContext(typeof(IdentityPostgresDbContext))]
+[Migration("20261114120000_MfaAndClientBinding")]
+internal sealed class MfaAndClientBindingMigration : Migration
+{
+    protected override void Up(MigrationBuilder migrationBuilder)
+    {
+        migrationBuilder.AddColumn<bool>(
+            name: "workstation_verified",
+            schema: "wp_identity",
+            table: "sessions",
+            type: "boolean",
+            nullable: false,
+            defaultValue: false);
+
+        migrationBuilder.CreateTable(
+            name: "mfa_totp",
+            schema: "wp_identity",
+            columns: table => new
+            {
+                user_id = table.Column<Guid>(type: "uuid", nullable: false),
+                secret_id = table.Column<Guid>(type: "uuid", nullable: false),
+                created_at = table.Column<DateTimeOffset>(type: "timestamp(3) with time zone", nullable: false),
+                confirmed_at = table.Column<DateTimeOffset>(type: "timestamp(3) with time zone", nullable: true),
+                last_used_step = table.Column<long>(type: "bigint", nullable: false),
+            },
+            constraints: table => table.PrimaryKey("pk_mfa_totp", x => x.user_id));
+
+        migrationBuilder.CreateTable(
+            name: "mfa_recovery_codes",
+            schema: "wp_identity",
+            columns: table => new
+            {
+                id = table.Column<Guid>(type: "uuid", nullable: false),
+                user_id = table.Column<Guid>(type: "uuid", nullable: false),
+                hash = table.Column<string>(type: "text", nullable: false),
+                created_at = table.Column<DateTimeOffset>(type: "timestamp(3) with time zone", nullable: false),
+                used_at = table.Column<DateTimeOffset>(type: "timestamp(3) with time zone", nullable: true),
+            },
+            constraints: table => table.PrimaryKey("pk_mfa_recovery_codes", x => x.id));
+
+        migrationBuilder.CreateIndex(
+            name: "ix_mfa_recovery_codes_user_id",
+            schema: "wp_identity",
+            table: "mfa_recovery_codes",
+            column: "user_id");
+
+        migrationBuilder.CreateTable(
+            name: "webauthn_credentials",
+            schema: "wp_identity",
+            columns: table => new
+            {
+                id = table.Column<Guid>(type: "uuid", nullable: false),
+                user_id = table.Column<Guid>(type: "uuid", nullable: false),
+                credential_id = table.Column<byte[]>(type: "bytea", nullable: false),
+                public_key = table.Column<byte[]>(type: "bytea", nullable: false),
+                sign_count = table.Column<long>(type: "bigint", nullable: false),
+                transports = table.Column<string>(type: "text", nullable: false),
+                name = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
+                aaguid = table.Column<Guid>(type: "uuid", nullable: false),
+                created_at = table.Column<DateTimeOffset>(type: "timestamp(3) with time zone", nullable: false),
+                last_used_at = table.Column<DateTimeOffset>(type: "timestamp(3) with time zone", nullable: true),
+            },
+            constraints: table => table.PrimaryKey("pk_webauthn_credentials", x => x.id));
+
+        migrationBuilder.CreateIndex(
+            name: "ix_webauthn_credentials_credential_id",
+            schema: "wp_identity",
+            table: "webauthn_credentials",
+            column: "credential_id",
+            unique: true);
+
+        migrationBuilder.CreateIndex(
+            name: "ix_webauthn_credentials_user_id",
+            schema: "wp_identity",
+            table: "webauthn_credentials",
+            column: "user_id");
+    }
+
+    protected override void Down(MigrationBuilder migrationBuilder)
+    {
+        migrationBuilder.DropTable(name: "webauthn_credentials", schema: "wp_identity");
+        migrationBuilder.DropTable(name: "mfa_recovery_codes", schema: "wp_identity");
+        migrationBuilder.DropTable(name: "mfa_totp", schema: "wp_identity");
+        migrationBuilder.DropColumn(name: "workstation_verified", schema: "wp_identity", table: "sessions");
     }
 }

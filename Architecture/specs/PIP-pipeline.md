@@ -206,6 +206,10 @@ transaction committed; if the log stays unavailable for `Log:AppendTimeout` the 
 error is logged (1611) and consumers see a gap in `revision` (they then read the registry again).
 Until REG persists its revision it restarts at 1 with the node: consumers order by log sequence.
 
+**Known limitation (until T1.09b, see REG §9).** Registry changes are not yet published through a
+transactional outbox: a `registry.changed` record can be missing after a log outage longer than
+`Log:AppendTimeout` or a node stop between commit and publish, and the revision is not persisted.
+
 ### 5.4 Writer and reader contracts
 
 ```csharp

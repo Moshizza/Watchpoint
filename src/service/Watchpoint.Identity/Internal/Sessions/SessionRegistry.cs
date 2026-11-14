@@ -71,6 +71,7 @@ internal sealed class SessionRegistry : ISessionRegistry, IDisposable
             ExpiresAt = session.ExpiresAt,
             RevokedAt = session.RevokedAt,
             RevokedReason = session.RevokedReason,
+            WorkstationVerified = session.WorkstationVerified,
         });
 
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
@@ -148,7 +149,8 @@ internal sealed class SessionRegistry : ISessionRegistry, IDisposable
             entity.LastActivityAt,
             entity.ExpiresAt,
             entity.RevokedAt,
-            entity.RevokedReason);
+            entity.RevokedReason,
+            entity.WorkstationVerified);
     }
 
     public IReadOnlyList<Session> ListActive(SessionQuery query)
