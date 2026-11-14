@@ -64,6 +64,9 @@
     <PackageVersion Include="MQTTnet" Version="4.3.7.1207" />
     <PackageVersion Include="Polly.Core" Version="8.9.1" />
 
+    <!-- Integration runtime: Ed25519 package signatures (spec IRT §2, §4.4) -->
+    <PackageVersion Include="NSec.Cryptography" Version="26.4.0" />
+
     <!-- Secrets (Windows DPAPI master key provider) -->
     <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.14" />
     <!-- Spikes (tools/spikes) -->

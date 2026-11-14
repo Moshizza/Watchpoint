@@ -78,6 +78,11 @@
         "resolved": "1.1.1",
         "contentHash": "odwOyzj/J/lHJZNwFWJGU/LRecBShupAJ2S8TQqZfhUe9niHzu/voBYK5wuVKsvSpzbfupKQYZguVyIk1sgOkQ=="
       },
+      "libsodium": {
+        "type": "Transitive",
+        "resolved": "1.0.22",
+        "contentHash": "KPD9SloJFclrsjnhABu7dzWrcyYkwPbvx5l1gRSPAX/0n+OBtSiVCKtGFv4n+ecWUHU0tCG9LSSwoZZx673zBQ=="
+      },
       "Microsoft.ApplicationInsights": {
         "type": "Transitive",
         "resolved": "2.23.0",
@@ -588,6 +593,8 @@
           "Serilog.Sinks.File": "[7.0.0, )",
           "Watchpoint.Hosting": "[1.0.0, )",
           "Watchpoint.Identity": "[1.0.0, )",
+          "Watchpoint.Integrations": "[1.0.0, )",
+          "Watchpoint.Model": "[1.0.0, )",
           "Watchpoint.Storage": "[1.0.0, )",
           "Watchpoint.Storage.Postgres": "[1.0.0, )"
         }
@@ -665,6 +672,19 @@
           "Watchpoint.Kernel.Testing": "[1.0.0, )",
           "xunit.v3.assert": "[4.0.2, )",
           "xunit.v3.extensibility.core": "[4.0.2, )"
+        }
+      },
+      "watchpoint.integrations": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore.Relational": "[10.0.14, )",
+          "NSec.Cryptography": "[26.4.0, )",
+          "Watchpoint.Integration.Abstractions": "[1.0.0, )",
+          "Watchpoint.Integration.Sdk": "[1.0.0, )",
+          "Watchpoint.Kernel": "[1.0.0, )",
+          "Watchpoint.Model": "[1.0.0, )",
+          "Watchpoint.Model.Documents": "[1.0.0, )",
+          "Watchpoint.Storage": "[1.0.0, )"
         }
       },
       "watchpoint.kernel": {
@@ -978,6 +998,15 @@
           "Microsoft.EntityFrameworkCore": "[10.0.4, 11.0.0)",
           "Microsoft.EntityFrameworkCore.Relational": "[10.0.4, 11.0.0)",
           "Npgsql": "10.0.3"
+        }
+      },
+      "NSec.Cryptography": {
+        "type": "CentralTransitive",
+        "requested": "[26.4.0, )",
+        "resolved": "26.4.0",
+        "contentHash": "0vsCtY5f+YgQROiWNqzgWp+l2pddfk9FkWoGV/bEo0MuEYPKlJWuoA8aOfO6qp3f+EnObKE3zSJhn1PspJeJVg==",
+        "dependencies": {
+          "libsodium": "[1.0.22, 1.0.23)"
         }
       },
       "OpenTelemetry": {

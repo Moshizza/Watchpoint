@@ -16,5 +16,27 @@
       "out_of_range": "Value must be between {min} and {max}.",
       "required": "This field is required."
     }
+  },
+  "irt": {
+    "package": {
+      "not_found": "Package {package} {version} was not found.",
+      "unsigned": "The package is not signed.",
+      "signature_invalid": "The package signature does not match its manifest ({reason}).",
+      "untrusted_key": "The package is signed with an untrusted key ({keyId}).",
+      "unsafe_archive": "The package archive was refused ({reason}).",
+      "hash_mismatch": "The file {file} does not match the hash listed in the manifest.",
+      "file_unlisted": "The file {file} is not listed in the manifest.",
+      "contract_unsupported": "The package requires integration contract {required}; this version supports {runtime}.",
+      "product_too_old": "The package requires Watchpoint {required} or later (installed: {product}).",
+      "platform_unsupported": "The package does not support this platform ({platform}).",
+      "connector_invalid": "The connector class {class} is invalid ({reason}).",
+      "not_active": "Package {package} {version} is not active.",
+      "shared_assembly_shadowed": "The package ships its own copy of the shared assembly {assembly}; the host's copy is used.",
+      "version_conflict": "Package {package} {version} is already provided by {other}.",
+      "unreadable": "The package could not be read ({reason}).",
+      "file_missing": "The package file {file} is missing; connections still use this version.",
+      "reserved_id": "The package id {package} is reserved for Watchpoint packages.",
+      "file_name_invalid": "The file name {fileName} is not allowed; use name.wpkg."
+    }
   }
 }

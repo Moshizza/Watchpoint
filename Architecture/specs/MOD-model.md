@@ -212,6 +212,10 @@ public interface ITypeResources
 - Package-defined type ids must start with `vendor.`; package-defined capability ids must start
   with `vendor` followed by a dot segment (`vendor.saltoDnd`) — otherwise
   `model.package.reserved_namespace`. Packages may reference standard types and capabilities.
+  **First-party packages** (package id `watchpoint.*`, e.g. the simulator with `sim.server`) are
+  exempt: they may define ids outside `vendor.` (never an id of the standard library, see the
+  conflict rule below). IRT §4.3 only accepts a `watchpoint.*` package from the builtin folder or
+  signed with a release key.
 - Same `(id, version)` registered by two different sources → `model.document.conflict`.
 - Re-registering the same package version with identical document hashes is a no-op; with
   different content → `model.document.conflict` (versions are immutable).

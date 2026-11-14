@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Integration runtime (Architecture/specs/IRT-integration-runtime.md): packages (T1.15), connections (T1.16). -->
+  <PropertyGroup>
+    <RootNamespace>Watchpoint.Integrations</RootNamespace>
+    <Description>Integration runtime: package discovery, verification, catalogue and load contexts (spec IRT).</Description>
+  </PropertyGroup>
+
+  <!-- ASP.NET Core shared framework: the package endpoints (IRT §10), health checks, logging and metrics abstractions. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="NSec.Cryptography" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Watchpoint.Kernel/Watchpoint.Kernel.csproj" />
+    <ProjectReference Include="../Watchpoint.Model.Documents/Watchpoint.Model.Documents.csproj" />
+    <ProjectReference Include="../Watchpoint.Model/Watchpoint.Model.csproj" />
+    <ProjectReference Include="../Watchpoint.Storage/Watchpoint.Storage.csproj" />
+    <ProjectReference Include="../../integrations/Watchpoint.Integration.Abstractions/Watchpoint.Integration.Abstractions.csproj" />
+    <!-- Shared with packages (IRT §5): the host's copy is the one every load context uses. -->
+    <ProjectReference Include="../../integrations/Watchpoint.Integration.Sdk/Watchpoint.Integration.Sdk.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Watchpoint.Integrations.Tests" />
+    <InternalsVisibleTo Include="Watchpoint.IntegrationTests" />
+  </ItemGroup>
+
+</Project>

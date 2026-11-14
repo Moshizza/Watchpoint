@@ -16,5 +16,27 @@
       "out_of_range": "La valeur doit être comprise entre {min} et {max}.",
       "required": "Ce champ est obligatoire."
     }
+  },
+  "irt": {
+    "package": {
+      "not_found": "Le paquet {package} {version} est introuvable.",
+      "unsigned": "Le paquet n'est pas signé.",
+      "signature_invalid": "La signature du paquet ne correspond pas à son manifeste ({reason}).",
+      "untrusted_key": "Le paquet est signé avec une clé non approuvée ({keyId}).",
+      "unsafe_archive": "L'archive du paquet a été refusée ({reason}).",
+      "hash_mismatch": "Le fichier {file} ne correspond pas à l'empreinte indiquée dans le manifeste.",
+      "file_unlisted": "Le fichier {file} n'est pas listé dans le manifeste.",
+      "contract_unsupported": "Le paquet requiert le contrat d'intégration {required} ; cette version prend en charge {runtime}.",
+      "product_too_old": "Le paquet requiert Watchpoint {required} ou plus récent (installé : {product}).",
+      "platform_unsupported": "Le paquet ne prend pas en charge cette plateforme ({platform}).",
+      "connector_invalid": "La classe de connecteur {class} est invalide ({reason}).",
+      "not_active": "Le paquet {package} {version} n'est pas actif.",
+      "shared_assembly_shadowed": "Le paquet embarque sa propre copie de l'assemblage partagé {assembly} ; la copie de l'hôte est utilisée.",
+      "version_conflict": "Le paquet {package} {version} est déjà fourni par {other}.",
+      "unreadable": "Le paquet n'a pas pu être lu ({reason}).",
+      "file_missing": "Le fichier du paquet {file} est manquant ; des connexions utilisent encore cette version.",
+      "reserved_id": "L'identifiant de paquet {package} est réservé aux paquets Watchpoint.",
+      "file_name_invalid": "Le nom de fichier {fileName} n'est pas autorisé ; utilisez nom.wpkg."
+    }
   }
 }
