@@ -9,7 +9,7 @@ namespace Watchpoint.Integration.Sdk.Logging;
 /// </summary>
 public static partial class RedactionExtensions
 {
-    private static readonly Regex DefaultSecretRegex = new(
+    private static readonly Regex _defaultSecretRegex = new(
         @"(?i)(""(?:password|secret|token|apikey|authorization|bearer|cookie)""\s*:\s*"")[^""]*("")|((?:password|secret|token|apikey|authorization)\s*=\s*)[^\s&;]+",
         RegexOptions.Compiled);
 
@@ -26,7 +26,7 @@ public static partial class RedactionExtensions
             return message;
         }
 
-        var masked = DefaultSecretRegex.Replace(message, match =>
+        var masked = _defaultSecretRegex.Replace(message, match =>
         {
             if (match.Groups[1].Success)
             {

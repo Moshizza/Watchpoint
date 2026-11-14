@@ -139,7 +139,7 @@ internal sealed class NatsCluster : IAsyncDisposable
         return ValueTask.CompletedTask;
     }
 
-    private static readonly Lock LogLock = new();
+    private static readonly Lock _logLock = new();
 
     private static void Append(string path, string? line)
     {
@@ -148,7 +148,7 @@ internal sealed class NatsCluster : IAsyncDisposable
             return;
         }
 
-        lock (LogLock)
+        lock (_logLock)
         {
             File.AppendAllText(path, line + "\n");
         }

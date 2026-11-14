@@ -10,7 +10,7 @@ namespace Watchpoint.Hosting;
 /// </summary>
 public sealed class ModuleEnricher : ILogEventEnricher
 {
-    private static readonly Regex ModuleRegex = new(@"^Watchpoint\.([A-Za-z0-9]+)", RegexOptions.Compiled);
+    private static readonly Regex _moduleRegex = new(@"^Watchpoint\.([A-Za-z0-9]+)", RegexOptions.Compiled);
 
     /// <inheritdoc />
     public void Enrich(LogEvent logEvent, ILogEventPropertyFactory propertyFactory)
@@ -18,7 +18,7 @@ public sealed class ModuleEnricher : ILogEventEnricher
         if (logEvent.Properties.TryGetValue("SourceContext", out var sourceContextValue) &&
             sourceContextValue is ScalarValue { Value: string sourceContext })
         {
-            var match = ModuleRegex.Match(sourceContext);
+            var match = _moduleRegex.Match(sourceContext);
             if (match.Success)
             {
                 var moduleName = match.Groups[1].Value;
