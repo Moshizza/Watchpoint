@@ -693,8 +693,10 @@ public class ExpressionsTests
     }
 
     [Fact]
-    public void EXP_U_040_Evaluator_handles_benchmark_under_one_microsecond_typical()
+    public void EXP_U_040_Evaluator_hot_path_is_allocation_free()
     {
+        // EXP §5 performance target: no allocations on the hot path. Unit tests do not measure
+        // wall-clock time (TST §4.7); the < 1 µs typical latency is a benchmark target.
         var env = ExpressionEnvironment.ForAlarm([CreateDoorType()]);
         var res = _compiler.Compile("device.doorPosition.position == \"open\"", env, ExpectedType.Bool);
         res.Success.ShouldBeTrue();
@@ -707,24 +709,31 @@ public class ExpressionsTests
         dev.SetMember("doorPosition.position", WpValue.Enum("open"));
         ctx.SetVariable("device", dev);
 
-        // Warm up
+        var expression = res.Expression!;
+
+        // Warm up: JIT and tiered compilation allocate on the first calls.
         for (var i = 0; i < 1000; i++)
         {
-            res.Expression!.Evaluate(ctx);
+            expression.Evaluate(ctx);
         }
 
-        // Measure batch of 10,000 evaluations
-        var start = time.GetTimestamp();
-        const int iterations = 10000;
+        const int iterations = 10_000;
+        var trueCount = 0;
+        var before = GC.GetAllocatedBytesForCurrentThread();
         for (var i = 0; i < iterations; i++)
         {
-            res.Expression!.Evaluate(ctx);
+            if (expression.Evaluate(ctx).AsCondition())
+            {
+                trueCount++;
+            }
         }
 
-        var elapsed = time.GetElapsedTime(start);
-        var usPerOp = elapsed.TotalMicroseconds / iterations;
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
 
-        // Typical condition evaluates in < 10 µs even in debug/test runner mode
-        usPerOp.ShouldBeLessThan(50.0);
+        // Any per-evaluation heap object costs at least 24 bytes, i.e. >= 240,000 bytes here. A few
+        // hundred bytes total can come from the runtime itself (tiered JIT, on-stack replacement),
+        // so the limit is below one byte per evaluation rather than exactly zero.
+        trueCount.ShouldBe(iterations);
+        allocated.ShouldBeLessThan(iterations, $"{iterations} evaluations allocated {allocated} bytes");
     }
 }
