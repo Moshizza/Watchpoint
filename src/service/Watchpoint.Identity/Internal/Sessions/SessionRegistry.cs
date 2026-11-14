@@ -97,7 +97,7 @@ internal sealed class SessionRegistry : ISessionRegistry, IDisposable
 
             var now = _clock.GetUtcNow();
             using var db = _dbFactory.CreateDbContext();
-            
+
             // Filtered in memory: the SQLite provider of the unit tests cannot compare DateTimeOffset.
             foreach (var entity in db.Sessions.AsNoTracking().AsEnumerable().Where(s => s.ExpiresAt > now))
             {
