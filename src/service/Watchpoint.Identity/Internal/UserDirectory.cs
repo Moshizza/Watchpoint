@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Watchpoint.Identity.Contracts;
 using Watchpoint.Identity.Internal.Lockout;
 using Watchpoint.Identity.Internal.Passwords;
@@ -24,6 +25,11 @@ internal sealed partial class UserDirectory : IUserDirectory
 
     public event EventHandler<UserChangedEventArgs>? Changed;
 
+    /// <summary>The only login of the break-glass account (spec IDN §11).</summary>
+    internal const string BreakGlassLogin = "breakglass";
+    private readonly Audit.IdentityAuditor _auditor;
+    private readonly ILogger<UserDirectory>? _logger;
+
     public UserDirectory(
         IDbContextFactory<IdentityDbContext> dbFactory,
         ISessionRegistry sessionRegistry,
@@ -31,8 +37,12 @@ internal sealed partial class UserDirectory : IUserDirectory
         Argon2PasswordHasher passwordHasher,
         TimeProvider clock,
         LockoutService? lockout = null,
-        PasswordPolicyOptions? policyOptions = null)
+        PasswordPolicyOptions? policyOptions = null,
+        Audit.IdentityAuditor? auditor = null,
+        ILogger<UserDirectory>? logger = null)
     {
+        _auditor = auditor ?? new Audit.IdentityAuditor(clock ?? throw new ArgumentNullException(nameof(clock)));
+        _logger = logger;
         _lockout = lockout;
         _historyCount = (policyOptions ?? new PasswordPolicyOptions()).HistoryCount;
         _dbFactory = dbFactory ?? throw new ArgumentNullException(nameof(dbFactory));
@@ -161,8 +171,41 @@ internal sealed partial class UserDirectory : IUserDirectory
             effectiveAuthSource = AuthSource.None;
         }
 
+        // Break-glass (spec IDN §11): one account, login `breakglass`, local password, administrator, no password change
+        // flow and no MFA (it must work when everything else fails). Its creation is a critical, audited act.
+        var isBreakGlass = effectiveKind == UserKind.BreakGlass;
+        var effectiveAdministrator = user.Administrator;
+        var effectiveMustChange = user.MustChangePassword;
+        var effectiveMfa = user.Mfa;
+        if (isBreakGlass || loginNorm == BreakGlassLogin)
+        {
+            if (!isBreakGlass)
+            {
+                return IdentityErrors.BreakGlassInvalid("/kind");
+            }
+
+            if (loginNorm != BreakGlassLogin)
+            {
+                return IdentityErrors.BreakGlassInvalid("/login");
+            }
+
+            if (effectiveAuthSource != AuthSource.Local)
+            {
+                return IdentityErrors.BreakGlassInvalid("/authSource");
+            }
+
+            if (await db.Users.AnyAsync(u => u.Kind == nameof(UserKind.BreakGlass) && u.DeletedAt == null, ct).ConfigureAwait(false))
+            {
+                return IdentityErrors.BreakGlassExists();
+            }
+
+            effectiveAdministrator = true;
+            effectiveMustChange = false;
+            effectiveMfa = MfaPolicy.NotRequired;
+        }
+
         // U5: Only administrators can create administrators
-        if (user.Administrator)
+        if (effectiveAdministrator)
         {
             if (ctx.Actor is { } actorId)
             {
@@ -204,7 +247,7 @@ internal sealed partial class UserDirectory : IUserDirectory
             TimeZone = user.TimeZone,
             Kind = effectiveKind.ToString(),
             Enabled = user.Enabled,
-            Administrator = user.Administrator,
+            Administrator = effectiveAdministrator,
             AuthSource = effectiveAuthSource.ToString(),
             ExternalId = user.ExternalId,
             ExternalProvider = user.ExternalProvider,
@@ -213,10 +256,10 @@ internal sealed partial class UserDirectory : IUserDirectory
             AllowedClientsJson = JsonSerializer.Serialize(user.AllowedClients?.Select(c => c.ToString()) ?? []),
             AllowedWorkstationsJson = JsonSerializer.Serialize(user.AllowedWorkstations ?? []),
             SessionPolicyJson = JsonSerializer.Serialize(user.SessionPolicy ?? SessionPolicy.Default),
-            MfaPolicy = user.Mfa.ToString(),
+            MfaPolicy = effectiveMfa.ToString(),
             PasswordHash = passwordHash,
             PasswordChangedAt = passwordHash is not null ? now : null,
-            MustChangePassword = user.MustChangePassword,
+            MustChangePassword = effectiveMustChange,
             LastSignInAt = null,
             Notes = user.Notes,
             DeletedAt = null,
@@ -239,9 +282,26 @@ internal sealed partial class UserDirectory : IUserDirectory
         }
 
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        if (isBreakGlass)
+        {
+            await AuditBreakGlassAccountAsync("created", id, ctx, ct).ConfigureAwait(false);
+        }
+
         Changed?.Invoke(this, new UserChangedEventArgs(id, "Created"));
 
         return id;
+    }
+
+    // Nothing about the break-glass account changes silently: log 2731 and a critical audit record.
+    private async Task AuditBreakGlassAccountAsync(string action, UserId id, ChangeContext ctx, CancellationToken ct)
+    {
+        if (_logger is not null)
+        {
+            IdentityLog.BreakGlassAccountChanged(_logger, action, id.ToString(), ctx.Actor?.ToString() ?? "system");
+        }
+
+        await _auditor.RecordAsync("identity.breakGlassAccountChanged", IdentityAuditOutcome.Success, ctx.Actor, id, IdentityAuditSeverity.Critical, ct, ctx.Comment,
+            ("action", action), ("origin", ctx.Origin)).ConfigureAwait(false);
     }
 
     public async Task<Result> UpdateAsync(UserId id, UserUpdate update, long expectedVersion, ChangeContext ctx, CancellationToken ct)
@@ -269,6 +329,37 @@ internal sealed partial class UserDirectory : IUserDirectory
                 update.Kind.HasValue && update.Kind.Value.ToString() != entity.Kind)
             {
                 return IdentityErrors.SelfChangeForbidden();
+            }
+        }
+
+        // Break-glass (spec IDN §11): the account keeps its kind, administrator flag, local authentication and MFA
+        // exemption; no other account becomes break-glass by update.
+        var isBreakGlass = entity.Kind == nameof(UserKind.BreakGlass);
+        if (update.Kind == UserKind.BreakGlass && !isBreakGlass)
+        {
+            return IdentityErrors.BreakGlassInvalid("/kind");
+        }
+
+        if (isBreakGlass)
+        {
+            if (update.Kind is { } newKind && newKind != UserKind.BreakGlass)
+            {
+                return IdentityErrors.BreakGlassInvalid("/kind");
+            }
+
+            if (update.Administrator is false)
+            {
+                return IdentityErrors.BreakGlassInvalid("/administrator");
+            }
+
+            if (update.AuthSource is { } newSource && newSource != AuthSource.Local)
+            {
+                return IdentityErrors.BreakGlassInvalid("/authSource");
+            }
+
+            if (update.Mfa is { } newMfa && newMfa != MfaPolicy.NotRequired)
+            {
+                return IdentityErrors.BreakGlassInvalid("/mfa");
             }
         }
 
@@ -305,6 +396,7 @@ internal sealed partial class UserDirectory : IUserDirectory
         }
 
         // Apply updates
+        var wasEnabled = entity.Enabled;
         if (update.DisplayName is not null) entity.DisplayName = update.DisplayName;
         if (update.Email is not null) entity.Email = update.Email;
         if (update.Phone is not null) entity.Phone = update.Phone;
@@ -324,10 +416,16 @@ internal sealed partial class UserDirectory : IUserDirectory
         if (update.Mfa is { } mfa) entity.MfaPolicy = mfa.ToString();
         if (update.Notes is not null) entity.Notes = update.Notes;
 
+        var breakGlassEnabled = isBreakGlass && update.Enabled is true && !wasEnabled;
         entity.RowVersion++;
         entity.UpdatedAt = now;
 
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        if (breakGlassEnabled)
+        {
+            await AuditBreakGlassAccountAsync("enabled", id, ctx, ct).ConfigureAwait(false);
+        }
 
         // Automatic revocation if disabled or admin flag removed (spec IDN §6.3)
         // ... or the kind became one that cannot sign in (U2)
@@ -420,6 +518,11 @@ internal sealed partial class UserDirectory : IUserDirectory
         await AddToHistoryAsync(db, id, newHash, now, ct).ConfigureAwait(false);
 
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        if (entity.Kind == nameof(UserKind.BreakGlass))
+        {
+            await AuditBreakGlassAccountAsync("passwordReset", id, ctx, ct).ConfigureAwait(false);
+        }
 
         // Admin reset revokes all sessions of the user
         await _sessionRegistry.RevokeAllAsync(id, "Password reset by administrator", ctx.Actor, ct).ConfigureAwait(false);

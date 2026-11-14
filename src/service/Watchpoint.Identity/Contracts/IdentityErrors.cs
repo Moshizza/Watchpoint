@@ -106,6 +106,62 @@ public static class IdentityErrors
     public static Error PasswordIncorrect() =>
         Error.Validation("common.validation.failed", [FieldError.Create("/current", ErrorCode.FromTrusted("identity.password.incorrect"))]);
 
+    /// <summary>Validation: the break-glass sign-in needs a reason (spec IDN §11).</summary>
+    public static Error ReasonRequired() =>
+        Error.Validation("common.validation.failed", [FieldError.Create("/reason", ErrorCode.FromTrusted("identity.signin.reason_required"))]);
+
+    /// <summary>Forbidden: a configuration session needs a workstation verified by its certificate (spec IDN §12).</summary>
+    public static Error WorkstationNotVerified() =>
+        Error.Create(ErrorKind.Forbidden, "identity.signin.workstation_not_verified");
+
+    /// <summary>TooManyRequests: the user's concurrent session limit is reached (spec IDN §6.1 step 6).</summary>
+    public static Error SessionLimitReached(int max) =>
+        Error.Create(ErrorKind.TooManyRequests, "identity.session.limit_reached", ("max", max));
+
+    /// <summary>NotFound: Session does not exist.</summary>
+    public static Error SessionNotFound(SessionId id) =>
+        Error.Create(ErrorKind.NotFound, "identity.session.not_found", ("sessionId", id.ToString()));
+
+    /// <summary>Forbidden: the actor may not see or revoke this session.</summary>
+    public static Error SessionForbidden() =>
+        Error.Create(ErrorKind.Forbidden, "identity.session.forbidden");
+
+    /// <summary>Unprocessable: no MFA method is enrolled for the user.</summary>
+    public static Error MfaNotEnrolled() =>
+        Error.Create(ErrorKind.Unprocessable, "identity.mfa.not_enrolled");
+
+    /// <summary>Conflict: TOTP is already enrolled and confirmed; reset it first.</summary>
+    public static Error MfaAlreadyEnrolled() =>
+        Error.Create(ErrorKind.Conflict, "identity.mfa.already_enrolled");
+
+    /// <summary>Validation: the code given to confirm an enrolment is wrong.</summary>
+    public static Error MfaCodeInvalid() =>
+        Error.Validation("common.validation.failed", [FieldError.Create("/code", ErrorCode.FromTrusted("identity.mfa.code_invalid"))]);
+
+    /// <summary>Unprocessable: WebAuthn is not configured on this site (<c>Identity:WebAuthn:RpId</c>).</summary>
+    public static Error WebAuthnNotConfigured() =>
+        Error.Create(ErrorKind.Unprocessable, "identity.webauthn.not_configured");
+
+    /// <summary>Unavailable: the secrets vault needed for MFA secrets is not available.</summary>
+    public static Error MfaVaultUnavailable() =>
+        Error.Create(ErrorKind.Unavailable, "identity.mfa.vault_unavailable");
+
+    /// <summary>Forbidden: a step-up proof is required or invalid (spec IDN §10, CMD critical commands).</summary>
+    public static Error StepUpRequired() =>
+        Error.Create(ErrorKind.Forbidden, "identity.stepup.required");
+
+    /// <summary>Forbidden: the step-up factor was wrong. No detail.</summary>
+    public static Error StepUpInvalid() =>
+        Error.Create(ErrorKind.Forbidden, "identity.stepup.invalid");
+
+    /// <summary>Conflict: a break-glass account already exists (spec IDN §11).</summary>
+    public static Error BreakGlassExists() =>
+        Error.Create(ErrorKind.Conflict, "identity.breakglass.exists");
+
+    /// <summary>Validation: the break-glass account rules are not met (login <c>breakglass</c>, kind, local authentication, administrator).</summary>
+    public static Error BreakGlassInvalid(string path) =>
+        Error.Validation("common.validation.failed", [FieldError.Create(path, ErrorCode.FromTrusted("identity.breakglass.invalid"))]);
+
     /// <summary>TooManyRequests: Rate limit exceeded.</summary>
     public static Error RateLimited() =>
         Error.Create(ErrorKind.TooManyRequests, "common.rate_limited");

@@ -55,6 +55,114 @@ public static partial class IdentityLog
             new EventId(2730, "BreakGlassUsed"),
             "Break-glass sign-in by {RemoteIp}: {Reason}");
 
+    private static readonly Action<ILogger, string, string, string, Exception?> _breakGlassAccountChanged =
+        LoggerMessage.Define<string, string, string>(
+            LogLevel.Warning,
+            new EventId(2731, "BreakGlassAccountChanged"),
+            "Break-glass account {Action} ({UserId}) by {Actor}");
+
+    private static readonly Action<ILogger, string, string, Exception?> _mfaEnrolled =
+        LoggerMessage.Define<string, string>(
+            LogLevel.Information,
+            new EventId(2740, "MfaEnrolled"),
+            "User {UserId} enrolled MFA method {Method}");
+
+    private static readonly Action<ILogger, string, string, Exception?> _mfaReset =
+        LoggerMessage.Define<string, string>(
+            LogLevel.Warning,
+            new EventId(2741, "MfaReset"),
+            "MFA of user {UserId} reset by {Actor}");
+
+    private static readonly Action<ILogger, string, string, Exception?> _mfaVerificationFailed =
+        LoggerMessage.Define<string, string>(
+            LogLevel.Warning,
+            new EventId(2742, "MfaVerificationFailed"),
+            "MFA verification failed for user {UserId} ({Method})");
+
+    private static readonly Action<ILogger, string, Exception?> _mfaTokenInvalidated =
+        LoggerMessage.Define<string>(
+            LogLevel.Warning,
+            new EventId(2743, "MfaTokenInvalidated"),
+            "MFA token of user {UserId} invalidated after too many wrong codes");
+
+    private static readonly Action<ILogger, string, string, string, string, Exception?> _auditNormal =
+        LoggerMessage.Define<string, string, string, string>(
+            LogLevel.Information,
+            new EventId(2790, "Audit"),
+            "Audit {Action} {Outcome} actor {Actor} subject {Subject}");
+
+    private static readonly Action<ILogger, string, string, string, string, Exception?> _auditSensitive =
+        LoggerMessage.Define<string, string, string, string>(
+            LogLevel.Warning,
+            new EventId(2791, "AuditSensitive"),
+            "Audit {Action} {Outcome} actor {Actor} subject {Subject}");
+
+    private static readonly Action<ILogger, string, string, string, string, string, Exception?> _auditCritical =
+        LoggerMessage.Define<string, string, string, string, string>(
+            LogLevel.Critical,
+            new EventId(2792, "AuditCritical"),
+            "Audit {Action} {Outcome} actor {Actor} subject {Subject}: {Reason}");
+
+    /// <summary>Logs event 2731 Warning: the break-glass account was created, enabled or its password reset.</summary>
+    public static void BreakGlassAccountChanged(ILogger logger, string action, string userId, string actor)
+    {
+        ArgumentNullException.ThrowIfNull(logger);
+        _breakGlassAccountChanged(logger, action, userId, actor, null);
+    }
+
+    /// <summary>Logs event 2740 Information: an MFA method was enrolled.</summary>
+    public static void MfaEnrolled(ILogger logger, string userId, string method)
+    {
+        ArgumentNullException.ThrowIfNull(logger);
+        _mfaEnrolled(logger, userId, method, null);
+    }
+
+    /// <summary>Logs event 2741 Warning: an administrator reset a user's MFA.</summary>
+    public static void MfaReset(ILogger logger, string userId, string actor)
+    {
+        ArgumentNullException.ThrowIfNull(logger);
+        _mfaReset(logger, userId, actor, null);
+    }
+
+    /// <summary>Logs event 2742 Warning: a second factor was refused.</summary>
+    public static void MfaVerificationFailed(ILogger logger, string userId, string method)
+    {
+        ArgumentNullException.ThrowIfNull(logger);
+        _mfaVerificationFailed(logger, userId, method, null);
+    }
+
+    /// <summary>Logs event 2743 Warning: the MFA token died after five wrong codes.</summary>
+    public static void MfaTokenInvalidated(ILogger logger, string userId)
+    {
+        ArgumentNullException.ThrowIfNull(logger);
+        _mfaTokenInvalidated(logger, userId, null);
+    }
+
+    /// <summary>Logs an audit record as event 2790 (normal), 2791 (sensitive) or 2792 (critical). Details never hold secrets.</summary>
+    public static void AuditRecord(ILogger logger, Contracts.IdentityAuditRecord record)
+    {
+        ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull(record);
+        var actor = record.Actor?.ToString() ?? "system";
+        var subject = record.Subject?.ToString() ?? "-";
+        var outcome = record.Outcome.ToString();
+        using (logger.BeginScope(record.Details))
+        {
+            switch (record.Severity)
+            {
+                case Contracts.IdentityAuditSeverity.Critical:
+                    _auditCritical(logger, record.Action, outcome, actor, subject, record.Reason ?? "-", null);
+                    break;
+                case Contracts.IdentityAuditSeverity.Sensitive:
+                    _auditSensitive(logger, record.Action, outcome, actor, subject, null);
+                    break;
+                default:
+                    _auditNormal(logger, record.Action, outcome, actor, subject, null);
+                    break;
+            }
+        }
+    }
+
     /// <summary>Logs event 2701 Critical: No administrator account exists.</summary>
     public static void NoAdministrator(ILogger logger)
     {

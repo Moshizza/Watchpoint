@@ -1,10 +1,9 @@
-using System.Collections.Concurrent;
-using System.Security.Cryptography;
-using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Watchpoint.Identity.Contracts;
+using Watchpoint.Identity.Internal.Audit;
 using Watchpoint.Identity.Internal.Lockout;
+using Watchpoint.Identity.Internal.Mfa;
 using Watchpoint.Identity.Internal.Passwords;
 using Watchpoint.Identity.Internal.Sessions;
 using Watchpoint.Identity.Internal.Storage;
@@ -15,9 +14,16 @@ using Watchpoint.Storage.Contracts;
 
 namespace Watchpoint.Identity.Internal;
 
-/// <summary>Full local sign-in and token authentication pipeline (spec IDN §6.1).</summary>
+/// <summary>Full local sign-in and token authentication pipeline (spec IDN §6.1, §10, §11, §12).</summary>
 internal sealed class AuthenticationService : IAuthenticationService
 {
+    internal static readonly TimeSpan MfaTokenLifetime = TimeSpan.FromMinutes(5);
+    internal static readonly TimeSpan EnrolmentTokenLifetime = TimeSpan.FromMinutes(10);
+    internal static readonly TimeSpan StepUpLifetime = TimeSpan.FromMinutes(5);
+    internal static readonly TimeSpan BreakGlassSessionLength = TimeSpan.FromHours(2);
+    internal const int MaxMfaFailures = 5;
+    internal const int MaxReasonLength = 512;
+
     private readonly IDbContextFactory<IdentityDbContext> _dbFactory;
     private readonly IUserDirectory _userDirectory;
     private readonly Argon2PasswordHasher _hasher;
@@ -28,12 +34,15 @@ internal sealed class AuthenticationService : IAuthenticationService
     private readonly SignInRateLimiter _rateLimiter;
     private readonly IEnumerable<ISessionAdmission> _admissions;
     private readonly TimeProvider _clock;
+    private readonly MfaService _mfa;
+    private readonly IdentityAuditor _auditor;
+    private readonly IPermissionSummaryProvider _permissions;
+    private readonly ClientBindingOptions _binding;
     private readonly AuthenticationOptions _options;
     private readonly ILogger<AuthenticationService>? _logger;
 
-    // Change tokens of the MustChangePassword flow, keyed by SHA-256(token): (UserId, ClientContext, ExpiresAt).
-    // One live token per user; single use; dropped when the password changes.
-    private readonly ConcurrentDictionary<string, (UserId UserId, ClientContext Client, DateTimeOffset ExpiresAt)> _changeTokens = new();
+    // Tokens of partial sign-ins (password change, MFA, MFA enrolment) and step-up proofs (spec IDN §6.1 step 7, §10).
+    private readonly PendingTokenStore _pending = new();
 
     public AuthenticationService(
         IDbContextFactory<IdentityDbContext> dbFactory,
@@ -46,8 +55,12 @@ internal sealed class AuthenticationService : IAuthenticationService
         SignInRateLimiter rateLimiter,
         IEnumerable<ISessionAdmission> admissions,
         TimeProvider clock,
+        MfaService mfa,
+        IdentityAuditor auditor,
         AuthenticationOptions? options = null,
-        ILogger<AuthenticationService>? logger = null)
+        ILogger<AuthenticationService>? logger = null,
+        IPermissionSummaryProvider? permissions = null,
+        ClientBindingOptions? binding = null)
     {
         _dbFactory = dbFactory ?? throw new ArgumentNullException(nameof(dbFactory));
         _userDirectory = userDirectory ?? throw new ArgumentNullException(nameof(userDirectory));
@@ -59,8 +72,12 @@ internal sealed class AuthenticationService : IAuthenticationService
         _rateLimiter = rateLimiter ?? throw new ArgumentNullException(nameof(rateLimiter));
         _admissions = (admissions ?? []).OrderBy(a => a.Order).ToList();
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+        _mfa = mfa ?? throw new ArgumentNullException(nameof(mfa));
+        _auditor = auditor ?? throw new ArgumentNullException(nameof(auditor));
         _options = options ?? new AuthenticationOptions();
         _logger = logger;
+        _permissions = permissions ?? new AdministratorPermissionSummaryProvider();
+        _binding = binding ?? new ClientBindingOptions();
     }
 
     public async Task<Result<SignInOutcome>> SignInLocalAsync(SignInRequest request, CancellationToken ct)
@@ -71,10 +88,7 @@ internal sealed class AuthenticationService : IAuthenticationService
         var login = request.Login ?? string.Empty;
         if (!_rateLimiter.TryAcquire(request.Client.RemoteIp, login))
         {
-            if (_logger is not null)
-            {
-                IdentityLog.SignInFailed(_logger, login, request.Client.RemoteIp?.ToString() ?? "", "common.rate_limited");
-            }
+            LogSignInFailed(login, request.Client, "common.rate_limited");
             return IdentityErrors.RateLimited();
         }
 
@@ -97,10 +111,7 @@ internal sealed class AuthenticationService : IAuthenticationService
         if (string.IsNullOrWhiteSpace(login) || login.Trim().Length > 64 || !Argon2PasswordHasher.TryNormalize(request.Password, out _))
         {
             await _hasher.VerifyDummyAsync(request.Password, ct).ConfigureAwait(false);
-            if (_logger is not null)
-            {
-                IdentityLog.SignInFailed(_logger, login, request.Client.RemoteIp?.ToString() ?? "", "identity.signin.invalid_credentials");
-            }
+            LogSignInFailed(login, request.Client, "identity.signin.invalid_credentials");
             return IdentityErrors.InvalidCredentials();
         }
 
@@ -109,20 +120,15 @@ internal sealed class AuthenticationService : IAuthenticationService
         if (!userResult.TryGetValue(out var user, out _))
         {
             await _hasher.VerifyDummyAsync(request.Password, ct).ConfigureAwait(false);
-            if (_logger is not null)
-            {
-                IdentityLog.SignInFailed(_logger, login, request.Client.RemoteIp?.ToString() ?? "", "identity.signin.invalid_credentials");
-            }
+            LogSignInFailed(login, request.Client, "identity.signin.invalid_credentials");
             return IdentityErrors.InvalidCredentials();
         }
 
-        if (user.Kind is UserKind.Template or UserKind.Script || user.AuthSource == AuthSource.None)
+        if (user.Kind is UserKind.Template or UserKind.Script || user.AuthSource == AuthSource.None ||
+            (user.Kind == UserKind.BreakGlass && user.AuthSource != AuthSource.Local))
         {
             await _hasher.VerifyDummyAsync(request.Password, ct).ConfigureAwait(false);
-            if (_logger is not null)
-            {
-                IdentityLog.SignInFailed(_logger, request.Login, request.Client.RemoteIp?.ToString() ?? "", "identity.signin.invalid_credentials");
-            }
+            LogSignInFailed(request.Login, request.Client, "identity.signin.invalid_credentials");
             return IdentityErrors.InvalidCredentials();
         }
 
@@ -142,10 +148,7 @@ internal sealed class AuthenticationService : IAuthenticationService
             var (lockedVerify, _) = await _hasher.VerifyPasswordAsync(request.Password, userEntity.PasswordHash, ct).ConfigureAwait(false);
             if (!lockedVerify)
             {
-                if (_logger is not null)
-                {
-                    IdentityLog.SignInFailed(_logger, request.Login, request.Client.RemoteIp?.ToString() ?? "", "identity.signin.invalid_credentials");
-                }
+                LogSignInFailed(request.Login, request.Client, "identity.signin.invalid_credentials");
                 return IdentityErrors.InvalidCredentials();
             }
 
@@ -156,12 +159,10 @@ internal sealed class AuthenticationService : IAuthenticationService
         var (verified, needsRehash) = await _hasher.VerifyPasswordAsync(request.Password, userEntity.PasswordHash, ct).ConfigureAwait(false);
         if (!verified)
         {
-            var (newlyLocked, until) = await _lockoutService.RecordFailureAsync(user.Id, ct).ConfigureAwait(false);
-            if (_logger is not null)
-            {
-                IdentityLog.SignInFailed(_logger, request.Login, request.Client.RemoteIp?.ToString() ?? "", "identity.signin.invalid_credentials");
-            }
-
+            await _lockoutService.RecordFailureAsync(user.Id, ct).ConfigureAwait(false);
+            LogSignInFailed(request.Login, request.Client, "identity.signin.invalid_credentials");
+            await _auditor.RecordAsync("identity.signInFailed", IdentityAuditOutcome.Failure, null, user.Id, IdentityAuditSeverity.Normal, ct, null,
+                ("code", "identity.signin.invalid_credentials"), ("clientKind", request.Client.Kind.ToString()), ("remoteIp", request.Client.RemoteIp?.ToString())).ConfigureAwait(false);
             return IdentityErrors.InvalidCredentials();
         }
 
@@ -173,54 +174,53 @@ internal sealed class AuthenticationService : IAuthenticationService
             await SaveBestEffortAsync(db, ct).ConfigureAwait(false);
         }
 
-        // 5. Status checks: disabled -> disabled; expired -> expired; client kind not allowed -> client_not_allowed; workstation -> workstation_not_allowed
-        if (!user.Enabled)
-        {
-            return IdentityErrors.Disabled();
-        }
-
         var now = _clock.GetUtcNow();
-        if ((user.ValidFrom.HasValue && now < user.ValidFrom.Value) ||
-            (user.ValidUntil.HasValue && now > user.ValidUntil.Value))
-        {
-            return IdentityErrors.Expired();
-        }
 
-        if (user.AllowedClients.Count > 0 && !user.AllowedClients.Contains(request.Client.Kind))
+        // Break-glass (spec IDN §11): a reason, the desktop client; everything it does is audited as critical.
+        var reason = request.Reason?.Trim();
+        if (user.Kind == UserKind.BreakGlass)
         {
-            return IdentityErrors.ClientNotAllowed();
-        }
-
-        if (user.AllowedWorkstations.Count > 0 &&
-            (string.IsNullOrEmpty(request.Client.WorkstationId) || !user.AllowedWorkstations.Contains(request.Client.WorkstationId)))
-        {
-            return IdentityErrors.WorkstationNotAllowed();
-        }
-
-        // 6. ISessionAdmission hooks (all must allow)
-        foreach (var admission in _admissions)
-        {
-            var admissionResult = await admission.AdmitAsync(user, request.Client, AdmissionPhase.SignIn, ct).ConfigureAwait(false);
-            if (!admissionResult.IsSuccess)
+            if (string.IsNullOrEmpty(reason) || reason.Length > MaxReasonLength)
             {
-                return admissionResult.Error;
+                await AuditBreakGlassAsync(user, request.Client, IdentityAuditOutcome.Denied, reason, "identity.signin.reason_required", ct).ConfigureAwait(false);
+                return IdentityErrors.ReasonRequired();
+            }
+
+            if (request.Client.Kind != ClientKind.Desktop)
+            {
+                await AuditBreakGlassAsync(user, request.Client, IdentityAuditOutcome.Denied, reason, "identity.signin.client_not_allowed", ct).ConfigureAwait(false);
+                return IdentityErrors.ClientNotAllowed();
             }
         }
 
-        // Check concurrent session limits (U1 / §6.1 / §6.3)
-        if (user.SessionPolicy.MaxConcurrentSessions > 0)
+        // 5. Status checks: disabled, expired, client kind, browser origin, workstation, enrolled workstation
+        if (await CheckStatusAsync(user, request.Client, now, ct).ConfigureAwait(false) is { } statusError)
         {
-            var activeUserSessions = _sessionRegistry.ListActive(new SessionQuery(UserId: user.Id));
-            if (activeUserSessions.Count >= user.SessionPolicy.MaxConcurrentSessions)
-            {
-                return Error.Create(ErrorKind.TooManyRequests, "identity.session.limit_reached");
-            }
+            return statusError;
+        }
+
+        // 6. ISessionAdmission hooks (all must allow) and the concurrent session limit
+        if (await AdmitAsync(user, request.Client, ct).ConfigureAwait(false) is { } admissionError)
+        {
+            return admissionError;
         }
 
         // 7. If MustChangePassword -> PasswordChangeRequired
         if (user.MustChangePassword)
         {
-            return new SignInOutcome.PasswordChangeRequired(IssueChangeToken(user.Id, request.Client, now));
+            return new SignInOutcome.PasswordChangeRequired(_pending.Issue(PendingKind.PasswordChange, user.Id, request.Client, now, _options.ChangeTokenLifetime));
+        }
+
+        // 8. MFA (spec IDN §10): nothing is issued but a token that can only complete (or enrol) the second factor.
+        if (await _mfa.IsRequiredAsync(user, ct).ConfigureAwait(false))
+        {
+            var status = await _mfa.GetStatusAsync(user.Id, ct).ConfigureAwait(false);
+            if (status.HasMethod)
+            {
+                return new SignInOutcome.MfaRequired(_pending.Issue(PendingKind.Mfa, user.Id, request.Client, now, MfaTokenLifetime), status.Methods);
+            }
+
+            return new SignInOutcome.MfaEnrolmentRequired(_pending.Issue(PendingKind.MfaEnrolment, user.Id, request.Client, now, EnrolmentTokenLifetime));
         }
 
         // 9. Create session and tokens; reset failure count; update LastSignInAt; audit signedIn
@@ -231,13 +231,179 @@ internal sealed class AuthenticationService : IAuthenticationService
         await SaveBestEffortAsync(db, ct).ConfigureAwait(false);
 
         var updatedUser = user with { LastSignInAt = now };
+        await AuditSignedInAsync(user, request.Client, tokenPair.Session, "password", ct).ConfigureAwait(false);
 
-        if (_logger is not null)
+        if (user.Kind == UserKind.BreakGlass)
         {
-            IdentityLog.UserSignedIn(_logger, user.Id.ToString(), request.Client.Kind.ToString(), tokenPair.Session.ToString());
+            await AuditBreakGlassAsync(user, request.Client, IdentityAuditOutcome.Success, reason, null, ct, tokenPair.Session).ConfigureAwait(false);
         }
 
         return new SignInOutcome.Signed(tokenPair, updatedUser);
+    }
+
+    public async Task<Result<TokenPair>> VerifyMfaAsync(MfaVerification verification, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(verification);
+        var now = _clock.GetUtcNow();
+        if (!_pending.TryPeek(verification.MfaToken, PendingKind.Mfa, now, out var entry) || !SameClient(entry.Client, verification.Client))
+        {
+            return IdentityErrors.MfaInvalid();
+        }
+
+        var verified = await _mfa.VerifyAsync(entry.UserId, verification.Method, verification.Code, verification.Assertion, ct).ConfigureAwait(false);
+        if (!verified.IsSuccess)
+        {
+            if (verified.Error.Code.Value is "common.rate_limited" or "identity.mfa.vault_unavailable" or "identity.webauthn.not_configured")
+            {
+                return verified.Error;
+            }
+
+            await CountMfaFailureAsync(verification.MfaToken, entry, verification.Method.ToString().ToLowerInvariant(), ct).ConfigureAwait(false);
+            return IdentityErrors.MfaInvalid();
+        }
+
+        // Single use: a concurrent verification with the same token loses here.
+        if (!_pending.TryTake(verification.MfaToken, PendingKind.Mfa, now, out entry))
+        {
+            return IdentityErrors.MfaInvalid();
+        }
+
+        return await CompleteSignedAsync(entry.UserId, entry.Client, "mfa:" + verification.Method.ToString().ToLowerInvariant(), ct).ConfigureAwait(false);
+    }
+
+    public Task<Result<WebAuthnCeremony>> BeginMfaWebAuthnAsync(string mfaToken, ClientContext client, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        if (!_pending.TryPeek(mfaToken, PendingKind.Mfa, _clock.GetUtcNow(), out var entry) || !SameClient(entry.Client, client))
+        {
+            return Task.FromResult<Result<WebAuthnCeremony>>(IdentityErrors.MfaInvalid());
+        }
+
+        return _mfa.BeginAssertionAsync(entry.UserId, ct);
+    }
+
+    public Task<Result<TotpEnrolment>> BeginMfaEnrolmentAsync(string enrolmentToken, ClientContext client, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        if (!_pending.TryPeek(enrolmentToken, PendingKind.MfaEnrolment, _clock.GetUtcNow(), out var entry) || !SameClient(entry.Client, client))
+        {
+            return Task.FromResult<Result<TotpEnrolment>>(IdentityErrors.TokenInvalid());
+        }
+
+        return _mfa.EnrollTotpAsync(entry.UserId, ct);
+    }
+
+    public async Task<Result<MfaEnrolmentCompleted>> CompleteMfaEnrolmentAsync(string enrolmentToken, string code, ClientContext client, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        var now = _clock.GetUtcNow();
+        if (!_pending.TryPeek(enrolmentToken, PendingKind.MfaEnrolment, now, out var entry) || !SameClient(entry.Client, client))
+        {
+            return IdentityErrors.TokenInvalid();
+        }
+
+        var confirmed = await _mfa.ConfirmTotpAsync(entry.UserId, code, ct).ConfigureAwait(false);
+        if (!confirmed.TryGetValue(out var codes, out var error))
+        {
+            if (error.FieldErrors.Any(f => f.Code.Value == "identity.mfa.code_invalid"))
+            {
+                await CountMfaFailureAsync(enrolmentToken, entry, "totp-enrolment", ct).ConfigureAwait(false);
+            }
+
+            return error;
+        }
+
+        if (!_pending.TryTake(enrolmentToken, PendingKind.MfaEnrolment, now, out entry))
+        {
+            return IdentityErrors.TokenInvalid();
+        }
+
+        var signedIn = await CompleteSignedAsync(entry.UserId, entry.Client, "mfa:totp-enrolment", ct).ConfigureAwait(false);
+        if (!signedIn.TryGetValue(out var tokens, out var signInError))
+        {
+            return signInError;
+        }
+
+        return new MfaEnrolmentCompleted(tokens, codes);
+    }
+
+    public async Task<Result<StepUpProof>> StepUpAsync(SessionId session, StepUpRequest request, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var now = _clock.GetUtcNow();
+        var factors = new[] { request.Password is not null, request.Totp is not null, request.Assertion is not null }.Count(f => f);
+        if (factors != 1 || !_sessionRegistry.Get(session).TryGetValue(out var current, out _) ||
+            current.RevokedAt is not null || _sessionRegistry.IsRevoked(session) || current.ExpiresAt <= now ||
+            !_userDirectory.Get(current.UserId).TryGetValue(out var user, out _) || !user.Enabled)
+        {
+            return IdentityErrors.StepUpInvalid();
+        }
+
+        string method;
+        try
+        {
+            if (request.Password is not null)
+            {
+                method = "password";
+                var (locked, _) = await _lockoutService.CheckLockoutAsync(user.Id, ct).ConfigureAwait(false);
+                await using var db = await _dbFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+                var entity = await db.Users.FindAsync([user.Id], ct).ConfigureAwait(false);
+                var ok = !locked && entity?.PasswordHash is { } hash && Argon2PasswordHasher.TryNormalize(request.Password, out _) &&
+                    (await _hasher.VerifyPasswordAsync(request.Password, hash, ct).ConfigureAwait(false)).Verified;
+                if (!ok)
+                {
+                    // A stolen session must not allow unlimited guesses of the password.
+                    await _lockoutService.RecordFailureAsync(user.Id, ct).ConfigureAwait(false);
+                    await _auditor.RecordAsync("identity.stepUp", IdentityAuditOutcome.Failure, user.Id, user.Id, IdentityAuditSeverity.Normal, ct, null, ("method", method), ("sessionId", session.ToString())).ConfigureAwait(false);
+                    return IdentityErrors.StepUpInvalid();
+                }
+            }
+            else
+            {
+                method = request.Totp is not null ? "totp" : "webauthn";
+                var verified = await _mfa.VerifyAsync(user.Id, request.Totp is not null ? MfaMethod.Totp : MfaMethod.WebAuthn, request.Totp, request.Assertion, ct).ConfigureAwait(false);
+                if (!verified.IsSuccess)
+                {
+                    if (verified.Error.Code.Value == "common.rate_limited")
+                    {
+                        return verified.Error;
+                    }
+
+                    await _lockoutService.RecordFailureAsync(user.Id, ct).ConfigureAwait(false);
+                    await _auditor.RecordAsync("identity.stepUp", IdentityAuditOutcome.Failure, user.Id, user.Id, IdentityAuditSeverity.Normal, ct, null, ("method", method), ("sessionId", session.ToString())).ConfigureAwait(false);
+                    return IdentityErrors.StepUpInvalid();
+                }
+            }
+        }
+        catch (HashPoolBusyException)
+        {
+            return IdentityErrors.RateLimited();
+        }
+
+        var client = new ClientContext(current.ClientKind, current.ClientInstanceId, current.WorkstationId);
+        var token = _pending.Issue(PendingKind.StepUp, user.Id, client, now, StepUpLifetime, session);
+        await _auditor.RecordAsync("identity.stepUp", IdentityAuditOutcome.Success, user.Id, user.Id, IdentityAuditSeverity.Normal, ct, null, ("method", method), ("sessionId", session.ToString())).ConfigureAwait(false);
+        return new StepUpProof(token, now + StepUpLifetime);
+    }
+
+    public Task<Result<WebAuthnCeremony>> BeginStepUpWebAuthnAsync(SessionId session, CancellationToken ct)
+    {
+        if (!_sessionRegistry.Get(session).TryGetValue(out var current, out _) || current.RevokedAt is not null || _sessionRegistry.IsRevoked(session))
+        {
+            return Task.FromResult<Result<WebAuthnCeremony>>(IdentityErrors.StepUpInvalid());
+        }
+
+        return _mfa.BeginAssertionAsync(current.UserId, ct);
+    }
+
+    public Result ValidateStepUp(string stepUpToken, SessionId session)
+    {
+        if (!_pending.TryPeek(stepUpToken, PendingKind.StepUp, _clock.GetUtcNow(), out var entry) || entry.Session != session || _sessionRegistry.IsRevoked(session))
+        {
+            return IdentityErrors.StepUpRequired();
+        }
+
+        return Result.Success();
     }
 
     public async Task<Result<TokenPair>> RefreshAsync(string refreshToken, ClientContext client, CancellationToken ct)
@@ -295,6 +461,12 @@ internal sealed class AuthenticationService : IAuthenticationService
             return (IdentityErrors.Expired(), null);
         }
 
+        // A browser can only hold the Web client's session (spec IDN §12).
+        if (client.BrowserOrigin is not null && session.ClientKind != ClientKind.Web)
+        {
+            return (IdentityErrors.RefreshInvalid(), null);
+        }
+
         foreach (var admission in _admissions)
         {
             var admissionResult = await admission.AdmitAsync(user, client, AdmissionPhase.Refresh, ct).ConfigureAwait(false);
@@ -309,20 +481,16 @@ internal sealed class AuthenticationService : IAuthenticationService
 
     public async Task<Result> SignOutAsync(SessionId session, CancellationToken ct)
     {
+        _pending.RemoveSession(session);
         return await _sessionRegistry.RevokeAsync(session, "Explicit sign-out", null, ct).ConfigureAwait(false);
     }
 
-    public async Task<Result<TokenPair>> CompletePasswordChangeAsync(string changeToken, string newPassword, CancellationToken ct)
+    public async Task<Result<SignInOutcome>> CompletePasswordChangeAsync(string changeToken, string newPassword, CancellationToken ct)
     {
         var now = _clock.GetUtcNow();
-        if (string.IsNullOrEmpty(changeToken) || changeToken.Length > 128)
-        {
-            return IdentityErrors.TokenInvalid();
-        }
 
         // Single use: the token is taken out before anything else.
-        var key = HashChangeToken(changeToken);
-        if (!_changeTokens.TryRemove(key, out var entry) || entry.ExpiresAt < now)
+        if (!_pending.TryTake(changeToken, PendingKind.PasswordChange, now, out var entry))
         {
             return IdentityErrors.TokenInvalid();
         }
@@ -335,18 +503,14 @@ internal sealed class AuthenticationService : IAuthenticationService
             return IdentityErrors.TokenInvalid();
         }
 
-        if (CheckStatus(user, entry.Client, now) is { } statusError)
+        if (await CheckStatusAsync(user, entry.Client, now, ct).ConfigureAwait(false) is { } statusError)
         {
             return statusError;
         }
 
-        foreach (var admission in _admissions)
+        if (await AdmitAsync(user, entry.Client, ct, includeSessionLimit: false).ConfigureAwait(false) is { } admissionError)
         {
-            var admissionResult = await admission.AdmitAsync(user, entry.Client, AdmissionPhase.SignIn, ct).ConfigureAwait(false);
-            if (!admissionResult.IsSuccess)
-            {
-                return admissionResult.Error;
-            }
+            return admissionError;
         }
 
         // Apply new password
@@ -365,22 +529,71 @@ internal sealed class AuthenticationService : IAuthenticationService
             // A refused new password (policy, busy pool) does not cost the token: the user can try another one.
             if (changeResult.Error.Kind is ErrorKind.Validation or ErrorKind.TooManyRequests)
             {
-                _changeTokens.TryAdd(key, entry);
+                _pending.Restore(changeToken, entry);
             }
 
             return changeResult.Error;
         }
 
         // The password changed: every other change token of the user dies with the old password.
-        RemoveChangeTokens(user.Id, now);
+        _pending.RemoveAll(user.Id, PendingKind.PasswordChange, now);
 
-        if (!_userDirectory.Get(user.Id).TryGetValue(out var updatedUser, out var updatedError))
+        return await CompleteSignInAsync(user.Id, entry.Client, "password-change", ct).ConfigureAwait(false);
+    }
+
+    // A sign-in completed by a second factor can only end signed (or refused): no further step is pending.
+    private async Task<Result<TokenPair>> CompleteSignedAsync(UserId userId, ClientContext client, string method, CancellationToken ct)
+    {
+        var outcome = await CompleteSignInAsync(userId, client, method, ct).ConfigureAwait(false);
+        if (!outcome.TryGetValue(out var value, out var error))
         {
-            return updatedError;
+            return error;
         }
 
-        // Complete sign-in (step 9)
-        var tokens = await IssueTokensAndCreateSessionAsync(updatedUser, entry.Client, ct).ConfigureAwait(false);
+        return value is SignInOutcome.Signed signed ? signed.Tokens : IdentityErrors.TokenInvalid();
+    }
+
+    /// <summary>
+    /// Final step of a sign-in that went through a pending token (password change, MFA, enrolment): the account is
+    /// checked again (it may have been disabled meanwhile), the second factor is asked when it is still owed (steps 8),
+    /// then the session and tokens are issued (step 9).
+    /// </summary>
+    private async Task<Result<SignInOutcome>> CompleteSignInAsync(UserId userId, ClientContext client, string method, CancellationToken ct)
+    {
+        var now = _clock.GetUtcNow();
+        if (!_userDirectory.Get(userId).TryGetValue(out var user, out _) || user.Kind is UserKind.Template or UserKind.Script)
+        {
+            return IdentityErrors.TokenInvalid();
+        }
+
+        if (await CheckStatusAsync(user, client, now, ct).ConfigureAwait(false) is { } statusError)
+        {
+            return statusError;
+        }
+
+        if (await AdmitAsync(user, client, ct).ConfigureAwait(false) is { } admissionError)
+        {
+            return admissionError;
+        }
+
+        if (user.MustChangePassword)
+        {
+            return IdentityErrors.TokenInvalid();
+        }
+
+        // A sign-in completed by a password change still owes the second factor when one is required.
+        if (!method.StartsWith("mfa:", StringComparison.Ordinal) && await _mfa.IsRequiredAsync(user, ct).ConfigureAwait(false))
+        {
+            var status = await _mfa.GetStatusAsync(user.Id, ct).ConfigureAwait(false);
+            if (status.HasMethod)
+            {
+                return new SignInOutcome.MfaRequired(_pending.Issue(PendingKind.Mfa, user.Id, client, now, MfaTokenLifetime), status.Methods);
+            }
+
+            return new SignInOutcome.MfaEnrolmentRequired(_pending.Issue(PendingKind.MfaEnrolment, user.Id, client, now, EnrolmentTokenLifetime));
+        }
+
+        var tokens = await IssueTokensAndCreateSessionAsync(user, client, ct).ConfigureAwait(false);
         await _lockoutService.ResetFailuresAsync(user.Id, ct).ConfigureAwait(false);
 
         await using (var db = await _dbFactory.CreateDbContextAsync(ct).ConfigureAwait(false))
@@ -393,41 +606,37 @@ internal sealed class AuthenticationService : IAuthenticationService
             }
         }
 
+        await AuditSignedInAsync(user, client, tokens.Session, method, ct).ConfigureAwait(false);
+        return new SignInOutcome.Signed(tokens, user with { LastSignInAt = now });
+    }
+
+    private async Task CountMfaFailureAsync(string token, PendingEntry entry, string method, CancellationToken ct)
+    {
+        var failures = _pending.RecordFailure(token);
+        await _lockoutService.RecordFailureAsync(entry.UserId, ct).ConfigureAwait(false);
         if (_logger is not null)
         {
-            IdentityLog.UserSignedIn(_logger, user.Id.ToString(), entry.Client.Kind.ToString(), tokens.Session.ToString());
+            IdentityLog.MfaVerificationFailed(_logger, entry.UserId.ToString(), method);
         }
 
-        return tokens;
-    }
+        await _auditor.RecordAsync("identity.mfaVerifyFailed", IdentityAuditOutcome.Failure, null, entry.UserId, IdentityAuditSeverity.Normal, ct, null,
+            ("method", method), ("clientKind", entry.Client.Kind.ToString()), ("remoteIp", entry.Client.RemoteIp?.ToString())).ConfigureAwait(false);
 
-    private string IssueChangeToken(UserId userId, ClientContext client, DateTimeOffset now)
-    {
-        RemoveChangeTokens(userId, now);
-        var token = Base64UrlEncoder(RandomNumberGenerator.GetBytes(32));
-        _changeTokens[HashChangeToken(token)] = (userId, client, now + _options.ChangeTokenLifetime);
-        return token;
-    }
-
-    // Removes the tokens of a user and, in passing, every expired token (the map stays small).
-    private void RemoveChangeTokens(UserId userId, DateTimeOffset now)
-    {
-        foreach (var pair in _changeTokens)
+        if (failures >= MaxMfaFailures)
         {
-            if (pair.Value.UserId == userId || pair.Value.ExpiresAt < now)
+            _pending.Remove(token);
+            if (_logger is not null)
             {
-                _changeTokens.TryRemove(pair.Key, out _);
+                IdentityLog.MfaTokenInvalidated(_logger, entry.UserId.ToString());
             }
         }
     }
 
-    private static string HashChangeToken(string token) =>
-        Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
+    private static bool SameClient(ClientContext issued, ClientContext presented) =>
+        issued.Kind == presented.Kind && string.Equals(issued.ClientInstanceId, presented.ClientInstanceId, StringComparison.Ordinal);
 
-    private static string Base64UrlEncoder(byte[] bytes) =>
-        Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
-
-    private static Error? CheckStatus(User user, ClientContext client, DateTimeOffset now)
+    // Step 5 (spec IDN §6.1) plus the client kind rules of §12.
+    private async Task<Error?> CheckStatusAsync(User user, ClientContext client, DateTimeOffset now, CancellationToken ct)
     {
         if (!user.Enabled)
         {
@@ -438,6 +647,12 @@ internal sealed class AuthenticationService : IAuthenticationService
             (user.ValidUntil.HasValue && now > user.ValidUntil.Value))
         {
             return IdentityErrors.Expired();
+        }
+
+        // A browser can only be the Web client: it cannot claim desktop (or any other kind) through the web origin.
+        if (client.BrowserOrigin is not null && client.Kind != ClientKind.Web)
+        {
+            return IdentityErrors.ClientNotAllowed();
         }
 
         if (user.AllowedClients.Count > 0 && !user.AllowedClients.Contains(client.Kind))
@@ -451,7 +666,78 @@ internal sealed class AuthenticationService : IAuthenticationService
             return IdentityErrors.WorkstationNotAllowed();
         }
 
+        // Sites can require an enrolled (certificate-verified) workstation for configuration sessions (spec IDN §12).
+        // Break-glass is exempt: it must work when everything else fails (§11).
+        if (_binding.RequireEnrolledWorkstationForConfiguration && !IsWorkstationVerified(client) && user.Kind != UserKind.BreakGlass)
+        {
+            var permissions = await _permissions.GetEffectivePermissionsAsync(user, ct).ConfigureAwait(false);
+            if (user.Administrator || PermissionSummary.IsConfigurationUser(permissions))
+            {
+                return IdentityErrors.WorkstationNotVerified();
+            }
+        }
+
         return null;
+    }
+
+    private static bool IsWorkstationVerified(ClientContext client) => client.Kind == ClientKind.Desktop && client.WorkstationVerified;
+
+    // Step 6: admission hooks in order, then the user's concurrent session limit.
+    private async Task<Error?> AdmitAsync(User user, ClientContext client, CancellationToken ct, bool includeSessionLimit = true)
+    {
+        foreach (var admission in _admissions)
+        {
+            var admissionResult = await admission.AdmitAsync(user, client, AdmissionPhase.SignIn, ct).ConfigureAwait(false);
+            if (!admissionResult.IsSuccess)
+            {
+                return admissionResult.Error;
+            }
+        }
+
+        if (includeSessionLimit && user.SessionPolicy.MaxConcurrentSessions > 0)
+        {
+            var activeUserSessions = _sessionRegistry.ListActive(new SessionQuery(UserId: user.Id));
+            if (activeUserSessions.Count >= user.SessionPolicy.MaxConcurrentSessions)
+            {
+                return IdentityErrors.SessionLimitReached(user.SessionPolicy.MaxConcurrentSessions);
+            }
+        }
+
+        return null;
+    }
+
+    private void LogSignInFailed(string? login, ClientContext client, string code)
+    {
+        if (_logger is not null)
+        {
+            IdentityLog.SignInFailed(_logger, login ?? string.Empty, client.RemoteIp?.ToString() ?? "", code);
+        }
+    }
+
+    private async Task AuditSignedInAsync(User user, ClientContext client, SessionId session, string method, CancellationToken ct)
+    {
+        if (_logger is not null)
+        {
+            IdentityLog.UserSignedIn(_logger, user.Id.ToString(), client.Kind.ToString(), session.ToString());
+        }
+
+        await _auditor.RecordAsync("identity.signedIn", IdentityAuditOutcome.Success, user.Id, user.Id, IdentityAuditSeverity.Normal, ct, null,
+            ("clientKind", client.Kind.ToString()), ("sessionId", session.ToString()), ("method", method),
+            ("remoteIp", client.RemoteIp?.ToString()), ("workstationVerified", IsWorkstationVerified(client) ? "true" : "false")).ConfigureAwait(false);
+    }
+
+    private async Task AuditBreakGlassAsync(User user, ClientContext client, IdentityAuditOutcome outcome, string? reason, string? code, CancellationToken ct, SessionId? session = null)
+    {
+        var remoteIp = client.RemoteIp?.ToString() ?? "";
+        if (_logger is not null)
+        {
+            IdentityLog.BreakGlassUsed(_logger, remoteIp, reason ?? code ?? "");
+        }
+
+        await _auditor.RecordAsync("identity.breakGlassUsed", outcome, user.Id, user.Id, IdentityAuditSeverity.Critical, ct, reason,
+            ("clientKind", client.Kind.ToString()), ("remoteIp", remoteIp), ("sessionId", session?.ToString()), ("code", code)).ConfigureAwait(false);
+        await _auditor.PublishAsync("identity.breakGlassUsed", IdentitySystemEventSeverity.Alarm, ct,
+            ("userId", user.Id.ToString()), ("outcome", outcome.ToString()), ("remoteIp", remoteIp), ("reason", reason)).ConfigureAwait(false);
     }
 
     // LastSignInAt and the rehash are conveniences: a concurrent change of the same user row (two sign-ins at once,
@@ -476,6 +762,11 @@ internal sealed class AuthenticationService : IAuthenticationService
         var sessionId = SessionId.New();
         var now = _clock.GetUtcNow();
         var sessionExpiresAt = _refreshStore.CalculateSessionExpiresAt(now, client.Kind, user.SessionPolicy);
+        if (user.Kind == UserKind.BreakGlass && sessionExpiresAt > now + BreakGlassSessionLength)
+        {
+            // Break-glass sessions are limited to 2 hours (spec IDN §11).
+            sessionExpiresAt = now + BreakGlassSessionLength;
+        }
 
         var session = new Session(
             sessionId,
@@ -490,7 +781,8 @@ internal sealed class AuthenticationService : IAuthenticationService
             now,
             sessionExpiresAt,
             null,
-            null);
+            null,
+            IsWorkstationVerified(client));
 
         await _sessionRegistry.RegisterNewSessionAsync(session, ct).ConfigureAwait(false);
         var (accessToken, accessExpiresAt) = _tokenService.IssueAccessToken(session, user);

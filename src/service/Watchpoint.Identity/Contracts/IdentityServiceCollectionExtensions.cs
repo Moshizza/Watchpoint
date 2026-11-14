@@ -1,7 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Watchpoint.Identity.Internal;
+using Watchpoint.Identity.Internal.Audit;
 using Watchpoint.Identity.Internal.Lockout;
+using Watchpoint.Identity.Internal.Mfa;
 using Watchpoint.Identity.Internal.Passwords;
 using Watchpoint.Identity.Internal.Sessions;
 using Watchpoint.Identity.Internal.Storage;
@@ -66,8 +68,14 @@ public static class IdentityServiceCollectionExtensions
         services.AddSingleton<SessionRegistry>();
         services.AddSingleton<ISessionRegistry>(sp => sp.GetRequiredService<SessionRegistry>());
 
+        // Audit and system events: the audit module (AUD) and the events module (EVT) replace these when composed.
+        services.TryAddSingleton<IIdentityAuditSink, LoggingIdentityAuditSink>();
+        services.AddSingleton(sp => new IdentityAuditor(sp.GetRequiredService<TimeProvider>(), sp.GetService<IIdentityAuditSink>(), sp.GetService<ISystemEventSink>()));
+        services.TryAddSingleton<IPermissionSummaryProvider, AdministratorPermissionSummaryProvider>();
+
         services.AddSingleton(builder.LockoutOptions ?? new LockoutOptions());
         services.AddSingleton<LockoutService>();
+        services.AddSingleton<ILockoutManager>(sp => sp.GetRequiredService<LockoutService>());
 
         services.AddSingleton(builder.RateLimiterOptions ?? new SignInRateLimiterOptions());
         services.AddSingleton<SignInRateLimiter>();
@@ -81,6 +89,11 @@ public static class IdentityServiceCollectionExtensions
         services.AddSingleton(builder.MfaOptions ?? new MfaOptions());
         services.AddSingleton(builder.WebAuthnOptions ?? new WebAuthnOptions());
         services.AddSingleton(builder.ClientBindingOptions ?? new ClientBindingOptions());
+        services.AddSingleton<WebAuthnService>();
+        services.AddSingleton<MfaService>();
+        services.AddSingleton<IMfaService>(sp => sp.GetRequiredService<MfaService>());
+        services.AddSingleton<ISessionManagement, SessionManagement>();
+        services.AddSingleton<ICurrentUserService, CurrentUserService>();
 
         // Register module storage (schema wp_identity)
         services.AddModuleStorage<IdentityDbContext>(IdentityDbContext.ModuleName, p => p.Add<IdentityPostgresDbContext>("postgres"));
