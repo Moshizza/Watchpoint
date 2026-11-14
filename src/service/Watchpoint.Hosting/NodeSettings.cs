@@ -35,6 +35,9 @@ public sealed class NodeSettings : IValidatableObject
     /// <summary>Node section options.</summary>
     public NodeSection Node { get; set; } = new();
 
+    /// <summary>Site section options.</summary>
+    public SiteSection Site { get; set; } = new();
+
     /// <summary>Path options.</summary>
     public PathsSection Paths { get; set; } = new();
 
@@ -68,6 +71,12 @@ public sealed class NodeSettings : IValidatableObject
         if (Node.Id != Guid.Empty && !IsValidV7(Node.Id))
         {
             results.Add(new ValidationResult("Node:Id must be a valid UUIDv7.", [nameof(Node), nameof(Node.Id)]));
+        }
+
+        // Site
+        if (Site.Id != Guid.Empty && !IsValidV7(Site.Id))
+        {
+            results.Add(new ValidationResult("Site:Id must be a valid UUIDv7.", [nameof(Site), nameof(Site.Id)]));
         }
 
         var nameErrors = NameRules.Validate(Node.Name, "/node/name");
@@ -198,6 +207,16 @@ public sealed class NodeSection
 
     /// <summary>Environment mode.</summary>
     public NodeEnvironment Environment { get; set; } = NodeEnvironment.Production;
+}
+
+/// <summary>
+/// Site section (spec HST §4). The site id names the installation as a whole: it is shared by every node of a cluster
+/// and forms the issuer of access tokens (IDN §6.2, <c>urn:watchpoint:site:&lt;siteId&gt;</c>).
+/// </summary>
+public sealed class SiteSection
+{
+    /// <summary>Site ID (v7 UUID); generated at first start and written back to <c>watchpoint.json</c> when empty.</summary>
+    public Guid Id { get; set; }
 }
 
 /// <summary>Paths section.</summary>

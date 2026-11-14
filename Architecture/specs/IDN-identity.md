@@ -14,15 +14,17 @@ User **accounts** and **authentication**: local passwords, directory (LDAP/AD) a
 Connect sign-in, MFA (TOTP, WebAuthn), lockout, **tokens** and **sessions**, client kind binding,
 break-glass access.
 
-Not in scope: rights, user groups, templates and the rights-copy tool (RGT); audit storage (AUD
-— IDN emits audit records through `IAuditSink`); maintenance mode policy (MNT implements
-`ISessionAdmission`).
+Not in scope: rights, user groups, templates and the rights-copy tool (RGT — IDN asks it for the
+effective permissions summary through `IPermissionSummaryProvider`); audit storage (AUD — IDN emits
+audit records through `IIdentityAuditSink`, which `Watchpoint.Audit` implements over `IAuditSink` in
+T3.06; until then a logging sink writes them as events 2790–2792); system events (EVT implements
+`ISystemEventSink`); maintenance mode policy (MNT implements `ISessionAdmission`).
 
 ## 2. Dependencies
 
 | Uses | Used by |
 |---|---|
-| K, HST, STO, SEC (signing keys, TOTP secrets, LDAP/OIDC client secrets), PIP (`WP_SYS` session records), Konscious.Security.Cryptography.Argon2 (MIT), System.IdentityModel.Tokens.Jwt / Microsoft.IdentityModel.* (MIT), System.DirectoryServices.Protocols (MIT), Fido2NetLib (MIT), Otp.NET (MIT) | API (authentication middleware), RGT, AUD, MNT, all clients |
+| K, HST, STO, SEC (signing keys, TOTP secrets, LDAP/OIDC client secrets), PIP (`WP_SYS` session records), Konscious.Security.Cryptography.Argon2 (MIT), System.IdentityModel.Tokens.Jwt / Microsoft.IdentityModel.* (MIT), System.DirectoryServices.Protocols (MIT), Fido2NetLib (MIT; TOTP is forty lines of RFC 6238 in `Internal/Mfa/Totp.cs`, verified against the RFC vectors, no package) | API (authentication middleware), RGT, AUD, MNT, all clients |
 
 ## 3. Project layout
 
@@ -36,6 +38,9 @@ Watchpoint.Identity/
 │   ├── ISessionRegistry.cs, Session.cs
 │   ├── ISessionAdmission.cs           (hook: MNT, LIC seats)
 │   ├── IPasswordPolicy.cs
+│   ├── IMfaService.cs, ISessionManagement.cs, ILockoutManager.cs, ICurrentUserService.cs   (part 2)
+│   ├── IIdentityAuditSink.cs, ISystemEventSink.cs, IPermissionSummaryProvider.cs           (hooks: AUD, EVT, RGT)
+│   ├── IdentitySettings.cs            (§7.1 binding and validation)
 │   └── IdentityErrors.cs
 ├── Internal/
 │   ├── Passwords/Argon2PasswordHasher.cs, PasswordPolicy.cs, BreachedPasswords.cs (embedded list)
@@ -44,8 +49,10 @@ Watchpoint.Identity/
 │   ├── Lockout/LockoutService.cs, SignInRateLimiter.cs
 │   ├── Directory/LdapAuthenticator.cs, LdapProvisioner.cs          (part 2)
 │   ├── Oidc/OidcAuthenticator.cs, OidcStateStore.cs                 (part 2)
-│   ├── Mfa/TotpService.cs, WebAuthnService.cs, RecoveryCodes.cs     (part 2)
-│   ├── BreakGlass/BreakGlassService.cs                              (part 2)
+│   ├── Mfa/MfaService.cs, Totp.cs, RecoveryCodeGenerator.cs, WebAuthnService.cs   (part 2)
+│   ├── PendingTokenStore.cs           (change, MFA, enrolment tokens and step-up proofs)
+│   ├── Audit/LoggingIdentityAuditSink.cs, IdentityAuditor.cs
+│   ├── Sessions/SessionManagement.cs, CurrentUserService.cs          (part 2; break-glass rules live in UserDirectory and AuthenticationService)
 │   └── Storage/IdentityDbContext.cs (+ Postgres subclass, migrations)
 ├── IdentityModule.cs
 └── IdentityLog.cs                     event ids 2700–2799
@@ -149,17 +156,33 @@ public interface IAuthenticationService
     Task<Result<SignInOutcome>> SignInLocalAsync(SignInRequest request, CancellationToken ct);
     Task<Result<TokenPair>> RefreshAsync(string refreshToken, ClientContext client, CancellationToken ct);
     Task<Result> SignOutAsync(SessionId session, CancellationToken ct);
-    // part 2: SignInDirectoryAsync (through SignInLocalAsync when user AuthSource=Directory), OIDC, MFA, break-glass
+    Task<Result<SignInOutcome>> CompletePasswordChangeAsync(string changeToken, string newPassword, CancellationToken ct);  // Signed, or MfaRequired / MfaEnrolmentRequired (step 8 still owed)
+    // part 2 (§10): MFA and step-up
+    Task<Result<TokenPair>> VerifyMfaAsync(MfaVerification verification, CancellationToken ct);
+    Task<Result<WebAuthnCeremony>> BeginMfaWebAuthnAsync(string mfaToken, ClientContext client, CancellationToken ct);
+    Task<Result<TotpEnrolment>> BeginMfaEnrolmentAsync(string enrolmentToken, ClientContext client, CancellationToken ct);
+    Task<Result<MfaEnrolmentCompleted>> CompleteMfaEnrolmentAsync(string enrolmentToken, string code, ClientContext client, CancellationToken ct);
+    Task<Result<StepUpProof>> StepUpAsync(SessionId session, StepUpRequest request, CancellationToken ct);
+    Task<Result<WebAuthnCeremony>> BeginStepUpWebAuthnAsync(SessionId session, CancellationToken ct);
+    Result ValidateStepUp(string stepUpToken, SessionId session);
+    // part 2 (T3.07): SignInDirectoryAsync (through SignInLocalAsync when user AuthSource=Directory), OIDC
 }
+public sealed record MfaVerification(string MfaToken, MfaMethod Method /* Totp | WebAuthn | Recovery */, ClientContext Client, string? Code = null, string? Assertion = null);
+public sealed record StepUpRequest(string? Password = null, string? Totp = null, string? Assertion = null);   // exactly one
+public sealed record StepUpProof(string StepUpToken, DateTimeOffset ExpiresAt);
+public sealed record MfaEnrolmentCompleted(TokenPair Tokens, RecoveryCodes RecoveryCodes);
 
-public sealed record SignInRequest(string Login, string Password, ClientContext Client);
+public sealed record SignInRequest(string Login, string Password, ClientContext Client, string? Reason = null /* break-glass, §11 */);
 public sealed record ClientContext(ClientKind Kind, string ClientInstanceId /* random id generated by the client at install, ≤ 64 chars */,
-    string? WorkstationId, IPAddress? RemoteIp, string? UserAgent, string? AppVersion);
+    string? WorkstationId, IPAddress? RemoteIp, string? UserAgent, string? AppVersion,
+    string? BrowserOrigin = null /* Origin header of a browser request; set by the API (§12) */,
+    bool WorkstationVerified = false /* mTLS endpoint (§12) */);
 
 public abstract record SignInOutcome
 {
     public sealed record Signed(TokenPair Tokens, User User) : SignInOutcome;
     public sealed record MfaRequired(string MfaToken /* 5 min, single use */, IReadOnlyList<string> Methods) : SignInOutcome;   // part 2
+    public sealed record MfaEnrolmentRequired(string EnrolmentToken /* 10 min, single use */) : SignInOutcome;                // part 2, §10
     public sealed record PasswordChangeRequired(string ChangeToken /* 10 min */) : SignInOutcome;
 }
 
@@ -178,9 +201,14 @@ Sign-in algorithm:
    password.
 4. Verify password; on failure increment failure count (§6.4), audit `signInFailed`, return
    `invalid_credentials`.
+   (part 2) Break-glass account (§11): `Reason` missing, blank or > 512 chars →
+   `identity.signin.reason_required`; client kind other than desktop → `client_not_allowed`. Both are
+   checked only after the correct password, and both are audited (`breakGlassUsed`, denied).
 5. Status checks: disabled → `identity.signin.disabled`; expired → `identity.signin.expired`;
-   client kind not allowed → `identity.signin.client_not_allowed`; workstation not allowed →
-   `identity.signin.workstation_not_allowed`.
+   a browser request (`BrowserOrigin` set) with a kind other than Web, or client kind not allowed →
+   `identity.signin.client_not_allowed`; workstation not allowed →
+   `identity.signin.workstation_not_allowed`; configuration user without a verified workstation while
+   `Identity:RequireEnrolledWorkstationForConfiguration` is on → `identity.signin.workstation_not_verified` (§12).
 6. `ISessionAdmission` hooks (all must allow): MNT (maintenance), LIC (seats, M7),
    concurrent session limit → errors from the hook (e.g. `maintenance.active`).
 7. If `MustChangePassword` → `PasswordChangeRequired`. The change token is 32 random bytes
@@ -188,19 +216,28 @@ Sign-in algorithm:
    sign-in replaces it) and every token of the user dies when the password changes. Completing the
    change repeats steps 5 and 6 (the account may have been disabled meanwhile) and requires
    `MustChangePassword` to be still set; a refused new password does not consume the token.
-8. (part 2) If MFA required → `MfaRequired`.
-9. Create session and tokens; reset failure count; update `LastSignInAt`; audit `signedIn`.
+8. (part 2) If MFA is required (§10, never for break-glass): a method is enrolled → `MfaRequired`
+   (token 5 min); nothing enrolled → `MfaEnrolmentRequired` (token 10 min). No session or token of
+   any other kind exists until the factor is presented. The tokens of steps 7 and 8 are 32 CSPRNG
+   bytes (base64url), kept as SHA-256 only, **single use**, **bound to the client** (kind and
+   instance id), one live token per user and kind (a new sign-in replaces it); they are neither
+   JWTs nor refresh tokens and no other endpoint accepts them. Completing step 7 or 8 runs steps 5
+   and 6 again (the account may have changed meanwhile) and, after a password change, step 8.
+9. Create session and tokens; reset failure count; update `LastSignInAt`; audit `signedIn`
+   (details: client kind, session, method `password` | `mfa:totp` | `mfa:webauthn` | `mfa:recovery` |
+   `mfa:totp-enrolment` | `password-change`).
 
 ### 6.2 Access token (JWT, ES256)
 
 | Claim | Value |
 |---|---|
-| `iss` | `urn:watchpoint:site:<siteId>` |
+| `iss` | `urn:watchpoint:site:<siteId>` (`Site:Id` of the node settings, HST §4; T1.18s) |
 | `aud` | `watchpoint` |
 | `sub` | user id |
 | `sid` | session id |
 | `ck` | client kind (`desktop`, `web`, `mobile`, `api`) |
 | `wks` | workstation id (if any) |
+| `wkv` | `true` when the workstation proved its certificate (§12; omitted otherwise, UI warning) |
 | `adm` | `true` if administrator (omitted otherwise) |
 | `lang` | user language |
 | `iat`, `nbf`, `exp` | lifetime `Identity:AccessTokenLifetime` (default 10 min) |
@@ -248,7 +285,9 @@ Sign-in algorithm:
   refusal by an `ISessionAdmission` hook (maintenance, seats) is temporary: nothing is rotated or
   revoked and the same token works once the hook allows. Reuse is detected in step 1, before any
   hook is called.
-- Binding: refresh requires the same `ClientInstanceId` and client kind as the session.
+- Binding: refresh requires the same `ClientInstanceId` and client kind as the session; a browser
+  request (`BrowserOrigin`) can only refresh a Web session (`identity.refresh.invalid`, nothing
+  rotated or revoked).
 - Web client: refresh token in a cookie `wp_rt` (HttpOnly, Secure, SameSite=Strict, Path
   `/api/v1/auth`); other clients receive it in the response body and store it in OS secure
   storage.
@@ -256,7 +295,16 @@ Sign-in algorithm:
 ```csharp
 public sealed record Session(SessionId Id, UserId UserId, ClientKind ClientKind, string ClientInstanceId,
     string? WorkstationId, string? RemoteIp, string? UserAgent, string? AppVersion, DateTimeOffset CreatedAt,
-    DateTimeOffset LastActivityAt, DateTimeOffset ExpiresAt, DateTimeOffset? RevokedAt, string? RevokedReason);
+    DateTimeOffset LastActivityAt, DateTimeOffset ExpiresAt, DateTimeOffset? RevokedAt, string? RevokedReason,
+    bool WorkstationVerified = false /* §12 */);
+
+// Session management for the API (part 2): own sessions always; others' need admin.sessions.view / .manage
+// (administrators until RGT, through IPermissionSummaryProvider); revocations by someone else are audited Sensitive.
+public interface ISessionManagement
+{
+    Task<Result<IReadOnlyList<Session>>> ListAsync(UserId actor, UserId? forUser, CancellationToken ct);   // identity.session.forbidden
+    Task<Result> RevokeAsync(UserId actor, SessionId session, string reason, CancellationToken ct);         // identity.session.not_found / forbidden
+}
 
 public interface ISessionRegistry
 {
@@ -288,7 +336,13 @@ maintenance mode (MNT), explicit sign-out.
 - At 5 failures: lock for 15 min; each further lock in 24 h doubles the duration (30 min, 1 h…)
   up to 24 h; when the previous lock ended more than 24 h ago the next one starts again at 15 min.
   Unlock: time, or administrator action (`POST /users/{id}/unlock`).
-- Lockouts are audited and produce a system event `identity.accountLocked` (alarm-able, ALM).
+- Wrong second factors (§10), wrong current passwords (§4) and wrong step-up factors (§10) count as
+  failures too.
+- Lockouts are audited (`identity.accountLocked`, Sensitive) and produce a system event
+  `identity.accountLocked { userId, until }` (alarm-able, ALM) through `ISystemEventSink`.
+- `ILockoutManager` (`GetStatusAsync`, `UnlockAsync(user, ctx)`): the unlock needs an enabled
+  administrator (or the system) → else `identity.user.admin_required`; it clears the lock, the
+  failures and the 24 h lock count, and is audited (`identity.accountUnlocked`, Sensitive).
 
 ## 7. Settings, API, data (part 1)
 
@@ -304,10 +358,35 @@ maintenance mode (MNT), explicit sign-out.
 | `Identity:Password:MinLength` / `History` / `ExpiryDays` | 12 / 5 / 0 |
 | `Identity:BootstrapAdmin:Login` | `admin` |
 | `Identity:BootstrapAdmin:PasswordEnv` | `WATCHPOINT_BOOTSTRAP_ADMIN_PASSWORD` |
+| `Identity:Mfa:RequireFor` (§10) | `administrators` |
+| `Identity:WebAuthn:RpId` / `Origins` (§10) | empty (WebAuthn disabled) / empty |
+| `Identity:RequireEnrolledWorkstationForConfiguration` (§12) | `false` |
 
-Not implemented yet (T1.18s): the host registers the module with the defaults above without
-reading the `Identity:*` keys, and the token issuer is `urn:watchpoint:site:default` for every
-site because the node settings carry no site id.
+Binding (T1.18s, `IdentitySettings.Bind`): the host binds the `Identity` section at start-up and
+**fails fast** (`InvalidSettingsException` → log `HST1101`, exit code 78, HST §4) when a value is
+invalid, so a setting can never silently fall back to a default the operator did not choose.
+Durations are ISO 8601 (`PT10M`, `P7D`). Every problem is reported at once (field errors
+`identity.settings.invalid`, path = key, codes and keys only, never values). Rules:
+
+| Key | Valid |
+|---|---|
+| `AccessTokenLifetime` | PT1M–PT1H |
+| `RefreshIdleLifetime` | PT5M–P30D |
+| `*MaxSessionLength` | PT5M–P365D |
+| `SignInRatePerIp`, `SignInRatePerLogin` | 1–100000 |
+| `Lockout:Threshold` | 1–100 |
+| `Lockout:Window`, `Lockout:BaseDuration` | PT1M–P1D |
+| `Lockout:MaxDuration` | PT1M–P30D and ≥ `BaseDuration` |
+| `Password:MinLength` / `History` / `ExpiryDays` | 8–256 / 0–24 / 0–3650 |
+| `BootstrapAdmin:Login` | rule U1 |
+| `BootstrapAdmin:PasswordEnv` | `^[A-Za-z_][A-Za-z0-9_]*$`, ≤ 128 |
+| `Mfa:RequireFor` | `none`, `administrators`, `configurationUsers`, `everyone` |
+| `WebAuthn:RpId` | host name (never an IP address); when set, `Origins` is required: `https://host[:port]` on the RP id or a subdomain of it |
+| any other key under `Identity` | refused (`identity.settings.unknown_key`): a misspelt key would otherwise keep the default |
+
+The token issuer is `urn:watchpoint:site:<Site:Id>` (§6.2): `Site:Id` is a node setting (HST §4)
+generated at first start and written back to `watchpoint.json`, shared by every node of a site
+(copied by `wpctl cluster join`, M9). The module refuses to start without it.
 
 **Bootstrap administrator** (startup phase `Configuration`): if no Person administrator exists,
 create `admin` with the password from the environment variable (Production). If the variable
@@ -332,8 +411,15 @@ the creation fails (e.g. the password of the variable does not meet the policy) 
 | `POST /api/v1/users`, `PATCH /api/v1/users/{id}`, `DELETE /api/v1/users/{id}` | `config.users.edit` (M1: administrator) | |
 | `POST /api/v1/users/{id}/password` | `config.users.edit` | Admin reset `{ password, mustChange }` |
 | `POST /api/v1/users/{id}/unlock` | `config.users.edit` | |
-| `GET /api/v1/sessions?user=` | `admin.sessions.view` | Active sessions |
-| `DELETE /api/v1/sessions/{id}` | `admin.sessions.manage` | Revoke |
+| `GET /api/v1/sessions?user=` | access token; other users' sessions `admin.sessions.view` | Active sessions (`ISessionManagement`) |
+| `DELETE /api/v1/sessions/{id}` | access token; other users' sessions `admin.sessions.manage` | Revoke (audited) |
+| `POST /api/v1/auth/mfa/verify` | `mfaToken` | `{ mfaToken, method, clientKind, clientInstanceId, code? \| assertion? }` → tokens (§10) |
+| `POST /api/v1/auth/mfa/webauthn/options` | `mfaToken` | Assertion options for the pending sign-in |
+| `POST /api/v1/auth/mfa/enrol/totp`, `…/enrol/totp/confirm` | `enrolmentToken` | Enrolment when `next = "mfaEnrolment"` (§10); confirm → tokens + recovery codes |
+| `POST /api/v1/auth/mfa/totp/enroll`, `…/totp/confirm`, `…/recovery-codes`, `…/webauthn/register`, `…/webauthn/register/complete`, `DELETE …/webauthn/{id}` | access token | Self-service MFA (`IMfaService`) |
+| `POST /api/v1/users/{id}/mfa/reset` | `config.users.edit` (M1: administrator) | Administrator reset (audited) |
+| `POST /api/v1/auth/step-up`, `…/step-up/webauthn/options` | access token | Step-up proof for critical commands (§10) |
+| `GET /api/v1/users/{id}/lockout` | `config.users.view` | Lockout state (`ILockoutManager`) |
 
 User JSON never contains password hashes, TOTP secrets or recovery codes.
 
@@ -343,10 +429,13 @@ User JSON never contains password hashes, TOTP secrets or recovery codes.
 |---|---|
 | `users` | id, login, login_norm (lower, unique where deleted_at is null), display_name, email, phone, language, time_zone, kind, enabled, administrator, auth_source, external_id, external_provider, valid_from, valid_until, allowed_clients text[], allowed_workstations text[], session_policy jsonb, mfa_policy, password_hash null, password_changed_at, must_change_password, last_sign_in_at, notes, deleted_at null, row_version, created_at, updated_at |
 | `password_history` | user_id, hash, created_at (keep last N) |
-| `sessions` | id, user_id, client_kind, client_instance_id, workstation_id, remote_ip, user_agent, app_version, created_at, last_activity_at, expires_at, revoked_at, revoked_reason |
+| `sessions` | id, user_id, client_kind, client_instance_id, workstation_id, remote_ip, user_agent, app_version, created_at, last_activity_at, expires_at, revoked_at, revoked_reason, workstation_verified (T3.08) |
 | `refresh_tokens` | token_hash (PK), session_id, created_at, expires_at, rotated_at null, replaced_by_hash null |
 | `lockouts` | user_id, failures jsonb (timestamps), locked_until null, lock_count_24h |
-| (part 2) `external_identities`, `mfa_totp`, `mfa_recovery_codes`, `webauthn_credentials`, `identity_providers` | see §8–§10 |
+| `mfa_totp` (T3.08) | user_id (PK), secret_id (vault secret, never the secret), created_at, confirmed_at null, last_used_step (concurrency token) |
+| `mfa_recovery_codes` (T3.08) | id, user_id, hash (Argon2id), created_at, used_at null (concurrency token) |
+| `webauthn_credentials` (T3.08) | id, user_id, credential_id (unique), public_key, sign_count (concurrency token), transports, name, aaguid, created_at, last_used_at |
+| (part 2, T3.07) `external_identities`, `identity_providers` | see §8–§9 |
 
 ## 8. Directory sign-in — LDAP / Active Directory (part 2, T3.07)
 
@@ -394,44 +483,102 @@ SAML is supported through an OIDC broker (e.g. Keycloak) — no SAML code in Wat
 
 ## 10. MFA (part 2, T3.08)
 
-- **Policy**: effective MFA requirement = user `Mfa` (`Required`/`NotRequired`), else site policy
-  (`Identity:Mfa:RequireFor` = `none` | `administrators` | `configurationUsers` | `everyone`;
-  default `administrators`). "configurationUsers" = users holding any `config.*` permission (RGT).
-- **Enrolment**: `POST /api/v1/auth/mfa/totp/enroll` → secret (20 bytes, base32) + `otpauth://`
-  URI (QR shown by client); `POST …/totp/confirm { code }` activates; 10 recovery codes (10 chars,
-  shown once; stored Argon2-hashed). TOTP secret stored in the vault (owner Identity, entity = user).
-- **TOTP**: RFC 6238, SHA-1, 6 digits, 30 s, window ±1 step; a code cannot be reused
-  (last accepted step stored).
-- **WebAuthn / passkeys**: registration and assertion ceremonies with Fido2NetLib; RP id = site
-  host name; user verification preferred; credentials stored (`webauthn_credentials`: id, public
-  key, sign count, transports, name, created_at, last_used_at).
-- **Sign-in**: `MfaRequired` outcome → `POST /api/v1/auth/mfa/verify { mfaToken, method: "totp" |
-  "webauthn" | "recovery", code? | assertion? }` → tokens. 5 wrong codes → mfaToken invalidated
-  and counted as sign-in failures for lockout.
-- **Re-authentication** for critical commands (CMD constraint): `POST /api/v1/auth/step-up
-  { password? | totp? | assertion? }` → short-lived step-up proof (`stepUpToken`, 5 min, bound to
-  the session) passed with the command.
-- **Reset**: administrators can reset a user's MFA (audited, notification to the user by e-mail
-  when NOT exists).
+- **Policy** (`IMfaService.IsRequiredAsync`): effective MFA requirement = user `Mfa` (`Required`/`NotRequired`),
+  else site policy (`Identity:Mfa:RequireFor` = `none` | `administrators` | `configurationUsers` | `everyone`;
+  default `administrators`). "configurationUsers" = administrators and users holding any `config.*`
+  permission (`IPermissionSummaryProvider`, RGT; until RGT exists administrators hold `*` and nobody
+  else holds anything). The break-glass account never requires MFA (§11).
+- **Enrolment**: `EnrollTotpAsync` → secret (20 bytes from the CSPRNG, base32) + `otpauth://totp/Watchpoint:<login>?secret=…&issuer=Watchpoint&algorithm=SHA1&digits=6&period=30`
+  (QR shown by the client); the secret is **stored in the vault** (`identity.totp.<userId>`, owner
+  `Identity` / entity = user; the row `mfa_totp` holds the secret id only) and returned once; a pending
+  enrolment is replaced (old secret deleted), a confirmed one needs a reset first
+  (`identity.mfa.already_enrolled`); without a vault enrolment is refused (`identity.mfa.vault_unavailable`),
+  never stored in the database. `ConfirmTotpAsync { code }` activates only with a valid code
+  (`identity.mfa.code_invalid` otherwise) and returns **10 recovery codes** (10 chars from an alphabet
+  without look-alikes, shown once as `XXXXX-XXXXX`; stored Argon2id-hashed; single use; `used_at` is a
+  concurrency token; `RegenerateRecoveryCodesAsync` invalidates the old ones).
+- **MFA required, nothing enrolled**: the sign-in returns `MfaEnrolmentRequired(enrolmentToken)`; the
+  token (10 min, single use, bound to the client) allows only `BeginMfaEnrolmentAsync` (secret + URI)
+  and `CompleteMfaEnrolmentAsync(code)`, which confirms, runs steps 5–6 again and signs in, returning
+  the tokens and the recovery codes. A wrong code counts as a sign-in failure; five invalidate the token.
+- **TOTP**: RFC 6238, HMAC-SHA1, 6 digits, 30 s, window ±1 step; every candidate step is computed and
+  compared in **constant time**; a code is accepted once: the last accepted step is stored
+  (`last_used_step`, concurrency token, so two nodes cannot accept the same code) and any code of that
+  step or an earlier one is a replay. Verifications of one user are serialised in the process.
+- **WebAuthn / passkeys**: registration and assertion ceremonies with Fido2NetLib; RP id = site host
+  name (`Identity:WebAuthn:RpId`, §7.1), allowed origins `Identity:WebAuthn:Origins` (both verified
+  by the library together with the challenge and the signature; without `RpId` → `identity.webauthn.not_configured`);
+  attestation `none`, user verification preferred; challenges are **single use**, bound to the user and the
+  ceremony kind, and expire after 5 min (TimeProvider); the **signature counter must grow** (a lower or
+  equal counter = cloned authenticator → refused; the stored counter is a concurrency token); credentials
+  stored (`webauthn_credentials`: id, public key, sign count, transports, name, aaguid, created_at,
+  last_used_at). Every refusal is `identity.webauthn.invalid` / `identity.signin.mfa_invalid` without detail.
+- **Sign-in**: `MfaRequired(mfaToken, methods)` outcome (methods: `totp`, `webauthn`, `recovery`) →
+  `VerifyMfaAsync { mfaToken, method: "totp" | "webauthn" | "recovery", client, code? | assertion? }` →
+  tokens (`BeginMfaWebAuthnAsync` gives the assertion options first). The token is single use, 5 min,
+  bound to the client that started the sign-in (another client → `mfa_invalid`, no consumption).
+  A wrong factor → `identity.signin.mfa_invalid`, counted as a sign-in failure for the lockout (§6.4)
+  and audited (`mfaVerifyFailed`); **5 wrong codes → mfaToken invalidated** (log 2743). The token is
+  not a refresh token, not a JWT and not a change token: refresh, token validation and the password
+  change flow refuse it. Steps 5 and 6 run again when the factor is accepted (a user disabled
+  meanwhile is refused).
+- **Re-authentication** for critical commands (CMD constraint): `StepUpAsync(session, { password? | totp? | assertion? })`
+  (exactly one factor; `BeginStepUpWebAuthnAsync` for the options) → `StepUpProof(stepUpToken, 5 min)`
+  bound to the session; `ValidateStepUp(token, session)` is passed with the command and fails
+  (`identity.stepup.required`) for another session, after 5 min or once the session is revoked. A
+  wrong password or factor is `identity.stepup.invalid` and counts for the lockout (a stolen session
+  gives no free guesses). Audited `identity.stepUp`.
+- **Reset**: `ResetAsync(user, ctx)` by an enabled administrator removes the TOTP secret (vault), the
+  recovery codes and the WebAuthn credentials (audited `identity.mfaReset`, Sensitive; log 2741;
+  notification to the user by e-mail when NOT exists). A non-administrator is refused
+  (`identity.user.admin_required`, audited as denied).
+- `ICurrentUserService.GetAsync(claims)` resolves `GET /auth/me`: user, session, permissions summary
+  (RGT hook) and MFA status; refused when the session is revoked or expired.
 
 ## 11. Break-glass access (part 2, T3.08)
 
 - One user of kind `BreakGlass` (login `breakglass`), created by the setup wizard (DEP) with a
   long random password printed once for sealed storage; local authentication only; MFA not
   required (it must work when everything else fails).
-- Sign-in requires a `reason` field; produces audit `breakGlassUsed` (critical), a system event
-  (alarm-able, default rule Critical), and a notification to administrators when possible.
-- Sessions limited to 2 hours, client kind desktop only.
+- Rules enforced by `IUserDirectory` (nothing about this account changes silently):
+  - the login `breakglass` is reserved for the kind and the kind requires that login
+    (`identity.breakglass.invalid`, field `/login` or `/kind`); `AuthSource` must be `Local`;
+  - at most one non-deleted break-glass account (`identity.breakglass.exists` / `login_taken`);
+  - it is always an **administrator** (U5 applies: the system or an enabled administrator creates it),
+    `MustChangePassword` is forced off and `Mfa` to `NotRequired`; updates cannot change its kind,
+    administrator flag, authentication source or MFA policy, and no other account becomes break-glass;
+  - creating, re-enabling and resetting the password of the account are **critical audit records**
+    (`identity.breakGlassAccountChanged`, action `created` | `enabled` | `passwordReset`) and log 2731.
+- Sign-in requires a `reason` field (1–512 chars, checked after the password; §6.1 step 4);
+  produces audit `breakGlassUsed` (critical, with the reason, client, IP and session), a system event
+  `identity.breakGlassUsed` (alarm-able, default rule Critical), log 2730, and a notification to
+  administrators when possible. A refused attempt (no reason, wrong client) is audited as denied.
+- Sessions limited to 2 hours (access and refresh tokens never outlive it), client kind desktop only.
+  Rate limits and the lockout apply as to any account; the enrolled-workstation requirement of §12
+  does not (it must work when the certificate infrastructure is what failed).
 
 ## 12. Client kind binding and session admission (part 2, T3.08)
 
-- `ck` claim is set from the sign-in `clientKind`; the desktop client additionally proves its
-  kind with the **workstation certificate** (issued at enrolment by SEC CA, M3): sign-in requests
-  with `clientKind=desktop` from a workstation-enrolled client present the certificate (mTLS on a
-  dedicated endpoint `/api/v1/auth/desktop/sign-in`); sites can require enrolled workstations for
-  configuration sessions (`Identity:RequireEnrolledWorkstationForConfiguration`, default false in
-  v1). Without enrolment, `ck=desktop` is accepted but marked `wksVerified=false` (UI warning).
-- `ISessionAdmission`:
+- `ck` claim is set from the sign-in `clientKind`. A request made by a **browser** carries an
+  `Origin`; the API puts it in `ClientContext.BrowserOrigin`, and a browser can only be the Web
+  client: `clientKind` desktop, mobile or api with an origin → `identity.signin.client_not_allowed`,
+  and a browser cannot refresh a non-web session (`identity.refresh.invalid`). So the cookie path
+  (web refresh token, §6.3) never carries a desktop session.
+- The desktop client additionally proves its kind with the **workstation certificate** (issued at
+  enrolment by SEC CA, M3): sign-in requests with `clientKind=desktop` from a workstation-enrolled
+  client present the certificate (mTLS on a dedicated endpoint `/api/v1/auth/desktop/sign-in`), which
+  sets `ClientContext.WorkstationVerified`; the session stores it (`workstation_verified`) and the
+  access token carries `wkv=true`. The flag is ignored for any other client kind. Without enrolment,
+  `ck=desktop` is accepted but not verified (`wkv` absent, UI warning).
+- Sites can require enrolled workstations for configuration sessions
+  (`Identity:RequireEnrolledWorkstationForConfiguration`, default false in v1): when on, an
+  administrator or a user with any `config.*` permission (`IPermissionSummaryProvider`) signing in
+  without a verified desktop workstation gets `identity.signin.workstation_not_verified` (break-glass
+  excepted, §11). Operators are not affected.
+- `ISessionAdmission` (unchanged): hooks run in order at sign-in (also when a pending token completes
+  the sign-in) and at refresh; a refusal at refresh is temporary (§6.3). The concurrent session limit
+  (`SessionPolicy.MaxConcurrentSessions`) refuses the new sign-in with `identity.session.limit_reached`
+  (args `max`) and never revokes an older session.
 
 ```csharp
 public interface ISessionAdmission
@@ -448,7 +595,16 @@ public interface ISessionAdmission
 | `identity.signin.invalid_credentials` | Unauthenticated | Generic, no hint |
 | `identity.signin.locked` | Unauthenticated | args `until` (only with correct password) |
 | `identity.signin.disabled` / `expired` / `client_not_allowed` / `workstation_not_allowed` | Forbidden | |
-| `identity.signin.mfa_invalid` | Unauthenticated | |
+| `identity.signin.mfa_invalid` | Unauthenticated | Wrong or expired mfaToken, wrong factor, other client; no detail |
+| `identity.signin.reason_required` | Validation | Break-glass without reason (field `/reason`, §11) |
+| `identity.signin.workstation_not_verified` | Forbidden | §12 |
+| `identity.session.limit_reached` | TooManyRequests | args `max` |
+| `identity.session.not_found` / `forbidden` | NotFound / Forbidden | Session management |
+| `identity.mfa.not_enrolled` / `already_enrolled` / `vault_unavailable` | Unprocessable / Conflict / Unavailable | |
+| `identity.mfa.code_invalid` | Validation | Enrolment confirmation (field `/code`) |
+| `identity.webauthn.not_configured` / `invalid` | Unprocessable / Unauthenticated | `invalid` carries no detail |
+| `identity.breakglass.exists` / `invalid` | Conflict / Validation | §11 |
+| `identity.settings.invalid` / `unknown_key` | Validation | Start-up only (§7.1) |
 | `identity.token.invalid` / `expired` / `revoked` | Unauthenticated | No detail; `invalid` also for a bad or used change token |
 | `identity.refresh.invalid` / `reused` | Unauthenticated | `reused` revokes the session |
 | `identity.user.not_found` | NotFound | |
@@ -459,7 +615,7 @@ public interface ISessionAdmission
 | `identity.password.too_short` / `too_long` / `invalid_characters` / `too_simple` / `contains_login` / `breached` / `reused` / `incorrect` | Validation | field errors |
 | `identity.directory.unavailable` | Unavailable | |
 | `identity.oidc.state_invalid` / `token_invalid` / `provider_error` | Unauthenticated | |
-| `identity.stepup.required` / `invalid` | Forbidden | CMD critical commands |
+| `identity.stepup.required` / `invalid` | Forbidden | CMD critical commands; `invalid` counts for the lockout |
 
 ## 14. Observability and security
 
@@ -473,15 +629,27 @@ public interface ISessionAdmission
 | 2713 | Warning | Refresh token reuse detected; session {SessionId} revoked |
 | 2720 | Information | Session {SessionId} revoked: {Reason} |
 | 2730 | Warning | Break-glass sign-in by {RemoteIp}: {Reason} |
+| 2731 | Warning | Break-glass account {Action} ({UserId}) by {Actor} |
+| 2740 | Information | User {UserId} enrolled MFA method {Method} |
+| 2741 | Warning | MFA of user {UserId} reset by {Actor} |
+| 2742 | Warning | MFA verification failed for user {UserId} ({Method}) |
+| 2743 | Warning | MFA token of user {UserId} invalidated after too many wrong codes |
+| 2790 / 2791 / 2792 | Information / Warning / Critical | Audit {Action} {Outcome} actor {Actor} subject {Subject} (normal / sensitive / critical records, until AUD takes over) |
 
 Metrics: `watchpoint.identity.signins` (counter by `outcome`, `clientKind`, `source`),
 `watchpoint.identity.sessions.active` (gauge by `clientKind`), `watchpoint.identity.hash.wait`
 (histogram ms).
 
-Security: constant-time comparisons; no user enumeration; tokens never logged; logins hashed in
-warning logs; passwords limited to 256 chars before hashing; change and refresh tokens from the
-CSPRNG and stored hashed; JWT algorithm pinned; LDAP filter escaping (RFC 4515) and
-DN escaping (RFC 4514).
+Security: constant-time comparisons (passwords, TOTP codes, recovery codes); no user enumeration;
+tokens, secrets, codes and passwords never logged nor audited (audit details hold ids and kinds);
+logins hashed in warning logs; passwords limited to 256 chars before hashing; change, MFA,
+enrolment and refresh tokens and step-up proofs from the CSPRNG and stored hashed; TOTP secrets in
+the vault; JWT algorithm pinned; LDAP filter escaping (RFC 4515) and DN escaping (RFC 4514).
+
+Audit records (`IIdentityAuditSink`): `identity.signedIn`, `signInFailed` (known users only),
+`accountLocked`, `accountUnlocked`, `mfaEnrolled`, `mfaVerifyFailed`, `mfaReset`,
+`recoveryCodesRegenerated`, `stepUp`, `sessionRevoked`, `breakGlassUsed`, `breakGlassAccountChanged`.
+System events (`ISystemEventSink`): `identity.accountLocked`, `identity.breakGlassUsed`.
 
 ## 15. Tests
 
@@ -551,6 +719,11 @@ OIDC tests against a Keycloak container).
 | IDN-U-122 | U | `password_history` keeps the last 5 hashes only (reset and own change); policy unchanged |
 | IDN-U-123 | U | Sign-in succeeds when the user row is changed during it (`LastSignInAt` write is best effort) |
 | IDN-U-124 | U | Kind changed to Template or Script revokes the sessions; another kind keeps them |
+| IDN-U-125 | U | Settings: the defaults of §7.1 apply when no `Identity:*` key is set; the issuer carries the site id |
+| IDN-U-126 | U | Settings: every key of §7.1 is bound (ISO 8601 durations, lists) |
+| IDN-U-127 | U | Settings: invalid, out-of-range, unknown keys and WebAuthn origin rules are all reported with their key and code; nothing applied |
+| IDN-U-128 | U | Issuer per site: a token of site A is refused by site B with the same keys, without detail |
+| IDN-U-129 | U | Bound settings reach the services (lockout threshold and duration, token lifetime) |
 | IDN-U-031 | U | LDAP filter and DN escaping (RFC 4515/4514) with injection attempts |
 | IDN-U-032 | U | LDAP: user search then user bind; wrong password → invalid_credentials |
 | IDN-U-033 | U | LDAP: JIT provisioning creates user with Directory source and attributes |
@@ -582,7 +755,7 @@ OIDC tests against a Keycloak container).
 | IDN-U-053 | U | TOTP window ±1 step; replay of same step rejected |
 | IDN-U-054 | U | TOTP secret stored in vault, not in DB |
 | IDN-U-055 | U | Recovery codes single use, hashed |
-| IDN-U-056 | U | WebAuthn registration and assertion (Fido2NetLib test vectors) |
+| IDN-U-056 | U | WebAuthn registration and assertion with a software authenticator: wrong origin, RP id, challenge, user, expired or reused challenge, unknown key refused |
 | IDN-U-057 | U | WebAuthn sign counter regression rejected |
 | IDN-U-058 | U | MFA verify with mfaToken single use, 5 min |
 | IDN-U-059 | U | 5 wrong MFA codes invalidate mfaToken and count as failures |
@@ -607,6 +780,11 @@ OIDC tests against a Keycloak container).
 | IDN-U-078 | U | Language of user returned in token and `me` |
 | IDN-U-079 | U | `me` returns effective permissions summary from RGT |
 | IDN-U-080 | U | Unlock by administrator clears lockout |
+| IDN-U-130 | U | TOTP matches the RFC 6238 test vectors (8 and 6 digits); base32 of RFC 4648 |
+| IDN-U-131 | U | Partial sign-in cannot refresh or skip the second factor: mfaToken refused by refresh, token validation, change flow; forced password change still owes MFA; user disabled meanwhile refused at the factor |
+| IDN-U-132 | U | MFA required without enrolment: enrolment token bound to the client, allows the enrolment only, wrong code counted, completion signs in with recovery codes, 10 min expiry |
+| IDN-U-133 | U | Concurrent verifications of one TOTP or recovery code accept it once |
+| IDN-U-134 | U | Break-glass account: reserved login and kind, local only, single, administrator forced, no silent change (kind, admin, source, MFA refused; enable and password reset audited Critical, log 2731) |
 
 ## 16. Tasks
 
@@ -614,6 +792,6 @@ OIDC tests against a Keycloak container).
 |---|---|---|
 | T1.18 | §4–§7, §13, §14 (part 1) | IDN-U-001…IDN-U-030, IDN-I-001…IDN-I-006 |
 | T1.18r | §4–§7, §13, §14 (security review and fixes of T1.18) | IDN-U-101…IDN-U-124 (+ IDN-U-001…030, IDN-I-001…006 still passing) |
-| T1.18s | §6.2 issuer, §7.1 settings binding | (tests to define) |
+| T1.18s | §6.2 issuer, §7.1 settings binding | IDN-U-125…IDN-U-129, HST-U-046, HST-U-047 |
 | T3.07 | §8, §9 | IDN-U-031…IDN-U-050, IDN-I-007…IDN-I-012 |
-| T3.08 | §10–§12 | IDN-U-051…IDN-U-080 |
+| T3.08 | §10–§12 (+ §6.1 step 8, §6.4 manager, §7.2 part 2 endpoints) | IDN-U-051…IDN-U-080, IDN-U-130…IDN-U-134 |

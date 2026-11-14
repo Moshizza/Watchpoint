@@ -2,10 +2,11 @@
 
   <PropertyGroup>
     <RootNamespace>Watchpoint.Identity</RootNamespace>
-    <Description>Identity module of Watchpoint (spec IDN): accounts, Argon2id, tokens and sessions.</Description>
+    <Description>Identity module of Watchpoint (spec IDN): accounts, Argon2id, tokens and sessions, MFA (TOTP, WebAuthn), lockout, break-glass.</Description>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Fido2" />
     <PackageReference Include="Konscious.Security.Cryptography.Argon2" />
     <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />

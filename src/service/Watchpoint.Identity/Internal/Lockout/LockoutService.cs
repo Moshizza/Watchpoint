@@ -2,18 +2,21 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Watchpoint.Identity.Contracts;
+using Watchpoint.Identity.Internal.Audit;
 using Watchpoint.Identity.Internal.Storage;
 using Watchpoint.Kernel.Ids;
+using Watchpoint.Kernel.Results;
 
 namespace Watchpoint.Identity.Internal.Lockout;
 
 /// <summary>Lockout management service with sliding failure window and progressive doubling (spec IDN §6.4).</summary>
-internal sealed class LockoutService : IDisposable
+internal sealed class LockoutService : ILockoutManager, IDisposable
 {
     private readonly IDbContextFactory<IdentityDbContext> _dbFactory;
     private readonly TimeProvider _clock;
     private readonly LockoutOptions _options;
     private readonly ILogger<LockoutService>? _logger;
+    private readonly IdentityAuditor _auditor;
 
     // Read-modify-write of the failure list: without it concurrent wrong passwords overwrite each other and the
     // threshold is never reached.
@@ -23,12 +26,52 @@ internal sealed class LockoutService : IDisposable
         IDbContextFactory<IdentityDbContext> dbFactory,
         TimeProvider clock,
         LockoutOptions? options = null,
-        ILogger<LockoutService>? logger = null)
+        ILogger<LockoutService>? logger = null,
+        IdentityAuditor? auditor = null)
     {
         _dbFactory = dbFactory ?? throw new ArgumentNullException(nameof(dbFactory));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _options = options ?? new LockoutOptions();
         _logger = logger;
+        _auditor = auditor ?? new IdentityAuditor(_clock);
+    }
+
+    public async Task<LockoutStatus?> GetStatusAsync(UserId user, CancellationToken ct)
+    {
+        var now = _clock.GetUtcNow();
+        await using var db = await _dbFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        var lockout = await db.Lockouts.AsNoTracking().FirstOrDefaultAsync(l => l.UserId == user, ct).ConfigureAwait(false);
+        if (lockout is null)
+        {
+            return null;
+        }
+
+        var recent = (JsonSerializer.Deserialize<List<DateTimeOffset>>(lockout.FailuresJson) ?? []).Count(t => now - t <= _options.Window);
+        return new LockoutStatus(lockout.LockedUntil, recent, lockout.LockCount24h);
+    }
+
+    public async Task<Result> UnlockAsync(UserId user, ChangeContext ctx, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(ctx);
+        await using var db = await _dbFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+        if (ctx.Actor is { } actorId)
+        {
+            var actor = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == actorId, ct).ConfigureAwait(false);
+            if (actor is null || !actor.Administrator || !actor.Enabled || actor.DeletedAt is not null)
+            {
+                await _auditor.RecordAsync("identity.accountUnlocked", IdentityAuditOutcome.Denied, ctx.Actor, user, IdentityAuditSeverity.Sensitive, ct).ConfigureAwait(false);
+                return IdentityErrors.AdminRequired();
+            }
+        }
+
+        if (!await db.Users.AnyAsync(u => u.Id == user && u.DeletedAt == null, ct).ConfigureAwait(false))
+        {
+            return IdentityErrors.UserNotFound(user);
+        }
+
+        await UnlockAsync(user, ct).ConfigureAwait(false);
+        await _auditor.RecordAsync("identity.accountUnlocked", IdentityAuditOutcome.Success, ctx.Actor, user, IdentityAuditSeverity.Sensitive, ct, ctx.Comment, ("origin", ctx.Origin)).ConfigureAwait(false);
+        return Result.Success();
     }
 
     /// <summary>Checks whether a user is currently locked out.</summary>
@@ -113,6 +156,12 @@ internal sealed class LockoutService : IDisposable
             {
                 IdentityLog.AccountLocked(_logger, userId.ToString(), until.ToString("o"));
             }
+
+            // Lockouts are audited and produce a system event (alarm-able, ALM) (spec IDN §6.4).
+            await _auditor.RecordAsync("identity.accountLocked", IdentityAuditOutcome.Success, null, userId, IdentityAuditSeverity.Sensitive, ct, null,
+                ("until", until.ToString("o")), ("lockCount24h", lockout.LockCount24h.ToString(System.Globalization.CultureInfo.InvariantCulture))).ConfigureAwait(false);
+            await _auditor.PublishAsync("identity.accountLocked", IdentitySystemEventSeverity.Warning, ct,
+                ("userId", userId.ToString()), ("until", until.ToString("o"))).ConfigureAwait(false);
 
             return (true, until);
         }

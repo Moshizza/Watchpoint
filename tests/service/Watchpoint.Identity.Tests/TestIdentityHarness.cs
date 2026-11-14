@@ -1,8 +1,11 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Watchpoint.Identity.Contracts;
 using Watchpoint.Identity.Internal;
+using Watchpoint.Identity.Internal.Audit;
 using Watchpoint.Identity.Internal.Lockout;
+using Watchpoint.Identity.Internal.Mfa;
 using Watchpoint.Identity.Internal.Passwords;
 using Watchpoint.Identity.Internal.Sessions;
 using Watchpoint.Identity.Internal.Storage;
@@ -29,9 +32,22 @@ internal sealed class TestIdentityHarness : IDisposable
     public LockoutService LockoutService { get; }
     public SignInRateLimiter RateLimiter { get; }
     public UserDirectory UserDirectory { get; }
+    public FakeSecretVault Vault { get; } = new();
+    public RecordingAuditSink Audit { get; } = new();
+    public RecordingSystemEventSink Events { get; } = new();
+    public IdentityAuditor Auditor { get; }
+    public WebAuthnService WebAuthn { get; }
+    public MfaService Mfa { get; }
+    public FakePermissionProvider Permissions { get; } = new();
+    public ClientBindingOptions ClientBinding { get; set; } = new();
     public List<ISessionAdmission> Admissions { get; } = [];
 
-    public TestIdentityHarness(Microsoft.Extensions.Time.Testing.FakeTimeProvider? clock = null, PasswordPolicyOptions? policyOptions = null)
+    public TestIdentityHarness(
+        Microsoft.Extensions.Time.Testing.FakeTimeProvider? clock = null,
+        PasswordPolicyOptions? policyOptions = null,
+        MfaOptions? mfaOptions = null,
+        WebAuthnOptions? webAuthnOptions = null,
+        LockoutOptions? lockoutOptions = null)
     {
         Clock = clock ?? TestTime.CreateProvider();
         // One connection per context, to a named shared-cache in-memory database: SessionRegistry.Touch persists on a
@@ -61,17 +77,22 @@ internal sealed class TestIdentityHarness : IDisposable
         SessionRegistry = new SessionRegistry(DbFactory, Clock);
         RefreshStore = new RefreshTokenStore(DbFactory, SessionRegistry, Clock);
         TokenService = new JwtTokenService(KeyRing, SessionRegistry, Clock);
-        LockoutService = new LockoutService(DbFactory, Clock);
+        Auditor = new IdentityAuditor(Clock, Audit, Events);
+        LockoutService = new LockoutService(DbFactory, Clock, lockoutOptions, auditor: Auditor);
         RateLimiter = new SignInRateLimiter(Clock);
 
-        UserDirectory = new UserDirectory(DbFactory, SessionRegistry, PasswordPolicy, FastHasher, Clock, LockoutService, policyOptions);
+        UserDirectory = new UserDirectory(DbFactory, SessionRegistry, PasswordPolicy, FastHasher, Clock, LockoutService, policyOptions, Auditor);
+        WebAuthn = new WebAuthnService(DbFactory, Clock, webAuthnOptions);
+        Mfa = new MfaService(DbFactory, UserDirectory, FastHasher, Clock, WebAuthn, Auditor, mfaOptions, Permissions, Vault);
     }
 
-    public AuthenticationService CreateAuthService() =>
-        new(DbFactory, UserDirectory, FastHasher, TokenService, RefreshStore, SessionRegistry, LockoutService, RateLimiter, Admissions, Clock);
+    public AuthenticationService CreateAuthService(SignInRateLimiter? rateLimiter = null, Argon2PasswordHasher? hasher = null, ILogger<AuthenticationService>? logger = null) =>
+        new(DbFactory, UserDirectory, hasher ?? FastHasher, TokenService, RefreshStore, SessionRegistry, LockoutService, rateLimiter ?? RateLimiter, Admissions, Clock,
+            Mfa, Auditor, logger: logger, permissions: Permissions, binding: ClientBinding);
 
     public void Dispose()
     {
+        Mfa.Dispose();
         KeyRing.Dispose();
         _keepAlive.Dispose();
     }

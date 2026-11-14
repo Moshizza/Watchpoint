@@ -4,7 +4,7 @@ using Watchpoint.Kernel.Results;
 
 namespace Watchpoint.Identity.Contracts;
 
-/// <summary>Active session record (spec IDN §6.3).</summary>
+/// <summary>Active session record (spec IDN §6.3). <paramref name="WorkstationVerified"/>: the desktop workstation proved its certificate (spec IDN §12).</summary>
 public sealed record Session(
     SessionId Id,
     UserId UserId,
@@ -18,7 +18,8 @@ public sealed record Session(
     DateTimeOffset LastActivityAt,
     DateTimeOffset ExpiresAt,
     DateTimeOffset? RevokedAt,
-    string? RevokedReason);
+    string? RevokedReason,
+    bool WorkstationVerified = false);
 
 /// <summary>Query filters for active sessions.</summary>
 /// <param name="UserId">Optional user id filter.</param>

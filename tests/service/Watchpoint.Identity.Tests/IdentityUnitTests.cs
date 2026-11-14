@@ -469,7 +469,7 @@ public sealed class IdentityUnitTests : IDisposable
         // Complete password change with changeToken
         var complete = await auth.CompletePasswordChangeAsync(changeRequired.ChangeToken, "BrandNewPassword123!", Ct);
         complete.IsSuccess.ShouldBeTrue();
-        complete.Value.AccessToken.ShouldNotBeNullOrEmpty();
+        complete.Value.ShouldBeOfType<SignInOutcome.Signed>().Tokens.AccessToken.ShouldNotBeNullOrEmpty();
     }
 
     [Fact]
