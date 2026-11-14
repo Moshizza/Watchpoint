@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Formats.Tar;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
@@ -93,12 +94,39 @@ internal static class NatsServerBinary
     }
 
     /// <summary>Copies the binary into the <c>bin</c> folder of a node's data folder (the tests' <c>Paths:Binaries</c>).</summary>
+    /// <remarks>
+    /// On Unix the copy is written by a <c>cp</c> child process, never by this process. A descriptor this process
+    /// holds open for writing is inherited by every child that another test forks meanwhile, for the instant
+    /// before that child's exec; executing the binary while such a child still holds it fails with ETXTBSY
+    /// ("text file busy"), which <see cref="Watchpoint.Host.Nats.NatsProcessSpecFactory.ReadVersionAsync"/>
+    /// reports as version "unknown" (the HST-I-005 flake). The copy's only writer is <c>cp</c>, which has exited
+    /// when this method returns.
+    /// </remarks>
     public static async Task<string> InstallAsync(string binariesFolder, CancellationToken ct)
     {
         var source = await GetAsync(ct);
         Directory.CreateDirectory(binariesFolder);
         var target = Path.Combine(binariesFolder, FileName);
-        File.Copy(source, target, overwrite: true);
+        if (OperatingSystem.IsWindows())
+        {
+            // Handles opened by .NET are not inheritable on Windows: no other child can hold the copy open.
+            File.Copy(source, target, overwrite: true);
+            return target;
+        }
+
+        using var copy = Process.Start(new ProcessStartInfo("cp")
+        {
+            ArgumentList = { "-f", "--", source, target },
+            RedirectStandardError = true,
+            UseShellExecute = false,
+        })!;
+        var error = copy.StandardError.ReadToEndAsync(ct);
+        await copy.WaitForExitAsync(ct);
+        if (copy.ExitCode != 0)
+        {
+            throw new IOException($"cp {source} {target} failed ({copy.ExitCode}): {await error}");
+        }
+
         return target;
     }
 
