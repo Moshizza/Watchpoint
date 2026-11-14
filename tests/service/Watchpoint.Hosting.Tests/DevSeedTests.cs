@@ -7,9 +7,9 @@ using Shouldly;
 using Watchpoint.Host.Dev;
 using Watchpoint.Identity.Contracts;
 using Watchpoint.Kernel.Ids;
+using Watchpoint.Kernel.Results;
 using Watchpoint.Storage.Contracts;
 using Watchpoint.Storage.Postgres;
-using Watchpoint.Kernel.Results;
 using Watchpoint.Testing.Logging;
 using Xunit;
 
