@@ -193,7 +193,10 @@ Limits (checked at compile and enforced at evaluation):
 | Regex evaluation | 10 ms per match | runtime `expr.eval.regex_timeout` |
 
 Performance target: a typical condition (5–10 nodes) evaluates in < 1 µs (C#, no allocations
-on the hot path except result boxing avoided via `WpValue` struct).
+on the hot path except result boxing avoided via `WpValue` struct). The evaluator is a struct and
+variable member paths (`device.a.b`) are resolved once at parse time, so an evaluation allocates
+nothing. Unit tests check the allocation-free part (EXP-U-040); the < 1 µs latency is a benchmark
+target, not a unit-test assertion (TST §4.7: unit tests never measure wall-clock time).
 
 ## 6. Diagnostics (plain language)
 
@@ -268,7 +271,7 @@ vector failing in one implementation fails CI (`EXP-C-001`).
 | EXP-U-001…010 | U | Lexer: literals, escapes, identifiers, reserved words, length limit, unterminated strings, positions |
 | EXP-U-011…020 | U | Parser: precedence of every operator level, member/index/call chains, list literals, conditional, chained comparison error, depth and node limits |
 | EXP-U-021…030 | U | Checker: environment members from MOD types (door, area, analog), enum value validation, int/decimal mixing, null warnings, not-common members across types with `has` guard, function signatures, calendars, regex subset, result type bool |
-| EXP-U-031…040 | U | Evaluator: arithmetic incl. decimal precision, comparisons, `in`, string functions, conversions, time functions with time zones and DST, `ago`, `inSchedule` via fake calendar, short-circuit with errors, step limit, regex timeout, unknown values as null; allocation-free hot path benchmark (< 1 µs typical) |
+| EXP-U-031…040 | U | Evaluator: arithmetic incl. decimal precision, comparisons, `in`, string functions, conversions, time functions with time zones and DST, `ago`, `inSchedule` via fake calendar, short-circuit with errors, step limit, regex timeout, unknown values as null; EXP-U-040 allocation-free hot path: after 1,000 warm-up evaluations of `device.doorPosition.position == "open"`, 10,000 evaluations allocate < 10,000 bytes in total on the evaluating thread (`GC.GetAllocatedBytesForCurrentThread`; any per-evaluation object would be ≥ 240,000 bytes, the margin absorbs runtime JIT noise) and all return true. No wall-clock assertion (§5, TST §4.7) |
 | EXP-U-041…050 | U | TypeScript lexer/parser/checker parity tests (same cases as C#) and AST JSON identical |
 | EXP-U-051…060 | U | TypeScript evaluator, completion (members, enum values, functions), hover, plain-language `describe` in en/fr/ar |
 | EXP-C-001 | C | All conformance vectors pass in both implementations |

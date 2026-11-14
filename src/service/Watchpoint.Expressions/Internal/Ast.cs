@@ -61,6 +61,25 @@ internal sealed record IdentifierNode(string Name, int Start, int Length) : AstN
 
 internal sealed record MemberAccessNode(AstNode Target, string Member, int Start, int Length) : AstNode(Start, Length)
 {
+    /// <summary>
+    /// Gets the root variable name when the chain is <c>variable.member[.member…]</c>, else null.
+    /// Computed once at parse time so evaluation does not allocate (EXP §5).
+    /// </summary>
+    public string? RootVariable { get; } = Target switch
+    {
+        IdentifierNode id => id.Name,
+        MemberAccessNode { RootVariable: { } root } => root,
+        _ => null,
+    };
+
+    /// <summary>Gets the dotted member path below <see cref="RootVariable"/> (e.g. <c>doorPosition.position</c>), else null.</summary>
+    public string? VariableMemberPath { get; } = Target switch
+    {
+        IdentifierNode => Member,
+        MemberAccessNode { VariableMemberPath: { } inner } => inner + "." + Member,
+        _ => null,
+    };
+
     public override JsonNode ToJson() => new JsonObject
     {
         ["type"] = "MemberAccess",
