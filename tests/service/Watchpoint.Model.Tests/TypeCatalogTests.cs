@@ -475,6 +475,14 @@ public class TypeCatalogTests
 
         result.IsSuccess.ShouldBeFalse();
         result.Error.Code.Value.ShouldBe(ModelErrors.ReservedNamespace.Value);
+
+        // First-party packages (id watchpoint.*) are not bound to the vendor namespace (spec MOD §5.2).
+        var firstParty = await catalog.RegisterPackageAsync(
+            PackageId.FromTrusted("watchpoint.integration.test"),
+            SemVersion.Parse("1.0.0").Value,
+            new PackageTypeDocuments([], [doc with { Id = TypeId.FromTrusted("sim.mydoor") }], new Dictionary<string, JsonDocument>(), new Dictionary<string, ReadOnlyMemory<byte>>()),
+            CancellationToken.None);
+        (firstParty.IsSuccess ? null : firstParty.Error.Code.Value).ShouldNotBe(ModelErrors.ReservedNamespace.Value);
     }
 
     [Fact]

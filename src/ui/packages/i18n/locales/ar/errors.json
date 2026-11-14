@@ -16,5 +16,27 @@
       "out_of_range": "يجب أن تكون القيمة بين {min} و {max}.",
       "required": "هذا الحقل مطلوب."
     }
+  },
+  "irt": {
+    "package": {
+      "not_found": "لم يتم العثور على الحزمة {package} {version}.",
+      "unsigned": "الحزمة غير موقّعة.",
+      "signature_invalid": "توقيع الحزمة لا يطابق بيانها ({reason}).",
+      "untrusted_key": "الحزمة موقّعة بمفتاح غير موثوق ({keyId}).",
+      "unsafe_archive": "تم رفض أرشيف الحزمة ({reason}).",
+      "hash_mismatch": "الملف {file} لا يطابق البصمة المدرجة في البيان.",
+      "file_unlisted": "الملف {file} غير مدرج في البيان.",
+      "contract_unsupported": "تتطلب الحزمة عقد التكامل {required}؛ هذه النسخة تدعم {runtime}.",
+      "product_too_old": "تتطلب الحزمة Watchpoint {required} أو أحدث (المثبّت: {product}).",
+      "platform_unsupported": "الحزمة لا تدعم هذه المنصة ({platform}).",
+      "connector_invalid": "فئة الموصّل {class} غير صالحة ({reason}).",
+      "not_active": "الحزمة {package} {version} غير نشطة.",
+      "shared_assembly_shadowed": "تحتوي الحزمة على نسختها من التجميع المشترك {assembly}؛ تُستخدم نسخة المضيف.",
+      "version_conflict": "الحزمة {package} {version} متوفرة بالفعل من {other}.",
+      "unreadable": "تعذّرت قراءة الحزمة ({reason}).",
+      "file_missing": "ملف الحزمة {file} مفقود؛ لا تزال بعض الاتصالات تستخدم هذه النسخة.",
+      "reserved_id": "معرّف الحزمة {package} محجوز لحزم Watchpoint.",
+      "file_name_invalid": "اسم الملف {fileName} غير مسموح؛ استخدم name.wpkg."
+    }
   }
 }

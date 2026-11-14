@@ -43,6 +43,8 @@ public static class ModelModule
             return loaded;
         });
 
+        services.AddSingleton<IStandardLibrary>(sp => sp.GetRequiredService<LoadedLibrary>());
+
         // Register TypeCatalog and expose ITypeCatalog and ITypeResources
         services.AddSingleton<TypeCatalog>();
         services.AddSingleton<ITypeCatalog>(sp => sp.GetRequiredService<TypeCatalog>());
