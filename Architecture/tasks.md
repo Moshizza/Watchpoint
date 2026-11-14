@@ -76,6 +76,7 @@ Every AI agent working on the project has a unique name, used as its branch pref
 | `jules-3` | Mohcine (Moshizza) | 2026-11-09 |
 | `claude-lyra` | Mohcine (Moshizza) | 2026-11-13 |
 | `claude-vega` | Mohcine (Moshizza) | 2026-11-10 |
+| `claude-rigel` | Mohcine (Moshizza) | 2026-11-14 |
 
 ## 2. Tasks
 
@@ -97,6 +98,7 @@ spec that must exist and pass.
 | T0.09 | Spike: NATS JetStream as event log and KV lease store (throughput, replay, KV CAS) → decision record | PIP §5, CLU §4 | T0.05 | Spike report | [#9](https://github.com/Moshizza/Watchpoint/issues/9) | claude-orion/T0.09-spike-nats-jetstream | done |
 | T0.10 | Spike: go2rtc RTSP → WebRTC in Electron on Windows, Linux, macOS (H.264, H.265) → decision record | VID §4 | T0.01 | Spike report | [#10](https://github.com/Moshizza/Watchpoint/issues/10) | — | todo |
 | T0.11 | Spike: connector isolation — `AssemblyLoadContext` in-process vs gRPC isolated host (latency, crash behaviour) → decision record | IRT §5, IHO §4 | T0.03 | Spike report | [#11](https://github.com/Moshizza/Watchpoint/issues/11) | claude-atlas/T0.11-spike-connector-isolation | done |
+| T0.12 | Fix intermittent INT-U-020 and HST-I-005 | INT §10, HST §7 | — | INT-U-020, HST-I-005 | — | claude-rigel/flaky-int-u-020-hst-i-005 | in progress |
 
 ### M1 — First device on screen
 
