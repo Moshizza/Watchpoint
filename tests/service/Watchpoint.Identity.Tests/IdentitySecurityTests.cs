@@ -581,6 +581,205 @@ public sealed class IdentitySecurityTests : IDisposable
         third.Error.Code.Value.ShouldBe("identity.user.login_taken");
     }
 
+    [Fact]
+    public async Task IDN_U_119_Refresh_refused_for_a_disabled_or_deleted_user_revokes_the_session()
+    {
+        var auth = _harness.CreateAuthService();
+
+        // Disabled directly in the database (UpdateAsync would already revoke): the refresh itself must notice.
+        var disabled = await SignedAsync(auth, "refresh.disabled");
+        await SetUserAsync(disabled.User.Id, u => u.Enabled = false);
+        (await auth.RefreshAsync(disabled.Tokens.RefreshToken, _desktop, Ct)).Error.Code.Value.ShouldBe("identity.signin.disabled");
+        _harness.SessionRegistry.IsRevoked(disabled.Tokens.Session).ShouldBeTrue();
+
+        var deleted = await SignedAsync(auth, "refresh.deleted");
+        await SetUserAsync(deleted.User.Id, u => u.DeletedAt = _harness.Clock.GetUtcNow());
+        (await auth.RefreshAsync(deleted.Tokens.RefreshToken, _desktop, Ct)).Error.Code.Value.ShouldBe("identity.refresh.invalid");
+        _harness.SessionRegistry.IsRevoked(deleted.Tokens.Session).ShouldBeTrue();
+
+        var expired = await SignedAsync(auth, "refresh.expired");
+        await SetUserAsync(expired.User.Id, u => u.ValidUntil = _harness.Clock.GetUtcNow().AddMinutes(-1));
+        (await auth.RefreshAsync(expired.Tokens.RefreshToken, _desktop, Ct)).Error.Code.Value.ShouldBe("identity.signin.expired");
+        _harness.SessionRegistry.IsRevoked(expired.Tokens.Session).ShouldBeTrue();
+
+        // Nothing was rotated and the session is dead: the token stays refused, as a revoked session, not as a reuse.
+        (await auth.RefreshAsync(disabled.Tokens.RefreshToken, _desktop, Ct)).Error.Code.Value.ShouldBe("identity.token.revoked");
+        await using var db = await _harness.DbFactory.CreateDbContextAsync(Ct);
+        (await db.RefreshTokens.CountAsync(Ct)).ShouldBe(3);
+        (await db.RefreshTokens.CountAsync(r => r.RotatedAt != null, Ct)).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task IDN_U_120_Refresh_refused_by_an_admission_hook_leaves_the_token_usable()
+    {
+        var auth = _harness.CreateAuthService();
+        var signed = await SignedAsync(auth, "refresh.maintenance");
+
+        var maintenance = new SwitchableAdmission { Refuse = true };
+        _harness.Admissions.Add(maintenance);
+        var during = _harness.CreateAuthService();
+
+        for (var i = 0; i < 3; i++)
+        {
+            (await during.RefreshAsync(signed.Tokens.RefreshToken, _desktop, Ct)).Error.Code.Value.ShouldBe("maintenance.active");
+        }
+
+        _harness.SessionRegistry.IsRevoked(signed.Tokens.Session).ShouldBeFalse();
+        await using (var db = await _harness.DbFactory.CreateDbContextAsync(Ct))
+        {
+            (await db.RefreshTokens.CountAsync(Ct)).ShouldBe(1);
+        }
+
+        // Maintenance over: the same token refreshes, once.
+        maintenance.Refuse = false;
+        var after = await during.RefreshAsync(signed.Tokens.RefreshToken, _desktop, Ct);
+        after.IsSuccess.ShouldBeTrue();
+        after.Value.RefreshToken.ShouldNotBe(signed.Tokens.RefreshToken);
+        (await _harness.TokenService.ValidateAccessTokenAsync(after.Value.AccessToken)).IsSuccess.ShouldBeTrue();
+
+        (await during.RefreshAsync(signed.Tokens.RefreshToken, _desktop, Ct)).Error.Code.Value.ShouldBe("identity.refresh.reused");
+        _harness.SessionRegistry.IsRevoked(signed.Tokens.Session).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task IDN_U_121_Concurrent_refresh_through_the_service_has_one_winner_and_a_reused_token_never_reaches_the_checks()
+    {
+        var hook = new SwitchableAdmission();
+        _harness.Admissions.Add(hook);
+        var auth = _harness.CreateAuthService();
+        var signed = await SignedAsync(auth, "refresh.race");
+        var token = signed.Tokens.RefreshToken;
+
+        // The store level is used for the race itself (RefreshAsync also touches the session in the background).
+        var results = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => Task.Run(
+            () => _harness.RefreshStore.RotateRefreshTokenAsync(
+                token,
+                _desktop,
+                (_, _) =>
+                {
+                    Interlocked.Increment(ref hook.Calls);
+                    return Task.FromResult(Result.Success());
+                },
+                Ct),
+            Ct)));
+
+        results.Count(r => r.IsSuccess).ShouldBe(1);
+        results.Where(r => !r.IsSuccess).ShouldAllBe(r => r.Error.Code.Value == "identity.refresh.reused");
+        hook.Calls.ShouldBe(1);
+        _harness.SessionRegistry.IsRevoked(signed.Tokens.Session).ShouldBeTrue();
+
+        // Reuse is detected before the user and admission checks, whatever they would say.
+        hook.Refuse = true;
+        var again = await SignedAsync(auth, "refresh.race2");
+        (await _harness.RefreshStore.RotateRefreshTokenAsync(again.Tokens.RefreshToken, _desktop, Ct)).IsSuccess.ShouldBeTrue();
+        var before = hook.Calls;
+        (await auth.RefreshAsync(again.Tokens.RefreshToken, _desktop, Ct)).Error.Code.Value.ShouldBe("identity.refresh.reused");
+        hook.Calls.ShouldBe(before);
+        _harness.SessionRegistry.IsRevoked(again.Tokens.Session).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task IDN_U_122_Password_history_keeps_the_last_five_hashes_only()
+    {
+        var uid = (await _harness.UserDirectory.CreateAsync(new NewUser("prune.user", "Prune User"), "StartPassword-0!", _systemCtx, Ct)).Value;
+
+        for (var i = 1; i <= 4; i++)
+        {
+            _harness.Clock.Advance(TimeSpan.FromMinutes(1));
+            (await _harness.UserDirectory.SetPasswordAsync(uid, $"NextPassword-{i}!", false, _systemCtx, Ct)).IsSuccess.ShouldBeTrue();
+        }
+
+        for (var i = 5; i <= 7; i++)
+        {
+            _harness.Clock.Advance(TimeSpan.FromMinutes(1));
+            (await _harness.UserDirectory.ChangeOwnPasswordAsync(uid, $"NextPassword-{i - 1}!", $"NextPassword-{i}!", null, Ct)).IsSuccess.ShouldBeTrue();
+        }
+
+        await using var db = await _harness.DbFactory.CreateDbContextAsync(Ct);
+        var history = await db.PasswordHistory.Where(h => h.UserId == uid).Select(h => h.Hash).ToListAsync(Ct);
+        history.Count.ShouldBe(5);
+
+        // The five kept are the five newest (passwords 3 to 7); the hashes of 0, 1 and 2 are gone.
+        async Task<bool> KeptAsync(string password)
+        {
+            foreach (var hash in history)
+            {
+                if ((await _harness.FastHasher.VerifyPasswordAsync(password, hash, Ct)).Verified)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        (await KeptAsync("StartPassword-0!")).ShouldBeFalse();
+        (await KeptAsync("NextPassword-2!")).ShouldBeFalse();
+        (await KeptAsync("NextPassword-3!")).ShouldBeTrue();
+        (await KeptAsync("NextPassword-7!")).ShouldBeTrue();
+
+        // The policy still rejects the last five and accepts the sixth back.
+        (await _harness.UserDirectory.SetPasswordAsync(uid, "NextPassword-3!", false, _systemCtx, Ct)).Error.FieldErrors[0].Code.Value.ShouldBe("identity.password.reused");
+        (await _harness.UserDirectory.SetPasswordAsync(uid, "NextPassword-2!", false, _systemCtx, Ct)).IsSuccess.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task IDN_U_123_Sign_in_succeeds_when_the_user_row_changes_during_it()
+    {
+        var uid = (await _harness.UserDirectory.CreateAsync(new NewUser("busy.user", "Busy User"), Password, _systemCtx, Ct)).Value;
+
+        // An administrator edits the user between the password check and the LastSignInAt write (the hook runs
+        // there): the row version moved, and that write must not turn a successful sign-in into an error.
+        _harness.Admissions.Add(new CallbackAdmission(async () =>
+        {
+            var version = _harness.UserDirectory.Get(uid).Value.Version;
+            (await _harness.UserDirectory.UpdateAsync(uid, new UserUpdate(Notes: "edited meanwhile"), version, _systemCtx, Ct)).IsSuccess.ShouldBeTrue();
+        }));
+
+        var outcome = await _harness.CreateAuthService().SignInLocalAsync(new SignInRequest("busy.user", Password, _desktop), Ct);
+        outcome.IsSuccess.ShouldBeTrue();
+        var signed = outcome.Value.ShouldBeOfType<SignInOutcome.Signed>();
+        _harness.SessionRegistry.IsRevoked(signed.Tokens.Session).ShouldBeFalse();
+        _harness.UserDirectory.Get(uid).Value.Notes.ShouldBe("edited meanwhile");
+    }
+
+    [Fact]
+    public async Task IDN_U_124_Kind_changed_to_template_or_script_revokes_the_sessions()
+    {
+        var auth = _harness.CreateAuthService();
+        foreach (var kind in new[] { UserKind.Template, UserKind.Script })
+        {
+            var signed = await SignedAsync(auth, $"kind.{kind}".ToLowerInvariant());
+            var version = _harness.UserDirectory.Get(signed.User.Id).Value.Version;
+            (await _harness.UserDirectory.UpdateAsync(signed.User.Id, new UserUpdate(Kind: kind), version, _systemCtx, Ct)).IsSuccess.ShouldBeTrue();
+
+            _harness.SessionRegistry.IsRevoked(signed.Tokens.Session).ShouldBeTrue();
+            (await _harness.TokenService.ValidateAccessTokenAsync(signed.Tokens.AccessToken)).Error.Code.Value.ShouldBe("identity.token.revoked");
+            (await auth.RefreshAsync(signed.Tokens.RefreshToken, _desktop, Ct)).IsSuccess.ShouldBeFalse();
+        }
+
+        // A change that keeps a sign-in kind keeps the session.
+        var kept = await SignedAsync(auth, "kind.person");
+        (await _harness.UserDirectory.UpdateAsync(kept.User.Id, new UserUpdate(Kind: UserKind.Federation), _harness.UserDirectory.Get(kept.User.Id).Value.Version, _systemCtx, Ct)).IsSuccess.ShouldBeTrue();
+        _harness.SessionRegistry.IsRevoked(kept.Tokens.Session).ShouldBeFalse();
+    }
+
+    private async Task<SignInOutcome.Signed> SignedAsync(AuthenticationService auth, string login)
+    {
+        (await _harness.UserDirectory.CreateAsync(new NewUser(login, "Refresh Person"), Password, _systemCtx, Ct)).IsSuccess.ShouldBeTrue();
+        var outcome = await auth.SignInLocalAsync(new SignInRequest(login, Password, _desktop), Ct);
+        outcome.IsSuccess.ShouldBeTrue();
+        return outcome.Value.ShouldBeOfType<SignInOutcome.Signed>();
+    }
+
+    private async Task SetUserAsync(UserId id, Action<Watchpoint.Identity.Internal.Storage.UserEntity> change)
+    {
+        await using var db = await _harness.DbFactory.CreateDbContextAsync(Ct);
+        var entity = await db.Users.SingleAsync(u => u.Id == id, Ct);
+        change(entity);
+        await db.SaveChangesAsync(Ct);
+    }
+
     private AuthenticationService AuthWith(Argon2PasswordHasher hasher) =>
         new(_harness.DbFactory, _harness.UserDirectory, hasher, _harness.TokenService, _harness.RefreshStore, _harness.SessionRegistry,
             _harness.LockoutService, new SignInRateLimiter(_harness.Clock, new SignInRateLimiterOptions(1000, 1000)), [], _harness.Clock);
@@ -643,6 +842,40 @@ public sealed class IdentitySecurityTests : IDisposable
             Expires = withExpiry ? now.AddMinutes(10) : null,
             SigningCredentials = new SigningCredentials(key, algorithm),
         });
+    }
+
+    private sealed class SwitchableAdmission : ISessionAdmission
+    {
+#pragma warning disable CA1051, SA1401 // test counter incremented with Interlocked
+        public int Calls;
+#pragma warning restore CA1051, SA1401
+
+        public bool Refuse { get; set; }
+
+        public int Order => 1;
+
+        public ValueTask<Result> AdmitAsync(User user, ClientContext client, AdmissionPhase phase, CancellationToken ct)
+        {
+            if (phase == AdmissionPhase.Refresh)
+            {
+                Interlocked.Increment(ref Calls);
+            }
+
+            return ValueTask.FromResult(Refuse && phase == AdmissionPhase.Refresh
+                ? Result.Failure(Error.Unavailable("maintenance.active"))
+                : Result.Success());
+        }
+    }
+
+    private sealed class CallbackAdmission(Func<Task> callback) : ISessionAdmission
+    {
+        public int Order => 1;
+
+        public async ValueTask<Result> AdmitAsync(User user, ClientContext client, AdmissionPhase phase, CancellationToken ct)
+        {
+            await callback();
+            return Result.Success();
+        }
     }
 
     private sealed class CountingSink : ISessionEventSink

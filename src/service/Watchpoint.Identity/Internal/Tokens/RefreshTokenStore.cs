@@ -65,9 +65,21 @@ internal sealed class RefreshTokenStore : IDisposable
     }
 
     /// <summary>Rotates an existing refresh token, issuing a new one and detecting reuse (spec IDN §6.3).</summary>
+    public Task<Result<(string NewToken, DateTimeOffset NewExpiresAt, Session Session)>> RotateRefreshTokenAsync(
+        string presentedToken,
+        ClientContext client,
+        CancellationToken ct) =>
+        RotateRefreshTokenAsync(presentedToken, client, null, ct);
+
+    /// <summary>
+    /// Rotates an existing refresh token. The token is validated and claimed first (one refresh at a time per token;
+    /// an already rotated token is a reuse), then <paramref name="admit"/> decides (user and admission checks), and
+    /// the token is rotated only when it allows: a refusal leaves the token as it was (spec IDN §6.3).
+    /// </summary>
     public async Task<Result<(string NewToken, DateTimeOffset NewExpiresAt, Session Session)>> RotateRefreshTokenAsync(
         string presentedToken,
         ClientContext client,
+        Func<Session, CancellationToken, Task<Result>>? admit,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(presentedToken))
@@ -83,7 +95,7 @@ internal sealed class RefreshTokenStore : IDisposable
         await gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            return await RotateCoreAsync(presentedHash, client, ct).ConfigureAwait(false);
+            return await RotateCoreAsync(presentedHash, client, admit, ct).ConfigureAwait(false);
         }
         finally
         {
@@ -94,6 +106,7 @@ internal sealed class RefreshTokenStore : IDisposable
     private async Task<Result<(string NewToken, DateTimeOffset NewExpiresAt, Session Session)>> RotateCoreAsync(
         string presentedHash,
         ClientContext client,
+        Func<Session, CancellationToken, Task<Result>>? admit,
         CancellationToken ct)
     {
         var now = _clock.GetUtcNow();
@@ -141,6 +154,16 @@ internal sealed class RefreshTokenStore : IDisposable
         if (now > session.ExpiresAt)
         {
             return IdentityErrors.RefreshInvalid();
+        }
+
+        // The token is valid and held by this refresh: now the caller's checks, before anything is written.
+        if (admit is not null)
+        {
+            var admitted = await admit(session, ct).ConfigureAwait(false);
+            if (!admitted.IsSuccess)
+            {
+                return admitted.Error;
+            }
         }
 
         // Generate new token

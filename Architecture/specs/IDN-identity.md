@@ -5,7 +5,7 @@
 | Spec id | IDN |
 | Projects | `src/service/Watchpoint.Identity` |
 | Milestone | M1 (part 1: §4–§7), M3 (part 2: §8–§12) |
-| Tasks | T1.18 (§4–§7), T1.18r (security review of §4–§7), T3.07 (§8–§9), T3.08 (§10–§12) |
+| Tasks | T1.18 (§4–§7), T1.18r (security review of §4–§7), T1.18s (settings binding, per-site issuer), T3.07 (§8–§9), T3.08 (§10–§12) |
 | Design docs | [Users and rights §1, §4, §5](../../docs/modules/users-and-rights.md) |
 
 ## 1. Purpose and scope
@@ -133,7 +133,7 @@ Policy (`IPasswordPolicy`, settings in §7):
 | Composition | ≥ 3 of {lower, upper, digit, symbol}, **or** length ≥ 16 (passphrases) |
 | Must not contain login or display name parts (≥ 4 chars), case-insensitive | on |
 | Breached list | Embedded list of the 100,000 most common breached passwords (compressed resource), case-insensitive exact match |
-| History | Last 5 hashes rejected |
+| History | Last 5 hashes rejected; only these are kept: every password change deletes the older rows of `password_history` |
 | Expiry | Off (NIST guidance); configurable in days |
 
 Errors are returned as field errors on `/password` with codes `identity.password.too_short`,
@@ -241,6 +241,13 @@ Sign-in algorithm:
   `rotated_at` is an optimistic concurrency token (`UPDATE … WHERE rotated_at IS NULL`), a lost
   race is a reuse.
 - A refresh token never expires after the end of its session.
+- **Order of a refresh**: (1) the token is validated and claimed (reuse, expiry, session, binding);
+  (2) the user and admission checks run; (3) the token is rotated only if they pass. A user who
+  can no longer sign in (deleted, kind Template/Script → `identity.refresh.invalid`; disabled →
+  `identity.signin.disabled`; expired → `identity.signin.expired`) loses the **session**. A
+  refusal by an `ISessionAdmission` hook (maintenance, seats) is temporary: nothing is rotated or
+  revoked and the same token works once the hook allows. Reuse is detected in step 1, before any
+  hook is called.
 - Binding: refresh requires the same `ClientInstanceId` and client kind as the session.
 - Web client: refresh token in a cookie `wp_rt` (HttpOnly, Secure, SameSite=Strict, Path
   `/api/v1/auth`); other clients receive it in the response body and store it in OS secure
@@ -297,6 +304,10 @@ maintenance mode (MNT), explicit sign-out.
 | `Identity:Password:MinLength` / `History` / `ExpiryDays` | 12 / 5 / 0 |
 | `Identity:BootstrapAdmin:Login` | `admin` |
 | `Identity:BootstrapAdmin:PasswordEnv` | `WATCHPOINT_BOOTSTRAP_ADMIN_PASSWORD` |
+
+Not implemented yet (T1.18s): the host registers the module with the defaults above without
+reading the `Identity:*` keys, and the token issuer is `urn:watchpoint:site:default` for every
+site because the node settings carry no site id.
 
 **Bootstrap administrator** (startup phase `Configuration`): if no Person administrator exists,
 create `admin` with the password from the environment variable (Production). If the variable
@@ -534,6 +545,12 @@ OIDC tests against a Keycloak container).
 | IDN-U-116 | U | Bootstrap admin: failure logged 2702 + 2701 without the password; created once, later starts change nothing |
 | IDN-U-117 | U | Access token `exp` ≤ session end; unknown or missing `ck` refused |
 | IDN-U-118 | U | Active login stays unique when an older deleted user had the same login |
+| IDN-U-119 | U | Refresh for a disabled, deleted or expired user is refused and revokes the session; nothing rotated |
+| IDN-U-120 | U | Refresh refused by an admission hook leaves the token usable; it refreshes once the hook allows, then the old token is a reuse |
+| IDN-U-121 | U | Concurrent refresh with checks: one winner, checks run once; a reused token never reaches the checks |
+| IDN-U-122 | U | `password_history` keeps the last 5 hashes only (reset and own change); policy unchanged |
+| IDN-U-123 | U | Sign-in succeeds when the user row is changed during it (`LastSignInAt` write is best effort) |
+| IDN-U-124 | U | Kind changed to Template or Script revokes the sessions; another kind keeps them |
 | IDN-U-031 | U | LDAP filter and DN escaping (RFC 4515/4514) with injection attempts |
 | IDN-U-032 | U | LDAP: user search then user bind; wrong password → invalid_credentials |
 | IDN-U-033 | U | LDAP: JIT provisioning creates user with Directory source and attributes |
@@ -596,6 +613,7 @@ OIDC tests against a Keycloak container).
 | Task | Sections | Tests |
 |---|---|---|
 | T1.18 | §4–§7, §13, §14 (part 1) | IDN-U-001…IDN-U-030, IDN-I-001…IDN-I-006 |
-| T1.18r | §4–§7, §13, §14 (security review and fixes of T1.18) | IDN-U-101…IDN-U-118 (+ IDN-U-001…030, IDN-I-001…006 still passing) |
+| T1.18r | §4–§7, §13, §14 (security review and fixes of T1.18) | IDN-U-101…IDN-U-124 (+ IDN-U-001…030, IDN-I-001…006 still passing) |
+| T1.18s | §6.2 issuer, §7.1 settings binding | (tests to define) |
 | T3.07 | §8, §9 | IDN-U-031…IDN-U-050, IDN-I-007…IDN-I-012 |
 | T3.08 | §10–§12 | IDN-U-051…IDN-U-080 |

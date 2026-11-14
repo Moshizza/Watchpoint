@@ -244,50 +244,67 @@ internal sealed class AuthenticationService : IAuthenticationService
     {
         ArgumentNullException.ThrowIfNull(client);
 
-        var rotateResult = await _refreshStore.RotateRefreshTokenAsync(refreshToken, client, ct).ConfigureAwait(false);
+        // Order (spec IDN §6.3): the store validates and claims the token, then the user and admission checks run,
+        // and the token is rotated only if they pass. A temporary refusal therefore leaves the token usable.
+        User? admitted = null;
+        var rotateResult = await _refreshStore.RotateRefreshTokenAsync(
+            refreshToken,
+            client,
+            async (session, token) =>
+            {
+                var (error, user) = await AdmitRefreshAsync(session, client, token).ConfigureAwait(false);
+                admitted = user;
+                return error is null ? Result.Success() : Result.Failure(error);
+            },
+            ct).ConfigureAwait(false);
+
         if (!rotateResult.TryGetValue(out var tuple, out var rotateError))
         {
             return rotateError;
         }
 
-        var (newToken, newExpiresAt, session) = tuple;
+        var (newToken, newExpiresAt, rotatedSession) = tuple;
+        var (accessToken, accessExpiresAt) = _tokenService.IssueAccessToken(rotatedSession, admitted!);
+        _sessionRegistry.Touch(rotatedSession.Id);
 
-        // Verify user is still active and not expired
-        var userResult = _userDirectory.Get(session.UserId);
-        if (!userResult.TryGetValue(out var user, out var userError))
+        return new TokenPair(accessToken, accessExpiresAt, newToken, newExpiresAt, rotatedSession.Id);
+    }
+
+    // A user who can no longer sign in at all (deleted, cannot-sign-in kind, disabled, expired) loses the session;
+    // an admission hook (maintenance, seats) only refuses this refresh.
+    private async Task<(Error? Error, User? User)> AdmitRefreshAsync(Session session, ClientContext client, CancellationToken ct)
+    {
+        if (!_userDirectory.Get(session.UserId).TryGetValue(out var user, out _) ||
+            user.Kind is UserKind.Template or UserKind.Script)
         {
-            return userError;
+            await _sessionRegistry.RevokeAsync(session.Id, "User deleted", null, ct).ConfigureAwait(false);
+            return (IdentityErrors.RefreshInvalid(), null);
         }
 
         var now = _clock.GetUtcNow();
         if (!user.Enabled)
         {
             await _sessionRegistry.RevokeAsync(session.Id, "User disabled", null, ct).ConfigureAwait(false);
-            return IdentityErrors.Disabled();
+            return (IdentityErrors.Disabled(), null);
         }
 
         if ((user.ValidFrom.HasValue && now < user.ValidFrom.Value) ||
             (user.ValidUntil.HasValue && now > user.ValidUntil.Value))
         {
             await _sessionRegistry.RevokeAsync(session.Id, "User expired", null, ct).ConfigureAwait(false);
-            return IdentityErrors.Expired();
+            return (IdentityErrors.Expired(), null);
         }
 
-        // Admission hook check on refresh
         foreach (var admission in _admissions)
         {
             var admissionResult = await admission.AdmitAsync(user, client, AdmissionPhase.Refresh, ct).ConfigureAwait(false);
             if (!admissionResult.IsSuccess)
             {
-                return admissionResult.Error;
+                return (admissionResult.Error, null);
             }
         }
 
-        // Issue new access token
-        var (accessToken, accessExpiresAt) = _tokenService.IssueAccessToken(session, user);
-        _sessionRegistry.Touch(session.Id);
-
-        return new TokenPair(accessToken, accessExpiresAt, newToken, newExpiresAt, session.Id);
+        return (null, user);
     }
 
     public async Task<Result> SignOutAsync(SessionId session, CancellationToken ct)

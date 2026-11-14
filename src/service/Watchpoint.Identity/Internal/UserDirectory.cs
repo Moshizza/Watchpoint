@@ -20,6 +20,7 @@ internal sealed partial class UserDirectory : IUserDirectory
     private readonly Argon2PasswordHasher _passwordHasher;
     private readonly TimeProvider _clock;
     private readonly LockoutService? _lockout;
+    private readonly int _historyCount;
 
     public event EventHandler<UserChangedEventArgs>? Changed;
 
@@ -29,9 +30,11 @@ internal sealed partial class UserDirectory : IUserDirectory
         IPasswordPolicy passwordPolicy,
         Argon2PasswordHasher passwordHasher,
         TimeProvider clock,
-        LockoutService? lockout = null)
+        LockoutService? lockout = null,
+        PasswordPolicyOptions? policyOptions = null)
     {
         _lockout = lockout;
+        _historyCount = (policyOptions ?? new PasswordPolicyOptions()).HistoryCount;
         _dbFactory = dbFactory ?? throw new ArgumentNullException(nameof(dbFactory));
         _sessionRegistry = sessionRegistry ?? throw new ArgumentNullException(nameof(sessionRegistry));
         _passwordPolicy = passwordPolicy ?? throw new ArgumentNullException(nameof(passwordPolicy));
@@ -414,13 +417,7 @@ internal sealed partial class UserDirectory : IUserDirectory
         entity.UpdatedAt = now;
         entity.RowVersion++;
 
-        db.PasswordHistory.Add(new PasswordHistoryEntity
-        {
-            Id = Guid.NewGuid(),
-            UserId = id,
-            Hash = newHash,
-            CreatedAt = now,
-        });
+        await AddToHistoryAsync(db, id, newHash, now, ct).ConfigureAwait(false);
 
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
 
@@ -494,13 +491,7 @@ internal sealed partial class UserDirectory : IUserDirectory
         entity.UpdatedAt = now;
         entity.RowVersion++;
 
-        db.PasswordHistory.Add(new PasswordHistoryEntity
-        {
-            Id = Guid.NewGuid(),
-            UserId = id,
-            Hash = newHash,
-            CreatedAt = now,
-        });
+        await AddToHistoryAsync(db, id, newHash, now, ct).ConfigureAwait(false);
 
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
 
@@ -518,6 +509,25 @@ internal sealed partial class UserDirectory : IUserDirectory
 
         Changed?.Invoke(this, new UserChangedEventArgs(id, "PasswordChanged"));
         return Result.Success();
+    }
+
+    // Keeps the last N hashes only (spec IDN §5, §7.3): an old hash that the policy no longer checks is only
+    // something more to steal.
+    private async Task AddToHistoryAsync(IdentityDbContext db, UserId id, string hash, DateTimeOffset now, CancellationToken ct)
+    {
+        var previous = await db.PasswordHistory.Where(h => h.UserId == id).ToListAsync(ct).ConfigureAwait(false);
+        db.PasswordHistory.RemoveRange(previous.OrderByDescending(h => h.CreatedAt).Skip(Math.Max(_historyCount - 1, 0)));
+
+        if (_historyCount > 0)
+        {
+            db.PasswordHistory.Add(new PasswordHistoryEntity
+            {
+                Id = Guid.NewGuid(),
+                UserId = id,
+                Hash = hash,
+                CreatedAt = now,
+            });
+        }
     }
 
     internal static User MapToUser(UserEntity entity)
