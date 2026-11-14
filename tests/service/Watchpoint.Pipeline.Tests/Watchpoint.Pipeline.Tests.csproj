@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Unit tests of the pipeline (spec PIP §14): the real writer, reader and consumers on an in-memory broker. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Watchpoint.Pipeline.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+    <PackageReference Include="NATS.Net" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../../src/service/Watchpoint.Pipeline/Watchpoint.Pipeline.csproj" />
+    <ProjectReference Include="../../../src/service/Watchpoint.Kernel.Testing/Watchpoint.Kernel.Testing.csproj" />
+    <ProjectReference Include="../Watchpoint.Testing/Watchpoint.Testing.csproj" />
+  </ItemGroup>
+
+</Project>

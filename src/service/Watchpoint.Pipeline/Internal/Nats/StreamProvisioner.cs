@@ -34,12 +34,15 @@ internal sealed class StreamProvisioner(
 
     public Task ExecuteAsync(CancellationToken ct) => EnsureStreamsAsync(ct);
 
-    /// <summary>The stream settings the configuration asks for.</summary>
+    /// <summary>
+    /// The stream settings the configuration asks for. The small global streams come first: when JetStream is short
+    /// of storage it is the size of <c>WP_LOG</c> that gives way.
+    /// </summary>
     public IReadOnlyList<StreamSettings> DesiredStreams() =>
     [
-        Desired(LogStream.Log, options.Retention, options.MaxBytes),
         Desired(LogStream.Cfg, options.GlobalRetention, options.GlobalMaxBytes),
         Desired(LogStream.Sys, options.GlobalRetention, options.GlobalMaxBytes),
+        Desired(LogStream.Log, options.Retention, options.MaxBytes),
     ];
 
     public async Task EnsureStreamsAsync(CancellationToken ct)
