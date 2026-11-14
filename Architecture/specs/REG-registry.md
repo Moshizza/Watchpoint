@@ -458,7 +458,7 @@ persistence fake). Integration: `Watchpoint.IntegrationTests/Registry`.
 | REG-I-006 | I | Concurrent writers: version conflict surfaces | Two writers update same device → one succeeds, one conflict |
 | REG-I-007 | I | Discovered items persisted | Reconcile with new items → rows; import → status imported |
 | REG-I-008 | I | API device list with filters and paging | Through API test host: filters map to query; cursor works |
-| REG-I-009 | I | Load time 50,000 devices | Seed 50,000 devices → snapshot load < 3 s, memory < 150 MB (CI measurement, warning only if exceeded on shared runners) |
+| REG-I-009 | I | Load time 50,000 devices | Seed 50,000 devices → snapshot load < 3 s on a developer machine or with `WATCHPOINT_STRICT_TIMING=1` (benchmark run); on shared CI runners (`CI=true`) < 10 s (TST §4.7), and the measured time is written to the test output. Memory < 150 MB is a benchmark measurement, not asserted in CI |
 | REG-I-010 | I | PATCH device with If-Match | Correct ETag → 200 new ETag; stale → 412 `common.version.conflict` |
 
 ## 15. Tasks

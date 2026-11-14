@@ -33,4 +33,30 @@ public sealed class TestClockTests
         clock.GetUtcNow().ShouldBe(target);
         Should.Throw<ArgumentOutOfRangeException>(() => clock.AdvanceTo(target.AddSeconds(-1)));
     }
+    [Fact]
+    public async Task TST_U_001_WaitForTimersAsync_completes_once_the_timer_is_armed()
+    {
+        var clock = new TestClock();
+        var first = clock.WaitForTimersAsync(1, TestContext.Current.CancellationToken);
+        var second = clock.WaitForTimersAsync(2, TestContext.Current.CancellationToken);
+        first.IsCompleted.ShouldBeFalse();
+
+        var fired = false;
+        using var timer = clock.CreateTimer(_ => fired = true, null, TimeSpan.FromSeconds(1), Timeout.InfiniteTimeSpan);
+
+        await first;
+        second.IsCompleted.ShouldBeFalse();
+        clock.TimersCreated.ShouldBe(1);
+        clock.WaitForTimersAsync(1, TestContext.Current.CancellationToken).IsCompleted.ShouldBeTrue();
+
+        // The armed timer receives the advance made after the wait.
+        clock.Advance(TimeSpan.FromSeconds(1));
+        fired.ShouldBeTrue();
+
+        // Task.Delay on the clock creates a timer too: the delay is armed before the wait completes.
+        var delay = Task.Delay(TimeSpan.FromSeconds(5), clock, TestContext.Current.CancellationToken);
+        await second;
+        clock.Advance(TimeSpan.FromSeconds(5));
+        await delay;
+    }
 }

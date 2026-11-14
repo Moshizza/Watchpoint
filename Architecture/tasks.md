@@ -77,6 +77,10 @@ Every AI agent working on the project has a unique name, used as its branch pref
 | `claude-lyra` | Mohcine (Moshizza) | 2026-11-13 |
 | `claude-vega` | Mohcine (Moshizza) | 2026-11-10 |
 | `claude-nova` | Mohcine (Moshizza) | 2026-11-14 |
+| `claude-rigel` | Mohcine (Moshizza) | 2026-11-14 |
+| `claude-sirius` | Mohcine (Moshizza) | 2026-11-14 |
+| `claude-deneb` | Mohcine (Moshizza) | 2026-11-14 |
+| `claude-altair` | Mohcine (Moshizza) | 2026-11-14 |
 
 ## 2. Tasks
 
@@ -98,6 +102,9 @@ spec that must exist and pass.
 | T0.09 | Spike: NATS JetStream as event log and KV lease store (throughput, replay, KV CAS) → decision record | PIP §5, CLU §4 | T0.05 | Spike report | [#9](https://github.com/Moshizza/Watchpoint/issues/9) | claude-orion/T0.09-spike-nats-jetstream | done |
 | T0.10 | Spike: go2rtc RTSP → WebRTC in Electron on Windows, Linux, macOS (H.264, H.265) → decision record | VID §4 | T0.01 | Spike report | [#10](https://github.com/Moshizza/Watchpoint/issues/10) | — | todo |
 | T0.11 | Spike: connector isolation — `AssemblyLoadContext` in-process vs gRPC isolated host (latency, crash behaviour) → decision record | IRT §5, IHO §4 | T0.03 | Spike report | [#11](https://github.com/Moshizza/Watchpoint/issues/11) | claude-atlas/T0.11-spike-connector-isolation | done |
+| T0.12 | Fix intermittent INT-U-020 and HST-I-005 | INT §10, HST §7 | — | INT-U-020, HST-I-005 | — | claude-rigel/flaky-int-u-020-hst-i-005 | done |
+| T0.13 | Make wall-clock timing tests CI-safe | TST §4.7, STO §12, REG §14 | — | STO-I-011, REG-I-009, TST-I-003, TST-U-014, INT-C-012 (Modbus) | — | claude-deneb/T0.13-ci-safe-timing-tests | done |
+| T0.14 | EXP-U-040: assert the evaluator hot path is allocation-free instead of a fake-clock timing that cannot fail | EXP §5, §10; TST §4.7 | — | EXP-U-040 | — | claude-altair/T0.14-exp-allocation-free-hot-path | done |
 
 ### M1 — First device on screen
 
@@ -122,6 +129,8 @@ spec that must exist and pass.
 | T1.17 | Simulator connector (types, scenarios, random and scripted changes, commands with configurable outcomes) | C-SIM | T1.14 | SIM-U-001…SIM-U-030, SIM-I-002, SIM-I-003 | [#28](https://github.com/Moshizza/Watchpoint/issues/28) | jules-2365140055605449599-7f8a9063 | done |
 | T1.17b | Simulator, Modbus and MQTT end-to-end tests | C-SIM, C-MODBUS, C-MQTT | T1.16, T1.07, T1.09, T4.05, T4.06 | SIM-I-001, SIM-I-004, SIM-I-005, MODB-I-002, MQTT-I-004 | — | — | todo |
 | T1.18 | Identity minimal: local users, Argon2id, sign-in, access/refresh tokens, bootstrap admin, session registry | IDN §4–§7 | T1.04 | IDN-U-001…IDN-U-030, IDN-I-001…IDN-I-006 | [#29](https://github.com/Moshizza/Watchpoint/issues/29) | jules-14674020379193774426-43566f4b | done |
+| T1.18r | Identity security review and fixes (T1.18 code) | IDN §4–§7 | T1.18 | IDN-U-*, IDN-I-*, new tests (IDN-U-101…IDN-U-124) | — | claude-sirius/T1.18r-identity-security-review | done |
+| T1.18s | Identity settings binding (§7.1) and per-site token issuer | IDN §6–§7 | T1.18r | (tests to define) | — | — | todo |
 | T1.19 | API: REST framework (problem details, paging, ETag, idempotency, permission filter, OpenAPI) + endpoints for registry, state, connections, types, dev seed | API §4–§7 | T1.11, T1.16, T1.18 | API-U-001…API-U-030, API-I-001…API-I-015, REG-I-008, REG-I-010 | [#30](https://github.com/Moshizza/Watchpoint/issues/30) | — | todo |
 | T1.20 | API: live hub (subscriptions, snapshots + deltas, sequences, resume, coalescing, limits) | API §8–§10 | T1.19 | API-U-031…API-U-055, API-I-016…API-I-025 | [#31](https://github.com/Moshizza/Watchpoint/issues/31) | — | todo |
 | T1.21 | UI core: generated API client, live connection client, model package | UIC §4–§6 | T1.20, T0.08 | UIC-U-004…UIC-U-030 | [#32](https://github.com/Moshizza/Watchpoint/issues/32) | — | todo |

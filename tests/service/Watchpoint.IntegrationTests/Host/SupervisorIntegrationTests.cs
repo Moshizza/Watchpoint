@@ -65,7 +65,7 @@ public sealed class SupervisorIntegrationTests
             });
             var js = new NatsJSContext(connection);
             await js.CreateStreamAsync(new StreamConfig("I005", ["i005.>"]), Ct);
-            (await js.PublishAsync("i005.a", "before", cancellationToken: Ct)).EnsureSuccess();
+            await PublishOnceAsync(js, "i005.a", "before");
 
             // Kill the server: the supervisor restarts it (back-off 1 s ± 20 %).
             var restarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -89,7 +89,7 @@ public sealed class SupervisorIntegrationTests
             logs.WithEventId(1150).Count().ShouldBe(2);
 
             // The same connection recovers, and the acknowledged message survived the kill.
-            await PublishEventuallyAsync(js, "i005.a", "after");
+            await PublishOnceAsync(js, "i005.a", "after");
             var stream = await js.GetStreamAsync("I005", cancellationToken: Ct);
             stream.Info.State.Messages.ShouldBe(2L);
 
@@ -325,15 +325,28 @@ public sealed class SupervisorIntegrationTests
         return pid;
     }
 
-    private static async Task PublishEventuallyAsync(NatsJSContext js, string subject, string data)
+    /// <summary>
+    /// Publishes <paramref name="data"/> until JetStream acknowledges it, storing it exactly once. Each publish
+    /// carries a message id: a request the server stored after the client gave up on its acknowledgement (a server
+    /// slow after the restart) makes the retry a duplicate, which JetStream drops and acknowledges as such.
+    /// Without the id, the retries of the client and of this loop each store a copy (the HST-I-005 flake).
+    /// </summary>
+    private static async Task PublishOnceAsync(NatsJSContext js, string subject, string data)
     {
+        var opts = new NatsJSPubOpts { MsgId = subject + "/" + data };
         var started = Stopwatch.StartNew();
         while (true)
         {
             try
             {
-                (await js.PublishAsync(subject, data, cancellationToken: Ct)).EnsureSuccess();
-                return;
+                var ack = await js.PublishAsync(subject, data, opts: opts, cancellationToken: Ct);
+                if (ack.Error is null)
+                {
+                    // Stored now, or stored by an earlier attempt whose acknowledgement was lost (Duplicate).
+                    return;
+                }
+
+                ack.EnsureSuccess();
             }
             catch (Exception ex) when (ex is NatsException && started.Elapsed < _limit)
             {

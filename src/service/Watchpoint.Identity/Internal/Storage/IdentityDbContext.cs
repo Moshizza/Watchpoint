@@ -232,7 +232,7 @@ internal class IdentityDbContext(DbContextOptions options, StorageContextInfo in
             b.Property(r => r.SessionId).HasColumnName("session_id");
             b.Property(r => r.CreatedAt).HasColumnName("created_at");
             b.Property(r => r.ExpiresAt).HasColumnName("expires_at");
-            b.Property(r => r.RotatedAt).HasColumnName("rotated_at");
+            b.Property(r => r.RotatedAt).HasColumnName("rotated_at").IsConcurrencyToken();
             b.Property(r => r.ReplacedByHash).HasColumnName("replaced_by_hash");
             b.HasIndex(r => r.SessionId);
         });

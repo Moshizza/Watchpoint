@@ -34,9 +34,9 @@ public static class IdentityErrors
     public static Error MfaInvalid() =>
         Error.Create(ErrorKind.Unauthenticated, "identity.signin.mfa_invalid");
 
-    /// <summary>Unauthenticated: Invalid access token.</summary>
-    public static Error TokenInvalid(string? details = null) =>
-        Error.Create(ErrorKind.Unauthenticated, "identity.token.invalid", ("details", details ?? "Invalid access token"));
+    /// <summary>Unauthenticated: Invalid access token. Carries no detail: the reason is never told to the caller.</summary>
+    public static Error TokenInvalid() =>
+        Error.Create(ErrorKind.Unauthenticated, "identity.token.invalid");
 
     /// <summary>Unauthenticated: Access token expired.</summary>
     public static Error TokenExpired() =>
@@ -77,6 +77,14 @@ public static class IdentityErrors
     /// <summary>Validation: Password is too short.</summary>
     public static Error PasswordTooShort(int minLength) =>
         Error.Validation("common.validation.failed", [FieldError.Create("/password", ErrorCode.FromTrusted("identity.password.too_short"), ("min", minLength))]);
+
+    /// <summary>Validation: Password is not a valid Unicode string.</summary>
+    public static Error PasswordInvalidCharacters() =>
+        Error.Validation("common.validation.failed", [FieldError.Create("/password", ErrorCode.FromTrusted("identity.password.invalid_characters"))]);
+
+    /// <summary>Validation: Password is longer than the maximum.</summary>
+    public static Error PasswordTooLong(int maxLength) =>
+        Error.Validation("common.validation.failed", [FieldError.Create("/password", ErrorCode.FromTrusted("identity.password.too_long"), ("max", maxLength))]);
 
     /// <summary>Validation: Password does not satisfy character class composition rules.</summary>
     public static Error PasswordTooSimple() =>

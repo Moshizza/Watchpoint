@@ -25,7 +25,27 @@ internal sealed class PasswordPolicy : IPasswordPolicy
 
     public async ValueTask<Result> ValidateAsync(string password, string login, string displayName, UserId? userId, CancellationToken ct)
     {
-        if (string.IsNullOrEmpty(password) || password.Length < _options.MinLength)
+        // Too long (or not valid Unicode) is refused before any hashing (spec IDN §5, §14); the policy then works on
+        // the NFKC form that is hashed.
+        if (password is { Length: > Argon2PasswordHasher.MaxPasswordLength })
+        {
+            return IdentityErrors.PasswordTooLong(Argon2PasswordHasher.MaxPasswordLength);
+        }
+
+        if (string.IsNullOrEmpty(password))
+        {
+            return IdentityErrors.PasswordTooShort(_options.MinLength);
+        }
+
+        if (!Argon2PasswordHasher.TryNormalize(password, out var normalized))
+        {
+            return normalized.Length > Argon2PasswordHasher.MaxPasswordLength
+                ? IdentityErrors.PasswordTooLong(Argon2PasswordHasher.MaxPasswordLength)
+                : IdentityErrors.PasswordInvalidCharacters();
+        }
+
+        password = normalized;
+        if (password.Length < _options.MinLength)
         {
             return IdentityErrors.PasswordTooShort(_options.MinLength);
         }

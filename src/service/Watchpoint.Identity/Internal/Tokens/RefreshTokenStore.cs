@@ -1,25 +1,34 @@
 using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Watchpoint.Identity.Contracts;
 using Watchpoint.Identity.Internal.Storage;
+using Watchpoint.Kernel.Ids;
 using Watchpoint.Kernel.Results;
+using Watchpoint.Storage.Contracts;
 
 namespace Watchpoint.Identity.Internal.Tokens;
 
 /// <summary>Manages refresh token generation, hashing (SHA-256), rotation, and reuse detection (spec IDN §6.3).</summary>
-internal sealed class RefreshTokenStore
+internal sealed class RefreshTokenStore : IDisposable
 {
     private readonly IDbContextFactory<IdentityDbContext> _dbFactory;
     private readonly ISessionRegistry _sessionRegistry;
     private readonly TimeProvider _clock;
     private readonly RefreshTokenOptions _options;
+    private readonly ILogger<RefreshTokenStore>? _logger;
+
+    // One rotation at a time per presented token in this process; the rotated_at concurrency token covers other nodes.
+    private readonly SemaphoreSlim[] _rotationLocks = [.. Enumerable.Range(0, 32).Select(_ => new SemaphoreSlim(1, 1))];
 
     public RefreshTokenStore(
         IDbContextFactory<IdentityDbContext> dbFactory,
         ISessionRegistry sessionRegistry,
         TimeProvider clock,
-        RefreshTokenOptions? options = null)
+        RefreshTokenOptions? options = null,
+        ILogger<RefreshTokenStore>? logger = null)
     {
+        _logger = logger;
         _dbFactory = dbFactory ?? throw new ArgumentNullException(nameof(dbFactory));
         _sessionRegistry = sessionRegistry ?? throw new ArgumentNullException(nameof(sessionRegistry));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
@@ -40,7 +49,7 @@ internal sealed class RefreshTokenStore
         var hash = ComputeHash(token);
 
         var now = _clock.GetUtcNow();
-        var expiresAt = CalculateExpiration(now, session.CreatedAt, session.ClientKind);
+        var expiresAt = CalculateExpiration(now, session);
 
         await using var db = await _dbFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         db.RefreshTokens.Add(new RefreshTokenEntity
@@ -56,9 +65,21 @@ internal sealed class RefreshTokenStore
     }
 
     /// <summary>Rotates an existing refresh token, issuing a new one and detecting reuse (spec IDN §6.3).</summary>
+    public Task<Result<(string NewToken, DateTimeOffset NewExpiresAt, Session Session)>> RotateRefreshTokenAsync(
+        string presentedToken,
+        ClientContext client,
+        CancellationToken ct) =>
+        RotateRefreshTokenAsync(presentedToken, client, null, ct);
+
+    /// <summary>
+    /// Rotates an existing refresh token. The token is validated and claimed first (one refresh at a time per token;
+    /// an already rotated token is a reuse), then <paramref name="admit"/> decides (user and admission checks), and
+    /// the token is rotated only when it allows: a refusal leaves the token as it was (spec IDN §6.3).
+    /// </summary>
     public async Task<Result<(string NewToken, DateTimeOffset NewExpiresAt, Session Session)>> RotateRefreshTokenAsync(
         string presentedToken,
         ClientContext client,
+        Func<Session, CancellationToken, Task<Result>>? admit,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(presentedToken))
@@ -67,6 +88,27 @@ internal sealed class RefreshTokenStore
         }
 
         var presentedHash = ComputeHash(presentedToken);
+
+        // Two refreshes with the same token must not both rotate it (that would fork the token family and hide a
+        // theft): the second one sees rotated_at set and takes the reuse path (spec IDN §6.3).
+        var gate = _rotationLocks[(int)((uint)string.GetHashCode(presentedHash, StringComparison.Ordinal) % (uint)_rotationLocks.Length)];
+        await gate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            return await RotateCoreAsync(presentedHash, client, admit, ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    private async Task<Result<(string NewToken, DateTimeOffset NewExpiresAt, Session Session)>> RotateCoreAsync(
+        string presentedHash,
+        ClientContext client,
+        Func<Session, CancellationToken, Task<Result>>? admit,
+        CancellationToken ct)
+    {
         var now = _clock.GetUtcNow();
 
         await using var db = await _dbFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
@@ -80,8 +122,7 @@ internal sealed class RefreshTokenStore
         // Reuse detection: already rotated token presented -> revoke the whole session
         if (tokenEntity.RotatedAt is not null)
         {
-            await _sessionRegistry.RevokeAsync(tokenEntity.SessionId, "Refresh token reuse detected", null, ct).ConfigureAwait(false);
-            return IdentityErrors.RefreshReused();
+            return await ReuseDetectedAsync(tokenEntity.SessionId, ct).ConfigureAwait(false);
         }
 
         // Check token expiration
@@ -115,11 +156,21 @@ internal sealed class RefreshTokenStore
             return IdentityErrors.RefreshInvalid();
         }
 
+        // The token is valid and held by this refresh: now the caller's checks, before anything is written.
+        if (admit is not null)
+        {
+            var admitted = await admit(session, ct).ConfigureAwait(false);
+            if (!admitted.IsSuccess)
+            {
+                return admitted.Error;
+            }
+        }
+
         // Generate new token
         var newTokenBytes = RandomNumberGenerator.GetBytes(32);
         var newToken = Base64UrlEncode(newTokenBytes);
         var newHash = ComputeHash(newToken);
-        var newExpiresAt = CalculateExpiration(now, session.CreatedAt, session.ClientKind);
+        var newExpiresAt = CalculateExpiration(now, session);
 
         // Mark old token rotated and link to replacement
         tokenEntity.RotatedAt = now;
@@ -133,9 +184,28 @@ internal sealed class RefreshTokenStore
             ExpiresAt = newExpiresAt,
         });
 
-        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        try
+        {
+            await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        }
+        catch (StorageException ex) when (ex.Error.Code.Value == "storage.concurrency.conflict")
+        {
+            // rotated_at is a concurrency token: another node rotated this token between the read and the write.
+            return await ReuseDetectedAsync(tokenEntity.SessionId, ct).ConfigureAwait(false);
+        }
 
         return (newToken, newExpiresAt, session);
+    }
+
+    private async Task<Error> ReuseDetectedAsync(SessionId sessionId, CancellationToken ct)
+    {
+        await _sessionRegistry.RevokeAsync(sessionId, "Refresh token reuse detected", null, ct).ConfigureAwait(false);
+        if (_logger is not null)
+        {
+            IdentityLog.RefreshTokenReuse(_logger, sessionId.ToString());
+        }
+
+        return IdentityErrors.RefreshReused();
     }
 
     public DateTimeOffset CalculateSessionExpiresAt(DateTimeOffset createdAt, ClientKind clientKind, SessionPolicy? userPolicy)
@@ -153,11 +223,11 @@ internal sealed class RefreshTokenStore
         return createdAt + maxSession;
     }
 
-    private DateTimeOffset CalculateExpiration(DateTimeOffset now, DateTimeOffset sessionCreatedAt, ClientKind clientKind)
+    // Sliding idle lifetime, never beyond the absolute end of the session (which includes the user's policy).
+    private DateTimeOffset CalculateExpiration(DateTimeOffset now, Session session)
     {
         var sliding = now + _options.IdleLifetime;
-        var absolute = CalculateSessionExpiresAt(sessionCreatedAt, clientKind, null);
-        return sliding < absolute ? sliding : absolute;
+        return sliding < session.ExpiresAt ? sliding : session.ExpiresAt;
     }
 
     private static string ComputeHash(string token)
@@ -170,5 +240,13 @@ internal sealed class RefreshTokenStore
     {
         var base64 = Convert.ToBase64String(input);
         return base64.TrimEnd('=').Replace('+', '-').Replace('/', '_');
+    }
+
+    public void Dispose()
+    {
+        foreach (var gate in _rotationLocks)
+        {
+            gate.Dispose();
+        }
     }
 }
