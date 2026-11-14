@@ -40,15 +40,17 @@ Watchpoint.Hosting/                  (referenced by modules)
 │   ├── ISupervisor.cs, Supervisor.cs
 │   ├── SupervisedProcess.cs         state machine per child
 │   ├── ReadinessProbes.cs
-│   └── ChildProcessJanitor.cs       pid files, leftover cleanup, Windows Job Object
+│   ├── ChildOutputPump.cs           bounded capture of stdout/stderr
+│   ├── ChildProcessJanitor.cs       pid files, leftover cleanup, Windows Job Object
+│   └── UnixChildProcess.cs, WindowsChildProcess.cs   platform launchers (§7.3)
 └── HostingLog.cs                    event ids 1100–1199
 
 Watchpoint.Host/
 ├── Program.cs
 ├── ModuleCatalog.cs                 static list of modules compiled into the product
 ├── StartupOrchestrator.cs
-├── Nats/NatsProcessSpecFactory.cs   generates nats.conf and ProcessSpec
-├── Dev/DevSeedStartupTask.cs
+├── Nats/NatsProcessSpecFactory.cs   generates nats.conf and ProcessSpec; BundledNatsStartupTask, NatsClientCheck
+├── Dev/DevSeedStartupTask.cs        DevSeedReader (schema + references), IDevSeedStep per section
 └── appsettings.json, appsettings.Development.json
 
 deploy/dev/
@@ -81,6 +83,7 @@ Sources, later overriding earlier: `appsettings.json` (shipped defaults) →
 | `Nats:Url` | url | `nats://127.0.0.1:4222` | |
 | `Nats:Port` | int | 4222 | 1–65535 |
 | `Nats:StorePath` | path | `<Data>/nats` | |
+| `Nats:Token` | secret | empty | External mode only (the bundled server generates its own); never logged |
 | `Logging:MinimumLevel` | enum | `Information` | Serilog levels |
 | `Logging:Overrides` | map | `{ "Microsoft.AspNetCore": "Warning" }` | |
 | `Logging:RetainedFileCount` | int | 31 | 1–365 |
@@ -255,6 +258,7 @@ public sealed record ProcessSpec
     public RestartPolicy Restart { get; init; } = RestartPolicy.Default;
     public TimeSpan StopGracePeriod { get; init; } = TimeSpan.FromSeconds(10);
     public string LogCategory { get; init; } = "Watchpoint.Child";   // child stdout/stderr lines logged here
+    public LogLevel StandardErrorLevel { get; init; } = LogLevel.Warning;   // Information for children that log to stderr (nats-server)
     public ResourceLimits? Limits { get; init; }                     // used by IHO/SCR (M4/M8)
 }
 
@@ -276,7 +280,7 @@ public sealed record RestartPolicy(TimeSpan InitialDelay, TimeSpan MaxDelay, dou
 public interface ISupervisor
 {
     Task<ISupervisedProcessHandle> StartAsync(ProcessSpec spec, CancellationToken ct);
-    IReadOnlyCollection<ISupervisedProcessHandle> Processes { get; }
+    IReadOnlyCollection<ISupervisedProcessHandle> Processes { get; }   // start order; stopped processes removed
 }
 
 public interface ISupervisedProcessHandle
@@ -293,6 +297,23 @@ public interface ISupervisedProcessHandle
 }
 ```
 
+Rules of the contract:
+
+- `StartAsync` completes when the child is `Running` for the first time or `Failed` (the caller checks
+  `State`); cancelling `ct` before that stops the child (killed without grace) and throws. It throws
+  `SupervisorException` (`host.process.executable_missing`) when the executable does not exist, and
+  `InvalidOperationException` for a name already supervised or after shutdown began. `Name` is
+  `^[a-z0-9][a-z0-9._-]{0,63}$` (it names the pid file). `Limits` is refused (`NotSupportedException`) until T4.01.
+- `StopAsync` is final (`Stopped` is terminal, the handle leaves `Processes`); it never hangs: graceful signal,
+  kill after `StopGracePeriod`, and a process that survives the kill is given up after 5 s (event 1157).
+  Cancelling `ct` skips the rest of the grace period (immediate kill) instead of abandoning the child.
+- `RestartAsync` works from `Running`, `Starting`, `Backoff` and `Failed`, resets the restart count and completes
+  when the child is `Running` again; concurrent calls join the same restart. On a stopped process it throws
+  `host.process.not_found`; if the child fails again, `host.process.failed`.
+- Shutdown (`Supervisor.StopAllAsync`, shutdown task in phase `Infrastructure`, so after every module): children
+  are stopped one by one, last started first. Disposing the supervisor, and the process-exit hook, kill what is left.
+- `StateChanged` is raised for every transition, in order, by the single loop that owns the state of a child.
+
 ### 7.2 State machine (per supervised process)
 
 ```mermaid
@@ -306,39 +327,62 @@ stateDiagram-v2
     Running --> Stopping: StopAsync / host shutdown
     Starting --> Stopping: StopAsync / host shutdown
     Stopping --> Stopped: exited (or killed after grace period)
+    Stopping --> Starting: RestartAsync (manual)
+    Backoff --> Starting: RestartAsync (manual, no delay)
+    Backoff --> Stopped: StopAsync / host shutdown (no process to stop)
     Failed --> Starting: RestartAsync (manual)
+    Failed --> Stopped: StopAsync / host shutdown
     Stopped --> [*]
 ```
 
+`Failed` is always entered through `Backoff` (no delay). A start that fails (the process cannot be created) and a
+probe timeout (the child is then stopped: graceful, then kill) count like an exit.
+
 Delay for restart n (n ≥ 1): `min(InitialDelay × Multiplier^(n-1), MaxDelay)` with ±20 %
-jitter. A process that stayed `Running` for more than `Window` resets its restart count.
+jitter (applied after the cap). A process that stayed `Running` for more than `Window` resets its restart count;
+so does a manual restart. `RestartCount` is the number of restarts since that reset (it drives the delay);
+`Failed` is decided on the exits within the sliding `Window`.
 
 ### 7.3 Platform behaviour
 
 | Concern | Windows | Linux |
 |---|---|---|
-| Children die with the host | All children are assigned to a **Job Object** with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` | Children started in a new process group; on host start, `ChildProcessJanitor` reads `<Data>/run/<name>.pid` files and kills leftover processes whose executable path matches |
-| Graceful stop | Send `CTRL_BREAK_EVENT` to the child's console group (children started with `CREATE_NEW_PROCESS_GROUP`); NATS handles it | `SIGTERM` |
-| Hard kill after grace | `TerminateProcess` | `SIGKILL` |
-| Output | stdout/stderr read line by line; each line logged at Information (stderr at Warning) with property `Child` = name; lines longer than 8 KB truncated |
-| Pid file | `<Data>/run/<name>.pid` written after start, removed after stop | same |
+| Children die with the host | All children are assigned to a **Job Object** with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` right after they are started | Children started in a new process group (`posix_spawn` with `POSIX_SPAWN_SETPGROUP`; `System.Diagnostics.Process` cannot); on host start (and before a child of the same name is started), `ChildProcessJanitor` reads `<Data>/run/<name>.pid` files and kills leftover processes whose executable path matches (a reused pid running something else is left alone) |
+| Graceful stop | Send `CTRL_BREAK_EVENT` to the child's console group (children started with `CREATE_NEW_PROCESS_GROUP`, sharing the host's console); NATS handles it. Without a console (Windows service) the signal cannot be delivered: the child is killed at once | `SIGTERM` to the process group |
+| Hard kill after grace | `TerminateProcess` (process tree) | `SIGKILL` to the process group; descendants left in the group when the child exits are killed too |
+| Output | stdout/stderr read line by line; each line logged at Information (stderr at `StandardErrorLevel`, default Warning) with property `Child` = name (event 1156); lines longer than 8 KB (8,192 characters) truncated with a marker. The pipes are always drained; at most 1,024 lines per child wait for the logger, further lines are dropped and counted (event 1155) | same |
+| Pid file | `<Data>/run/<name>.pid` (pid, then executable path) written after start, removed after stop | same |
+
+Linux, host killed (`SIGKILL`, crash): nothing in the host can run, so the children survive until the platform or
+the next start removes them. Under systemd the unit's control group is cleaned when the main process dies, and in a
+container the children die with PID 1; elsewhere (a developer's terminal) the janitor kills them at the next start.
+`PR_SET_PDEATHSIG` is not used: it is bound to the *thread* that created the child, and .NET thread-pool threads
+come and go, which would kill healthy children. DEP sets `KillMode=mixed` in the unit so that `systemctl stop`
+signals the host only and the host stops its children in order.
 
 ### 7.4 Bundled NATS (`Nats:Mode = Bundled`)
 
 `NatsProcessSpecFactory` writes `<Data>/nats/nats.conf` at every start:
 
 ```
-listen: 127.0.0.1:4222
-server_name: <NodeId>
-jetstream { store_dir: "<Data>/nats/store", max_memory_store: 256MB, max_file_store: <computed: 20% of free disk, min 10GB> }
+listen: 127.0.0.1:<Nats:Port>
+server_name: "<NodeId>"
+jetstream { store_dir: "<Nats:StorePath>/store", max_memory_store: 256MB, max_file_store: <bytes: 20% of free disk, min 10GB> }
 authorization { token: "<token>" }
 max_payload: 4MB
 ```
 
 - The token is 32 random bytes (base64url) stored in `<Data>/nats/token` (permissions
-  owner-only) until SEC exists, then moved into the vault (SEC §9 migration step).
-- Executable: `<Paths:Binaries>/nats-server(.exe)`; readiness: TCP probe on the port, then
-  the NATS client connection used by PIP succeeds.
+  owner-only) until SEC exists, then moved into the vault (SEC §9 migration step). `nats.conf` holds the
+  token, so it is owner-only too (as is the folder); both are replaced atomically. The token is never passed on
+  the command line or in the environment.
+- Executable: `<Paths:Binaries>/nats-server(.exe)`. Before the start the host runs `nats-server --version`
+  (10 s limit) and refuses a version below **2.12** (ADR-001) or an unreadable one
+  (`host.nats.version_unsupported`); a missing binary is `host.process.executable_missing`. Both stop the start-up.
+- Readiness: TCP probe on the port (30 s), then a NATS client connects with the token and JetStream answers
+  (30 s) — `BundledNatsStartupTask`, phase `Infrastructure`, order 0. PIP gets URL and token from the
+  `NatsEndpoint` registered by the host (both modes).
+- The server's log (stderr) is logged at Information in category `Watchpoint.Child.Nats`.
 - `Nats:Mode = External` (development compose, clusters): the host does not start NATS and
   connects to `Nats:Url` with the token from settings/vault.
 
@@ -349,12 +393,12 @@ services:
   postgres:
     image: timescale/timescaledb:<pinned>-pg17
     environment: { POSTGRES_PASSWORD: watchpoint, POSTGRES_USER: watchpoint, POSTGRES_DB: watchpoint }
-    ports: ["5432:5432"]
+    ports: ["127.0.0.1:5432:5432"]
     volumes: [pgdata:/var/lib/postgresql/data]
   nats:
     image: nats:<pinned>
-    command: ["-js", "-sd", "/data", "--auth", "devtoken"]
-    ports: ["4222:4222", "8222:8222"]
+    command: ["-js", "-sd", "/data", "-m", "8222", "--auth", "devtoken"]
+    ports: ["127.0.0.1:4222:4222", "127.0.0.1:8222:8222"]
     volumes: [natsdata:/data]
 volumes: { pgdata: {}, natsdata: {} }
 ```
@@ -363,6 +407,11 @@ volumes: { pgdata: {}, natsdata: {} }
 `Nats:Token=devtoken`, database to the compose PostgreSQL, `Dev:SeedFile=deploy/dev/seed/sample-site.json`.
 Developers run: `docker compose -f deploy/dev/compose.yml up -d` then
 `dotnet run --project src/service/Watchpoint.Host -- --config deploy/dev/watchpoint.dev.json`.
+
+Images are pinned by digest; the pins (with the nats-server release checksums used by the tests) are listed in
+`deploy/versions.env` and must equal those of the test fixtures (HST-I-010). Ports are published on loopback
+only: the credentials above are development defaults, not secrets. `watchpoint.dev.json` has a fixed `Node:Id`
+(nothing is written back to the tracked file) and keeps its data in `.watchpoint-dev/` (git-ignored).
 
 ## 9. Development seed
 
@@ -395,8 +444,19 @@ devices for connections flagged `"autoImport": true`.
 }
 ```
 
+Optional `"tags": [ { "family": "criticality", "key": "high", "name": "High" } ]`; a user may have a
+`"displayName"`. Unknown properties are rejected.
+
 Seed failures are logged (`HST1140`) and do not stop the node. The seed file schema is
-`schemas/dev-seed.schema.json` (validated before applying).
+`schemas/dev-seed.schema.json`; the document is validated before anything is applied: the schema, then the
+references (unique keys, a parent declared before its children, a single root, known location keys) —
+error `host.seed.invalid` with the JSON paths. Logs name paths and codes, never values (the seed holds passwords).
+
+Each section is applied by an `IDevSeedStep` (one per section, registered by the host for the modules it
+composes), in the order above. "Store empty" means no step reports existing data (`HasDataAsync`; the users step:
+none of the seed's logins exists); otherwise nothing is applied (event 1142). A section without a step is skipped
+with a warning (event 1141). T1.02 delivers the `users` step (IDN); the steps for site, locations and tags (REG)
+and for connections and import (IRT) come with the tasks that compose those modules into the host (T1.16).
 
 ## 10. Errors
 
@@ -405,6 +465,9 @@ Seed failures are logged (`HST1140`) and do not stop the node. The seed file sch
 | `host.settings.invalid` | Validation | Settings validation failed (start-up only, logged) |
 | `host.process.not_found` | NotFound | Supervisor asked about an unknown process |
 | `host.process.executable_missing` | Unprocessable | Executable path does not exist |
+| `host.process.failed` | Unavailable | A child did not reach `Running`: too many restarts within the window |
+| `host.nats.version_unsupported` | Unprocessable | Bundled nats-server older than 2.12 or version unreadable (args `found`, `minimum`) |
+| `host.seed.invalid` | Validation | Development seed fails the schema or its references (field errors: JSON paths; `host.seed.reference_unknown`) |
 
 ## 11. Observability
 
@@ -424,10 +487,20 @@ Seed failures are logged (`HST1140`) and do not stop the node. The seed file sch
 | 1131 | Warning | Shutdown task {Task} abandoned after timeout |
 | 1132 | Error | Shutdown task {Task} failed with exception |
 | 1150 | Information | Child {Name} started with pid {Pid} |
-| 1151 | Warning | Child {Name} exited unexpectedly with code {ExitCode}; restart {Attempt} in {DelayMs} ms |
+| 1151 | Warning | Child {Name} exited unexpectedly ({Reason}) with code {ExitCode}; restart {Attempt} in {DelayMs} ms |
 | 1152 | Error | Child {Name} failed: {Restarts} restarts within {Window} |
 | 1153 | Information | Child {Name} stopped |
 | 1154 | Warning | Killed leftover process {Pid} for child {Name} |
+| 1155 | Warning | Child {Name} output: {Dropped} lines dropped (logging slower than the child) |
+| 1156 | Information / `StandardErrorLevel` | {Child}: {Line} (category = `ProcessSpec.LogCategory`) |
+| 1157 | Error | Child {Name} (pid {Pid}) could not be killed |
+| 1158 | Warning | Pid file of child {Name} could not be read, written or removed |
+| 1159 | Critical | Supervision of child {Name} stopped on an internal error |
+| 1160 | Error | StateChanged handler of child {Name} failed |
+| 1161 | Information | Bundled NATS server {Version} ready at {Url} (pid {Pid}) |
+| 1141 | Warning | Development seed section {Section} skipped: no module of this node handles it |
+| 1142 | Information | Development seed not applied: {Section} already has data |
+| 1143 | Information | Development seed {Path} applied: {Sections} |
 | 1140 | Error | Development seed failed at {Step}: {Error} |
 
 Metrics (`Watchpoint.Host`):
@@ -436,7 +509,7 @@ Metrics (`Watchpoint.Host`):
 |---|---|---|---|
 | `watchpoint.host.startup.duration` | histogram | ms | `task` |
 | `watchpoint.host.child.restarts` | counter | `{restarts}` | `child` |
-| `watchpoint.host.child.state` | observable gauge | — | `child`, `state` (1 for current) |
+| `watchpoint.host.child.state` | observable gauge | — | `child`, `state` (1 for the current state, 0 for the others) |
 
 ## 12. Security
 
@@ -482,10 +555,33 @@ Unit: `tests/service/Watchpoint.Hosting.Tests`. Integration: `Watchpoint.Integra
 | HST-I-002 | I | Host reports not ready without database | Database unreachable → `/health/ready` 503 with reason `database`; exit 75 after 5 min (shortened via setting in test) |
 | HST-I-003 | I | Management endpoints only on management port | `/metrics` on 9464 → 200; on main port → 404 |
 | HST-I-004 | I | systemd notify | Run under a fake `NOTIFY_SOCKET` with `WATCHDOG_USEC=2000000` → receives `READY=1` after Edge and `WATCHDOG=1` pings |
-| HST-I-005 | I | Bundled NATS starts and restarts | Real `nats-server` binary in test image; kill it → restarted, PIP connection recovers |
-| HST-I-006 | I | Children die with the host (Windows CI job, nightly) | Kill host process → nats-server gone within 5 s (Job Object) |
-| HST-I-007 | I | Leftover cleanup (Linux) | Stale pid file pointing to running nats-server → killed at start, log 1154 |
+| HST-I-005 | I | Bundled NATS starts and restarts | Real `nats-server` binary (official release archive, pinned by version and SHA-256, downloaded by the test; Linux and Windows CI jobs); version check; client with token connects, without it is refused; kill it → restarted, the same client connection recovers and the acknowledged message is still there; shutdown leaves no process and no pid file |
+| HST-I-006 | I | Children die with the host (Windows CI job, every push) | Host process with bundled NATS; kill the host only → nats-server gone within 5 s (Job Object) |
+| HST-I-007 | I | Leftover cleanup (Linux) | Host process with bundled NATS killed (`SIGKILL`): nats-server and its pid file stay; next host start on the same data folder → leftover killed, log 1154, fresh server running |
 | HST-I-008 | I | Dev seed creates site, users, simulator connection | Development + seed → admin can sign in; simulator devices visible via registry contract |
+
+Added by T1.02 (state machine and platform behaviour in detail):
+
+| Id | Layer | Test | Given / When / Then |
+|---|---|---|---|
+| HST-U-028 | U | Start and stop lifecycle | Start → Running, pid file, log 1150; stop → `Starting, Running, Stopping, Stopped`, pid file removed, log 1153, handle removed; restart of a stopped process → `host.process.not_found` |
+| HST-U-029 | U | Crash during start | Exit before ready → Backoff; not restarted 1 ms before the delay, restarted at the delay; log 1151 with code, attempt, delay |
+| HST-U-030 | U | Start failure retried | Launcher throws → Backoff → next attempt runs |
+| HST-U-031 | U | Stop while starting | `Starting, Stopping, Stopped`; no restart, no 1151 |
+| HST-U-032 | U | Stop during Backoff or Failed | → Stopped without a process; the cancelled back-off timer starts nothing |
+| HST-U-033 | U | Manual restart | From Running (three concurrent calls = one restart), Backoff (no delay, count reset) and Failed |
+| HST-U-034 | U | Concurrent stop and restart calls | 16 parallel calls, 25 rounds → Stopped exactly once, only legal transitions, every child stopped once and released |
+| HST-U-035 | U | Stop never hangs | Cancelled token → killed at once; unkillable child → given up after the kill timeout, log 1157 |
+| HST-U-036 | U | Start errors and cancelled start | Missing executable → `host.process.executable_missing`; bad name, relative path, limits, duplicate name refused; cancelled start kills the child and frees the name |
+| HST-U-037 | U | Shutdown order | `StopAllAsync` stops last started first, then refuses starts; disposing kills leftovers without grace |
+| HST-U-038 | U | Chatty child, bounded memory | Blocked logger, 5,000 lines → stream read to the end, at most capacity + 1 lines kept, rest counted in 1155 |
+| HST-U-039 | U | Leftover cleanup rules | Pid file + same executable → killed, 1154; reused pid, dead pid, own pid, garbage → not killed; files removed; cleanup before a start of the same name |
+| HST-U-040 | U | Readiness probes | None; Tcp (retries per interval); Http (503 then 2xx); StdoutLine (timeout, then match) |
+| HST-U-041 | U | Child metrics | Restart counter and state gauge per child |
+| HST-U-042 | U | NATS binary location and version check | `--version` parsing; < 2.12 or unreadable → `host.nats.version_unsupported`; missing binary → `host.process.executable_missing` |
+| HST-U-043 | U | Seed applied in order, once, never fatal | Section order; section without step → 1141; existing data → 1142, nothing applied; failing/throwing step and missing file → 1140, node continues |
+| HST-I-009 | I | Real child process (Linux) | Own process group; 20,000 lines drained; environment, working directory, stderr; child ignoring SIGTERM with a descendant → both killed after the grace period; exit code reported |
+| HST-I-010 | I | Development stack pinned and consistent | Compose images pinned by digest and equal to the test fixtures and `deploy/versions.env`; loopback ports; dev settings valid; sample seed valid |
 
 ### 13.1 T1.01 follow-up: systemd watchdog
 
@@ -502,7 +598,9 @@ above also covers the watchdog end to end.
 | Task | Sections | Tests |
 |---|---|---|
 | T1.01 | §4, §5, §6, §10, §11 (host part), §12 | HST-U-001…HST-U-015, HST-U-026, HST-U-027, HST-I-001…HST-I-004 |
-| T1.02 | §7, §8, §9, §11 (supervisor part) | HST-U-016…HST-U-025, HST-I-005…HST-I-008 |
+| T1.02 | §7, §8, §9, §11 (supervisor part) | HST-U-016…HST-U-025, HST-U-028…HST-U-043, HST-I-005…HST-I-010 |
 
 Note: HST-I-008 needs IRT, C-SIM and IDN; it is implemented in T1.02 but enabled when those
-tasks are merged (marked `[Trait("requires","T1.16,T1.17,T1.18")]`).
+tasks are merged (marked `[Trait("requires","T1.16,T1.17,T1.18")]`). T1.17 and T1.18 are merged; what is
+missing is T1.16 (connection manager) together with the seed steps for site, locations and connections and the
+Registry module in the host's module catalogue. Until then the test is skipped.

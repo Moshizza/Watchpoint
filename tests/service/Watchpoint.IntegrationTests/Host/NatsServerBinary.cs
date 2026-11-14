@@ -16,7 +16,7 @@ internal static class NatsServerBinary
 {
     public const string Version = "2.15.2";
 
-    private static readonly Dictionary<string, (string Asset, string Sha256)> Archives = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, (string Asset, string Sha256)> _archives = new(StringComparer.Ordinal)
     {
         ["linux-x64"] = ("linux-amd64.tar.gz", "67cb8e10bc6f0c4b47f75a728529a20953dbae2a4f9a4a52ae8517d65ae303ff"),
         ["linux-arm64"] = ("linux-arm64.tar.gz", "bc2c788dcbf2849af749564e06a0d48c19bced851f2d68a2e21c54d078949b28"),
@@ -26,10 +26,10 @@ internal static class NatsServerBinary
         ["osx-arm64"] = ("darwin-arm64.tar.gz", "cbd2219d01502c38733485ac684269da585ee479fa3b1377264beecdefdf9e9d"),
     };
 
-    private static readonly SemaphoreSlim Gate = new(1, 1);
+    private static readonly SemaphoreSlim _gate = new(1, 1);
 
     /// <summary>The pinned archives: asset suffix → SHA-256.</summary>
-    public static IReadOnlyDictionary<string, string> PinnedArchives => Archives.Values.ToDictionary(a => a.Asset, a => a.Sha256);
+    public static IReadOnlyDictionary<string, string> PinnedArchives => _archives.Values.ToDictionary(a => a.Asset, a => a.Sha256);
 
     public static string FileName => OperatingSystem.IsWindows() ? "nats-server.exe" : "nats-server";
 
@@ -40,14 +40,14 @@ internal static class NatsServerBinary
     {
         var os = OperatingSystem.IsWindows() ? "win" : OperatingSystem.IsMacOS() ? "osx" : "linux";
         var rid = $"{os}-{RuntimeInformation.OSArchitecture.ToString().ToLowerInvariant()}";
-        if (!Archives.TryGetValue(rid, out var archive))
+        if (!_archives.TryGetValue(rid, out var archive))
         {
             Assert.Skip($"No pinned nats-server {Version} archive for {rid}.");
         }
 
         var folder = Path.Combine(Path.GetTempPath(), "watchpoint-test-binaries", $"nats-server-v{Version}-{rid}");
         var binary = Path.Combine(folder, FileName);
-        await Gate.WaitAsync(ct);
+        await _gate.WaitAsync(ct);
         try
         {
             if (File.Exists(binary))
@@ -88,7 +88,7 @@ internal static class NatsServerBinary
         }
         finally
         {
-            Gate.Release();
+            _gate.Release();
         }
     }
 

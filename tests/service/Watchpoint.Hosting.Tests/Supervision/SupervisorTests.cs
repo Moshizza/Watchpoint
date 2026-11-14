@@ -12,10 +12,10 @@ namespace Watchpoint.Hosting.Tests.Supervision;
 [Trait("spec", "HST")]
 public sealed class SupervisorTests
 {
-    private static readonly RestartPolicy Policy = RestartPolicy.Default;
+    private static readonly RestartPolicy _policy = RestartPolicy.Default;
 
     /// <summary>Every transition of spec HST §7.2; anything else is a bug.</summary>
-    private static readonly HashSet<(SupervisedProcessState From, SupervisedProcessState To)> Allowed =
+    private static readonly HashSet<(SupervisedProcessState From, SupervisedProcessState To)> _allowed =
     [
         (Starting, Running), (Starting, Backoff), (Starting, Stopping),
         (Running, Backoff), (Running, Stopping),
@@ -34,18 +34,18 @@ public sealed class SupervisorTests
         for (var n = 1; n <= expected.Length; n++)
         {
             var nominal = expected[n - 1];
-            Policy.ComputeDelay(n, 0.5).TotalSeconds.ShouldBe(nominal, 1e-9);
-            Policy.ComputeDelay(n, 0.0).TotalSeconds.ShouldBe(nominal * 0.8, 1e-9);
-            Policy.ComputeDelay(n, 1.0).TotalSeconds.ShouldBe(nominal * 1.2, 1e-9);
+            _policy.ComputeDelay(n, 0.5).TotalSeconds.ShouldBe(nominal, 1e-9);
+            _policy.ComputeDelay(n, 0.0).TotalSeconds.ShouldBe(nominal * 0.8, 1e-9);
+            _policy.ComputeDelay(n, 1.0).TotalSeconds.ShouldBe(nominal * 1.2, 1e-9);
             for (var i = 0; i < 200; i++)
             {
-                Policy.ComputeDelay(n, random.NextDouble()).TotalSeconds.ShouldBeInRange(nominal * 0.8, nominal * 1.2);
+                _policy.ComputeDelay(n, random.NextDouble()).TotalSeconds.ShouldBeInRange(nominal * 0.8, nominal * 1.2);
             }
         }
 
         // The cap holds for any restart number (the power overflows to infinity).
-        Policy.ComputeDelay(5000, 0.5).ShouldBe(TimeSpan.FromSeconds(60));
-        Should.Throw<ArgumentOutOfRangeException>(() => Policy.ComputeDelay(0, 0.5));
+        _policy.ComputeDelay(5000, 0.5).ShouldBe(TimeSpan.FromSeconds(60));
+        Should.Throw<ArgumentOutOfRangeException>(() => _policy.ComputeDelay(0, 0.5));
     }
 
     [Fact]
@@ -55,18 +55,18 @@ public sealed class SupervisorTests
         var (handle, states, _) = await h.StartRunningAsync();
         var began = h.Clock.GetUtcNow();
         var expected = new List<SupervisedProcessState> { Starting, Running };
-        for (var n = 1; n <= Policy.MaxRestartsInWindow; n++)
+        for (var n = 1; n <= _policy.MaxRestartsInWindow; n++)
         {
             h.Launcher.Children[^1].Exit(1);
             await states.WaitForAsync(Backoff, n);
             handle.RestartCount.ShouldBe(n);
-            h.Clock.Advance(Policy.ComputeDelay(n, 0.5));
+            h.Clock.Advance(_policy.ComputeDelay(n, 0.5));
             await states.WaitForAsync(Running, n + 1);
             expected.AddRange([Backoff, Starting, Running]);
         }
 
         // The 11th exit, 303 s after the first: more than 10 restarts within the 10 minute window.
-        (h.Clock.GetUtcNow() - began).ShouldBeLessThan(Policy.Window);
+        (h.Clock.GetUtcNow() - began).ShouldBeLessThan(_policy.Window);
         h.Launcher.Children[^1].Exit(1);
         await states.WaitForAsync(Failed);
         expected.AddRange([Backoff, Failed]);
@@ -96,7 +96,7 @@ public sealed class SupervisorTests
         {
             h.Launcher.Children[^1].Exit(1);
             await states.WaitForAsync(Backoff, n);
-            h.Clock.Advance(Policy.ComputeDelay(n, 0.5));
+            h.Clock.Advance(_policy.ComputeDelay(n, 0.5));
             await states.WaitForAsync(Running, n + 1);
         }
 
@@ -250,7 +250,7 @@ public sealed class SupervisorTests
 
         await states.WaitForAsync(Backoff);
         states.Handle.LastExitReason.ShouldBe("start failed: boom");
-        h.Clock.Advance(Policy.ComputeDelay(1, 0.5));
+        h.Clock.Advance(_policy.ComputeDelay(1, 0.5));
         await started.WaitAsync(TestTimeouts.Default, Ct);
 
         states.States.ShouldBe([Starting, Backoff, Starting, Running]);
@@ -291,7 +291,7 @@ public sealed class SupervisorTests
         states.States.ShouldBe([Starting, Running, Backoff, Stopped]);
 
         // Failed at the first exit with a policy that tolerates no restart.
-        var noRestart = SupervisorHarness.Spec("b") with { Restart = Policy with { MaxRestartsInWindow = 0 } };
+        var noRestart = SupervisorHarness.Spec("b") with { Restart = _policy with { MaxRestartsInWindow = 0 } };
         var (failed, failedStates, failedChild) = await h.StartRunningAsync(noRestart);
         failedChild.Exit(1);
         await failedStates.WaitForAsync(Failed);
@@ -311,7 +311,7 @@ public sealed class SupervisorTests
     {
         var prober = new ManualProber();
         await using var h = new SupervisorHarness(prober);
-        var spec = SupervisorHarness.Spec() with { Restart = Policy with { MaxRestartsInWindow = 1 } };
+        var spec = SupervisorHarness.Spec() with { Restart = _policy with { MaxRestartsInWindow = 1 } };
         var (started, states) = h.Begin(spec, Ct);
         await prober.WaitForProbeAsync(1);
         prober.Complete(1, ready: true);
@@ -340,7 +340,7 @@ public sealed class SupervisorTests
         // Failed (two exits with MaxRestartsInWindow = 1): only a manual restart starts it again.
         h.Launcher.Children[2].Exit(1);
         await states.WaitForAsync(Backoff, 2);
-        h.Clock.Advance(Policy.ComputeDelay(1, 0.5));
+        h.Clock.Advance(_policy.ComputeDelay(1, 0.5));
         await prober.WaitForProbeAsync(4);
         h.Launcher.Children[3].Exit(1);
         await states.WaitForAsync(Failed);
@@ -507,7 +507,7 @@ public sealed class SupervisorTests
         states[0].ShouldBe(Starting);
         for (var i = 1; i < states.Count; i++)
         {
-            Allowed.ShouldContain((states[i - 1], states[i]), $"transition {i} in [{string.Join(", ", states)}]");
+            _allowed.ShouldContain((states[i - 1], states[i]), $"transition {i} in [{string.Join(", ", states)}]");
         }
     }
 }

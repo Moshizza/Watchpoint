@@ -25,7 +25,7 @@ namespace Watchpoint.IntegrationTests.Host;
 [Trait("spec", "HST")]
 public sealed class SupervisorIntegrationTests
 {
-    private static readonly TimeSpan Limit = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan _limit = TimeSpan.FromSeconds(30);
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -44,7 +44,7 @@ public sealed class SupervisorIntegrationTests
             (await factory.ReadVersionAsync(TimeProvider.System, Ct)).ShouldBe(Version.Parse(NatsServerBinary.Version));
 
             await using var supervisor = new Supervisor(new SupervisorOptions { RunDirectory = Path.Combine(data, "run") }, loggerFactory);
-            var handle = await supervisor.StartAsync(factory.Create(), Ct).WaitAsync(Limit, Ct);
+            var handle = await supervisor.StartAsync(factory.Create(), Ct).WaitAsync(_limit, Ct);
             handle.State.ShouldBe(SupervisedProcessState.Running);
             var firstPid = handle.Pid.ShouldNotBeNull();
             var pidFile = Path.Combine(data, "run", "nats.pid");
@@ -52,7 +52,7 @@ public sealed class SupervisorIntegrationTests
 
             // Ready means a client can connect with the token and use JetStream; without the token it cannot.
             var endpoint = factory.Endpoint();
-            await NatsClientCheck.WaitUntilUsableAsync(endpoint, Limit, TimeProvider.System, Ct);
+            await NatsClientCheck.WaitUntilUsableAsync(endpoint, _limit, TimeProvider.System, Ct);
             await Should.ThrowAsync<Exception>(() => NatsClientCheck.ConnectOnceAsync(endpoint with { Token = "wrong" }, Ct));
 
             // One long-lived connection, as the pipeline will hold.
@@ -81,7 +81,7 @@ public sealed class SupervisorIntegrationTests
                 server.Kill();
             }
 
-            await restarted.Task.WaitAsync(Limit, Ct);
+            await restarted.Task.WaitAsync(_limit, Ct);
             handle.RestartCount.ShouldBe(1);
             var secondPid = handle.Pid.ShouldNotBeNull();
             secondPid.ShouldNotBe(firstPid);
@@ -94,7 +94,7 @@ public sealed class SupervisorIntegrationTests
             stream.Info.State.Messages.ShouldBe(2L);
 
             // Shutdown: graceful, nothing left behind.
-            await supervisor.StopAllAsync(Ct).WaitAsync(Limit, Ct);
+            await supervisor.StopAllAsync(Ct).WaitAsync(_limit, Ct);
             handle.State.ShouldBe(SupervisedProcessState.Stopped);
             handle.LastExitReason.ShouldBe("stopped");
             IsRunning(secondPid).ShouldBeFalse();
@@ -172,13 +172,13 @@ public sealed class SupervisorIntegrationTests
 
             // The next start kills it (it holds the port and the store) and starts a fresh server.
             await using var next = HostProcess.Start("i007", BundledSections(natsPort), dataDirectory: data);
-            await Eventually.UntilAsync(() => !IsRunning(leftover), Limit, "the leftover nats-server is killed at start", ct: Ct);
+            await Eventually.UntilAsync(() => !IsRunning(leftover), _limit, "the leftover nats-server is killed at start", ct: Ct);
             var fresh = await WaitForBundledNatsAsync(next, natsPort, differentFrom: leftover);
             fresh.ShouldNotBe(leftover);
 
             var killedLog = await Eventually.UntilAsync(
                 () => ReadHostLog(data).FirstOrDefault(l => l["Properties"]?["EventId"]?["Id"]?.GetValue<int>() == 1154),
-                Limit,
+                _limit,
                 "event 1154 is logged",
                 ct: Ct);
             killedLog["Level"]!.GetValue<string>().ShouldBe("Warning");
@@ -214,12 +214,12 @@ public sealed class SupervisorIntegrationTests
                     Name = "chatty",
                     Executable = "/bin/sh",
                     Arguments = ["-c", "i=0; while [ $i -lt 20000 ]; do echo \"line $i\"; i=$((i+1)); done; echo ready; exec sleep 600"],
-                    Readiness = new ReadinessProbe.StdoutLine("ready", Limit),
+                    Readiness = new ReadinessProbe.StdoutLine("ready", _limit),
                     LogCategory = "Test.Chatty",
                 },
-                Ct).WaitAsync(Limit, Ct);
+                Ct).WaitAsync(_limit, Ct);
             chatty.State.ShouldBe(SupervisedProcessState.Running);
-            await chatty.StopAsync(Ct).WaitAsync(Limit, Ct);
+            await chatty.StopAsync(Ct).WaitAsync(_limit, Ct);
             var logged = logs.Entries.Count(e => e.Category == "Test.Chatty");
             var dropped = logs.WithEventId(1155).Sum(e => (long)e.Properties["Dropped"]!);
             (logged + dropped).ShouldBe(20001);
@@ -234,11 +234,11 @@ public sealed class SupervisorIntegrationTests
                 Arguments = ["-c", Script],
                 Environment = new Dictionary<string, string> { ["WP_TEST"] = "from-spec" },
                 WorkingDirectory = data,
-                Readiness = new ReadinessProbe.StdoutLine("ready", Limit),
+                Readiness = new ReadinessProbe.StdoutLine("ready", _limit),
                 StopGracePeriod = TimeSpan.FromMilliseconds(300),
                 LogCategory = "Test.Shell",
             };
-            var handle = await supervisor.StartAsync(spec, Ct).WaitAsync(Limit, Ct);
+            var handle = await supervisor.StartAsync(spec, Ct).WaitAsync(_limit, Ct);
             handle.State.ShouldBe(SupervisedProcessState.Running);
             var pid = handle.Pid.ShouldNotBeNull();
 
@@ -249,18 +249,18 @@ public sealed class SupervisorIntegrationTests
             IEnumerable<CapturedLog> Output() => logs.Entries.Where(e => e.Category == "Test.Shell");
             var descendantLine = await Eventually.UntilAsync(
                 () => Output().Select(e => (string)e.Properties["Line"]!).FirstOrDefault(l => l.StartsWith("descendant=", StringComparison.Ordinal)),
-                Limit,
+                _limit,
                 ct: Ct);
             var descendant = int.Parse(descendantLine["descendant=".Length..], CultureInfo.InvariantCulture);
             IsRunning(descendant).ShouldBeTrue();
 
             var stopwatch = Stopwatch.StartNew();
-            await handle.StopAsync(Ct).WaitAsync(Limit, Ct);
+            await handle.StopAsync(Ct).WaitAsync(_limit, Ct);
 
             // Killed after the grace period, descendant included; environment, working directory and stderr arrived.
             stopwatch.Elapsed.ShouldBeGreaterThanOrEqualTo(TimeSpan.FromMilliseconds(250));
             IsRunning(pid).ShouldBeFalse();
-            await Eventually.UntilAsync(() => !IsRunning(descendant), Limit, "the descendant died with the process group", ct: Ct);
+            await Eventually.UntilAsync(() => !IsRunning(descendant), _limit, "the descendant died with the process group", ct: Ct);
             var lines = Output().ToList();
             lines.ShouldContain(e => (string?)e.Properties["Line"] == "env=from-spec" && e.Level == LogLevel.Information);
             lines.ShouldContain(e => (string?)e.Properties["Line"] == data && e.Level == LogLevel.Information);
@@ -275,8 +275,8 @@ public sealed class SupervisorIntegrationTests
                     Arguments = ["-c", "exit 7"],
                     Restart = RestartPolicy.Default with { MaxRestartsInWindow = 0 },
                 },
-                Ct).WaitAsync(Limit, Ct);
-            await Eventually.UntilAsync(() => failing.State == SupervisedProcessState.Failed, Limit, ct: Ct);
+                Ct).WaitAsync(_limit, Ct);
+            await Eventually.UntilAsync(() => failing.State == SupervisedProcessState.Failed, _limit, ct: Ct);
             failing.LastExitReason.ShouldNotBeNull().ShouldStartWith("exited with code 7");
         }
         finally
@@ -305,7 +305,7 @@ public sealed class SupervisorIntegrationTests
                 host.HasExited.ShouldBeFalse("the host must keep running");
                 return TryReadPid(pidFile, out pid) && pid != differentFrom && IsRunning(pid) && CanConnect(natsPort);
             },
-            Limit,
+            _limit,
             "the bundled nats-server is started by the host",
             TimeSpan.FromMilliseconds(100),
             Ct);
@@ -322,7 +322,7 @@ public sealed class SupervisorIntegrationTests
                 (await js.PublishAsync(subject, data, cancellationToken: Ct)).EnsureSuccess();
                 return;
             }
-            catch (Exception ex) when (ex is NatsException && started.Elapsed < Limit)
+            catch (Exception ex) when (ex is NatsException && started.Elapsed < _limit)
             {
                 await Task.Delay(TimeSpan.FromMilliseconds(100), TimeProvider.System, Ct);
             }

@@ -16,7 +16,7 @@ public static class DevSeedReader
 
     private const string SchemaResource = "schemas/dev-seed.schema.json";
 
-    private static readonly Lazy<JsonSchema> Schema = new(LoadSchema);
+    private static readonly Lazy<JsonSchema> _schema = new(LoadSchema);
 
     /// <summary>Parses and validates a seed document.</summary>
     /// <param name="utf8Json">The document.</param>
@@ -36,7 +36,7 @@ public static class DevSeedReader
         using (document)
         {
             var root = document.RootElement;
-            var evaluation = Schema.Value.Evaluate(root, new EvaluationOptions { OutputFormat = OutputFormat.List });
+            var evaluation = _schema.Value.Evaluate(root, new EvaluationOptions { OutputFormat = OutputFormat.List });
             if (!evaluation.IsValid)
             {
                 var schemaErrors = new List<FieldError>();

@@ -23,7 +23,7 @@ public sealed partial class NatsProcessSpecFactory
     private const long MinFileStoreBytes = 10L * 1024 * 1024 * 1024;
     private const int TokenBytes = 32;
 
-    private static readonly TimeSpan VersionTimeout = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan _versionTimeout = TimeSpan.FromSeconds(10);
 
     private readonly NodeSettings _settings;
     private readonly NodePaths _paths;
@@ -101,7 +101,7 @@ public sealed partial class NatsProcessSpecFactory
                 HostErrors.ExecutableMissing(ProcessName, ExecutablePath), $"Bundled NATS server not found: {ExecutablePath}");
         }
 
-        using var timeout = new CancellationTokenSource(VersionTimeout, timeProvider);
+        using var timeout = new CancellationTokenSource(_versionTimeout, timeProvider);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, timeout.Token);
         using var process = new Process
         {

@@ -13,7 +13,7 @@ public sealed partial class BundledNatsStartupTask(
     TimeProvider timeProvider,
     ILogger<BundledNatsStartupTask> logger) : IStartupTask
 {
-    private static readonly TimeSpan ClientTimeout = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan _clientTimeout = TimeSpan.FromSeconds(30);
 
     /// <inheritdoc />
     public StartupPhase Phase => StartupPhase.Infrastructure;
@@ -36,7 +36,7 @@ public sealed partial class BundledNatsStartupTask(
         }
 
         var endpoint = factory.Endpoint();
-        await NatsClientCheck.WaitUntilUsableAsync(endpoint, ClientTimeout, timeProvider, ct).ConfigureAwait(false);
+        await NatsClientCheck.WaitUntilUsableAsync(endpoint, _clientTimeout, timeProvider, ct).ConfigureAwait(false);
         LogBundledNatsReady(logger, version, endpoint.Url, handle.Pid ?? 0);
     }
 
