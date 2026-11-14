@@ -219,6 +219,6 @@ public static class RegistryModule
 public sealed class NoOpRegistryChangePublisher : IRegistryChangePublisher
 {
     /// <inheritdoc />
-    public Task PublishAsync(RegistryChangeBatch batch, ChangeContext context, CancellationToken ct = default) =>
+    public Task PublishAsync(RegistryApplyResult result, ChangeContext context, CancellationToken ct = default) =>
         Task.CompletedTask;
 }

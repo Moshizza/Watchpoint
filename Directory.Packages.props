@@ -48,6 +48,8 @@
     <!-- Data and messaging -->
     <PackageVersion Include="NATS.Net" Version="3.3.2" />
     <PackageVersion Include="Npgsql" Version="10.0.3" />
+    <!-- Pipeline: partition hash (XxHash32, spec PIP §4) -->
+    <PackageVersion Include="System.IO.Hashing" Version="10.0.14" />
     <!-- Storage (EF Core: modules reference Relational only; providers only in Watchpoint.Storage.*) -->
     <PackageVersion Include="EFCore.NamingConventions" Version="10.0.1" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.14" />
