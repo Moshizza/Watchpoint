@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../../../src/service/Watchpoint.Storage/Watchpoint.Storage.csproj" />
+    <ProjectReference Include="../Watchpoint.Testing/Watchpoint.Testing.csproj" />
   </ItemGroup>
 
 </Project>

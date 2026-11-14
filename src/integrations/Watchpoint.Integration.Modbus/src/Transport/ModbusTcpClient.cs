@@ -165,8 +165,10 @@ public sealed class ModbusTcpClient : ITransport
                 _writeGate.Release();
             }
 
-            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            using var timer = _timeProvider.CreateTimer(_ => timeoutCts.Cancel(), null, _requestTimeout, Timeout.InfiniteTimeSpan);
+            // A CancellationTokenSource bound to the TimeProvider (not a separate timer calling Cancel) is safe when the
+            // timeout fires while the request completes and disposes it.
+            using var requestTimeout = new CancellationTokenSource(_requestTimeout, _timeProvider);
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, requestTimeout.Token);
 
             var registration = timeoutCts.Token.Register(() =>
             {

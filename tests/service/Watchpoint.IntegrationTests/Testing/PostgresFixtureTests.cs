@@ -1,5 +1,6 @@
 using Npgsql;
 using Shouldly;
+using Watchpoint.Testing.Async;
 using Watchpoint.Testing.Containers;
 using Xunit;
 
@@ -67,16 +68,12 @@ public sealed class PostgresFixtureTests(PostgresContainerFixture postgres)
     }
 
     /// <summary>
-    /// TST-I-003 limit (TST §10): the spec's 500 ms p95 on a developer machine or with
-    /// <c>WATCHPOINT_STRICT_TIMING=1</c> (benchmark runs); a 2 s ceiling on shared CI runners (<c>CI=true</c>), whose
-    /// disk I/O noise alone pushes the p95 past 500 ms. The ceiling still catches a broken template copy.
+    /// TST-I-003 limit (TST §10): the spec's 500 ms p95 on a developer machine or in benchmark runs; a 2 s ceiling on
+    /// shared CI runners (<see cref="TimingLimits"/>), whose disk I/O noise alone pushes the p95 past 500 ms. The ceiling
+    /// still catches a broken template copy.
     /// </summary>
-    internal static TimeSpan TemplateCreationLimit(Func<string, string?> environment)
-    {
-        var strict = environment("WATCHPOINT_STRICT_TIMING") == "1";
-        var sharedCi = string.Equals(environment("CI"), "true", StringComparison.OrdinalIgnoreCase);
-        return sharedCi && !strict ? TimeSpan.FromSeconds(2) : TimeSpan.FromMilliseconds(500);
-    }
+    internal static TimeSpan TemplateCreationLimit(Func<string, string?> environment) =>
+        TimingLimits.For(TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(2), environment);
 
     [Fact]
     public async Task TST_I_004_Database_dropped_on_dispose()

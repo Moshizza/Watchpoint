@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Watchpoint.Storage.Contracts;
+using Watchpoint.Testing.Async;
 using Xunit;
 
 namespace Watchpoint.Storage.Certification;
@@ -125,9 +126,24 @@ public abstract class StorageCertificationTests : IAsyncDisposable
         }
 
         var p95 = durations.Order().ElementAt(18);
-        p95.ShouldBeLessThan(TimeSpan.FromMilliseconds(500), $"runs: {string.Join(", ", durations.Select(d => (int)d.TotalMilliseconds))} ms");
+        var limit = LargeSnapshotLimit(Environment.GetEnvironmentVariable);
+        var runs = string.Join(", ", durations.Select(d => $"{d.TotalMilliseconds:0} ms"));
+        TestContext.Current.TestOutputHelper?.WriteLine(
+            $"STO-I-011 5,000-item batch p95 = {p95.TotalMilliseconds:0} ms (limit {limit.TotalMilliseconds:0} ms); runs: {runs}");
+
+        p95.ShouldBeLessThan(limit, $"runs: {runs}");
         (await ReadAsync(store, "device", 3)).Count.ShouldBe(IStateStore.MaxBatchItems);
     }
+
+    /// <summary>
+    /// STO-I-011 limit (STO §12): the spec's 500 ms p95 on a developer machine or in benchmark runs; a 2 s ceiling on
+    /// shared CI runners (<see cref="TimingLimits"/>), whose disk I/O noise alone pushes the p95 past 500 ms. The ceiling
+    /// still catches a batch written row by row (5,000 round trips).
+    /// </summary>
+    /// <param name="environment">Reads an environment variable by name.</param>
+    /// <returns>The p95 limit for one 5,000-item batch.</returns>
+    public static TimeSpan LargeSnapshotLimit(Func<string, string?> environment) =>
+        TimingLimits.For(TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(2), environment);
 
     [Fact]
     public async Task STO_I_012_Recovery_stream_returns_requested_partitions_only()

@@ -41,6 +41,7 @@ tests/service/
 │   ├── Logging/SecretLeakDetector.cs
 │   ├── Async/Eventually.cs               condition polling driven by a signal or clock
 │   ├── Async/TestTimeouts.cs
+│   ├── Async/TimingLimits.cs             strict vs shared-CI limits for wall-clock tests
 │   └── Json/JsonAssert.cs                semantic JSON comparison
 ├── Watchpoint.Testing.Containers/
 │   ├── PostgresContainerFixture.cs
@@ -144,6 +145,24 @@ tests use `TestClock` and direct calls instead.
 `JsonAssert.Equivalent(expectedJson, actualJson, options)` — compares parsed JSON
 (ignores property order and whitespace, numbers by value; `JsonAssertOptions.Ignoring("/traceId")`
 ignores JSON pointers). The failure message gives the pointer of the first difference.
+
+### 4.7 `TimingLimits` (wall-clock limits)
+
+A test that asserts real elapsed time against a limit (a performance row of a spec, e.g. TST-I-003,
+STO-I-011, REG-I-009) takes its limit from `TimingLimits.For(strict, sharedCiCeiling)`:
+
+| Environment | Limit |
+|---|---|
+| Developer machine (no `CI`) | `strict`: the spec's number |
+| Benchmark run: `WATCHPOINT_STRICT_TIMING=1` (any `CI` value) | `strict` |
+| Shared CI runner: `CI=true` (set by GitHub Actions) | `sharedCiCeiling` |
+
+Rules: the ceiling is wide enough for shared-runner CPU and disk I/O noise (about 4× the strict
+limit) and narrow enough to catch a broken implementation (an order of magnitude slower). The test
+writes the measured value and the limit applied to the test output, so CI runs still record the
+numbers. Only the timing limit changes: correctness assertions are identical in every environment.
+Unit tests never measure wall-clock time: they use `TestClock`. Timeouts that only bound a wait
+(`Eventually`, polling deadlines followed by a correctness assertion) are not timing limits.
 
 ## 5. Containers (`Watchpoint.Testing.Containers`)
 
@@ -277,9 +296,10 @@ Not applicable (test-only), except `SecretLeakDetector` (§4.4).
 | TST-U-011 | U | WP0003 reports `DateTime.UtcNow` | diagnostic + code fix test |
 | TST-U-012 | U | WP0004 reports `.Result` | diagnostic |
 | TST-U-013 | U | WP0005 reports `Thread.Sleep` in a test project | diagnostic |
+| TST-U-014 | U | `TimingLimits` picks the strict limit except on shared CI | `CI` unset/`false` → strict; `CI=true` → ceiling; `CI=true` + `WATCHPOINT_STRICT_TIMING=1` → strict; ceiling below strict → `ArgumentOutOfRangeException` |
 | TST-I-001 | I | PostgreSQL container starts with TimescaleDB | `SELECT extname FROM pg_extension` contains `timescaledb` |
 | TST-I-002 | I | Per-class databases are isolated | Two databases; table created in one not visible in the other |
-| TST-I-003 | I | Database creation from template under 500 ms | One warm-up creation, then measure 20 creations → p95 < 500 ms on a developer machine or with `WATCHPOINT_STRICT_TIMING=1` (benchmark run); on shared CI runners (`CI=true`) p95 < 2 s, and the measured p95 is written to the test output. Shared-runner disk I/O noise alone exceeds 500 ms (seen 557 ms); 2 s still catches a broken template copy |
+| TST-I-003 | I | Database creation from template under 500 ms | One warm-up creation, then measure 20 creations → p95 < 500 ms on a developer machine or with `WATCHPOINT_STRICT_TIMING=1` (benchmark run); on shared CI runners (`CI=true`) p95 < 2 s (§4.7), and the measured p95 is written to the test output. Shared-runner disk I/O noise alone exceeds 500 ms (seen 557 ms); 2 s still catches a broken template copy |
 | TST-I-004 | I | Database dropped on dispose | After dispose, `pg_database` has no row |
 | TST-I-005 | I | NATS container has JetStream | Create stream with scope prefix → succeeds |
 | TST-I-006 | I | NATS scopes isolate subjects | Publish on scope A not received by consumer of scope B |
