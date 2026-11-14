@@ -78,7 +78,11 @@ public static class IdentityErrors
     public static Error PasswordTooShort(int minLength) =>
         Error.Validation("common.validation.failed", [FieldError.Create("/password", ErrorCode.FromTrusted("identity.password.too_short"), ("min", minLength))]);
 
-    /// <summary>Validation: Password is longer than the maximum, or is not valid Unicode.</summary>
+    /// <summary>Validation: Password is not a valid Unicode string.</summary>
+    public static Error PasswordInvalidCharacters() =>
+        Error.Validation("common.validation.failed", [FieldError.Create("/password", ErrorCode.FromTrusted("identity.password.invalid_characters"))]);
+
+    /// <summary>Validation: Password is longer than the maximum.</summary>
     public static Error PasswordTooLong(int maxLength) =>
         Error.Validation("common.validation.failed", [FieldError.Create("/password", ErrorCode.FromTrusted("identity.password.too_long"), ("max", maxLength))]);
 

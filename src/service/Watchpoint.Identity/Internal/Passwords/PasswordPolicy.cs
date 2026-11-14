@@ -39,7 +39,9 @@ internal sealed class PasswordPolicy : IPasswordPolicy
 
         if (!Argon2PasswordHasher.TryNormalize(password, out var normalized))
         {
-            return IdentityErrors.PasswordTooLong(Argon2PasswordHasher.MaxPasswordLength);
+            return normalized.Length > Argon2PasswordHasher.MaxPasswordLength
+                ? IdentityErrors.PasswordTooLong(Argon2PasswordHasher.MaxPasswordLength)
+                : IdentityErrors.PasswordInvalidCharacters();
         }
 
         password = normalized;
