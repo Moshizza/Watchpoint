@@ -8,12 +8,16 @@ using Watchpoint.Kernel.Ids;
 namespace Watchpoint.Identity.Internal.Lockout;
 
 /// <summary>Lockout management service with sliding failure window and progressive doubling (spec IDN §6.4).</summary>
-internal sealed class LockoutService
+internal sealed class LockoutService : IDisposable
 {
     private readonly IDbContextFactory<IdentityDbContext> _dbFactory;
     private readonly TimeProvider _clock;
     private readonly LockoutOptions _options;
     private readonly ILogger<LockoutService>? _logger;
+
+    // Read-modify-write of the failure list: without it concurrent wrong passwords overwrite each other and the
+    // threshold is never reached.
+    private readonly SemaphoreSlim _gate = new(1, 1);
 
     public LockoutService(
         IDbContextFactory<IdentityDbContext> dbFactory,
@@ -45,6 +49,19 @@ internal sealed class LockoutService
     /// <summary>Records a failed sign-in attempt and calculates progressive lockouts (spec IDN §6.4).</summary>
     public async Task<(bool NewlyLocked, DateTimeOffset? LockedUntil)> RecordFailureAsync(UserId userId, CancellationToken ct = default)
     {
+        await _gate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            return await RecordFailureCoreAsync(userId, ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    private async Task<(bool NewlyLocked, DateTimeOffset? LockedUntil)> RecordFailureCoreAsync(UserId userId, CancellationToken ct)
+    {
         var now = _clock.GetUtcNow();
         await using var db = await _dbFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         var lockout = await db.Lockouts.FindAsync([userId], ct).ConfigureAwait(false);
@@ -54,13 +71,17 @@ internal sealed class LockoutService
             lockout = new LockoutEntity
             {
                 UserId = userId,
-                FailuresJson = JsonSerializer.Serialize(new[] { now }),
+                FailuresJson = "[]",
                 LockedUntil = null,
                 LockCount24h = 0,
             };
             db.Lockouts.Add(lockout);
-            await db.SaveChangesAsync(ct).ConfigureAwait(false);
-            return (false, null);
+        }
+
+        // "Each further lock in 24 h doubles": a day without lock starts again at the base duration.
+        if (lockout.LockedUntil is { } lastLock && now - lastLock > TimeSpan.FromHours(24))
+        {
+            lockout.LockCount24h = 0;
         }
 
         // Clean up failures outside sliding window (15 min)
@@ -79,7 +100,7 @@ internal sealed class LockoutService
             lockout.LockCount24h++;
 
             // Progressive doubling: 15 min, 30 min, 1h, 2h... up to 24h
-            var multiplier = Math.Pow(2, lockout.LockCount24h - 1);
+            var multiplier = Math.Pow(2, Math.Min(lockout.LockCount24h - 1, 16));
             var durationTicks = (long)(_options.BaseDuration.Ticks * multiplier);
             var duration = TimeSpan.FromTicks(Math.Min(durationTicks, _options.MaxDuration.Ticks));
 
@@ -124,5 +145,10 @@ internal sealed class LockoutService
             lockout.LockCount24h = 0;
             await db.SaveChangesAsync(ct).ConfigureAwait(false);
         }
+    }
+
+    public void Dispose()
+    {
+        _gate.Dispose();
     }
 }

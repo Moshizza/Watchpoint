@@ -54,6 +54,14 @@ internal sealed class BootstrapAdminService : IBootstrapAdminService
             Administrator: true,
             MustChangePassword: isProduction);
 
-        await _userDirectory.CreateAsync(newAdmin, password, new ChangeContext(null, "bootstrap"), ct).ConfigureAwait(false);
+        var created = await _userDirectory.CreateAsync(newAdmin, password, new ChangeContext(null, "bootstrap"), ct).ConfigureAwait(false);
+        if (!created.IsSuccess)
+        {
+            // E.g. the password of the variable does not meet the policy: say so (code only, never the password)
+            // instead of starting silently without administrator.
+            var code = created.Error.FieldErrors.Count > 0 ? created.Error.FieldErrors[0].Code.Value : created.Error.Code.Value;
+            IdentityLog.BootstrapAdminFailed(_logger, code);
+            IdentityLog.NoAdministrator(_logger);
+        }
     }
 }

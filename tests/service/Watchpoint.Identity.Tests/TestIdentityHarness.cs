@@ -64,7 +64,7 @@ internal sealed class TestIdentityHarness : IDisposable
         LockoutService = new LockoutService(DbFactory, Clock);
         RateLimiter = new SignInRateLimiter(Clock);
 
-        UserDirectory = new UserDirectory(DbFactory, SessionRegistry, PasswordPolicy, FastHasher, Clock);
+        UserDirectory = new UserDirectory(DbFactory, SessionRegistry, PasswordPolicy, FastHasher, Clock, LockoutService);
     }
 
     public AuthenticationService CreateAuthService() =>

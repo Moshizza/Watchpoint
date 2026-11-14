@@ -58,13 +58,17 @@ public interface IUserDirectory
     /// <returns>Success or error.</returns>
     Task<Result> SetPasswordAsync(UserId id, string newPassword, bool mustChange, ChangeContext ctx, CancellationToken ct);
 
-    /// <summary>User self-service password change.</summary>
+    /// <summary>
+    /// User self-service password change. Revokes every session of the user except <paramref name="currentSession"/>;
+    /// a wrong current password counts as a sign-in failure for the lockout.
+    /// </summary>
     /// <param name="id">The user identifier.</param>
     /// <param name="current">The current password.</param>
     /// <param name="newPassword">The new password.</param>
+    /// <param name="currentSession">The session the change is made from (kept), or null to revoke all sessions.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>Success or error.</returns>
-    Task<Result> ChangeOwnPasswordAsync(UserId id, string current, string newPassword, CancellationToken ct);
+    Task<Result> ChangeOwnPasswordAsync(UserId id, string current, string newPassword, SessionId? currentSession, CancellationToken ct);
 
     /// <summary>Event raised when a user account is created, updated or deleted.</summary>
     event EventHandler<UserChangedEventArgs>? Changed;
