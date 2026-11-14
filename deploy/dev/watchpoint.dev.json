@@ -1,0 +1,30 @@
+{
+  "Node": {
+    "Id": "01937b5e-8c00-7000-8000-00000000d0e1",
+    "Name": "dev",
+    "Environment": "Development"
+  },
+  "Paths": {
+    "Data": ".watchpoint-dev/data",
+    "Logs": ".watchpoint-dev/logs"
+  },
+  "Http": { "Urls": ["http://localhost:5080"] },
+  "Nats": {
+    "Mode": "External",
+    "Url": "nats://127.0.0.1:4222",
+    "Token": "devtoken"
+  },
+  "Database": {
+    "Databases": {
+      "default": {
+        "Host": "127.0.0.1",
+        "Port": "5432",
+        "Name": "watchpoint",
+        "Username": "watchpoint",
+        "PasswordDev": "watchpoint",
+        "Tls": "Disable"
+      }
+    }
+  },
+  "Dev": { "SeedFile": "deploy/dev/seed/sample-site.json" }
+}

@@ -139,6 +139,12 @@ public sealed class NodeSettings : IValidatableObject
             results.Add(new ValidationResult($"Nats:Url contains invalid URL '{Nats.Url}'.", [nameof(Nats), nameof(Nats.Url)]));
         }
 
+        // The token of the development stack (deploy/dev) is public: never accepted in Production.
+        if (Node.Environment != NodeEnvironment.Development && string.Equals(Nats.Token, NatsSection.DevelopmentToken, StringComparison.Ordinal))
+        {
+            results.Add(new ValidationResult("Nats:Token is the development token; it is only allowed when Node:Environment = Development.", [nameof(Nats), nameof(Nats.Token)]));
+        }
+
         // Logging
         if (Logging.RetainedFileCount < 1 || Logging.RetainedFileCount > 365)
         {
@@ -251,6 +257,12 @@ public sealed class NatsSection
 
     /// <summary>NATS JetStream store path.</summary>
     public string? StorePath { get; set; }
+
+    /// <summary>The token of the development compose stack (<c>deploy/dev</c>); refused outside Development.</summary>
+    public const string DevelopmentToken = "devtoken";
+
+    /// <summary>Authentication token of an External NATS server (the bundled server generates its own). Never logged.</summary>
+    public string? Token { get; set; }
 }
 
 /// <summary>Logging settings.</summary>

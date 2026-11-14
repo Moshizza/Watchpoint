@@ -10,7 +10,10 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting.Systemd;
 using Serilog;
+using Watchpoint.Host.Dev;
+using Watchpoint.Host.Nats;
 using Watchpoint.Hosting;
+using Watchpoint.Hosting.Supervision;
 using Watchpoint.Storage.Contracts;
 
 namespace Watchpoint.Host;
@@ -224,6 +227,22 @@ public static class Program
         builder.Services.AddSingleton(Microsoft.Extensions.Options.Options.Create(settings));
         builder.Services.AddSingleton(paths);
         builder.Services.AddSingleton<INodeReadiness, NodeReadiness>();
+
+        // Process supervisor and NATS (spec HST §7): bundled server started by the host, or an external one.
+        builder.Services.AddProcessSupervisor(paths);
+        builder.Services.AddSingleton<NatsProcessSpecFactory>();
+        builder.Services.AddSingleton(sp => sp.GetRequiredService<NatsProcessSpecFactory>().Endpoint());
+        if (settings.Nats.Mode == NatsMode.Bundled)
+        {
+            builder.Services.AddStartupTask<BundledNatsStartupTask>();
+        }
+
+        // Development seed (spec HST §9): refused outside Development by the task itself (HST1140).
+        if (!string.IsNullOrWhiteSpace(settings.Dev.SeedFile))
+        {
+            builder.Services.AddSingleton<IDevSeedStep, UsersDevSeedStep>();
+            builder.Services.AddStartupTask<DevSeedStartupTask>();
+        }
 
         builder.Services.AddHealthChecks();
         builder.Services.AddHostedService<StartupOrchestrator>();

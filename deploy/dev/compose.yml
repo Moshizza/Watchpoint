@@ -1,0 +1,38 @@
+# Development infrastructure (Architecture/specs/HST-host.md §8): PostgreSQL + TimescaleDB and NATS with JetStream.
+#
+#   docker compose -f deploy/dev/compose.yml up -d
+#   dotnet run --project src/service/Watchpoint.Host -- --config deploy/dev/watchpoint.dev.json
+#
+# Images are pinned by digest (same pins as deploy/versions.env and the test fixtures). The credentials below are
+# development defaults, not secrets: the ports are published on loopback only. Never use this file in production.
+name: watchpoint-dev
+
+services:
+  postgres:
+    image: timescale/timescaledb:2.31.0-pg17@sha256:b56a3f51991df1f79d0c1a0841cad5c5fa8058fdd6a3ee6886394a6d4c174538
+    environment:
+      POSTGRES_USER: watchpoint
+      POSTGRES_PASSWORD: watchpoint
+      POSTGRES_DB: watchpoint
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U watchpoint -d watchpoint"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  nats:
+    image: nats:2.15.2-alpine@sha256:afae2fdbe2e326c65e1246cb83b9d05d319188734f3bd577ac8072daae78a10f
+    command: ["-js", "-sd", "/data", "-m", "8222", "--auth", "devtoken"]
+    ports:
+      - "127.0.0.1:4222:4222"
+      - "127.0.0.1:8222:8222"
+    volumes:
+      - natsdata:/data
+
+volumes:
+  pgdata: {}
+  natsdata: {}

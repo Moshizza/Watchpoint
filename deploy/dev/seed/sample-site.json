@@ -1,0 +1,20 @@
+{
+  "site": { "name": "Dev site", "timeZone": "Europe/Paris" },
+  "locations": [
+    { "key": "hq", "name": "HQ", "kind": "site" },
+    { "key": "a", "parent": "hq", "name": "Building A", "kind": "building" },
+    { "key": "a0", "parent": "a", "name": "Floor 0", "kind": "floor" }
+  ],
+  "users": [{ "login": "admin", "password": "Dev-Admin-1!", "administrator": true }],
+  "connections": [
+    {
+      "package": "watchpoint.integration.simulator",
+      "serverType": "sim.server",
+      "name": "Simulator",
+      "location": "a0",
+      "settings": { "profile": "office", "doors": 20, "zones": 10, "areas": 2, "seed": 42 },
+      "secrets": {},
+      "autoImport": true
+    }
+  ]
+}

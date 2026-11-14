@@ -140,9 +140,10 @@ jobs:
           --error
           --metrics off
 
-  # Windows-only code paths (SEC §6.2 DPAPI master key, test SEC-U-015).
+  # Windows-only code paths: SEC §6.2 DPAPI master key (SEC-U-015); HST §7.3 supervisor on Windows (Job Object,
+  # CTRL_BREAK, bundled nats-server: HST-I-005, HST-I-006) and the host unit tests.
   dotnet-windows:
-    name: Secrets tests (Windows)
+    name: Windows-only tests (secrets, supervisor)
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
@@ -154,6 +155,13 @@ jobs:
 
       - name: Test
         run: dotnet test --project tests/service/Watchpoint.Secrets.Tests --configuration Release
+
+      - name: Host unit tests
+        run: dotnet test --project tests/service/Watchpoint.Hosting.Tests --configuration Release
+
+      # Real processes, no container: the pinned nats-server release is downloaded and checked by the tests.
+      - name: Supervisor integration tests
+        run: dotnet test --project tests/service/Watchpoint.IntegrationTests --configuration Release -- --filter-class "*SupervisorIntegrationTests"
 
   ci-ok:
     name: ci-ok
