@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Watchpoint.Identity.Contracts;
+using Watchpoint.Identity.Internal.Lockout;
 using Watchpoint.Identity.Internal.Passwords;
 using Watchpoint.Identity.Internal.Storage;
 using Watchpoint.Kernel.Ids;
@@ -18,6 +19,8 @@ internal sealed partial class UserDirectory : IUserDirectory
     private readonly IPasswordPolicy _passwordPolicy;
     private readonly Argon2PasswordHasher _passwordHasher;
     private readonly TimeProvider _clock;
+    private readonly LockoutService? _lockout;
+    private readonly int _historyCount;
 
     public event EventHandler<UserChangedEventArgs>? Changed;
 
@@ -26,8 +29,12 @@ internal sealed partial class UserDirectory : IUserDirectory
         ISessionRegistry sessionRegistry,
         IPasswordPolicy passwordPolicy,
         Argon2PasswordHasher passwordHasher,
-        TimeProvider clock)
+        TimeProvider clock,
+        LockoutService? lockout = null,
+        PasswordPolicyOptions? policyOptions = null)
     {
+        _lockout = lockout;
+        _historyCount = (policyOptions ?? new PasswordPolicyOptions()).HistoryCount;
         _dbFactory = dbFactory ?? throw new ArgumentNullException(nameof(dbFactory));
         _sessionRegistry = sessionRegistry ?? throw new ArgumentNullException(nameof(sessionRegistry));
         _passwordPolicy = passwordPolicy ?? throw new ArgumentNullException(nameof(passwordPolicy));
@@ -105,6 +112,18 @@ internal sealed partial class UserDirectory : IUserDirectory
 
     public async Task<Result<UserId>> CreateAsync(NewUser user, string? initialPassword, ChangeContext ctx, CancellationToken ct)
     {
+        try
+        {
+            return await CreateCoreAsync(user, initialPassword, ctx, ct).ConfigureAwait(false);
+        }
+        catch (HashPoolBusyException)
+        {
+            return IdentityErrors.RateLimited();
+        }
+    }
+
+    private async Task<Result<UserId>> CreateCoreAsync(NewUser user, string? initialPassword, ChangeContext ctx, CancellationToken ct)
+    {
         ArgumentNullException.ThrowIfNull(user);
         ArgumentNullException.ThrowIfNull(ctx);
 
@@ -121,17 +140,17 @@ internal sealed partial class UserDirectory : IUserDirectory
         await using var db = await _dbFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
 
         // Check login uniqueness (U1 / U7: reusable after 30 days if soft deleted)
-        var existing = await db.Users.FirstOrDefaultAsync(u => u.LoginNorm == loginNorm, ct).ConfigureAwait(false);
-        if (existing is not null)
+        // Every row with this login counts, not the first one found: an old deleted row must not hide an active one.
+        var reuseLimit = now - TimeSpan.FromDays(30);
+        // (Dates are compared in memory: the SQLite provider of the unit tests cannot compare DateTimeOffset.)
+        var deletions = await db.Users
+            .Where(u => u.LoginNorm == loginNorm)
+            .Select(u => u.DeletedAt)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+        if (deletions.Any(deletedAt => deletedAt is null || deletedAt > reuseLimit))
         {
-            if (existing.DeletedAt is null)
-            {
-                return IdentityErrors.LoginTaken(login);
-            }
-            if (now - existing.DeletedAt.Value < TimeSpan.FromDays(30))
-            {
-                return IdentityErrors.LoginTaken(login);
-            }
+            return IdentityErrors.LoginTaken(login);
         }
 
         // U2: Template and Script users cannot sign in and have AuthSource.None
@@ -148,7 +167,7 @@ internal sealed partial class UserDirectory : IUserDirectory
             if (ctx.Actor is { } actorId)
             {
                 var actor = await db.Users.FindAsync([actorId], ct).ConfigureAwait(false);
-                if (actor is null || !actor.Administrator)
+                if (actor is null || !actor.Administrator || !actor.Enabled || actor.DeletedAt is not null)
                 {
                     return IdentityErrors.AdminRequired();
                 }
@@ -253,6 +272,16 @@ internal sealed partial class UserDirectory : IUserDirectory
             }
         }
 
+        // U5: only administrators make administrators, by creation or by promotion
+        if (update.Administrator is true && !entity.Administrator && ctx.Actor is { } promoterId)
+        {
+            var promoter = await db.Users.FindAsync([promoterId], ct).ConfigureAwait(false);
+            if (promoter is null || !promoter.Administrator || !promoter.Enabled || promoter.DeletedAt is not null)
+            {
+                return IdentityErrors.AdminRequired();
+            }
+        }
+
         // U3: At least one active administrator of kind Person must always exist
         var willBeAdmin = update.Administrator ?? entity.Administrator;
         var willBeEnabled = update.Enabled ?? entity.Enabled;
@@ -301,7 +330,9 @@ internal sealed partial class UserDirectory : IUserDirectory
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
 
         // Automatic revocation if disabled or admin flag removed (spec IDN §6.3)
-        if (update.Enabled is false || (update.Administrator is false && entity.Administrator == false))
+        // ... or the kind became one that cannot sign in (U2)
+        if (update.Enabled is false || (update.Administrator is false && entity.Administrator == false) ||
+            update.Kind is UserKind.Template or UserKind.Script)
         {
             await _sessionRegistry.RevokeAllAsync(id, "User disabled or privileges changed", ctx.Actor, ct).ConfigureAwait(false);
         }
@@ -350,6 +381,18 @@ internal sealed partial class UserDirectory : IUserDirectory
 
     public async Task<Result> SetPasswordAsync(UserId id, string newPassword, bool mustChange, ChangeContext ctx, CancellationToken ct)
     {
+        try
+        {
+            return await SetPasswordCoreAsync(id, newPassword, mustChange, ctx, ct).ConfigureAwait(false);
+        }
+        catch (HashPoolBusyException)
+        {
+            return IdentityErrors.RateLimited();
+        }
+    }
+
+    private async Task<Result> SetPasswordCoreAsync(UserId id, string newPassword, bool mustChange, ChangeContext ctx, CancellationToken ct)
+    {
         ArgumentNullException.ThrowIfNull(ctx);
 
         await using var db = await _dbFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
@@ -374,13 +417,7 @@ internal sealed partial class UserDirectory : IUserDirectory
         entity.UpdatedAt = now;
         entity.RowVersion++;
 
-        db.PasswordHistory.Add(new PasswordHistoryEntity
-        {
-            Id = Guid.NewGuid(),
-            UserId = id,
-            Hash = newHash,
-            CreatedAt = now,
-        });
+        await AddToHistoryAsync(db, id, newHash, now, ct).ConfigureAwait(false);
 
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
 
@@ -391,7 +428,19 @@ internal sealed partial class UserDirectory : IUserDirectory
         return Result.Success();
     }
 
-    public async Task<Result> ChangeOwnPasswordAsync(UserId id, string current, string newPassword, CancellationToken ct)
+    public async Task<Result> ChangeOwnPasswordAsync(UserId id, string current, string newPassword, SessionId? currentSession, CancellationToken ct)
+    {
+        try
+        {
+            return await ChangeOwnPasswordCoreAsync(id, current, newPassword, currentSession, ct).ConfigureAwait(false);
+        }
+        catch (HashPoolBusyException)
+        {
+            return IdentityErrors.RateLimited();
+        }
+    }
+
+    private async Task<Result> ChangeOwnPasswordCoreAsync(UserId id, string current, string newPassword, SessionId? currentSession, CancellationToken ct)
     {
         await using var db = await _dbFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         var entity = await db.Users.FindAsync([id], ct).ConfigureAwait(false);
@@ -405,9 +454,25 @@ internal sealed partial class UserDirectory : IUserDirectory
             return IdentityErrors.PasswordIncorrect();
         }
 
+        // The current password is guessed here as it is at sign-in (by whoever holds an access token), so it is
+        // bound by the same lockout (spec IDN §6.4).
+        if (_lockout is not null)
+        {
+            var (locked, until) = await _lockout.CheckLockoutAsync(id, ct).ConfigureAwait(false);
+            if (locked)
+            {
+                return IdentityErrors.Locked(until ?? _clock.GetUtcNow());
+            }
+        }
+
         var (verified, _) = await _passwordHasher.VerifyPasswordAsync(current, entity.PasswordHash, ct).ConfigureAwait(false);
         if (!verified)
         {
+            if (_lockout is not null)
+            {
+                await _lockout.RecordFailureAsync(id, ct).ConfigureAwait(false);
+            }
+
             return IdentityErrors.PasswordIncorrect();
         }
 
@@ -426,19 +491,43 @@ internal sealed partial class UserDirectory : IUserDirectory
         entity.UpdatedAt = now;
         entity.RowVersion++;
 
-        db.PasswordHistory.Add(new PasswordHistoryEntity
-        {
-            Id = Guid.NewGuid(),
-            UserId = id,
-            Hash = newHash,
-            CreatedAt = now,
-        });
+        await AddToHistoryAsync(db, id, newHash, now, ct).ConfigureAwait(false);
 
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
 
-        // Self password change revokes all other sessions of the user
+        if (_lockout is not null)
+        {
+            await _lockout.ResetFailuresAsync(id, ct).ConfigureAwait(false);
+        }
+
+        // Self password change revokes all other sessions of the user (spec IDN §6.3): whoever knew the old
+        // password, or stole a refresh token, is out.
+        await _sessionRegistry.RevokeWhereAsync(
+            s => s.UserId == id && (currentSession is null || s.Id != currentSession.Value),
+            "Password changed by user",
+            ct).ConfigureAwait(false);
+
         Changed?.Invoke(this, new UserChangedEventArgs(id, "PasswordChanged"));
         return Result.Success();
+    }
+
+    // Keeps the last N hashes only (spec IDN §5, §7.3): an old hash that the policy no longer checks is only
+    // something more to steal.
+    private async Task AddToHistoryAsync(IdentityDbContext db, UserId id, string hash, DateTimeOffset now, CancellationToken ct)
+    {
+        var previous = await db.PasswordHistory.Where(h => h.UserId == id).ToListAsync(ct).ConfigureAwait(false);
+        db.PasswordHistory.RemoveRange(previous.OrderByDescending(h => h.CreatedAt).Skip(Math.Max(_historyCount - 1, 0)));
+
+        if (_historyCount > 0)
+        {
+            db.PasswordHistory.Add(new PasswordHistoryEntity
+            {
+                Id = Guid.NewGuid(),
+                UserId = id,
+                Hash = hash,
+                CreatedAt = now,
+            });
+        }
     }
 
     internal static User MapToUser(UserEntity entity)

@@ -5,7 +5,7 @@
 | Spec id | IDN |
 | Projects | `src/service/Watchpoint.Identity` |
 | Milestone | M1 (part 1: §4–§7), M3 (part 2: §8–§12) |
-| Tasks | T1.18 (§4–§7), T3.07 (§8–§9), T3.08 (§10–§12) |
+| Tasks | T1.18 (§4–§7), T1.18r (security review of §4–§7), T1.18s (settings binding, per-site issuer), T3.07 (§8–§9), T3.08 (§10–§12) |
 | Design docs | [Users and rights §1, §4, §5](../../docs/modules/users-and-rights.md) |
 
 ## 1. Purpose and scope
@@ -80,7 +80,7 @@ Rules:
 | U2 | `Template` and `Script` users cannot sign in (sign-in → `identity.signin.invalid_credentials`, no hint) and have `AuthSource.None` |
 | U3 | At least one **active administrator** of kind Person must always exist (deleting, disabling, demoting or expiring the last one → `identity.user.last_administrator`) |
 | U4 | A user cannot change their own `Administrator`, `Enabled`, `Kind` |
-| U5 | Only administrators can create administrators |
+| U5 | Only administrators can create administrators **or promote a user to administrator** (the acting user must be an enabled administrator; a change without acting user is the system: bootstrap, seed) |
 | U6 | Effective status: `Disabled` if !Enabled; `Expired` if now ∉ [ValidFrom, ValidUntil]; `Locked` if a lockout is active; else `Active` |
 | U7 | Deleting a user revokes all sessions; deletion is a soft delete (`deleted_at`) so history references stay resolvable; logins of deleted users can be reused after 30 days |
 
@@ -94,19 +94,36 @@ public interface IUserDirectory
     Task<Result> UpdateAsync(UserId id, UserUpdate update, long expectedVersion, ChangeContext ctx, CancellationToken ct);
     Task<Result> DeleteAsync(UserId id, ChangeContext ctx, CancellationToken ct);
     Task<Result> SetPasswordAsync(UserId id, string newPassword, bool mustChange, ChangeContext ctx, CancellationToken ct); // admin reset
-    Task<Result> ChangeOwnPasswordAsync(UserId id, string current, string @new, CancellationToken ct);
+    Task<Result> ChangeOwnPasswordAsync(UserId id, string current, string @new, SessionId? currentSession, CancellationToken ct);
     event EventHandler<UserChangedEventArgs>? Changed;
 }
 ```
+
+`ChangeOwnPasswordAsync` revokes every session of the user except `currentSession` (all of them
+when it is null) and treats a wrong `current` like a failed sign-in: it counts for the lockout
+(§6.4) and is refused with `identity.signin.locked` while a lockout is active — otherwise a
+stolen access token would allow unlimited guesses of the password.
 
 ## 5. Passwords
 
 - Hash: **Argon2id**, memory 64 MiB, iterations 3, parallelism 2, salt 16 bytes, output 32 bytes,
   encoded as PHC string `$argon2id$v=19$m=65536,t=3,p=2$<salt>$<hash>`. Parameters stored in the
   hash so they can be raised later; on successful sign-in with old parameters → rehash.
+- The salt comes from the system CSPRNG, one per hash; hashes are compared in constant time.
+- **Normalisation**: a password is normalised to Unicode **NFKC** before the policy and before
+  hashing or verifying, so that the same password typed on another keyboard or platform gives the
+  same bytes (NIST SP 800-63B). A password longer than **256** UTF-16 code units (before or after
+  normalisation) or that is not valid Unicode (lone surrogate) is refused **before any hashing**:
+  `identity.password.too_long` / `identity.password.invalid_characters` when set, generic
+  `invalid_credentials` at sign-in.
 - Verification runs on a dedicated bounded pool (max 4 concurrent hashes; excess sign-ins wait
-  up to 5 s then `common.rate_limited`) to avoid CPU/memory exhaustion.
-- Unknown logins are verified against a dummy hash (constant-time behaviour).
+  up to 5 s then `common.rate_limited`) to avoid CPU/memory exhaustion. Every operation that
+  hashes (sign-in, create, reset, change) returns `common.rate_limited`, never an exception.
+- Unknown logins are verified against a dummy hash (constant-time behaviour). Input that cannot be
+  a credential (login longer than 64 characters, password refused above) takes the same dummy-hash
+  path **before the user is looked up**, for existing and unknown logins alike.
+- Parameters read from a stored hash are bounded (memory ≤ 1 GiB, iterations ≤ 16, parallelism
+  ≤ 16, salt ≥ 8 bytes, hash ≥ 16 bytes); a stored hash outside these bounds never verifies.
 
 Policy (`IPasswordPolicy`, settings in §7):
 
@@ -116,11 +133,11 @@ Policy (`IPasswordPolicy`, settings in §7):
 | Composition | ≥ 3 of {lower, upper, digit, symbol}, **or** length ≥ 16 (passphrases) |
 | Must not contain login or display name parts (≥ 4 chars), case-insensitive | on |
 | Breached list | Embedded list of the 100,000 most common breached passwords (compressed resource), case-insensitive exact match |
-| History | Last 5 hashes rejected |
+| History | Last 5 hashes rejected; only these are kept: every password change deletes the older rows of `password_history` |
 | Expiry | Off (NIST guidance); configurable in days |
 
 Errors are returned as field errors on `/password` with codes `identity.password.too_short`,
-`…too_simple`, `…contains_login`, `…breached`, `…reused`.
+`…too_long`, `…invalid_characters`, `…too_simple`, `…contains_login`, `…breached`, `…reused`.
 
 ## 6. Tokens and sessions
 
@@ -152,7 +169,8 @@ public sealed record TokenPair(string AccessToken, DateTimeOffset AccessExpiresA
 Sign-in algorithm:
 
 1. Rate limit per remote IP (`Identity:SignInRatePerIp`, default 20 per minute) and per login
-   (10 per minute) → `common.rate_limited`.
+   (10 per minute) → `common.rate_limited`. The limiter's memory is bounded: logins longer than 64
+   characters share one bucket and keys without attempt in the window are dropped.
 2. Find user; if not found / template / script → dummy hash verify → `identity.signin.invalid_credentials`.
 3. If a lockout is active: verify the password anyway; wrong password →
    `identity.signin.invalid_credentials`; correct password → `identity.signin.locked` (args
@@ -165,7 +183,11 @@ Sign-in algorithm:
    `identity.signin.workstation_not_allowed`.
 6. `ISessionAdmission` hooks (all must allow): MNT (maintenance), LIC (seats, M7),
    concurrent session limit → errors from the hook (e.g. `maintenance.active`).
-7. If `MustChangePassword` → `PasswordChangeRequired`.
+7. If `MustChangePassword` → `PasswordChangeRequired`. The change token is 32 random bytes
+   (CSPRNG, base64url), kept hashed, **single use**, valid 10 min; a user has one live token (a new
+   sign-in replaces it) and every token of the user dies when the password changes. Completing the
+   change repeats steps 5 and 6 (the account may have been disabled meanwhile) and requires
+   `MustChangePassword` to be still set; a refused new password does not consume the token.
 8. (part 2) If MFA required → `MfaRequired`.
 9. Create session and tokens; reset failure count; update `LastSignInAt`; audit `signedIn`.
 
@@ -184,12 +206,26 @@ Sign-in algorithm:
 | `iat`, `nbf`, `exp` | lifetime `Identity:AccessTokenLifetime` (default 10 min) |
 | `jti` | random id |
 
+- `exp` is never later than the end of the session (`Session.ExpiresAt`).
 - Signing keys: ECDSA P-256 keys in a **key ring** (`SigningKeyRing`) stored as bootstrap
-  secrets `identity.jwt.<kid>` (so every node of a cluster can validate with the same keys, M9);
-  `kid` header; rotation every 30 days; previous key kept 1 day for validation.
-- Validation (API middleware): signature, `iss`, `aud`, lifetime (clock skew 30 s), and the
-  session is **not revoked** (in-memory revocation set fed by `session.revoked` records, checked
-  per request — O(1)).
+  secrets `identity.jwt.<kid>` (PKCS#8; so every node of a cluster can validate with the same
+  keys, M9) and listed in the bootstrap secret `identity.jwt.index` (JSON: kid, created, end of
+  signing — the bootstrap store cannot enumerate names). `kid` header (16 hex chars, CSPRNG);
+  rotation every 30 days; previous key kept 1 day for validation. An explicit rotation (key
+  compromise) stops the previous keys signing at once; they validate for 1 more day.
+- The ring is **loaded from the store** at first use and when a token carries an unknown `kid`
+  (at most one reload per 30 s), so tokens stay valid over a restart and a key created by another
+  node is found. **Fail closed**: a key that cannot be stored is not used, and an index or key
+  that cannot be read is an error — never a silent new ring. (Two nodes rotating in the same
+  instant can still overwrite each other's index entry; CLU serialises rotation with a lease, M9.)
+- Validation (API middleware): **algorithm pinned to ES256** (`none`, HMAC and any other
+  algorithm are refused whatever the key), the key is the ring key named by `kid` (no `kid` → no
+  key), signature, `iss`, `aud`, `exp` required, lifetime (clock skew 30 s), `ck` must be a known
+  client kind, and the session is **not revoked** (in-memory revocation set fed by
+  `session.revoked` records, checked per request — O(1)). The set is **loaded from the `sessions`
+  table at first use** (sessions not yet ended), so a revocation survives a restart.
+- A refused token gives `identity.token.invalid` (or `expired` / `revoked`) **without detail**:
+  the reason is not returned to the caller.
 - Rights are **not** in the token (they can change at any time); RGT evaluates per request.
 
 ### 6.3 Refresh tokens and sessions
@@ -199,7 +235,19 @@ Sign-in algorithm:
   absolute `SessionPolicy.MaxSessionLength` (default 7 days desktop/mobile, 12 h web).
 - **Rotation**: each refresh returns a new refresh token and invalidates the previous one. Reuse
   of an already-rotated token → the **whole session is revoked** (theft detection), audit
-  `refreshTokenReuse` (warning).
+  `refreshTokenReuse` (warning, log 2713).
+- Rotation is **atomic**: of several concurrent refreshes with the same token exactly one
+  rotates; the others are a reuse. In one process a per-token gate serialises them; between nodes
+  `rotated_at` is an optimistic concurrency token (`UPDATE … WHERE rotated_at IS NULL`), a lost
+  race is a reuse.
+- A refresh token never expires after the end of its session.
+- **Order of a refresh**: (1) the token is validated and claimed (reuse, expiry, session, binding);
+  (2) the user and admission checks run; (3) the token is rotated only if they pass. A user who
+  can no longer sign in (deleted, kind Template/Script → `identity.refresh.invalid`; disabled →
+  `identity.signin.disabled`; expired → `identity.signin.expired`) loses the **session**. A
+  refusal by an `ISessionAdmission` hook (maintenance, seats) is temporary: nothing is rotated or
+  revoked and the same token works once the hook allows. Reuse is detected in step 1, before any
+  hook is called.
 - Binding: refresh requires the same `ClientInstanceId` and client kind as the session.
 - Web client: refresh token in a cookie `wp_rt` (HttpOnly, Secure, SameSite=Strict, Path
   `/api/v1/auth`); other clients receive it in the response body and store it in OS secure
@@ -223,17 +271,23 @@ public interface ISessionRegistry
 ```
 
 Revocation publishes `session.revoked { sessionId, userId, reason }` to `WP_SYS`; the API hub
-closes the affected live streams with the reason (API §8.6).
+closes the affected live streams with the reason (API §8.6). Revoking a session twice keeps the
+first instant and reason and publishes once. The registry loads the sessions that have not ended
+from the database at first use, so `ListActive`, `RevokeWhereAsync` and the concurrent-session
+limit also see sessions created before a restart; sessions ended for more than a day leave memory.
 
 Automatic revocations: password changed/reset (all sessions of the user except the current one
-on self-change), user disabled/deleted/expired, administrator flag removed, refresh token reuse,
+on self-change), user disabled/deleted/expired, administrator flag removed, kind changed to
+Template or Script, refresh token reuse,
 maintenance mode (MNT), explicit sign-out.
 
 ### 6.4 Lockout
 
-- Failure counter per user in a sliding window of 15 minutes.
+- Failure counter per user in a sliding window of 15 minutes; concurrent failures are all counted
+  (the read-modify-write of the counter is serialised).
 - At 5 failures: lock for 15 min; each further lock in 24 h doubles the duration (30 min, 1 h…)
-  up to 24 h. Unlock: time, or administrator action (`POST /users/{id}/unlock`).
+  up to 24 h; when the previous lock ended more than 24 h ago the next one starts again at 15 min.
+  Unlock: time, or administrator action (`POST /users/{id}/unlock`).
 - Lockouts are audited and produce a system event `identity.accountLocked` (alarm-able, ALM).
 
 ## 7. Settings, API, data (part 1)
@@ -251,12 +305,19 @@ maintenance mode (MNT), explicit sign-out.
 | `Identity:BootstrapAdmin:Login` | `admin` |
 | `Identity:BootstrapAdmin:PasswordEnv` | `WATCHPOINT_BOOTSTRAP_ADMIN_PASSWORD` |
 
+Not implemented yet (T1.18s): the host registers the module with the defaults above without
+reading the `Identity:*` keys, and the token issuer is `urn:watchpoint:site:default` for every
+site because the node settings carry no site id.
+
 **Bootstrap administrator** (startup phase `Configuration`): if no Person administrator exists,
 create `admin` with the password from the environment variable (Production). If the variable
 is absent, the node still starts (supervision of connections works) but logs 2701 Critical
 ("no administrator; run `wpctl reset-admin`"); nobody can sign in until the command is run.
 Development: the dev seed creates users (HST §9).
 The created admin has `MustChangePassword = true` in Production.
+The administrator is created **once**: later starts never change the account or its password. If
+the creation fails (e.g. the password of the variable does not meet the policy) the node logs 2702
+(error code only, never the password) and 2701.
 
 ### 7.2 API
 
@@ -388,14 +449,14 @@ public interface ISessionAdmission
 | `identity.signin.locked` | Unauthenticated | args `until` (only with correct password) |
 | `identity.signin.disabled` / `expired` / `client_not_allowed` / `workstation_not_allowed` | Forbidden | |
 | `identity.signin.mfa_invalid` | Unauthenticated | |
-| `identity.token.invalid` / `expired` / `revoked` | Unauthenticated | |
+| `identity.token.invalid` / `expired` / `revoked` | Unauthenticated | No detail; `invalid` also for a bad or used change token |
 | `identity.refresh.invalid` / `reused` | Unauthenticated | `reused` revokes the session |
 | `identity.user.not_found` | NotFound | |
 | `identity.user.login_taken` | Validation | |
 | `identity.user.last_administrator` | Conflict | |
 | `identity.user.self_change_forbidden` | Forbidden | U4 |
 | `identity.user.admin_required` | Forbidden | U5 |
-| `identity.password.too_short` / `too_simple` / `contains_login` / `breached` / `reused` / `incorrect` | Validation | field errors |
+| `identity.password.too_short` / `too_long` / `invalid_characters` / `too_simple` / `contains_login` / `breached` / `reused` / `incorrect` | Validation | field errors |
 | `identity.directory.unavailable` | Unavailable | |
 | `identity.oidc.state_invalid` / `token_invalid` / `provider_error` | Unauthenticated | |
 | `identity.stepup.required` / `invalid` | Forbidden | CMD critical commands |
@@ -405,6 +466,7 @@ public interface ISessionAdmission
 | EventId | Level | Message |
 |---|---|---|
 | 2701 | Critical | No administrator account exists; run `wpctl reset-admin` |
+| 2702 | Error | Bootstrap administrator could not be created: {Code} |
 | 2710 | Information | User {UserId} signed in ({ClientKind}) session {SessionId} |
 | 2711 | Warning | Sign-in failed for login {LoginHash} from {RemoteIp}: {Code} (login hashed in logs) |
 | 2712 | Warning | Account {UserId} locked until {Until} |
@@ -417,7 +479,8 @@ Metrics: `watchpoint.identity.signins` (counter by `outcome`, `clientKind`, `sou
 (histogram ms).
 
 Security: constant-time comparisons; no user enumeration; tokens never logged; logins hashed in
-warning logs; passwords limited to 256 chars before hashing; LDAP filter escaping (RFC 4515) and
+warning logs; passwords limited to 256 chars before hashing; change and refresh tokens from the
+CSPRNG and stored hashed; JWT algorithm pinned; LDAP filter escaping (RFC 4515) and
 DN escaping (RFC 4514).
 
 ## 15. Tests
@@ -464,6 +527,30 @@ OIDC tests against a Keycloak container).
 | IDN-I-004 | I | Bootstrap admin from environment variable; MustChangePassword in Production |
 | IDN-I-005 | I | No administrator and no variable → log 2701 |
 | IDN-I-006 | I | Password change revokes other sessions |
+| IDN-U-101 | U | Password NFKC normalisation (composed/decomposed, ligature); invalid Unicode refused without exception |
+| IDN-U-102 | U | Password > 256 chars → `too_long`, never hashed; sign-in with impossible input takes the dummy-hash path for known and unknown logins alike, no lockout failure |
+| IDN-U-103 | U | Busy hash pool → `common.rate_limited` on sign-in, create, reset and change (no exception) |
+| IDN-U-104 | U | Stored hash with out-of-range parameters or truncated hash never verifies; salts differ per hash |
+| IDN-U-105 | U | Token algorithm pinned: `none`, HS256 with the public key, foreign key, missing `kid`, ES384, missing `exp`, tampered payload refused without detail |
+| IDN-U-106 | U | Signing keys stored in bootstrap secrets and loaded by another ring (restart, other node); unknown `kid` reloads; store failure fails closed |
+| IDN-U-107 | U | Explicit rotation: new key signs at once, previous key validates 1 day then is refused |
+| IDN-U-108 | U | Concurrent refresh with one token: exactly one rotation, the others `reused`, session revoked; `rotated_at` concurrency token; token stored hashed |
+| IDN-U-109 | U | Revocation set and active sessions loaded from the database after a restart; `RevokeWhereAsync` reaches earlier sessions |
+| IDN-U-110 | U | Revocation not lost under concurrent `Touch`; concurrent/double revoke published once, first reason kept |
+| IDN-U-111 | U | Change token: random 32 bytes, one live token per user, single use, kept on refused password, expiry, refused when the account was disabled meanwhile |
+| IDN-U-112 | U | Own password change revokes the other sessions (all without current session); wrong current password counts for the lockout |
+| IDN-U-113 | U | Only administrators promote to administrator (U5 on update) |
+| IDN-U-114 | U | Rate limiter memory bounded: overlong logins share a bucket, stale keys dropped |
+| IDN-U-115 | U | Concurrent failures all counted (5 at once lock); lock count decays after 24 h |
+| IDN-U-116 | U | Bootstrap admin: failure logged 2702 + 2701 without the password; created once, later starts change nothing |
+| IDN-U-117 | U | Access token `exp` ≤ session end; unknown or missing `ck` refused |
+| IDN-U-118 | U | Active login stays unique when an older deleted user had the same login |
+| IDN-U-119 | U | Refresh for a disabled, deleted or expired user is refused and revokes the session; nothing rotated |
+| IDN-U-120 | U | Refresh refused by an admission hook leaves the token usable; it refreshes once the hook allows, then the old token is a reuse |
+| IDN-U-121 | U | Concurrent refresh with checks: one winner, checks run once; a reused token never reaches the checks |
+| IDN-U-122 | U | `password_history` keeps the last 5 hashes only (reset and own change); policy unchanged |
+| IDN-U-123 | U | Sign-in succeeds when the user row is changed during it (`LastSignInAt` write is best effort) |
+| IDN-U-124 | U | Kind changed to Template or Script revokes the sessions; another kind keeps them |
 | IDN-U-031 | U | LDAP filter and DN escaping (RFC 4515/4514) with injection attempts |
 | IDN-U-032 | U | LDAP: user search then user bind; wrong password → invalid_credentials |
 | IDN-U-033 | U | LDAP: JIT provisioning creates user with Directory source and attributes |
@@ -526,5 +613,7 @@ OIDC tests against a Keycloak container).
 | Task | Sections | Tests |
 |---|---|---|
 | T1.18 | §4–§7, §13, §14 (part 1) | IDN-U-001…IDN-U-030, IDN-I-001…IDN-I-006 |
+| T1.18r | §4–§7, §13, §14 (security review and fixes of T1.18) | IDN-U-101…IDN-U-124 (+ IDN-U-001…030, IDN-I-001…006 still passing) |
+| T1.18s | §6.2 issuer, §7.1 settings binding | (tests to define) |
 | T3.07 | §8, §9 | IDN-U-031…IDN-U-050, IDN-I-007…IDN-I-012 |
 | T3.08 | §10–§12 | IDN-U-051…IDN-U-080 |

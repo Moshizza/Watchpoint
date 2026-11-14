@@ -9,7 +9,7 @@ using Watchpoint.Kernel.Results;
 namespace Watchpoint.Identity.Internal.Sessions;
 
 /// <summary>In-memory and DbContext-backed session registry (spec IDN §6.3).</summary>
-internal sealed class SessionRegistry : ISessionRegistry
+internal sealed class SessionRegistry : ISessionRegistry, IDisposable
 {
     private readonly IDbContextFactory<IdentityDbContext> _dbFactory;
     private readonly ISessionEventSink? _eventSink;
@@ -24,6 +24,12 @@ internal sealed class SessionRegistry : ISessionRegistry
 
     // Throttling for Touch: last persisted instant per session
     private readonly ConcurrentDictionary<SessionId, DateTimeOffset> _lastPersistedTouch = new();
+
+    // Serialises the database part of revocations, so that one session is revoked (and published) once.
+    private readonly SemaphoreSlim _revokeGate = new(1, 1);
+    private readonly Lock _loadGate = new();
+    private volatile bool _loaded;
+    private int _registrations;
 
     public SessionRegistry(
         IDbContextFactory<IdentityDbContext> dbFactory,
@@ -42,7 +48,12 @@ internal sealed class SessionRegistry : ISessionRegistry
     {
         ArgumentNullException.ThrowIfNull(session);
 
+        EnsureLoaded();
         _activeSessions[session.Id] = session;
+        if (Interlocked.Increment(ref _registrations) % 256 == 0)
+        {
+            Prune();
+        }
 
         await using var db = await _dbFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
         db.Sessions.Add(new SessionEntity
@@ -65,8 +76,84 @@ internal sealed class SessionRegistry : ISessionRegistry
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Loads the sessions that have not ended from the database, once: after a restart the revocation set and the
+    /// active list would otherwise be empty, so a revoked session's access token would be accepted again and
+    /// concurrent-session limits and <see cref="RevokeWhereAsync"/> would miss sessions (spec IDN §6.2, §6.3).
+    /// </summary>
+    private void EnsureLoaded()
+    {
+        if (_loaded)
+        {
+            return;
+        }
+
+        lock (_loadGate)
+        {
+            if (_loaded)
+            {
+                return;
+            }
+
+            var now = _clock.GetUtcNow();
+            using var db = _dbFactory.CreateDbContext();
+
+            // Filtered in memory: the SQLite provider of the unit tests cannot compare DateTimeOffset.
+            foreach (var entity in db.Sessions.AsNoTracking().AsEnumerable().Where(s => s.ExpiresAt > now))
+            {
+                var session = Map(entity);
+                _activeSessions.TryAdd(session.Id, session);
+                if (session.RevokedAt is { } revokedAt)
+                {
+                    _revokedSessions.TryAdd(session.Id, revokedAt);
+                }
+            }
+
+            _loaded = true;
+        }
+    }
+
+    // Forgets sessions that ended more than a day ago, so the in-memory sets do not grow for ever.
+    private void Prune()
+    {
+        var limit = _clock.GetUtcNow() - TimeSpan.FromDays(1);
+        foreach (var session in _activeSessions.Values)
+        {
+            if (session.ExpiresAt < limit)
+            {
+                _activeSessions.TryRemove(session.Id, out _);
+                _revokedSessions.TryRemove(session.Id, out _);
+                _lastPersistedTouch.TryRemove(session.Id, out _);
+            }
+        }
+    }
+
+    private static Session Map(SessionEntity entity)
+    {
+        if (!Enum.TryParse<ClientKind>(entity.ClientKind, out var clientKind))
+        {
+            clientKind = ClientKind.Desktop;
+        }
+
+        return new Session(
+            entity.Id,
+            entity.UserId,
+            clientKind,
+            entity.ClientInstanceId,
+            entity.WorkstationId,
+            entity.RemoteIp,
+            entity.UserAgent,
+            entity.AppVersion,
+            entity.CreatedAt,
+            entity.LastActivityAt,
+            entity.ExpiresAt,
+            entity.RevokedAt,
+            entity.RevokedReason);
+    }
+
     public IReadOnlyList<Session> ListActive(SessionQuery query)
     {
+        EnsureLoaded();
         var now = _clock.GetUtcNow();
         var result = new List<Session>();
 
@@ -108,30 +195,11 @@ internal sealed class SessionRegistry : ISessionRegistry
             return Error.NotFound("identity.session.not_found", ("sessionId", id.ToString()));
         }
 
-        if (!Enum.TryParse<ClientKind>(entity.ClientKind, out var clientKind))
-        {
-            clientKind = ClientKind.Desktop;
-        }
-
-        var loaded = new Session(
-            entity.Id,
-            entity.UserId,
-            clientKind,
-            entity.ClientInstanceId,
-            entity.WorkstationId,
-            entity.RemoteIp,
-            entity.UserAgent,
-            entity.AppVersion,
-            entity.CreatedAt,
-            entity.LastActivityAt,
-            entity.ExpiresAt,
-            entity.RevokedAt,
-            entity.RevokedReason);
-
-        _activeSessions[id] = loaded;
+        // Never replace a newer in-memory value (e.g. one revoked meanwhile) by the row just read.
+        var loaded = _activeSessions.GetOrAdd(id, Map(entity));
         if (loaded.RevokedAt is not null)
         {
-            _revokedSessions[id] = loaded.RevokedAt.Value;
+            _revokedSessions.TryAdd(id, loaded.RevokedAt.Value);
         }
 
         return loaded;
@@ -139,48 +207,38 @@ internal sealed class SessionRegistry : ISessionRegistry
 
     public async Task<Result> RevokeAsync(SessionId id, string reason, UserId? actor, CancellationToken ct)
     {
+        EnsureLoaded();
         var now = _clock.GetUtcNow();
-        _revokedSessions[id] = now;
 
-        Session? session = null;
-        if (_activeSessions.TryGetValue(id, out var active))
+        // In memory first: the session is refused from this instant, whatever happens to the database write.
+        _revokedSessions.TryAdd(id, now);
+        while (_activeSessions.TryGetValue(id, out var current) && current.RevokedAt is null &&
+               !_activeSessions.TryUpdate(id, current with { RevokedAt = now, RevokedReason = reason }, current))
         {
-            session = active with { RevokedAt = now, RevokedReason = reason };
-            _activeSessions[id] = session;
         }
 
-        await using var db = await _dbFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
-        var entity = await db.Sessions.FindAsync([id], ct).ConfigureAwait(false);
-        if (entity is not null)
+        Session? revoked = null;
+        await _revokeGate.WaitAsync(ct).ConfigureAwait(false);
+        try
         {
-            entity.RevokedAt = now;
-            entity.RevokedReason = reason;
-            await db.SaveChangesAsync(ct).ConfigureAwait(false);
+            await using var db = await _dbFactory.CreateDbContextAsync(ct).ConfigureAwait(false);
+            var entity = await db.Sessions.FindAsync([id], ct).ConfigureAwait(false);
 
-            if (session is null)
+            // Revoking twice keeps the first instant and reason and is published once.
+            if (entity is not null && entity.RevokedAt is null)
             {
-                if (!Enum.TryParse<ClientKind>(entity.ClientKind, out var clientKind))
-                {
-                    clientKind = ClientKind.Desktop;
-                }
-                session = new Session(
-                    entity.Id,
-                    entity.UserId,
-                    clientKind,
-                    entity.ClientInstanceId,
-                    entity.WorkstationId,
-                    entity.RemoteIp,
-                    entity.UserAgent,
-                    entity.AppVersion,
-                    entity.CreatedAt,
-                    entity.LastActivityAt,
-                    entity.ExpiresAt,
-                    now,
-                    reason);
+                entity.RevokedAt = now;
+                entity.RevokedReason = reason;
+                await db.SaveChangesAsync(ct).ConfigureAwait(false);
+                revoked = Map(entity);
             }
         }
+        finally
+        {
+            _revokeGate.Release();
+        }
 
-        if (session is not null)
+        if (revoked is not null)
         {
             if (_logger is not null)
             {
@@ -189,7 +247,7 @@ internal sealed class SessionRegistry : ISessionRegistry
 
             if (_eventSink is not null)
             {
-                await _eventSink.PublishSessionRevokedAsync(id, session.UserId, reason, ct).ConfigureAwait(false);
+                await _eventSink.PublishSessionRevokedAsync(id, revoked.UserId, reason, ct).ConfigureAwait(false);
             }
         }
 
@@ -198,6 +256,7 @@ internal sealed class SessionRegistry : ISessionRegistry
 
     public async Task<int> RevokeAllAsync(UserId user, string reason, UserId? actor, CancellationToken ct)
     {
+        EnsureLoaded();
         var sessionsToRevoke = _activeSessions.Values
             .Where(s => s.UserId == user && s.RevokedAt is null && !IsRevoked(s.Id))
             .Select(s => s.Id)
@@ -232,6 +291,7 @@ internal sealed class SessionRegistry : ISessionRegistry
     {
         ArgumentNullException.ThrowIfNull(predicate);
 
+        EnsureLoaded();
         var sessionsToRevoke = _activeSessions.Values
             .Where(s => s.RevokedAt is null && !IsRevoked(s.Id) && predicate(s))
             .Select(s => s.Id)
@@ -249,6 +309,7 @@ internal sealed class SessionRegistry : ISessionRegistry
 
     public bool IsRevoked(SessionId id)
     {
+        EnsureLoaded();
         return _revokedSessions.ContainsKey(id);
     }
 
@@ -256,9 +317,10 @@ internal sealed class SessionRegistry : ISessionRegistry
     {
         var now = _clock.GetUtcNow();
 
-        if (_activeSessions.TryGetValue(id, out var session))
+        // Compare-and-swap: a plain write could put back a copy read before a concurrent revocation.
+        while (_activeSessions.TryGetValue(id, out var session) &&
+               !_activeSessions.TryUpdate(id, session with { LastActivityAt = now }, session))
         {
-            _activeSessions[id] = session with { LastActivityAt = now };
         }
 
         if (_lastPersistedTouch.TryGetValue(id, out var last) && (now - last) < TimeSpan.FromSeconds(60))
@@ -285,5 +347,10 @@ internal sealed class SessionRegistry : ISessionRegistry
                 // Throttled background persist failure is non-fatal
             }
         });
+    }
+
+    public void Dispose()
+    {
+        _revokeGate.Dispose();
     }
 }
