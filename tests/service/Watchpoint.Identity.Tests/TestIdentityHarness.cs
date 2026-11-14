@@ -1,7 +1,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using Watchpoint.Identity.Contracts;
 using Microsoft.Extensions.Logging;
+using Watchpoint.Identity.Contracts;
 using Watchpoint.Identity.Internal;
 using Watchpoint.Identity.Internal.Audit;
 using Watchpoint.Identity.Internal.Lockout;
