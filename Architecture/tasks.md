@@ -74,6 +74,7 @@ Every AI agent working on the project has a unique name, used as its branch pref
 | `jules-1` | Mohcine (Moshizza) | 2026-11-05 |
 | `claude-orion` | Mohcine (Moshizza) | 2026-11-07 |
 | `jules-3` | Mohcine (Moshizza) | 2026-11-09 |
+| `claude-lyra` | Mohcine (Moshizza) | 2026-11-13 |
 | `claude-vega` | Mohcine (Moshizza) | 2026-11-10 |
 | `claude-sirius` | Mohcine (Moshizza) | 2026-11-14 |
 
@@ -103,7 +104,7 @@ spec that must exist and pass.
 | ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
 |---|---|---|---|---|---|---|---|
 | T1.01 | Host: generic host, node settings, module registration, Windows service / systemd hosting, health endpoints | HST §4–§6 | T0.04 | HST-U-001…HST-U-015, HST-U-026, HST-U-027, HST-I-001…HST-I-004 | [#12](https://github.com/Moshizza/Watchpoint/issues/12) | claude-orion/T1.01-host-finish | done |
-| T1.02 | Host: process supervisor, bundled NATS start/stop, dev compose stack | HST §7–§8 | T1.01 | HST-U-016…HST-U-025, HST-I-005…HST-I-008 | [#13](https://github.com/Moshizza/Watchpoint/issues/13) | — | todo |
+| T1.02 | Host: process supervisor, bundled NATS start/stop, dev compose stack | HST §7–§8 | T1.01 | HST-U-016…HST-U-025, HST-U-028…HST-U-045, HST-I-005…HST-I-007, HST-I-009, HST-I-010 (HST-I-008 written, enabled by T1.16) | [#13](https://github.com/Moshizza/Watchpoint/issues/13) | claude-lyra/T1.02-process-supervisor-nats | done |
 | T1.03 | Storage: store contracts, provider model, connection manager, migration runner, PostgreSQL provider skeleton | STO §4–§6 | T0.05 | STO-U-001…STO-U-015, STO-I-001…STO-I-006 | [#14](https://github.com/Moshizza/Watchpoint/issues/14) | claude-atlas/T1.03-storage-contracts | done |
 | T1.04 | Storage: configuration store base (EF context per module, versioning column), state store (snapshot upserts) | STO §7–§8 | T1.03 | STO-U-016…STO-U-025, STO-I-007…STO-I-015 | [#15](https://github.com/Moshizza/Watchpoint/issues/15) | claude-atlas/T1.04-storage-state-store | done |
 | T1.05 | Secrets vault: master key providers (file, DPAPI), AES-GCM, secret API, access audit hook | SEC | T1.04 | SEC-U-001…SEC-U-020, SEC-I-001…SEC-I-005 | [#16](https://github.com/Moshizza/Watchpoint/issues/16) | claude-atlas/T1.05-secrets-vault | done |
@@ -117,7 +118,7 @@ spec that must exist and pass.
 | T1.13 | Integration contract (`Watchpoint.Integration.Abstractions`) | INT §4–§8 | T0.03, T0.04 | INT-U-001…INT-U-010 | [#24](https://github.com/Moshizza/Watchpoint/issues/24) | claude-orion/T1.13-integration-contract | done |
 | T1.14 | Integration SDK helpers (polling scheduler, resilience, device map, connection store client, secure HTTP, redacting logger) | INT §9–§11 | T1.13 | INT-U-011…INT-U-040 | [#25](https://github.com/Moshizza/Watchpoint/issues/25) | jules-523469058024656279-7e0abb3b | done |
 | T1.15 | Integration runtime: package folder watcher, manifest reader, verifier (dev mode), package catalogue, load contexts | IRT §4–§6 | T1.13, T1.06 | IRT-U-001…IRT-U-025, IRT-I-001…IRT-I-004 | [#26](https://github.com/Moshizza/Watchpoint/issues/26) | claude-vega/T1.15-integration-runtime-packages | done |
-| T1.16 | Integration runtime: connection manager, connection state machine, watchdog, connector context implementation, connection store | IRT §7–§10 | T1.15, T1.10, T1.08, T1.05 | IRT-U-026…IRT-U-060, IRT-I-005…IRT-I-012 | [#27](https://github.com/Moshizza/Watchpoint/issues/27) | — | todo |
+| T1.16 | Integration runtime: connection manager, connection state machine, watchdog, connector context implementation, connection store | IRT §7–§10 | T1.15, T1.10, T1.08, T1.05 | IRT-U-026…IRT-U-060, IRT-I-005…IRT-I-012, HST-I-008 (enable; written in T1.02) | [#27](https://github.com/Moshizza/Watchpoint/issues/27) | — | todo |
 | T1.17 | Simulator connector (types, scenarios, random and scripted changes, commands with configurable outcomes) | C-SIM | T1.14 | SIM-U-001…SIM-U-030, SIM-I-002, SIM-I-003 | [#28](https://github.com/Moshizza/Watchpoint/issues/28) | jules-2365140055605449599-7f8a9063 | done |
 | T1.17b | Simulator, Modbus and MQTT end-to-end tests | C-SIM, C-MODBUS, C-MQTT | T1.16, T1.07, T1.09, T4.05, T4.06 | SIM-I-001, SIM-I-004, SIM-I-005, MODB-I-002, MQTT-I-004 | — | — | todo |
 | T1.18 | Identity minimal: local users, Argon2id, sign-in, access/refresh tokens, bootstrap admin, session registry | IDN §4–§7 | T1.04 | IDN-U-001…IDN-U-030, IDN-I-001…IDN-I-006 | [#29](https://github.com/Moshizza/Watchpoint/issues/29) | jules-14674020379193774426-43566f4b | done |

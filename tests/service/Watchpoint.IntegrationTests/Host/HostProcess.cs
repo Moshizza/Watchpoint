@@ -12,11 +12,13 @@ internal sealed class HostProcess : IAsyncDisposable
 {
     private readonly Process _process;
     private readonly string _tempDir;
+    private readonly bool _keepData;
 
-    private HostProcess(Process process, string tempDir, int mainPort, int managementPort)
+    private HostProcess(Process process, string tempDir, bool keepData, int mainPort, int managementPort)
     {
         _process = process;
         _tempDir = tempDir;
+        _keepData = keepData;
         MainPort = mainPort;
         ManagementPort = managementPort;
     }
@@ -24,6 +26,9 @@ internal sealed class HostProcess : IAsyncDisposable
     public int MainPort { get; }
 
     public int ManagementPort { get; }
+
+    /// <summary>The data folder (<c>Paths:Data</c>); binaries are in its <c>bin</c> subfolder.</summary>
+    public string DataDirectory => _tempDir;
 
     public bool HasExited => _process.HasExited;
 
@@ -61,18 +66,34 @@ internal sealed class HostProcess : IAsyncDisposable
         };
     }
 
-    /// <summary>Starts the host in Development with <paramref name="sections"/> added to the generated settings.</summary>
-    public static HostProcess Start(string name, IReadOnlyDictionary<string, JsonNode> sections, IReadOnlyDictionary<string, string>? environment = null)
+    /// <summary>A new, empty data folder for <see cref="Start"/> (to prepare files before the host starts, or to start a second host on it).</summary>
+    public static string NewDataDirectory(string name)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"wp_{name}_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(path);
+        return path;
+    }
+
+    /// <summary>
+    /// Starts the host in Development with <paramref name="sections"/> added to the generated settings. NATS is
+    /// External unless a <c>Nats</c> section says otherwise (Bundled needs the nats-server binary in <c>bin</c>).
+    /// With <paramref name="dataDirectory"/> the folder is used as is and kept when the host is disposed.
+    /// </summary>
+    public static HostProcess Start(
+        string name,
+        IReadOnlyDictionary<string, JsonNode> sections,
+        IReadOnlyDictionary<string, string>? environment = null,
+        string? dataDirectory = null)
     {
         var mainPort = GetFreePort();
         var managementPort = GetFreePort();
-        var tempDir = Path.Combine(Path.GetTempPath(), $"wp_{name}_{Guid.NewGuid():N}");
-        Directory.CreateDirectory(tempDir);
+        var tempDir = dataDirectory ?? NewDataDirectory(name);
         var config = new JsonObject
         {
             ["Node"] = new JsonObject { ["Environment"] = "Development", ["Name"] = name },
             ["Http"] = new JsonObject { ["Urls"] = new JsonArray($"http://127.0.0.1:{mainPort}") },
             ["Management"] = new JsonObject { ["Urls"] = new JsonArray($"http://127.0.0.1:{managementPort}") },
+            ["Nats"] = new JsonObject { ["Mode"] = "External" },
             ["Paths"] = new JsonObject
             {
                 ["Data"] = tempDir,
@@ -111,7 +132,14 @@ internal sealed class HostProcess : IAsyncDisposable
         process.Start();
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
-        return new HostProcess(process, tempDir, mainPort, managementPort);
+        return new HostProcess(process, tempDir, dataDirectory is not null, mainPort, managementPort);
+    }
+
+    /// <summary>Kills the host process only (not its children), as a crash or <c>kill -9</c> would.</summary>
+    public async Task KillHostOnlyAsync(CancellationToken ct)
+    {
+        _process.Kill(entireProcessTree: false);
+        await _process.WaitForExitAsync(ct);
     }
 
     public Task WaitForExitAsync(CancellationToken ct) => _process.WaitForExitAsync(ct);
@@ -125,6 +153,11 @@ internal sealed class HostProcess : IAsyncDisposable
         }
 
         _process.Dispose();
+        if (_keepData)
+        {
+            return;
+        }
+
         try
         {
             Directory.Delete(_tempDir, recursive: true);

@@ -36,6 +36,7 @@ ios/Pods/
 .env.*
 !.env.example
 appsettings.Development.local.json
+.watchpoint-dev/
 *.pfx
 *.p12
 *.key

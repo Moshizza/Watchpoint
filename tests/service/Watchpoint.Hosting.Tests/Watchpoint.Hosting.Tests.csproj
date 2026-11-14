@@ -18,6 +18,7 @@
   <ItemGroup>
     <ProjectReference Include="../../../src/service/Watchpoint.Hosting/Watchpoint.Hosting.csproj" />
     <ProjectReference Include="../../../src/service/Watchpoint.Host/Watchpoint.Host.csproj" />
+    <ProjectReference Include="../../../src/service/Watchpoint.Kernel.Testing/Watchpoint.Kernel.Testing.csproj" />
     <ProjectReference Include="../Watchpoint.Testing/Watchpoint.Testing.csproj" />
   </ItemGroup>
 
