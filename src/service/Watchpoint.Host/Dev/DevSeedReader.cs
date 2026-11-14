@@ -14,6 +14,9 @@ public static class DevSeedReader
     /// <summary>The code of the validation error; its field errors name the JSON paths.</summary>
     public const string InvalidCode = "host.seed.invalid";
 
+    /// <summary>The code returned by a seed step asked to run outside Development.</summary>
+    public const string NotDevelopmentCode = "host.seed.not_development";
+
     private const string SchemaResource = "schemas/dev-seed.schema.json";
 
     private static readonly Lazy<JsonSchema> _schema = new(LoadSchema);

@@ -83,7 +83,7 @@ Sources, later overriding earlier: `appsettings.json` (shipped defaults) →
 | `Nats:Url` | url | `nats://127.0.0.1:4222` | |
 | `Nats:Port` | int | 4222 | 1–65535 |
 | `Nats:StorePath` | path | `<Data>/nats` | |
-| `Nats:Token` | secret | empty | External mode only (the bundled server generates its own); never logged |
+| `Nats:Token` | secret | empty | External mode only (the bundled server generates its own); never logged; the development token `devtoken` is refused outside Development |
 | `Logging:MinimumLevel` | enum | `Information` | Serilog levels |
 | `Logging:Overrides` | map | `{ "Microsoft.AspNetCore": "Warning" }` | |
 | `Logging:RetainedFileCount` | int | 31 | 1–365 |
@@ -348,13 +348,14 @@ so does a manual restart. `RestartCount` is the number of restarts since that re
 | Concern | Windows | Linux |
 |---|---|---|
 | Children die with the host | All children are assigned to a **Job Object** with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` right after they are started | Children started in a new process group (`posix_spawn` with `POSIX_SPAWN_SETPGROUP`; `System.Diagnostics.Process` cannot); on host start (and before a child of the same name is started), `ChildProcessJanitor` reads `<Data>/run/<name>.pid` files and kills leftover processes whose executable path matches (a reused pid running something else is left alone) |
-| Graceful stop | Send `CTRL_BREAK_EVENT` to the child's console group (children started with `CREATE_NEW_PROCESS_GROUP`, sharing the host's console); NATS handles it. Without a console window (Windows service, CI runner) the signal cannot be delivered: the child is killed at once. This is the case verified in CI; delivery with a console is implemented but not covered by a test. Accepted for NATS: acknowledged JetStream writes survive a kill (ADR-001 §5.5). A delivery that works for services (attach to the child's console) is a follow-up | `SIGTERM` to the process group |
+| Graceful stop | Send `CTRL_BREAK_EVENT` to the child's console group (children started with `CREATE_NEW_PROCESS_GROUP`, sharing the host's console); NATS handles it. Without a console window (Windows service, CI runner) the signal cannot be delivered: the child is killed at once. This is the case verified in CI; delivery of `CTRL_BREAK` with a console is implemented but **not covered by tests**. The kill fallback is acceptable for NATS: acknowledged JetStream writes survive a kill (ADR-001 §5.5) | `SIGTERM` to the process group |
 | Hard kill after grace | `TerminateProcess` (process tree) | `SIGKILL` to the process group; descendants left in the group when the child exits are killed too |
 | Output | stdout/stderr read line by line; each line logged at Information (stderr at `StandardErrorLevel`, default Warning) with property `Child` = name (event 1156); lines longer than 8 KB (8,192 characters) truncated with a marker. The pipes are always drained; at most 1,024 lines per child wait for the logger, further lines are dropped and counted (event 1155) | same |
 | Pid file | `<Data>/run/<name>.pid` (pid, then executable path) written after start, removed after stop | same |
 
-Linux, host killed (`SIGKILL`, crash): nothing in the host can run, so the children survive until the platform or
-the next start removes them. Under systemd the unit's control group is cleaned when the main process dies, and in a
+**Known limitation — Linux, host killed (`SIGKILL`, crash):** nothing in the host can run, so the children
+survive until the platform or the next start removes them; there is no watchdog process (decided in T1.02).
+Production runs under systemd, and the next start cleans up. Under systemd the unit's control group is cleaned when the main process dies, and in a
 container the children die with PID 1; elsewhere (a developer's terminal) the janitor kills them at the next start.
 `PR_SET_PDEATHSIG` is not used: it is bound to the *thread* that created the child, and .NET thread-pool threads
 come and go, which would kill healthy children. DEP sets `KillMode=mixed` in the unit so that `systemctl stop`
@@ -413,6 +414,10 @@ Images are pinned by digest; the pins (with the nats-server release checksums us
 only: the credentials above are development defaults, not secrets. `watchpoint.dev.json` has a fixed `Node:Id`
 (nothing is written back to the tracked file) and keeps its data in `.watchpoint-dev/` (git-ignored).
 
+The development credentials are refused outside Development (fail closed, HST-U-044): `Nats:Token = devtoken`
+fails settings validation (exit 78), `PasswordDev` fails storage settings validation (STO §9, exit 78), the seed
+is not applied (`HST1140`), and a seed step asked to run anyway returns `host.seed.not_development`.
+
 ## 9. Development seed
 
 `DevSeedStartupTask` (phase `Configuration`, order 1000; only if Development and the
@@ -467,6 +472,7 @@ and for connections and import (IRT) come with the tasks that compose those modu
 | `host.process.executable_missing` | Unprocessable | Executable path does not exist |
 | `host.process.failed` | Unavailable | A child did not reach `Running`: too many restarts within the window |
 | `host.nats.version_unsupported` | Unprocessable | Bundled nats-server older than 2.12 or version unreadable (args `found`, `minimum`) |
+| `host.seed.not_development` | Forbidden | A seed step was asked to run outside Development |
 | `host.seed.invalid` | Validation | Development seed fails the schema or its references (field errors: JSON paths; `host.seed.reference_unknown`) |
 
 ## 11. Observability
@@ -580,6 +586,7 @@ Added by T1.02 (state machine and platform behaviour in detail):
 | HST-U-041 | U | Child metrics | Restart counter and state gauge per child |
 | HST-U-042 | U | NATS binary location and version check | `--version` parsing; < 2.12 or unreadable → `host.nats.version_unsupported`; missing binary → `host.process.executable_missing` |
 | HST-U-043 | U | Seed applied in order, once, never fatal | Section order; section without step → 1141; existing data → 1142, nothing applied; failing/throwing step and missing file → 1140, node continues |
+| HST-U-044 | U | Development seed and credentials refused outside Development | Production: seed task applies nothing (1140), users step returns `host.seed.not_development`; `watchpoint.dev.json` with `Node:Environment=Production` → `Nats:Token` invalid, `PasswordDev` rejected by storage (exit 78) before any connection |
 | HST-I-009 | I | Real child process (Linux) | Own process group; 20,000 lines drained; environment, working directory, stderr; child ignoring SIGTERM with a descendant → both killed after the grace period; exit code reported |
 | HST-I-010 | I | Development stack pinned and consistent | Compose images pinned by digest and equal to the test fixtures and `deploy/versions.env`; loopback ports; dev settings valid; sample seed valid |
 
@@ -598,9 +605,10 @@ above also covers the watchdog end to end.
 | Task | Sections | Tests |
 |---|---|---|
 | T1.01 | §4, §5, §6, §10, §11 (host part), §12 | HST-U-001…HST-U-015, HST-U-026, HST-U-027, HST-I-001…HST-I-004 |
-| T1.02 | §7, §8, §9, §11 (supervisor part) | HST-U-016…HST-U-025, HST-U-028…HST-U-043, HST-I-005…HST-I-010 |
+| T1.02 | §7, §8, §9, §11 (supervisor part) | HST-U-016…HST-U-025, HST-U-028…HST-U-044, HST-I-005…HST-I-007, HST-I-009, HST-I-010; HST-I-008 written (enabled by T1.16) |
 
 Note: HST-I-008 needs IRT, C-SIM and IDN; it is implemented in T1.02 but enabled when those
 tasks are merged (marked `[Trait("requires","T1.16,T1.17,T1.18")]`). T1.17 and T1.18 are merged; what is
 missing is T1.16 (connection manager) together with the seed steps for site, locations and connections and the
-Registry module in the host's module catalogue. Until then the test is skipped.
+Registry module in the host's module catalogue. Until then the test is skipped; **T1.16 enables it** (removes the
+`Skip`, adds the missing seed steps) and lists it among its tests.

@@ -505,5 +505,5 @@ Integration: `Watchpoint.IntegrationTests/Integrations` (real PostgreSQL, NATS, 
 | Task | Sections | Tests |
 |---|---|---|
 | T1.15 | §4, §5, §6 (packages table), §10 (package endpoints), §12–§14 (package parts) | IRT-U-001…IRT-U-025, IRT-I-001…IRT-I-004 |
-| T1.16 | §6 (connections tables), §7, §8, §9, §10 (connection endpoints) | IRT-U-026…IRT-U-060, IRT-I-005…IRT-I-012 |
+| T1.16 | §6 (connections tables), §7, §8, §9, §10 (connection endpoints) | IRT-U-026…IRT-U-060, IRT-I-005…IRT-I-012; enables HST-I-008 (written in T1.02, skipped: adds the dev-seed steps for site, locations, tags, connections and import, HST §9) |
 | T4.09 | §11 | IRT-U-061…IRT-U-063 |

@@ -1,7 +1,14 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Shouldly;
 using Watchpoint.Host.Dev;
+using Watchpoint.Identity.Contracts;
+using Watchpoint.Kernel.Ids;
+using Watchpoint.Storage.Contracts;
+using Watchpoint.Storage.Postgres;
 using Watchpoint.Kernel.Results;
 using Watchpoint.Testing.Logging;
 using Xunit;
@@ -132,6 +139,55 @@ public sealed class DevSeedTests : IDisposable
         task.Order.ShouldBe(1000);
     }
 
+    [Fact]
+    public async Task HST_U_044_Development_seed_and_credentials_refused_outside_Development()
+    {
+        // The seed: the start-up task applies nothing in Production and logs HST1140; a step refuses by itself.
+        await File.WriteAllTextAsync(_file, Valid, Ct);
+        var step = new RecordingStep("users");
+        var production = new NodeSettings { Node = { Environment = NodeEnvironment.Production }, Dev = { SeedFile = _file } };
+        await new DevSeedStartupTask(production, [step], new Logger<DevSeedStartupTask>(_factory)).ExecuteAsync(Ct);
+        step.Applied.ShouldBe(0);
+        _logs.WithEventId(1140).ShouldHaveSingleItem().Properties["Step"].ShouldBe("environment");
+
+        var users = new ThrowingUserDirectory();
+        var seed = DevSeedReader.Read(Encoding.UTF8.GetBytes(Valid)).Value;
+        var refused = await new UsersDevSeedStep(users, production).ApplyAsync(seed, Ct);
+        refused.Error.Code.Value.ShouldBe("host.seed.not_development");
+        refused.Error.Kind.ShouldBe(ErrorKind.Forbidden);
+
+        // The development settings file, with nothing changed but the environment, does not start a node.
+        var root = new DirectoryInfo(AppContext.BaseDirectory);
+        while (!File.Exists(Path.Combine(root.FullName, "global.json")))
+        {
+            root = root.Parent.ShouldNotBeNull();
+        }
+
+        var configuration = new ConfigurationBuilder()
+            .AddJsonFile(Path.Combine(root.FullName, "deploy", "dev", "watchpoint.dev.json"))
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Node:Environment"] = "Production" })
+            .Build();
+        var settings = new NodeSettings();
+        configuration.Bind(settings);
+        settings.Node.Environment.ShouldBe(NodeEnvironment.Production);
+
+        // NATS: the development token is refused (exit 78 at start-up).
+        settings.Validate(new ValidationContext(settings)).ShouldContain(r => r.ErrorMessage!.Contains("Nats:Token", StringComparison.Ordinal));
+        settings.Nats.Token = "a-production-token";
+        settings.Validate(new ValidationContext(settings)).ShouldBeEmpty();
+
+        // Database: the clear-text development password is refused before any connection is attempted.
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton(TimeProvider.System);
+        services.AddWatchpointStorage(configuration, isDevelopment: false);
+        services.AddPostgresStorage();
+        await using var provider = services.BuildServiceProvider();
+        var invalid = await Should.ThrowAsync<StorageStartupException>(
+            () => provider.GetRequiredService<IStorageStartup>().WaitForDatabasesAsync(Ct));
+        invalid.ExitCode.ShouldBe(78);
+    }
+
     private static List<string> Paths(string json) =>
         [.. DevSeedReader.Read(Encoding.UTF8.GetBytes(json)).Error.FieldErrors.Select(f => f.Path).Distinct()];
 
@@ -139,6 +195,37 @@ public sealed class DevSeedTests : IDisposable
     {
         var settings = new NodeSettings { Node = { Environment = NodeEnvironment.Development }, Dev = { SeedFile = _file } };
         return new DevSeedStartupTask(settings, steps, new Logger<DevSeedStartupTask>(_factory));
+    }
+
+    /// <summary>Fails the test if the seed reaches the user directory.</summary>
+    private sealed class ThrowingUserDirectory : IUserDirectory
+    {
+        public event EventHandler<UserChangedEventArgs>? Changed
+        {
+            add { }
+            remove { }
+        }
+
+        public Watchpoint.Kernel.Paging.Page<User> Query(UserQuery query, Watchpoint.Kernel.Paging.PageRequest page) =>
+            throw new InvalidOperationException("not expected");
+
+        public Result<User> Get(UserId id) => throw new InvalidOperationException("not expected");
+
+        public Result<User> FindByLogin(string login) => throw new InvalidOperationException("not expected");
+
+        public Task<Result<UserId>> CreateAsync(NewUser user, string? initialPassword, ChangeContext ctx, CancellationToken ct) =>
+            throw new InvalidOperationException("not expected");
+
+        public Task<Result> UpdateAsync(UserId id, UserUpdate update, long expectedVersion, ChangeContext ctx, CancellationToken ct) =>
+            throw new InvalidOperationException("not expected");
+
+        public Task<Result> DeleteAsync(UserId id, ChangeContext ctx, CancellationToken ct) => throw new InvalidOperationException("not expected");
+
+        public Task<Result> SetPasswordAsync(UserId id, string newPassword, bool mustChange, ChangeContext ctx, CancellationToken ct) =>
+            throw new InvalidOperationException("not expected");
+
+        public Task<Result> ChangeOwnPasswordAsync(UserId id, string current, string newPassword, CancellationToken ct) =>
+            throw new InvalidOperationException("not expected");
     }
 
     private sealed class RecordingStep(string section, List<string>? order = null) : IDevSeedStep
