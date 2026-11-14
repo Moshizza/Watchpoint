@@ -195,7 +195,7 @@ Sign-in algorithm:
 
 | Claim | Value |
 |---|---|
-| `iss` | `urn:watchpoint:site:<siteId>` |
+| `iss` | `urn:watchpoint:site:<siteId>` (`Site:Id` of the node settings, HST §4; T1.18s) |
 | `aud` | `watchpoint` |
 | `sub` | user id |
 | `sid` | session id |
@@ -304,10 +304,35 @@ maintenance mode (MNT), explicit sign-out.
 | `Identity:Password:MinLength` / `History` / `ExpiryDays` | 12 / 5 / 0 |
 | `Identity:BootstrapAdmin:Login` | `admin` |
 | `Identity:BootstrapAdmin:PasswordEnv` | `WATCHPOINT_BOOTSTRAP_ADMIN_PASSWORD` |
+| `Identity:Mfa:RequireFor` (§10) | `administrators` |
+| `Identity:WebAuthn:RpId` / `Origins` (§10) | empty (WebAuthn disabled) / empty |
+| `Identity:RequireEnrolledWorkstationForConfiguration` (§12) | `false` |
 
-Not implemented yet (T1.18s): the host registers the module with the defaults above without
-reading the `Identity:*` keys, and the token issuer is `urn:watchpoint:site:default` for every
-site because the node settings carry no site id.
+Binding (T1.18s, `IdentitySettings.Bind`): the host binds the `Identity` section at start-up and
+**fails fast** (`InvalidSettingsException` → log `HST1101`, exit code 78, HST §4) when a value is
+invalid, so a setting can never silently fall back to a default the operator did not choose.
+Durations are ISO 8601 (`PT10M`, `P7D`). Every problem is reported at once (field errors
+`identity.settings.invalid`, path = key, codes and keys only, never values). Rules:
+
+| Key | Valid |
+|---|---|
+| `AccessTokenLifetime` | PT1M–PT1H |
+| `RefreshIdleLifetime` | PT5M–P30D |
+| `*MaxSessionLength` | PT5M–P365D |
+| `SignInRatePerIp`, `SignInRatePerLogin` | 1–100000 |
+| `Lockout:Threshold` | 1–100 |
+| `Lockout:Window`, `Lockout:BaseDuration` | PT1M–P1D |
+| `Lockout:MaxDuration` | PT1M–P30D and ≥ `BaseDuration` |
+| `Password:MinLength` / `History` / `ExpiryDays` | 8–256 / 0–24 / 0–3650 |
+| `BootstrapAdmin:Login` | rule U1 |
+| `BootstrapAdmin:PasswordEnv` | `^[A-Za-z_][A-Za-z0-9_]*$`, ≤ 128 |
+| `Mfa:RequireFor` | `none`, `administrators`, `configurationUsers`, `everyone` |
+| `WebAuthn:RpId` | host name (never an IP address); when set, `Origins` is required: `https://host[:port]` on the RP id or a subdomain of it |
+| any other key under `Identity` | refused (`identity.settings.unknown_key`): a misspelt key would otherwise keep the default |
+
+The token issuer is `urn:watchpoint:site:<Site:Id>` (§6.2): `Site:Id` is a node setting (HST §4)
+generated at first start and written back to `watchpoint.json`, shared by every node of a site
+(copied by `wpctl cluster join`, M9). The module refuses to start without it.
 
 **Bootstrap administrator** (startup phase `Configuration`): if no Person administrator exists,
 create `admin` with the password from the environment variable (Production). If the variable
@@ -551,6 +576,11 @@ OIDC tests against a Keycloak container).
 | IDN-U-122 | U | `password_history` keeps the last 5 hashes only (reset and own change); policy unchanged |
 | IDN-U-123 | U | Sign-in succeeds when the user row is changed during it (`LastSignInAt` write is best effort) |
 | IDN-U-124 | U | Kind changed to Template or Script revokes the sessions; another kind keeps them |
+| IDN-U-125 | U | Settings: the defaults of §7.1 apply when no `Identity:*` key is set; the issuer carries the site id |
+| IDN-U-126 | U | Settings: every key of §7.1 is bound (ISO 8601 durations, lists) |
+| IDN-U-127 | U | Settings: invalid, out-of-range, unknown keys and WebAuthn origin rules are all reported with their key and code; nothing applied |
+| IDN-U-128 | U | Issuer per site: a token of site A is refused by site B with the same keys, without detail |
+| IDN-U-129 | U | Bound settings reach the services (lockout threshold and duration, token lifetime) |
 | IDN-U-031 | U | LDAP filter and DN escaping (RFC 4515/4514) with injection attempts |
 | IDN-U-032 | U | LDAP: user search then user bind; wrong password → invalid_credentials |
 | IDN-U-033 | U | LDAP: JIT provisioning creates user with Directory source and attributes |
@@ -614,6 +644,6 @@ OIDC tests against a Keycloak container).
 |---|---|---|
 | T1.18 | §4–§7, §13, §14 (part 1) | IDN-U-001…IDN-U-030, IDN-I-001…IDN-I-006 |
 | T1.18r | §4–§7, §13, §14 (security review and fixes of T1.18) | IDN-U-101…IDN-U-124 (+ IDN-U-001…030, IDN-I-001…006 still passing) |
-| T1.18s | §6.2 issuer, §7.1 settings binding | (tests to define) |
+| T1.18s | §6.2 issuer, §7.1 settings binding | IDN-U-125…IDN-U-129, HST-U-046, HST-U-047 |
 | T3.07 | §8, §9 | IDN-U-031…IDN-U-050, IDN-I-007…IDN-I-012 |
 | T3.08 | §10–§12 | IDN-U-051…IDN-U-080 |

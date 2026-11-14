@@ -13,6 +13,33 @@ namespace Watchpoint.Identity.Contracts;
 /// <summary>Service collection extension methods for identity module (spec IDN §2, §3).</summary>
 public static class IdentityServiceCollectionExtensions
 {
+    /// <summary>
+    /// Registers the identity module with validated settings (spec IDN §7.1): the host binds them with
+    /// <see cref="IdentitySettings.Bind"/> and refuses to start when they are invalid.
+    /// </summary>
+    /// <param name="services">The services.</param>
+    /// <param name="settings">The bound settings.</param>
+    /// <param name="configure">Further options (test parameters, for example).</param>
+    /// <returns><paramref name="services"/>.</returns>
+    public static IServiceCollection AddIdentityModule(this IServiceCollection services, IdentitySettings settings, Action<IdentityOptionsBuilder>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(settings);
+        return services.AddIdentityModule(b =>
+        {
+            b.UseJwtOptions(settings.Jwt)
+                .UseRefreshTokenOptions(settings.RefreshTokens)
+                .UseRateLimiterOptions(settings.RateLimiter)
+                .UseLockoutOptions(settings.Lockout)
+                .UsePasswordPolicy(settings.Password)
+                .UseBootstrapAdminOptions(settings.BootstrapAdmin)
+                .UseMfaOptions(settings.Mfa)
+                .UseWebAuthnOptions(settings.WebAuthn)
+                .UseClientBindingOptions(settings.ClientBinding);
+            configure?.Invoke(b);
+        });
+    }
+
     /// <summary>Registers identity module services, password hasher, session registry, token service and storage.</summary>
     public static IServiceCollection AddIdentityModule(this IServiceCollection services, Action<IdentityOptionsBuilder>? configure = null)
     {
@@ -51,6 +78,10 @@ public static class IdentityServiceCollectionExtensions
         services.AddSingleton(builder.BootstrapAdminOptions ?? new BootstrapAdminOptions());
         services.AddSingleton<IBootstrapAdminService, BootstrapAdminService>();
 
+        services.AddSingleton(builder.MfaOptions ?? new MfaOptions());
+        services.AddSingleton(builder.WebAuthnOptions ?? new WebAuthnOptions());
+        services.AddSingleton(builder.ClientBindingOptions ?? new ClientBindingOptions());
+
         // Register module storage (schema wp_identity)
         services.AddModuleStorage<IdentityDbContext>(IdentityDbContext.ModuleName, p => p.Add<IdentityPostgresDbContext>("postgres"));
 
@@ -68,6 +99,9 @@ public sealed class IdentityOptionsBuilder
     internal LockoutOptions? LockoutOptions { get; private set; }
     internal SignInRateLimiterOptions? RateLimiterOptions { get; private set; }
     internal BootstrapAdminOptions? BootstrapAdminOptions { get; private set; }
+    internal MfaOptions? MfaOptions { get; private set; }
+    internal WebAuthnOptions? WebAuthnOptions { get; private set; }
+    internal ClientBindingOptions? ClientBindingOptions { get; private set; }
 
     /// <summary>Configures Argon2id parameters.</summary>
     public IdentityOptionsBuilder UseArgon2Parameters(Argon2Parameters parameters)
@@ -115,6 +149,27 @@ public sealed class IdentityOptionsBuilder
     public IdentityOptionsBuilder UseBootstrapAdminOptions(BootstrapAdminOptions options)
     {
         BootstrapAdminOptions = options;
+        return this;
+    }
+
+    /// <summary>Configures the multi-factor policy.</summary>
+    public IdentityOptionsBuilder UseMfaOptions(MfaOptions options)
+    {
+        MfaOptions = options;
+        return this;
+    }
+
+    /// <summary>Configures WebAuthn.</summary>
+    public IdentityOptionsBuilder UseWebAuthnOptions(WebAuthnOptions options)
+    {
+        WebAuthnOptions = options;
+        return this;
+    }
+
+    /// <summary>Configures client kind binding.</summary>
+    public IdentityOptionsBuilder UseClientBindingOptions(ClientBindingOptions options)
+    {
+        ClientBindingOptions = options;
         return this;
     }
 }

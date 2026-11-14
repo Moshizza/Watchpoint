@@ -95,3 +95,56 @@ public sealed record AuthenticationOptions(
     /// <summary>Gets the lifetime of password change tokens.</summary>
     public TimeSpan ChangeTokenLifetime { get; init; } = ChangeTokenLifetime == default ? TimeSpan.FromMinutes(10) : ChangeTokenLifetime;
 }
+
+/// <summary>Who must use multi-factor authentication when the user's own policy is <see cref="MfaPolicy.Inherit"/> (spec IDN §10).</summary>
+public enum MfaRequirement
+{
+    /// <summary>Nobody.</summary>
+    None,
+
+    /// <summary>Administrators.</summary>
+    Administrators,
+
+    /// <summary>Administrators and users holding any <c>config.*</c> permission.</summary>
+    ConfigurationUsers,
+
+    /// <summary>Every user who can sign in (break-glass excepted, spec IDN §11).</summary>
+    Everyone,
+}
+
+/// <summary>Options of multi-factor authentication (spec IDN §10, §7.1).</summary>
+/// <param name="RequireFor">Site policy applied when the user's policy is <see cref="MfaPolicy.Inherit"/>.</param>
+public sealed record MfaOptions(MfaRequirement RequireFor = MfaRequirement.Administrators);
+
+/// <summary>Options of WebAuthn / passkeys (spec IDN §10, §7.1). WebAuthn is available only when <see cref="RpId"/> is set.</summary>
+/// <param name="RpId">Relying party id: the site host name, e.g. <c>watchpoint.example.com</c>; empty = WebAuthn disabled.</param>
+/// <param name="Origins">Origins allowed to run the ceremonies, e.g. <c>https://watchpoint.example.com</c>; every origin must be on <see cref="RpId"/> or a subdomain of it.</param>
+public sealed record WebAuthnOptions(string RpId = "", IReadOnlyList<string>? Origins = null)
+{
+    /// <summary>Gets the allowed origins.</summary>
+    public IReadOnlyList<string> Origins { get; init; } = Origins ?? [];
+
+    /// <summary>Gets a value indicating whether WebAuthn is configured.</summary>
+    public bool IsEnabled => !string.IsNullOrEmpty(RpId);
+
+    /// <inheritdoc />
+    public bool Equals(WebAuthnOptions? other) =>
+        other is not null && string.Equals(RpId, other.RpId, StringComparison.Ordinal) && Origins.SequenceEqual(other.Origins, StringComparer.Ordinal);
+
+    /// <inheritdoc />
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(RpId, StringComparer.Ordinal);
+        foreach (var origin in Origins)
+        {
+            hash.Add(origin, StringComparer.Ordinal);
+        }
+
+        return hash.ToHashCode();
+    }
+}
+
+/// <summary>Options of client kind binding and session admission (spec IDN §12, §7.1).</summary>
+/// <param name="RequireEnrolledWorkstationForConfiguration">Refuse sessions of configuration users whose workstation is not verified by its certificate.</param>
+public sealed record ClientBindingOptions(bool RequireEnrolledWorkstationForConfiguration = false);

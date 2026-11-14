@@ -3,7 +3,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <RootNamespace>Watchpoint.Identity.Tests</RootNamespace>
-    <Description>Unit tests of Watchpoint.Identity (spec IDN §15, IDN-U-001…IDN-U-030).</Description>
+    <Description>Unit tests of Watchpoint.Identity (spec IDN §15, IDN-U-001…IDN-U-080, IDN-U-101…).</Description>
   </PropertyGroup>
 
   <ItemGroup>
@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" />
     <PackageReference Include="Shouldly" />
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
