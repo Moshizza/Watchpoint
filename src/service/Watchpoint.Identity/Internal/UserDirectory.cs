@@ -557,6 +557,15 @@ internal sealed partial class UserDirectory : IUserDirectory
             return IdentityErrors.PasswordIncorrect();
         }
 
+        // A new password that can never be hashed (too long, invalid Unicode) is refused before any hashing (spec IDN §5);
+        // the rest of the policy (history…) waits for the current password, so it tells nothing to a stolen token.
+        if (!string.IsNullOrEmpty(newPassword) && !Argon2PasswordHasher.TryNormalize(newPassword, out var normalizedNew))
+        {
+            return normalizedNew.Length > Argon2PasswordHasher.MaxPasswordLength || newPassword.Length > Argon2PasswordHasher.MaxPasswordLength
+                ? IdentityErrors.PasswordTooLong(Argon2PasswordHasher.MaxPasswordLength)
+                : IdentityErrors.PasswordInvalidCharacters();
+        }
+
         // The current password is guessed here as it is at sign-in (by whoever holds an access token), so it is
         // bound by the same lockout (spec IDN §6.4).
         if (_lockout is not null)
