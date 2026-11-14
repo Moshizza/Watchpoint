@@ -5,7 +5,8 @@ using Watchpoint.Kernel.Values;
 
 namespace Watchpoint.Expressions.Internal;
 
-internal sealed class Evaluator
+/// <summary>Evaluates an AST. A struct so that an evaluation allocates nothing (EXP §5).</summary>
+internal struct Evaluator
 {
     private const int MaxSteps = 10000;
     private readonly IEvaluationContext _context;
@@ -91,13 +92,10 @@ internal sealed class Evaluator
 
     private EvalResult EvalMemberAccess(MemberAccessNode member)
     {
-        var path = BuildMemberPath(member);
-        if (path is not null && path.Count >= 2)
+        if (member is { RootVariable: { } root, VariableMemberPath: { } remaining })
         {
-            var root = path[0];
             if (_context.TryGetVariable(root, out var obj))
             {
-                var remaining = string.Join(".", path.Skip(1));
                 if (obj.TryGetMember(remaining, out var val))
                 {
                     return new EvalResult(val, null);
