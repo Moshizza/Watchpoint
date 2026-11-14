@@ -587,6 +587,7 @@ Added by T1.02 (state machine and platform behaviour in detail):
 | HST-U-042 | U | NATS binary location and version check | `--version` parsing; < 2.12 or unreadable → `host.nats.version_unsupported`; missing binary → `host.process.executable_missing` |
 | HST-U-043 | U | Seed applied in order, once, never fatal | Section order; section without step → 1141; existing data → 1142, nothing applied; failing/throwing step and missing file → 1140, node continues |
 | HST-U-044 | U | Development seed and credentials refused outside Development | Production: seed task applies nothing (1140), users step returns `host.seed.not_development`; `watchpoint.dev.json` with `Node:Environment=Production` → `Nats:Token` invalid, `PasswordDev` rejected by storage (exit 78) before any connection |
+| HST-U-045 | U | Ready line printed at once is not missed | Child whose stdout already holds the `StdoutLine` text when it starts → Running (the probe is registered before the output is read), 50 rounds |
 | HST-I-009 | I | Real child process (Linux) | Own process group; 20,000 lines drained; environment, working directory, stderr; child ignoring SIGTERM with a descendant → both killed after the grace period; exit code reported |
 | HST-I-010 | I | Development stack pinned and consistent | Compose images pinned by digest and equal to the test fixtures and `deploy/versions.env`; loopback ports; dev settings valid; sample seed valid |
 
@@ -605,7 +606,7 @@ above also covers the watchdog end to end.
 | Task | Sections | Tests |
 |---|---|---|
 | T1.01 | §4, §5, §6, §10, §11 (host part), §12 | HST-U-001…HST-U-015, HST-U-026, HST-U-027, HST-I-001…HST-I-004 |
-| T1.02 | §7, §8, §9, §11 (supervisor part) | HST-U-016…HST-U-025, HST-U-028…HST-U-044, HST-I-005…HST-I-007, HST-I-009, HST-I-010; HST-I-008 written (enabled by T1.16) |
+| T1.02 | §7, §8, §9, §11 (supervisor part) | HST-U-016…HST-U-025, HST-U-028…HST-U-045, HST-I-005…HST-I-007, HST-I-009, HST-I-010; HST-I-008 written (enabled by T1.16) |
 
 Note: HST-I-008 needs IRT, C-SIM and IDN; it is implemented in T1.02 but enabled when those
 tasks are merged (marked `[Trait("requires","T1.16,T1.17,T1.18")]`). T1.17 and T1.18 are merged; what is

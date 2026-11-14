@@ -191,6 +191,26 @@ public sealed class SupervisionPartsTests
     }
 
     [Fact]
+    public async Task HST_U_045_Ready_line_printed_at_once_is_not_missed()
+    {
+        // The whole output, ready line included, is available before the supervisor looks at it.
+        for (var round = 0; round < 50; round++)
+        {
+            var clock = TestTime.CreateProvider();
+            using var probes = new ReadinessProbes(clock, TimeSpan.FromMilliseconds(200));
+            await using var h = new SupervisorHarness(new ClockedProber(probes), clock: clock);
+            h.Launcher.Configure = (_, child) => child.StandardOutput = new MemoryStream(Encoding.UTF8.GetBytes("ready\n"));
+
+            var (started, states) = h.Begin(
+                SupervisorHarness.Spec(readiness: new ReadinessProbe.StdoutLine("ready", TimeSpan.FromSeconds(30))), Ct);
+            var handle = await started.WaitAsync(TestTimeouts.Default, Ct);
+
+            handle.State.ShouldBe(SupervisedProcessState.Running);
+            states.States.ShouldBe([SupervisedProcessState.Starting, SupervisedProcessState.Running]);
+        }
+    }
+
+    [Fact]
     public async Task HST_U_041_Child_metrics()
     {
         var restarts = 0L;

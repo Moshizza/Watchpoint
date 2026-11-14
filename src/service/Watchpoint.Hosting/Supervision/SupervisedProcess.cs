@@ -232,7 +232,6 @@ internal sealed class SupervisedProcess : ISupervisedProcessHandle
 
             _runtime.Janitor.WritePidFile(Name, child.Pid, _spec.Executable);
             HostingLog.LogChildStarted(_logger, Name, child.Pid);
-            pump.Start(child.StandardOutput, child.StandardError);
 
             switch (await WaitReadyAsync(child, pump).ConfigureAwait(false))
             {
@@ -365,6 +364,10 @@ internal sealed class SupervisedProcess : ISupervisedProcessHandle
     {
         using var probeCts = new CancellationTokenSource();
         var probe = ProbeAsync(pump, probeCts.Token);
+
+        // Only now is the output read: a StdoutLine probe is registered (synchronously, above) before the first
+        // line can arrive, so a child that prints its ready line at once is not missed.
+        pump.Start(child.StandardOutput, child.StandardError);
         try
         {
             while (true)
