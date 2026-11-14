@@ -9,12 +9,60 @@ namespace Watchpoint.Identity.Internal.Passwords;
 /// <summary>Argon2id password hasher and verifier (spec IDN §5).</summary>
 internal sealed partial class Argon2PasswordHasher
 {
-    private static readonly SemaphoreSlim _pool = new(4, 4);
+    /// <summary>Maximum password length in UTF-16 code units, checked before and after normalisation (spec IDN §5, §14).</summary>
+    public const int MaxPasswordLength = 256;
+
+    // Upper bounds accepted from a stored PHC string, so that a tampered row cannot make verification allocate
+    // gigabytes or accept a truncated hash (spec IDN §5).
+    private const int MaxMemoryKiB = 1 << 20;
+    private const int MaxIterations = 16;
+    private const int MaxParallelism = 16;
+    private const int MinSaltSize = 8;
+    private const int MinHashSize = 16;
+    private const int MaxSaltOrHashSize = 64;
+
+    private static readonly SemaphoreSlim _sharedPool = new(4, 4);
+    private readonly SemaphoreSlim _pool;
+    private readonly TimeSpan _poolWait;
     private readonly Argon2Parameters _parameters;
 
     public Argon2PasswordHasher(Argon2Parameters? parameters = null)
+        : this(parameters, null, null)
+    {
+    }
+
+    /// <summary>Test constructor: a private pool and wait time (production uses the process-wide pool of 4 and 5 s).</summary>
+    internal Argon2PasswordHasher(Argon2Parameters? parameters, SemaphoreSlim? pool, TimeSpan? poolWait)
     {
         _parameters = parameters ?? new Argon2Parameters();
+        _pool = pool ?? _sharedPool;
+        _poolWait = poolWait ?? TimeSpan.FromSeconds(5);
+    }
+
+    /// <summary>
+    /// Normalises a password to Unicode NFKC so that the same password typed on different keyboards or platforms
+    /// gives the same bytes (NIST SP 800-63B §5.1.1.2). Returns false for an empty password, one longer than
+    /// <see cref="MaxPasswordLength"/> (before or after normalisation) or one that is not valid UTF-16.
+    /// </summary>
+    public static bool TryNormalize(string? password, out string normalized)
+    {
+        normalized = string.Empty;
+        if (string.IsNullOrEmpty(password) || password.Length > MaxPasswordLength)
+        {
+            return false;
+        }
+
+        try
+        {
+            normalized = password.Normalize(NormalizationForm.FormKC);
+        }
+        catch (ArgumentException)
+        {
+            // Lone surrogates: not a valid Unicode string.
+            return false;
+        }
+
+        return normalized.Length is > 0 and <= MaxPasswordLength;
     }
 
     /// <summary>Default production parameters (spec IDN §5: 64 MiB, t=3, p=2).</summary>
@@ -26,12 +74,13 @@ internal sealed partial class Argon2PasswordHasher
     /// <summary>Hashes a password with Argon2id using configured parameters.</summary>
     public async Task<string> HashPasswordAsync(string password, CancellationToken ct = default)
     {
-        ArgumentException.ThrowIfNullOrEmpty(password);
-        if (password.Length > 256)
+        if (!TryNormalize(password, out var normalized))
         {
-            throw new ArgumentException("Password exceeds 256 characters limit before hashing.", nameof(password));
+            // The message never contains the password.
+            throw new ArgumentException("Password is empty, longer than 256 characters or not valid Unicode.", nameof(password));
         }
 
+        password = normalized;
         var salt = RandomNumberGenerator.GetBytes(_parameters.SaltSize);
         var hash = await ComputeHashAsync(password, salt, _parameters.MemorySizeKiB, _parameters.Iterations, _parameters.Parallelism, _parameters.HashSize, ct).ConfigureAwait(false);
 
@@ -45,15 +94,12 @@ internal sealed partial class Argon2PasswordHasher
     /// <summary>Verifies a password against a PHC string and detects whether rehashing is needed.</summary>
     public async Task<(bool Verified, bool NeedsRehash)> VerifyPasswordAsync(string password, string phcHash, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(password) || string.IsNullOrEmpty(phcHash))
+        if (string.IsNullOrEmpty(phcHash) || !TryNormalize(password, out var normalized))
         {
             return (false, false);
         }
 
-        if (password.Length > 256)
-        {
-            return (false, false);
-        }
+        password = normalized;
 
         if (!TryParsePhc(phcHash, out var memoryKiB, out var iterations, out var parallelism, out var salt, out var expectedHash))
         {
@@ -63,24 +109,33 @@ internal sealed partial class Argon2PasswordHasher
         var computed = await ComputeHashAsync(password, salt, memoryKiB, iterations, parallelism, expectedHash.Length, ct).ConfigureAwait(false);
         var verified = CryptographicOperations.FixedTimeEquals(computed, expectedHash);
 
-        var needsRehash = verified && (memoryKiB < _parameters.MemorySizeKiB || iterations < _parameters.Iterations || parallelism < _parameters.Parallelism);
+        var needsRehash = verified && (memoryKiB < _parameters.MemorySizeKiB || iterations < _parameters.Iterations || parallelism < _parameters.Parallelism
+            || salt.Length < _parameters.SaltSize || expectedHash.Length < _parameters.HashSize);
         return (verified, needsRehash);
     }
 
     /// <summary>Executes dummy hash verification for constant-time behavior on unknown users.</summary>
-    public async Task VerifyDummyAsync(string password, CancellationToken ct = default)
+    public async Task VerifyDummyAsync(string? password, CancellationToken ct = default)
     {
+        // Same work whatever the input: an invalid password (empty, too long, bad Unicode) is replaced by a fixed
+        // one so that this path costs the same as a real verification.
+        if (!TryNormalize(password, out var normalized))
+        {
+            normalized = "dummy-password";
+        }
+
+        password = normalized;
         var dummySalt = new byte[16];
         await ComputeHashAsync(password, dummySalt, _parameters.MemorySizeKiB, _parameters.Iterations, _parameters.Parallelism, 32, ct).ConfigureAwait(false);
     }
 
-    private static async Task<byte[]> ComputeHashAsync(string password, byte[] salt, int memoryKiB, int iterations, int parallelism, int hashSize, CancellationToken ct)
+    private async Task<byte[]> ComputeHashAsync(string password, byte[] salt, int memoryKiB, int iterations, int parallelism, int hashSize, CancellationToken ct)
     {
         // Pool bounded to max 4 concurrent hashes; wait up to 5 seconds
-        var acquired = await _pool.WaitAsync(TimeSpan.FromSeconds(5), ct).ConfigureAwait(false);
+        var acquired = await _pool.WaitAsync(_poolWait, ct).ConfigureAwait(false);
         if (!acquired)
         {
-            throw new TimeoutException("Hash pool wait timeout exceeded (5s).");
+            throw new HashPoolBusyException();
         }
 
         try
@@ -127,12 +182,18 @@ internal sealed partial class Argon2PasswordHasher
         {
             salt = Base64UrlDecode(match.Groups["salt"].Value);
             hash = Base64UrlDecode(match.Groups["hash"].Value);
-            return true;
         }
-        catch
+        catch (FormatException)
         {
             return false;
         }
+
+        return memoryKiB is >= 8 and <= MaxMemoryKiB
+            && iterations is >= 1 and <= MaxIterations
+            && parallelism is >= 1 and <= MaxParallelism
+            && memoryKiB >= 8 * parallelism
+            && salt.Length is >= MinSaltSize and <= MaxSaltOrHashSize
+            && hash.Length is >= MinHashSize and <= MaxSaltOrHashSize;
     }
 
     private static string Base64UrlEncode(byte[] input)
@@ -152,6 +213,27 @@ internal sealed partial class Argon2PasswordHasher
         return Convert.FromBase64String(base64);
     }
 
-    [GeneratedRegex(@"^\$argon2id\$v=19\$m=(?<m>\d+),t=(?<t>\d+),p=(?<p>\d+)\$(?<salt>[A-Za-z0-9_-]+)\$(?<hash>[A-Za-z0-9_-]+)$")]
+    [GeneratedRegex(@"^\$argon2id\$v=19\$m=(?<m>\d{1,9}),t=(?<t>\d{1,9}),p=(?<p>\d{1,9})\$(?<salt>[A-Za-z0-9_-]+)\$(?<hash>[A-Za-z0-9_-]+)$")]
     private static partial Regex PhcRegex();
+}
+
+/// <summary>
+/// The bounded hash pool stayed full for the whole wait (spec IDN §5); callers map it to <c>common.rate_limited</c>.
+/// </summary>
+internal sealed class HashPoolBusyException : Exception
+{
+    public HashPoolBusyException()
+        : base("The password hash pool is busy.")
+    {
+    }
+
+    public HashPoolBusyException(string message)
+        : base(message)
+    {
+    }
+
+    public HashPoolBusyException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
 }

@@ -13,6 +13,12 @@ public static partial class IdentityLog
             new EventId(2701, "NoAdministrator"),
             "No administrator account exists; run wpctl reset-admin");
 
+    private static readonly Action<ILogger, string, Exception?> _bootstrapAdminFailed =
+        LoggerMessage.Define<string>(
+            LogLevel.Error,
+            new EventId(2702, "BootstrapAdminFailed"),
+            "Bootstrap administrator could not be created: {Code}");
+
     private static readonly Action<ILogger, string, string, string, Exception?> _userSignedIn =
         LoggerMessage.Define<string, string, string>(
             LogLevel.Information,
@@ -54,6 +60,13 @@ public static partial class IdentityLog
     {
         ArgumentNullException.ThrowIfNull(logger);
         _noAdminAccount(logger, null);
+    }
+
+    /// <summary>Logs event 2702 Error: the bootstrap administrator could not be created (error code only).</summary>
+    public static void BootstrapAdminFailed(ILogger logger, string code)
+    {
+        ArgumentNullException.ThrowIfNull(logger);
+        _bootstrapAdminFailed(logger, code, null);
     }
 
     /// <summary>Logs event 2710 Information: User signed in.</summary>

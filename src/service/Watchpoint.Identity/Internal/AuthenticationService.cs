@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Watchpoint.Identity.Contracts;
@@ -9,6 +11,7 @@ using Watchpoint.Identity.Internal.Storage;
 using Watchpoint.Identity.Internal.Tokens;
 using Watchpoint.Kernel.Ids;
 using Watchpoint.Kernel.Results;
+using Watchpoint.Storage.Contracts;
 
 namespace Watchpoint.Identity.Internal;
 
@@ -28,7 +31,8 @@ internal sealed class AuthenticationService : IAuthenticationService
     private readonly AuthenticationOptions _options;
     private readonly ILogger<AuthenticationService>? _logger;
 
-    // Temporary changeTokens for MustChangePassword flow: token -> (UserId, ClientContext, ExpiresAt)
+    // Change tokens of the MustChangePassword flow, keyed by SHA-256(token): (UserId, ClientContext, ExpiresAt).
+    // One live token per user; single use; dropped when the password changes.
     private readonly ConcurrentDictionary<string, (UserId UserId, ClientContext Client, DateTimeOffset ExpiresAt)> _changeTokens = new();
 
     public AuthenticationService(
@@ -64,23 +68,50 @@ internal sealed class AuthenticationService : IAuthenticationService
         ArgumentNullException.ThrowIfNull(request);
 
         // 1. Rate limit per remote IP and per login
-        if (!_rateLimiter.TryAcquire(request.Client.RemoteIp, request.Login))
+        var login = request.Login ?? string.Empty;
+        if (!_rateLimiter.TryAcquire(request.Client.RemoteIp, login))
         {
             if (_logger is not null)
             {
-                IdentityLog.SignInFailed(_logger, request.Login, request.Client.RemoteIp?.ToString() ?? "", "common.rate_limited");
+                IdentityLog.SignInFailed(_logger, login, request.Client.RemoteIp?.ToString() ?? "", "common.rate_limited");
             }
             return IdentityErrors.RateLimited();
         }
 
+        try
+        {
+            return await SignInCoreAsync(request, login, ct).ConfigureAwait(false);
+        }
+        catch (HashPoolBusyException)
+        {
+            // Hash pool full for 5 s (spec IDN §5).
+            return IdentityErrors.RateLimited();
+        }
+    }
+
+    private async Task<Result<SignInOutcome>> SignInCoreAsync(SignInRequest request, string login, CancellationToken ct)
+    {
+        // Input that can never be a valid credential (login longer than U1 allows; password empty, longer than 256
+        // characters or not valid Unicode) is refused here, before the user is looked up, so that the answer and
+        // its cost are the same whether the login exists or not.
+        if (string.IsNullOrWhiteSpace(login) || login.Trim().Length > 64 || !Argon2PasswordHasher.TryNormalize(request.Password, out _))
+        {
+            await _hasher.VerifyDummyAsync(request.Password, ct).ConfigureAwait(false);
+            if (_logger is not null)
+            {
+                IdentityLog.SignInFailed(_logger, login, request.Client.RemoteIp?.ToString() ?? "", "identity.signin.invalid_credentials");
+            }
+            return IdentityErrors.InvalidCredentials();
+        }
+
         // 2. Find user; if not found / template / script -> dummy hash verify -> invalid_credentials
-        var userResult = _userDirectory.FindByLogin(request.Login);
+        var userResult = _userDirectory.FindByLogin(login);
         if (!userResult.TryGetValue(out var user, out _))
         {
             await _hasher.VerifyDummyAsync(request.Password, ct).ConfigureAwait(false);
             if (_logger is not null)
             {
-                IdentityLog.SignInFailed(_logger, request.Login, request.Client.RemoteIp?.ToString() ?? "", "identity.signin.invalid_credentials");
+                IdentityLog.SignInFailed(_logger, login, request.Client.RemoteIp?.ToString() ?? "", "identity.signin.invalid_credentials");
             }
             return IdentityErrors.InvalidCredentials();
         }
@@ -139,7 +170,7 @@ internal sealed class AuthenticationService : IAuthenticationService
         {
             var newHash = await _hasher.HashPasswordAsync(request.Password, ct).ConfigureAwait(false);
             userEntity.PasswordHash = newHash;
-            await db.SaveChangesAsync(ct).ConfigureAwait(false);
+            await SaveBestEffortAsync(db, ct).ConfigureAwait(false);
         }
 
         // 5. Status checks: disabled -> disabled; expired -> expired; client kind not allowed -> client_not_allowed; workstation -> workstation_not_allowed
@@ -189,9 +220,7 @@ internal sealed class AuthenticationService : IAuthenticationService
         // 7. If MustChangePassword -> PasswordChangeRequired
         if (user.MustChangePassword)
         {
-            var changeToken = Guid.NewGuid().ToString("N");
-            _changeTokens[changeToken] = (user.Id, request.Client, now + _options.ChangeTokenLifetime);
-            return new SignInOutcome.PasswordChangeRequired(changeToken);
+            return new SignInOutcome.PasswordChangeRequired(IssueChangeToken(user.Id, request.Client, now));
         }
 
         // 9. Create session and tokens; reset failure count; update LastSignInAt; audit signedIn
@@ -199,7 +228,7 @@ internal sealed class AuthenticationService : IAuthenticationService
         await _lockoutService.ResetFailuresAsync(user.Id, ct).ConfigureAwait(false);
 
         userEntity.LastSignInAt = now;
-        await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        await SaveBestEffortAsync(db, ct).ConfigureAwait(false);
 
         var updatedUser = user with { LastSignInAt = now };
 
@@ -215,50 +244,67 @@ internal sealed class AuthenticationService : IAuthenticationService
     {
         ArgumentNullException.ThrowIfNull(client);
 
-        var rotateResult = await _refreshStore.RotateRefreshTokenAsync(refreshToken, client, ct).ConfigureAwait(false);
+        // Order (spec IDN §6.3): the store validates and claims the token, then the user and admission checks run,
+        // and the token is rotated only if they pass. A temporary refusal therefore leaves the token usable.
+        User? admitted = null;
+        var rotateResult = await _refreshStore.RotateRefreshTokenAsync(
+            refreshToken,
+            client,
+            async (session, token) =>
+            {
+                var (error, user) = await AdmitRefreshAsync(session, client, token).ConfigureAwait(false);
+                admitted = user;
+                return error is null ? Result.Success() : Result.Failure(error);
+            },
+            ct).ConfigureAwait(false);
+
         if (!rotateResult.TryGetValue(out var tuple, out var rotateError))
         {
             return rotateError;
         }
 
-        var (newToken, newExpiresAt, session) = tuple;
+        var (newToken, newExpiresAt, rotatedSession) = tuple;
+        var (accessToken, accessExpiresAt) = _tokenService.IssueAccessToken(rotatedSession, admitted!);
+        _sessionRegistry.Touch(rotatedSession.Id);
 
-        // Verify user is still active and not expired
-        var userResult = _userDirectory.Get(session.UserId);
-        if (!userResult.TryGetValue(out var user, out var userError))
+        return new TokenPair(accessToken, accessExpiresAt, newToken, newExpiresAt, rotatedSession.Id);
+    }
+
+    // A user who can no longer sign in at all (deleted, cannot-sign-in kind, disabled, expired) loses the session;
+    // an admission hook (maintenance, seats) only refuses this refresh.
+    private async Task<(Error? Error, User? User)> AdmitRefreshAsync(Session session, ClientContext client, CancellationToken ct)
+    {
+        if (!_userDirectory.Get(session.UserId).TryGetValue(out var user, out _) ||
+            user.Kind is UserKind.Template or UserKind.Script)
         {
-            return userError;
+            await _sessionRegistry.RevokeAsync(session.Id, "User deleted", null, ct).ConfigureAwait(false);
+            return (IdentityErrors.RefreshInvalid(), null);
         }
 
         var now = _clock.GetUtcNow();
         if (!user.Enabled)
         {
             await _sessionRegistry.RevokeAsync(session.Id, "User disabled", null, ct).ConfigureAwait(false);
-            return IdentityErrors.Disabled();
+            return (IdentityErrors.Disabled(), null);
         }
 
         if ((user.ValidFrom.HasValue && now < user.ValidFrom.Value) ||
             (user.ValidUntil.HasValue && now > user.ValidUntil.Value))
         {
             await _sessionRegistry.RevokeAsync(session.Id, "User expired", null, ct).ConfigureAwait(false);
-            return IdentityErrors.Expired();
+            return (IdentityErrors.Expired(), null);
         }
 
-        // Admission hook check on refresh
         foreach (var admission in _admissions)
         {
             var admissionResult = await admission.AdmitAsync(user, client, AdmissionPhase.Refresh, ct).ConfigureAwait(false);
             if (!admissionResult.IsSuccess)
             {
-                return admissionResult.Error;
+                return (admissionResult.Error, null);
             }
         }
 
-        // Issue new access token
-        var (accessToken, accessExpiresAt) = _tokenService.IssueAccessToken(session, user);
-        _sessionRegistry.Touch(session.Id);
-
-        return new TokenPair(accessToken, accessExpiresAt, newToken, newExpiresAt, session.Id);
+        return (null, user);
     }
 
     public async Task<Result> SignOutAsync(SessionId session, CancellationToken ct)
@@ -269,30 +315,160 @@ internal sealed class AuthenticationService : IAuthenticationService
     public async Task<Result<TokenPair>> CompletePasswordChangeAsync(string changeToken, string newPassword, CancellationToken ct)
     {
         var now = _clock.GetUtcNow();
-        if (!_changeTokens.TryRemove(changeToken, out var entry) || entry.ExpiresAt < now)
+        if (string.IsNullOrEmpty(changeToken) || changeToken.Length > 128)
         {
-            return IdentityErrors.TokenInvalid("Password change token is invalid or expired.");
+            return IdentityErrors.TokenInvalid();
         }
 
-        var userResult = _userDirectory.Get(entry.UserId);
-        if (!userResult.TryGetValue(out var user, out var userError))
+        // Single use: the token is taken out before anything else.
+        var key = HashChangeToken(changeToken);
+        if (!_changeTokens.TryRemove(key, out var entry) || entry.ExpiresAt < now)
         {
-            return userError;
+            return IdentityErrors.TokenInvalid();
+        }
+
+        // The account may have changed since the token was issued: same checks as sign-in steps 5 and 6.
+        if (!_userDirectory.Get(entry.UserId).TryGetValue(out var user, out _) ||
+            !user.MustChangePassword ||
+            user.Kind is UserKind.Template or UserKind.Script || user.AuthSource != AuthSource.Local)
+        {
+            return IdentityErrors.TokenInvalid();
+        }
+
+        if (CheckStatus(user, entry.Client, now) is { } statusError)
+        {
+            return statusError;
+        }
+
+        foreach (var admission in _admissions)
+        {
+            var admissionResult = await admission.AdmitAsync(user, entry.Client, AdmissionPhase.SignIn, ct).ConfigureAwait(false);
+            if (!admissionResult.IsSuccess)
+            {
+                return admissionResult.Error;
+            }
         }
 
         // Apply new password
-        var changeResult = await _userDirectory.SetPasswordAsync(user.Id, newPassword, mustChange: false, new ChangeContext(user.Id, "changeToken"), ct).ConfigureAwait(false);
+        Result changeResult;
+        try
+        {
+            changeResult = await _userDirectory.SetPasswordAsync(user.Id, newPassword, mustChange: false, new ChangeContext(user.Id, "changeToken"), ct).ConfigureAwait(false);
+        }
+        catch (HashPoolBusyException)
+        {
+            changeResult = IdentityErrors.RateLimited();
+        }
+
         if (!changeResult.IsSuccess)
         {
+            // A refused new password (policy, busy pool) does not cost the token: the user can try another one.
+            if (changeResult.Error.Kind is ErrorKind.Validation or ErrorKind.TooManyRequests)
+            {
+                _changeTokens.TryAdd(key, entry);
+            }
+
             return changeResult.Error;
         }
 
-        var updatedUserResult = _userDirectory.Get(user.Id);
-        var updatedUser = updatedUserResult.Value;
+        // The password changed: every other change token of the user dies with the old password.
+        RemoveChangeTokens(user.Id, now);
 
-        // Complete sign-in
+        if (!_userDirectory.Get(user.Id).TryGetValue(out var updatedUser, out var updatedError))
+        {
+            return updatedError;
+        }
+
+        // Complete sign-in (step 9)
         var tokens = await IssueTokensAndCreateSessionAsync(updatedUser, entry.Client, ct).ConfigureAwait(false);
+        await _lockoutService.ResetFailuresAsync(user.Id, ct).ConfigureAwait(false);
+
+        await using (var db = await _dbFactory.CreateDbContextAsync(ct).ConfigureAwait(false))
+        {
+            var entity = await db.Users.FindAsync([user.Id], ct).ConfigureAwait(false);
+            if (entity is not null)
+            {
+                entity.LastSignInAt = now;
+                await SaveBestEffortAsync(db, ct).ConfigureAwait(false);
+            }
+        }
+
+        if (_logger is not null)
+        {
+            IdentityLog.UserSignedIn(_logger, user.Id.ToString(), entry.Client.Kind.ToString(), tokens.Session.ToString());
+        }
+
         return tokens;
+    }
+
+    private string IssueChangeToken(UserId userId, ClientContext client, DateTimeOffset now)
+    {
+        RemoveChangeTokens(userId, now);
+        var token = Base64UrlEncoder(RandomNumberGenerator.GetBytes(32));
+        _changeTokens[HashChangeToken(token)] = (userId, client, now + _options.ChangeTokenLifetime);
+        return token;
+    }
+
+    // Removes the tokens of a user and, in passing, every expired token (the map stays small).
+    private void RemoveChangeTokens(UserId userId, DateTimeOffset now)
+    {
+        foreach (var pair in _changeTokens)
+        {
+            if (pair.Value.UserId == userId || pair.Value.ExpiresAt < now)
+            {
+                _changeTokens.TryRemove(pair.Key, out _);
+            }
+        }
+    }
+
+    private static string HashChangeToken(string token) =>
+        Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
+
+    private static string Base64UrlEncoder(byte[] bytes) =>
+        Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+
+    private static Error? CheckStatus(User user, ClientContext client, DateTimeOffset now)
+    {
+        if (!user.Enabled)
+        {
+            return IdentityErrors.Disabled();
+        }
+
+        if ((user.ValidFrom.HasValue && now < user.ValidFrom.Value) ||
+            (user.ValidUntil.HasValue && now > user.ValidUntil.Value))
+        {
+            return IdentityErrors.Expired();
+        }
+
+        if (user.AllowedClients.Count > 0 && !user.AllowedClients.Contains(client.Kind))
+        {
+            return IdentityErrors.ClientNotAllowed();
+        }
+
+        if (user.AllowedWorkstations.Count > 0 &&
+            (string.IsNullOrEmpty(client.WorkstationId) || !user.AllowedWorkstations.Contains(client.WorkstationId)))
+        {
+            return IdentityErrors.WorkstationNotAllowed();
+        }
+
+        return null;
+    }
+
+    // LastSignInAt and the rehash are conveniences: a concurrent change of the same user row (two sign-ins at once,
+    // an administrator edit) must not fail a sign-in that already succeeded.
+    private static async Task SaveBestEffortAsync(IdentityDbContext db, CancellationToken ct)
+    {
+        try
+        {
+            await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        }
+        catch (StorageException ex) when (ex.Error.Code.Value == "storage.concurrency.conflict")
+        {
+            foreach (var entry in db.ChangeTracker.Entries().ToList())
+            {
+                await entry.ReloadAsync(ct).ConfigureAwait(false);
+            }
+        }
     }
 
     private async Task<TokenPair> IssueTokensAndCreateSessionAsync(User user, ClientContext client, CancellationToken ct)

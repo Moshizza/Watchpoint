@@ -37,6 +37,11 @@ internal sealed class JwtTokenService : ITokenService
         var key = _keyRing.GetCurrentSigningKey();
         var now = _clock.GetUtcNow();
         var expiresAt = now + _options.AccessTokenLifetime;
+        if (session.ExpiresAt > now && session.ExpiresAt < expiresAt)
+        {
+            // An access token never outlives its session (spec IDN §6.2).
+            expiresAt = session.ExpiresAt;
+        }
 
         var claims = new Dictionary<string, object>
         {
@@ -44,7 +49,7 @@ internal sealed class JwtTokenService : ITokenService
             ["sid"] = session.Id.ToString(),
             ["ck"] = session.ClientKind.ToString().ToLowerInvariant(),
             ["lang"] = user.Language,
-            [JwtRegisteredClaimNames.Jti] = Guid.NewGuid().ToString("N"),
+            [JwtRegisteredClaimNames.Jti] = Convert.ToHexStringLower(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16)),
         };
 
         if (user.Administrator)
@@ -76,11 +81,11 @@ internal sealed class JwtTokenService : ITokenService
     {
         if (string.IsNullOrWhiteSpace(jwt))
         {
-            return IdentityErrors.TokenInvalid("Token is empty.");
+            return IdentityErrors.TokenInvalid();
         }
 
         var now = _clock.GetUtcNow().UtcDateTime;
-        var validationKeys = _keyRing.GetValidationKeys().Select(k => (SecurityKey)k.SecurityKey).ToList();
+        var expired = false;
 
         var parameters = new TokenValidationParameters
         {
@@ -88,47 +93,62 @@ internal sealed class JwtTokenService : ITokenService
             ValidateIssuer = true,
             ValidAudience = _options.Audience,
             ValidateAudience = true,
-            IssuerSigningKeys = validationKeys,
+
+            // Algorithm pinned: no "none", no HMAC with the public key, nothing but ES256 (spec IDN §6.2).
+            ValidAlgorithms = [SecurityAlgorithms.EcdsaSha256],
+            RequireSignedTokens = true,
+            RequireExpirationTime = true,
             ValidateIssuerSigningKey = true,
+            TryAllIssuerSigningKeys = false,
+
+            // Only the ring key named by the kid header validates; a token without kid has no key.
+            IssuerSigningKeyResolver = (_, _, kid, _) =>
+                _keyRing.FindValidationKey(kid) is { } key ? [key.SecurityKey] : [],
             ClockSkew = TimeSpan.FromSeconds(30),
-            LifetimeValidator = (notBefore, expires, securityToken, validationParameters) =>
+            ValidateLifetime = true,
+            LifetimeValidator = (notBefore, expires, _, validationParameters) =>
             {
+                // The handler's own check uses the system clock; this one uses the TimeProvider.
+                if (!expires.HasValue)
+                {
+                    return false;
+                }
+
                 if (notBefore.HasValue && now < notBefore.Value - validationParameters.ClockSkew)
                 {
                     return false;
                 }
-                if (expires.HasValue && now > expires.Value + validationParameters.ClockSkew)
+
+                if (now > expires.Value + validationParameters.ClockSkew)
                 {
+                    expired = true;
                     return false;
                 }
+
                 return true;
             },
         };
 
+        // The reason of a refusal is never returned: it could echo token content (spec IDN §14).
         TokenValidationResult validationResult;
         try
         {
             validationResult = await _handler.ValidateTokenAsync(jwt, parameters).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ArgumentException or SecurityTokenException)
         {
-            return IdentityErrors.TokenInvalid(ex.Message);
+            return IdentityErrors.TokenInvalid();
         }
 
         if (!validationResult.IsValid)
         {
-            if (validationResult.Exception is SecurityTokenExpiredException or SecurityTokenInvalidLifetimeException ||
-                (validationResult.Exception?.Message.Contains("expired", StringComparison.OrdinalIgnoreCase) == true))
-            {
-                return IdentityErrors.TokenExpired();
-            }
-            return IdentityErrors.TokenInvalid(validationResult.Exception?.Message ?? "Validation failed.");
+            return expired ? IdentityErrors.TokenExpired() : IdentityErrors.TokenInvalid();
         }
 
         var jsonToken = (JsonWebToken)validationResult.SecurityToken;
         if (!UserId.TryParse(jsonToken.Subject, out var userId))
         {
-            return IdentityErrors.TokenInvalid("Invalid subject claim.");
+            return IdentityErrors.TokenInvalid();
         }
 
         string? sidClaim = null;
@@ -139,7 +159,7 @@ internal sealed class JwtTokenService : ITokenService
 
         if (string.IsNullOrEmpty(sidClaim) || !SessionId.TryParse(sidClaim, out var sessionId))
         {
-            return IdentityErrors.TokenInvalid("Invalid or missing session id claim.");
+            return IdentityErrors.TokenInvalid();
         }
 
         // Check if session is revoked
@@ -148,15 +168,12 @@ internal sealed class JwtTokenService : ITokenService
             return IdentityErrors.TokenRevoked();
         }
 
-        var ckClaim = "desktop";
-        if (jsonToken.TryGetClaim("ck", out var ckClaimObj))
+        // No default client kind: a token without a known one is refused.
+        if (!jsonToken.TryGetClaim("ck", out var ckClaimObj) ||
+            !Enum.TryParse<ClientKind>(ckClaimObj.Value, ignoreCase: true, out var clientKind) ||
+            !Enum.IsDefined(clientKind))
         {
-            ckClaim = ckClaimObj.Value;
-        }
-
-        if (!Enum.TryParse<ClientKind>(ckClaim, ignoreCase: true, out var clientKind))
-        {
-            clientKind = ClientKind.Desktop;
+            return IdentityErrors.TokenInvalid();
         }
 
         string? wks = null;

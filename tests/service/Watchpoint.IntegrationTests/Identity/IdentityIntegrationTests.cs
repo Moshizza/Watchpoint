@@ -183,10 +183,8 @@ public sealed class IdentityIntegrationTests(PostgresContainerFixture postgres) 
         var s2 = (await auth.SignInLocalAsync(new SignInRequest("multi.session", "InitialPassword123!", client2), Ct)).Value as SignInOutcome.Signed;
 
         // User changes own password from session 1: all other sessions are revoked (IDN §6.3)
-        var changeRes = await dir.ChangeOwnPasswordAsync(uid, "InitialPassword123!", "NewChangedPassword123!", Ct);
+        var changeRes = await dir.ChangeOwnPasswordAsync(uid, "InitialPassword123!", "NewChangedPassword123!", s1!.Tokens.Session, Ct);
         changeRes.IsSuccess.ShouldBeTrue();
-
-        await registry.RevokeWhereAsync(s => s.UserId == uid && s.Id != s1!.Tokens.Session, "Password changed by user", Ct);
 
         registry.IsRevoked(s1!.Tokens.Session).ShouldBeFalse();
         registry.IsRevoked(s2!.Tokens.Session).ShouldBeTrue();

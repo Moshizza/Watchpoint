@@ -224,7 +224,7 @@ public sealed class DevSeedTests : IDisposable
         public Task<Result> SetPasswordAsync(UserId id, string newPassword, bool mustChange, ChangeContext ctx, CancellationToken ct) =>
             throw new InvalidOperationException("not expected");
 
-        public Task<Result> ChangeOwnPasswordAsync(UserId id, string current, string newPassword, CancellationToken ct) =>
+        public Task<Result> ChangeOwnPasswordAsync(UserId id, string current, string newPassword, SessionId? currentSession, CancellationToken ct) =>
             throw new InvalidOperationException("not expected");
     }
 
