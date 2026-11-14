@@ -192,8 +192,12 @@ public sealed record EntityChange(string Entity /* "device" … */, Guid Id, Cha
    per modified entity.
 4. Build a new snapshot (incremental: copy-on-write of changed indexes), swap atomically,
    increment `Revision`.
-5. Publish a `registry.changed` record to the event log (PIP §6, kind `config`) containing
-   `Revision`, `ChangeContext` and the `EntityChange` list; raise `Changed` in-process.
+5. Publish a `registry.changed` record to the event log (stream `WP_CFG`, PIP §5.3) containing
+   `Revision`, `ChangeContext` and the `EntityChange` list; raise `Changed` in-process. The record
+   is published through `IRegistryChangePublisher.PublishAsync(RegistryApplyResult, ChangeContext, ct)`,
+   implemented by PIP (a no-op when the pipeline module is not registered). `EntityChange` lists
+   the entities named by the batch (for a link: its source device). The revision counts the batches
+   applied since the node started (not yet persisted).
 6. Deleting a location with children or objects: requires `ReassignTo` (objects and child
    locations move there) else `registry.location.not_empty`.
 7. Deleting a server: `DeleteDevices=false` and devices exist → `registry.server.not_empty`.
