@@ -39,7 +39,7 @@ Watchpoint.Pipeline/
 │   ├── LogRecord.cs, LogEnvelope.cs, RecordKinds.cs
 │   ├── ILogRecordTypeRegistry.cs
 │   ├── IPartitionSubscriber.cs, PartitionContext.cs
-│   ├── IEventLogWriter.cs, IEventLogReader.cs, ILogConsumerFactory.cs
+│   ├── IEventLogWriter.cs, IEventLogReader.cs, ILogConsumerFactory.cs, IEventLogSetup.cs, EventLogEndpoint.cs
 │   ├── ISideEffectQueue.cs
 │   ├── Partitioning.cs
 │   └── PipelineErrors.cs
@@ -94,8 +94,9 @@ Common stream settings: file storage, `Duplicates` window 2 minutes (dedup by
 `DenyDelete`/`DenyPurge` true. Subjects and stream names get the configured prefixes
 (`Log:SubjectPrefix` default `wp`, `Log:StreamPrefix` default empty) so tests can isolate.
 
-`StreamProvisioner` (startup phase `Infrastructure`, order 20) creates or updates the streams
-idempotently, `WP_CFG` and `WP_SYS` first:
+`StreamProvisioner` (contract `IEventLogSetup.EnsureStreamsAsync`, run by the host in startup
+phase `Infrastructure`, order 20) creates or updates the streams idempotently, `WP_CFG` and
+`WP_SYS` first:
 
 - missing stream → created;
 - settings that drifted from the configuration (max age, max bytes, duplicate window, max message
@@ -583,7 +584,9 @@ source `Watchpoint.Pipeline`.
 
 ## 13. Security
 
-- NATS connection uses the token from SEC (`bootstrap:nats.token`), TLS when not loopback.
+- NATS connection uses the token from SEC (`bootstrap:nats.token`), TLS when not loopback. The host
+  hands URL and token to the module as `EventLogEndpoint` (modules do not reference
+  `Watchpoint.Hosting`, architecture rule ARCH-3).
 - Connections can only report for their own devices (step 2 in §7.1).
 - Envelope bodies may contain personal data (event payloads): log retention is bounded; logs
   never print bodies (only ids and kinds).

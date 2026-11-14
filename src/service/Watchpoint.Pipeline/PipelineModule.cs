@@ -3,7 +3,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Watchpoint.Hosting;
 using Watchpoint.Kernel.Json;
 using Watchpoint.Pipeline.Contracts;
 using Watchpoint.Pipeline.Internal;
@@ -20,10 +19,10 @@ public static class PipelineModule
     public const string HealthCheckName = "pipeline-log";
 
     /// <summary>
-    /// Adds the event log: record kind registry, log writer and reader, durable consumers, the stream provisioning
-    /// start-up task (phase <c>Infrastructure</c>, order 20) and the readiness health check. Replaces the registry's
-    /// change publisher by the one that appends <c>registry.changed</c> records. The host provides
-    /// <see cref="NatsEndpoint"/>; settings come from the <c>Log</c> section.
+    /// Adds the event log: record kind registry, log writer and reader, durable consumers, stream provisioning
+    /// (<see cref="IEventLogSetup"/>, run by the host at start-up) and the readiness health check. Replaces the
+    /// registry's change publisher by the one that appends <c>registry.changed</c> records. The host registers the
+    /// <see cref="EventLogEndpoint"/>; settings come from the <c>Log</c> section.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configuration">The configuration root.</param>
@@ -49,7 +48,7 @@ public static class PipelineModule
         services.AddSingleton<IEventLogReader, EventLogReader>();
         services.AddSingleton<ILogConsumerFactory, LogConsumerFactory>();
         services.AddSingleton<StreamProvisioner>();
-        services.AddSingleton<IStartupTask>(sp => sp.GetRequiredService<StreamProvisioner>());
+        services.AddSingleton<IEventLogSetup>(sp => sp.GetRequiredService<StreamProvisioner>());
         services.AddHealthChecks().AddCheck<PipelineLogHealthCheck>(HealthCheckName, HealthStatus.Unhealthy, ["ready"]);
         services.Replace(ServiceDescriptor.Singleton<IRegistryChangePublisher, LogRegistryChangePublisher>());
         return services;

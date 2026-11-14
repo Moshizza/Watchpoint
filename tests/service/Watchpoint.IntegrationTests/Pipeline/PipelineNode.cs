@@ -1,6 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Watchpoint.Hosting;
 using Watchpoint.Kernel.Ids;
 using Watchpoint.Kernel.Values;
 using Watchpoint.Pipeline;
@@ -57,23 +56,20 @@ internal sealed class PipelineNode : IAsyncDisposable
         MinStreamBytes = 8 * Mb,
     };
 
-    /// <summary>Builds the module and runs its start-up tasks (stream provisioning), like the host does.</summary>
+    /// <summary>Builds the module and provisions the streams, like the host does at start-up.</summary>
     public static async Task<PipelineNode> StartAsync(string natsUrl, PipelineOptions options, CancellationToken ct, Action<IServiceCollection>? configure = null)
     {
         var logs = new LogCollector();
         var services = new ServiceCollection();
         services.AddLogging(b => b.AddProvider(logs).SetMinimumLevel(LogLevel.Trace));
-        services.AddSingleton(new NatsEndpoint(natsUrl, null));
+        services.AddSingleton(new EventLogEndpoint(natsUrl, null));
         configure?.Invoke(services);
         services.AddPipeline(options);
         var provider = services.BuildServiceProvider();
         var node = new PipelineNode(provider, options, logs);
         try
         {
-            foreach (var task in provider.GetServices<IStartupTask>().OrderBy(t => t.Phase).ThenBy(t => t.Order))
-            {
-                await task.ExecuteAsync(ct);
-            }
+            await provider.GetRequiredService<IEventLogSetup>().EnsureStreamsAsync(ct);
         }
         catch
         {

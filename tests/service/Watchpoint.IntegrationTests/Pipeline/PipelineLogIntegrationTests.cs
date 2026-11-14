@@ -253,12 +253,18 @@ public sealed class PipelineLogIntegrationTests(NatsContainerFixture nats)
         await using (var node = await PipelineNode.StartAsync(nats.Url, PipelineNode.OptionsFor(scope), Ct))
         {
             await using var consumer = node.Consumers.CreateDurable("history", LogStream.Log, [], options);
+            await using var legacy = node.Consumers.CreateDurable("history-legacy", LogStream.Log, [], options);
             await using var batches = consumer.ReadBatchesAsync(Ct).GetAsyncEnumerator(Ct);
+            await using var legacyBatches = legacy.ReadBatchesAsync(Ct).GetAsyncEnumerator(Ct);
             var next = batches.MoveNextAsync();
+            var legacyNext = legacyBatches.MoveNextAsync();
             await node.Writer.AppendAsync([node.Envelope(DeviceId.New(), 1002)], Ct);
             (await next.AsTask().WaitAsync(TestTimeouts.Container, Ct)).ShouldBeTrue();
+            (await legacyNext.AsTask().WaitAsync(TestTimeouts.Container, Ct)).ShouldBeTrue();
             batches.Current.Records.Select(r => r.Sequence).ShouldBe([1002L]);
+            legacyBatches.Current.Records.Select(r => r.Sequence).ShouldBe([1002L]);
             await batches.Current.AckAsync(Ct);
+            await legacyBatches.Current.AckAsync(Ct);
         }
     }
 

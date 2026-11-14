@@ -1,6 +1,6 @@
 using NATS.Client.Core;
 using NATS.Client.JetStream;
-using Watchpoint.Hosting;
+using Watchpoint.Pipeline.Contracts;
 
 namespace Watchpoint.Pipeline.Internal.Nats;
 
@@ -9,7 +9,7 @@ namespace Watchpoint.Pipeline.Internal.Nats;
 /// replayed records, and one for readers, consumers and stream management. Connections are opened on first use and
 /// reconnect by themselves, without limit.
 /// </summary>
-internal sealed class NatsConnectionProvider(NatsEndpoint endpoint) : IAsyncDisposable
+internal sealed class NatsConnectionProvider(EventLogEndpoint endpoint) : IAsyncDisposable
 {
     private readonly Lazy<NatsConnection> _writer = new(() => Create(endpoint, "watchpoint-pipeline-writer"));
     private readonly Lazy<NatsConnection> _reader = new(() => Create(endpoint, "watchpoint-pipeline-reader"));
@@ -41,7 +41,7 @@ internal sealed class NatsConnectionProvider(NatsEndpoint endpoint) : IAsyncDisp
         }
     }
 
-    private static NatsConnection Create(NatsEndpoint endpoint, string name) => new(NatsOpts.Default with
+    private static NatsConnection Create(EventLogEndpoint endpoint, string name) => new(NatsOpts.Default with
     {
         Url = endpoint.Url,
         Name = name,

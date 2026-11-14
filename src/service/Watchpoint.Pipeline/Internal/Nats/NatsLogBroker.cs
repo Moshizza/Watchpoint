@@ -185,6 +185,14 @@ internal sealed class NatsLogBroker(NatsConnectionProvider connections, Pipeline
         try
         {
             using var timeout = new Deadline(options.OperationTimeout + options.OperationTimeout, timeProvider, ct);
+
+            // JetStream refuses to change where an existing consumer started: keep that part as it is.
+            if (await FindConsumerAsync(context, stream, settings.Name, timeout.Token).ConfigureAwait(false) is { } existing)
+            {
+                config.DeliverPolicy = existing.Info.Config.DeliverPolicy;
+                config.OptStartSeq = existing.Info.Config.OptStartSeq;
+            }
+
             var consumer = await context.CreateOrUpdateConsumerAsync(stream, config, timeout.Token).ConfigureAwait(false);
             if (consumer.Info.NumAckPending > 0)
             {
@@ -279,6 +287,18 @@ internal sealed class NatsLogBroker(NatsConnectionProvider connections, Pipeline
         OperationCanceledException => "JetStream did not answer in time",
         _ => ex.Message,
     };
+
+    private static async ValueTask<INatsJSConsumer?> FindConsumerAsync(NatsJSContext context, string stream, string name, CancellationToken ct)
+    {
+        try
+        {
+            return await context.GetConsumerAsync(stream, name, ct).ConfigureAwait(false);
+        }
+        catch (NatsJSApiException ex) when (ex.Error.ErrCode == ConsumerNotFound)
+        {
+            return null;
+        }
+    }
 
     private async ValueTask<INatsJSConsumer> RewindAsync(
         NatsJSContext context, string stream, ConsumerConfig config, INatsJSConsumer consumer, CancellationToken ct)

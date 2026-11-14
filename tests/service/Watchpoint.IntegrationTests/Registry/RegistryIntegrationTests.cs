@@ -6,13 +6,12 @@ using Microsoft.Extensions.Logging;
 using NATS.Net;
 using Npgsql;
 using Shouldly;
+using Watchpoint.IntegrationTests.Pipeline;
 using Watchpoint.Kernel.Ids;
 using Watchpoint.Kernel.Text;
 using Watchpoint.Kernel.Values;
 using Watchpoint.Model;
 using Watchpoint.Model.Contracts;
-using Watchpoint.Hosting;
-using Watchpoint.IntegrationTests.Pipeline;
 using Watchpoint.Model.Documents;
 using Watchpoint.Pipeline;
 using Watchpoint.Pipeline.Contracts;
@@ -213,14 +212,11 @@ public sealed class RegistryIntegrationTests(PostgresContainerFixture postgres, 
         await using var node = await NodeAsync(db, services =>
         {
             // The pipeline module replaces the registry's no-op publisher, whatever the registration order.
-            services.AddSingleton(new NatsEndpoint(nats.Url, null));
+            services.AddSingleton(new EventLogEndpoint(nats.Url, null));
             services.AddPipeline(log);
         });
         node.Services.GetRequiredService<IRegistryChangePublisher>().ShouldNotBeOfType<NoOpRegistryChangePublisher>();
-        foreach (var task in node.Services.GetServices<IStartupTask>())
-        {
-            await task.ExecuteAsync(Ct);
-        }
+        await node.Services.GetRequiredService<IEventLogSetup>().EnsureStreamsAsync(Ct);
 
         // A consumer on the configuration stream, filtered on the registry kind.
         var registry = node.Services.GetRequiredService<ILogRecordTypeRegistry>();

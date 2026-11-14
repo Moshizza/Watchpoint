@@ -1,12 +1,12 @@
 using Microsoft.Extensions.Logging;
-using Watchpoint.Hosting;
 using Watchpoint.Pipeline.Contracts;
 using Watchpoint.Pipeline.Internal.Log;
 
 namespace Watchpoint.Pipeline.Internal.Nats;
 
 /// <summary>
-/// Creates or updates the streams of the event log at start-up (spec PIP §5.1), idempotently:
+/// Creates or updates the streams of the event log at start-up (spec PIP §5.1; run by the host in phase
+/// <c>Infrastructure</c>, order 20), idempotently:
 /// <list type="bullet">
 /// <item>a missing stream is created;</item>
 /// <item>a stream whose settings drifted (age, size, duplicate window, message size, replicas, direct access, discard
@@ -18,21 +18,13 @@ namespace Watchpoint.Pipeline.Internal.Nats;
 /// </list>
 /// </summary>
 internal sealed class StreamProvisioner(
-    ILogBroker broker, PipelineOptions options, TimeProvider timeProvider, ILogger<StreamProvisioner> logger) : IStartupTask
+    ILogBroker broker, PipelineOptions options, TimeProvider timeProvider, ILogger<StreamProvisioner> logger) : IEventLogSetup
 {
     private readonly LogNaming _naming = new(options);
     private volatile bool _ready;
 
     /// <summary>Gets a value indicating whether the streams were found or created since start-up.</summary>
     public bool Ready => _ready;
-
-    public StartupPhase Phase => StartupPhase.Infrastructure;
-
-    public int Order => 20;
-
-    public string Name => "PipelineStreams";
-
-    public Task ExecuteAsync(CancellationToken ct) => EnsureStreamsAsync(ct);
 
     /// <summary>
     /// The stream settings the configuration asks for. The small global streams come first: when JetStream is short

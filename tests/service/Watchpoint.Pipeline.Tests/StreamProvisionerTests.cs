@@ -2,7 +2,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using NATS.Client.JetStream.Models;
 using Shouldly;
-using Watchpoint.Hosting;
 using Watchpoint.Pipeline.Contracts;
 using Watchpoint.Pipeline.Internal;
 using Watchpoint.Pipeline.Internal.Nats;
@@ -28,10 +27,8 @@ public sealed class StreamProvisionerTests : IDisposable
         var provisioner = Provisioner(_harness.Options);
         provisioner.Ready.ShouldBeFalse();
 
-        await provisioner.ExecuteAsync(Ct);
+        await provisioner.EnsureStreamsAsync(Ct);
 
-        provisioner.Phase.ShouldBe(StartupPhase.Infrastructure);
-        provisioner.Order.ShouldBe(20);
         provisioner.Ready.ShouldBeTrue();
         _harness.Broker.Streams.Keys.Order().ShouldBe(["T1_WP_CFG", "T1_WP_LOG", "T1_WP_SYS"]);
         var log = _harness.Broker.Streams["T1_WP_LOG"];
@@ -71,7 +68,7 @@ public sealed class StreamProvisionerTests : IDisposable
 
         // Idempotent: a second start changes nothing.
         _harness.Broker.ManagementCalls.Clear();
-        await Provisioner(_harness.Options).ExecuteAsync(Ct);
+        await Provisioner(_harness.Options).EnsureStreamsAsync(Ct);
         _harness.Broker.ManagementCalls.ShouldBe(["get T1_WP_CFG", "get T1_WP_SYS", "get T1_WP_LOG"]);
         _harness.Logs.WithEventId(1601).Count().ShouldBe(2);
     }
@@ -82,7 +79,7 @@ public sealed class StreamProvisionerTests : IDisposable
         var desired = Provisioner(_harness.Options).DesiredStreams().Single(s => s.Name == "T1_WP_LOG");
         _harness.Broker.AddStream(desired with { Subjects = ["other.log.>"] });
 
-        var ex = await Should.ThrowAsync<PipelineException>(() => Provisioner(_harness.Options).ExecuteAsync(Ct));
+        var ex = await Should.ThrowAsync<PipelineException>(() => Provisioner(_harness.Options).EnsureStreamsAsync(Ct));
 
         ex.Error.Code.Value.ShouldBe("pipeline.stream.incompatible");
         ex.Error.Kind.ShouldBe(Kernel.Results.ErrorKind.Internal);
@@ -97,7 +94,7 @@ public sealed class StreamProvisionerTests : IDisposable
         {
             _harness.Broker.AddStream(immutable);
             var provisioner = Provisioner(_harness.Options);
-            (await Should.ThrowAsync<PipelineException>(() => provisioner.ExecuteAsync(Ct))).Error.Code.Value.ShouldBe("pipeline.stream.incompatible");
+            (await Should.ThrowAsync<PipelineException>(() => provisioner.EnsureStreamsAsync(Ct))).Error.Code.Value.ShouldBe("pipeline.stream.incompatible");
             provisioner.Ready.ShouldBeFalse();
         }
     }
@@ -111,7 +108,7 @@ public sealed class StreamProvisionerTests : IDisposable
         options.MaxBytes.ShouldBe(5 * Gb);
 
         // Created with the configured values.
-        await Provisioner(options).ExecuteAsync(Ct);
+        await Provisioner(options).EnsureStreamsAsync(Ct);
         _harness.Broker.Streams["T1_WP_LOG"].MaxAge.ShouldBe(TimeSpan.FromDays(3));
         _harness.Broker.Streams["T1_WP_LOG"].MaxBytes.ShouldBe(5 * Gb);
 
@@ -119,7 +116,7 @@ public sealed class StreamProvisionerTests : IDisposable
         _harness.Broker.ManagementCalls.Clear();
         var changed = PipelineOptions.FromConfiguration(Configuration(
             ("Log:Retention", "P10D"), ("Log:MaxBytes", "8589934592"), ("Log:SubjectPrefix", "t1.wp"), ("Log:StreamPrefix", "T1_")));
-        await Provisioner(changed).ExecuteAsync(Ct);
+        await Provisioner(changed).EnsureStreamsAsync(Ct);
         _harness.Broker.Streams["T1_WP_LOG"].MaxAge.ShouldBe(TimeSpan.FromDays(10));
         _harness.Broker.Streams["T1_WP_LOG"].MaxBytes.ShouldBe(8 * Gb);
         _harness.Broker.ManagementCalls.ShouldBe(["get T1_WP_CFG", "get T1_WP_SYS", "get T1_WP_LOG", "update T1_WP_LOG"]);
@@ -128,7 +125,7 @@ public sealed class StreamProvisionerTests : IDisposable
         // JetStream reserves the size of a stream: with less storage than configured the size is halved until it fits.
         using var small = new PipelineHarness();
         small.Broker.StorageLimit = 10 * Gb;
-        await new StreamProvisioner(small.Broker, small.Options, small.Time, small.Logger("test").As<StreamProvisioner>()).ExecuteAsync(Ct);
+        await new StreamProvisioner(small.Broker, small.Options, small.Time, small.Logger("test").As<StreamProvisioner>()).EnsureStreamsAsync(Ct);
         small.Broker.Streams["T1_WP_LOG"].MaxBytes.ShouldBe(5 * Gb);
         small.Broker.Streams["T1_WP_CFG"].MaxBytes.ShouldBe(2 * Gb);
         var reduced = small.Logs.WithEventId(1604).ShouldHaveSingleItem();
