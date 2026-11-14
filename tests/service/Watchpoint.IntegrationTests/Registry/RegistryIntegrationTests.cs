@@ -15,6 +15,7 @@ using Watchpoint.Registry;
 using Watchpoint.Registry.Contracts;
 using Watchpoint.Storage.Contracts;
 using Watchpoint.Storage.Postgres;
+using Watchpoint.Testing.Async;
 using Watchpoint.Testing.Containers;
 using Watchpoint.Testing.Logging;
 using Watchpoint.Testing.Time;
@@ -356,9 +357,19 @@ public sealed class RegistryIntegrationTests(PostgresContainerFixture postgres) 
         sw.Stop();
 
         reloadNode.Reader.QueryDevices(new DeviceQuery(), new PageRequest(10)).Items.Count.ShouldBe(10);
-        // CI measurement target: < 3 s
-        sw.Elapsed.TotalSeconds.ShouldBeLessThan(10.0);
+        var limit = SnapshotLoadLimit(Environment.GetEnvironmentVariable);
+        TestContext.Current.TestOutputHelper?.WriteLine(
+            $"REG-I-009 50,000-device snapshot load = {sw.Elapsed.TotalMilliseconds:0} ms (limit {limit.TotalMilliseconds:0} ms)");
+        sw.Elapsed.ShouldBeLessThan(limit);
     }
+
+    /// <summary>
+    /// REG-I-009 limit (REG §14): the spec's 3 s on a developer machine or in benchmark runs; a 10 s ceiling on shared
+    /// CI runners (<see cref="TimingLimits"/>), where the measurement is only a warning. The ceiling still catches a load
+    /// that is an order of magnitude too slow (e.g. one query per device).
+    /// </summary>
+    internal static TimeSpan SnapshotLoadLimit(Func<string, string?> environment) =>
+        TimingLimits.For(TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(10), environment);
 
     private async Task<PostgresDatabase> DatabaseAsync(string name)
     {
