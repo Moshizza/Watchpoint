@@ -117,6 +117,10 @@ dotnet_diagnostic.CA1515.severity = none
 # Test methods are named by test id (WP0002), so async tests do not end with "Async"
 dotnet_naming_rule.async_methods_end_with_async.severity = none
 
+# Connector conformance suite: test methods shipped in a library, named by test id like tests/**
+[src/integrations/Watchpoint.Integration.Testing/ConnectorConformanceTests.cs]
+dotnet_naming_rule.async_methods_end_with_async.severity = none
+
 # Generated code
 [**/{obj,bin,Migrations}/**/*.cs]
 generated_code = true

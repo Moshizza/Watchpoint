@@ -42,19 +42,19 @@ public sealed record ParameterSchema
         return errors;
     }
 
-    private static readonly HashSet<string> AllowedTopKeywords =
+    private static readonly HashSet<string> _allowedTopKeywords =
     [
         "type", "properties", "required", "x-wp-ui"
     ];
 
-    private static readonly HashSet<string> AllowedFieldKeywords =
+    private static readonly HashSet<string> _allowedFieldKeywords =
     [
         "type", "enum", "default", "minimum", "maximum", "minLength", "maxLength",
         "pattern", "format", "items", "maxItems", "minItems", "required", "properties",
         "entity", "deviceCategory", "deviceType", "capability"
     ];
 
-    private static readonly HashSet<string> AllowedTypes =
+    private static readonly HashSet<string> _allowedTypes =
     [
         "string", "integer", "number", "boolean", "duration", "timestamp", "entityRef", "array", "object"
     ];
@@ -74,16 +74,16 @@ public sealed record ParameterSchema
 
             if (depth == 0)
             {
-                if (!AllowedTopKeywords.Contains(prop.Name))
+                if (!_allowedTopKeywords.Contains(prop.Name))
                 {
-                    errors.Add(CommonErrors.NotAllowedAt(propPath, [.. AllowedTopKeywords]));
+                    errors.Add(CommonErrors.NotAllowedAt(propPath, [.. _allowedTopKeywords]));
                 }
             }
             else
             {
-                if (!AllowedFieldKeywords.Contains(prop.Name))
+                if (!_allowedFieldKeywords.Contains(prop.Name))
                 {
-                    errors.Add(CommonErrors.NotAllowedAt(propPath, [.. AllowedFieldKeywords]));
+                    errors.Add(CommonErrors.NotAllowedAt(propPath, [.. _allowedFieldKeywords]));
                 }
             }
 
@@ -144,18 +144,18 @@ public sealed record ParameterSchema
         {
             if (prop.Name.StartsWith("x-", StringComparison.Ordinal)) continue;
 
-            if (!AllowedFieldKeywords.Contains(prop.Name))
+            if (!_allowedFieldKeywords.Contains(prop.Name))
             {
-                errors.Add(CommonErrors.NotAllowedAt(fieldPath + "/" + prop.Name, [.. AllowedFieldKeywords]));
+                errors.Add(CommonErrors.NotAllowedAt(fieldPath + "/" + prop.Name, [.. _allowedFieldKeywords]));
             }
         }
 
         if (fieldElem.TryGetProperty("type", out var typeProp))
         {
             string? typeStr = typeProp.GetString();
-            if (typeStr == null || !AllowedTypes.Contains(typeStr))
+            if (typeStr == null || !_allowedTypes.Contains(typeStr))
             {
-                errors.Add(CommonErrors.NotAllowedAt(fieldPath + "/type", [.. AllowedTypes]));
+                errors.Add(CommonErrors.NotAllowedAt(fieldPath + "/type", [.. _allowedTypes]));
             }
 
             if (typeStr == "object")

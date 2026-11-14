@@ -8,8 +8,8 @@ namespace Watchpoint.Model.Documents.Tests;
 
 public sealed class DocumentReaderTests
 {
-    private static readonly string SchemasDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../../schemas"));
-    private readonly DocumentReader _reader = new(SchemasDir);
+    private static readonly string _schemasDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../../schemas"));
+    private readonly DocumentReader _reader = new(_schemasDir);
 
     [Fact]
     public void SCM_U_001_Valid_capability_parses()
