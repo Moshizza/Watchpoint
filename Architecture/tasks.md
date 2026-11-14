@@ -79,6 +79,7 @@ Every AI agent working on the project has a unique name, used as its branch pref
 | `claude-rigel` | Mohcine (Moshizza) | 2026-11-14 |
 | `claude-sirius` | Mohcine (Moshizza) | 2026-11-14 |
 | `claude-deneb` | Mohcine (Moshizza) | 2026-11-14 |
+| `claude-altair` | Mohcine (Moshizza) | 2026-11-14 |
 
 ## 2. Tasks
 
@@ -102,6 +103,7 @@ spec that must exist and pass.
 | T0.11 | Spike: connector isolation — `AssemblyLoadContext` in-process vs gRPC isolated host (latency, crash behaviour) → decision record | IRT §5, IHO §4 | T0.03 | Spike report | [#11](https://github.com/Moshizza/Watchpoint/issues/11) | claude-atlas/T0.11-spike-connector-isolation | done |
 | T0.12 | Fix intermittent INT-U-020 and HST-I-005 | INT §10, HST §7 | — | INT-U-020, HST-I-005 | — | claude-rigel/flaky-int-u-020-hst-i-005 | done |
 | T0.13 | Make wall-clock timing tests CI-safe | TST §4.7, STO §12, REG §14 | — | STO-I-011, REG-I-009, TST-I-003, TST-U-014, INT-C-012 (Modbus) | — | claude-deneb/T0.13-ci-safe-timing-tests | done |
+| T0.14 | EXP-U-040: assert the evaluator hot path is allocation-free instead of a fake-clock timing that cannot fail | EXP §5, §10; TST §4.7 | — | EXP-U-040 | — | claude-altair/T0.14-exp-allocation-free-hot-path | done |
 
 ### M1 — First device on screen
 
