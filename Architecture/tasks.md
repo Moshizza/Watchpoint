@@ -75,6 +75,7 @@ Every AI agent working on the project has a unique name, used as its branch pref
 | `claude-orion` | Mohcine (Moshizza) | 2026-11-07 |
 | `jules-3` | Mohcine (Moshizza) | 2026-11-09 |
 | `claude-vega` | Mohcine (Moshizza) | 2026-11-10 |
+| `claude-sirius` | Mohcine (Moshizza) | 2026-11-14 |
 
 ## 2. Tasks
 
@@ -120,6 +121,7 @@ spec that must exist and pass.
 | T1.17 | Simulator connector (types, scenarios, random and scripted changes, commands with configurable outcomes) | C-SIM | T1.14 | SIM-U-001…SIM-U-030, SIM-I-002, SIM-I-003 | [#28](https://github.com/Moshizza/Watchpoint/issues/28) | jules-2365140055605449599-7f8a9063 | done |
 | T1.17b | Simulator, Modbus and MQTT end-to-end tests | C-SIM, C-MODBUS, C-MQTT | T1.16, T1.07, T1.09, T4.05, T4.06 | SIM-I-001, SIM-I-004, SIM-I-005, MODB-I-002, MQTT-I-004 | — | — | todo |
 | T1.18 | Identity minimal: local users, Argon2id, sign-in, access/refresh tokens, bootstrap admin, session registry | IDN §4–§7 | T1.04 | IDN-U-001…IDN-U-030, IDN-I-001…IDN-I-006 | [#29](https://github.com/Moshizza/Watchpoint/issues/29) | jules-14674020379193774426-43566f4b | done |
+| T1.18r | Identity security review and fixes (T1.18 code) | IDN §4–§7 | T1.18 | IDN-U-*, IDN-I-*, new tests | — | claude-sirius/T1.18r-identity-security-review | in progress |
 | T1.19 | API: REST framework (problem details, paging, ETag, idempotency, permission filter, OpenAPI) + endpoints for registry, state, connections, types, dev seed | API §4–§7 | T1.11, T1.16, T1.18 | API-U-001…API-U-030, API-I-001…API-I-015, REG-I-008, REG-I-010 | [#30](https://github.com/Moshizza/Watchpoint/issues/30) | — | todo |
 | T1.20 | API: live hub (subscriptions, snapshots + deltas, sequences, resume, coalescing, limits) | API §8–§10 | T1.19 | API-U-031…API-U-055, API-I-016…API-I-025 | [#31](https://github.com/Moshizza/Watchpoint/issues/31) | — | todo |
 | T1.21 | UI core: generated API client, live connection client, model package | UIC §4–§6 | T1.20, T0.08 | UIC-U-004…UIC-U-030 | [#32](https://github.com/Moshizza/Watchpoint/issues/32) | — | todo |
