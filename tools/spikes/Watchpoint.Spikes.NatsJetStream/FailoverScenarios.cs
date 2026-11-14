@@ -12,7 +12,7 @@ internal sealed record LeaderLossResult(TimeSpan LeaseOutage, TimeSpan LogOutage
 
 internal static class FailoverScenarios
 {
-    private static readonly TimeSpan OpTimeout = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan _opTimeout = TimeSpan.FromSeconds(1);
     private const string LeaseKey = "partition.17";
 
     private sealed class Timeline
@@ -96,28 +96,28 @@ internal static class FailoverScenarios
 
         var newKvLeader = await LeaderAsync(new NatsJSContext(client), "KV_" + KvScenarios.Bucket).ConfigureAwait(false);
         var newLogLeader = await LeaderAsync(new NatsJSContext(client), LogScenarios.Stream).ConfigureAwait(false);
-        Detail(detail, report,"Killed node", string.Create(CultureInfo.InvariantCulture,
+        Detail(detail, report, "Killed node", string.Create(CultureInfo.InvariantCulture,
             $"{kvLeader} (leader of `KV_wp_leases`; `WP_LOG` leader was {logLeader}); clients connected to {NatsCluster.NodeName(survivor)}; new leaders: KV {newKvLeader}, log {newLogLeader}"));
-        Detail(detail, report,"Failed operations after the kill", string.Create(CultureInfo.InvariantCulture,
+        Detail(detail, report, "Failed operations after the kill", string.Create(CultureInfo.InvariantCulture,
             $"renewals {leases.Ops.Count(o => !o.Ok && o.At > killedAt)}, appends {log.Ops.Count(o => !o.Ok && o.At > killedAt)}"));
-        Detail(detail, report,"Lease renewals (every 100 ms, 1 s timeout): longest gap between successes", Report.Ms(leases.OutageAfter(killedAt).TotalMilliseconds));
-        Detail(detail, report,"Lease renewals: timed out but actually committed (resolved by re-reading the key)",
+        Detail(detail, report, "Lease renewals (every 100 ms, 1 s timeout): longest gap between successes", Report.Ms(leases.OutageAfter(killedAt).TotalMilliseconds));
+        Detail(detail, report, "Lease renewals: timed out but actually committed (resolved by re-reading the key)",
             leases.Ambiguous.ToString(CultureInfo.InvariantCulture));
-        Detail(detail, report,"Lease renewals: lost to another writer (must be 0)", leases.Lost.ToString(CultureInfo.InvariantCulture));
-        Detail(detail, report,"Log appends (sequential, 1 s timeout, retry same `Nats-Msg-Id`): longest gap", Report.Ms(log.OutageAfter(killedAt).TotalMilliseconds));
-        Detail(detail, report,"Log appends: retries", log.Retries.ToString(CultureInfo.InvariantCulture));
+        Detail(detail, report, "Lease renewals: lost to another writer (must be 0)", leases.Lost.ToString(CultureInfo.InvariantCulture));
+        Detail(detail, report, "Log appends (sequential, 1 s timeout, retry same `Nats-Msg-Id`): longest gap", Report.Ms(log.OutageAfter(killedAt).TotalMilliseconds));
+        Detail(detail, report, "Log appends: retries", log.Retries.ToString(CultureInfo.InvariantCulture));
 
         // Every acknowledged record must be in the log exactly once.
         var (present, duplicates) = await ReadIdsAsync(new NatsJSContext(admin)).ConfigureAwait(false);
         var missing = acked.Keys.Count(id => !present.Contains(id));
-        Detail(detail, report,"Acknowledged records after failover", string.Create(CultureInfo.InvariantCulture,
+        Detail(detail, report, "Acknowledged records after failover", string.Create(CultureInfo.InvariantCulture,
             $"{acked.Count:N0} acked, {missing} missing, {duplicates} duplicated record ids in the stream"));
 
         var restartedAt = Stopwatch.StartNew();
         cluster.Start(victim);
         await cluster.WaitReadyAsync().ConfigureAwait(false);
         var caughtUp = await WaitReplicasCurrentAsync(new NatsJSContext(admin), LogScenarios.Stream, TimeSpan.FromSeconds(60)).ConfigureAwait(false);
-        Detail(detail, report,"Restarted node: process start → `WP_LOG` replicas all current",
+        Detail(detail, report, "Restarted node: process start → `WP_LOG` replicas all current",
             caughtUp ? Report.Ms(restartedAt.Elapsed.TotalMilliseconds) : "not current after 60 s");
         return new LeaderLossResult(leases.OutageAfter(killedAt), log.OutageAfter(killedAt), missing + duplicates, leases.Lost,
             caughtUp ? restartedAt.Elapsed : TimeSpan.MaxValue);
@@ -198,7 +198,7 @@ internal static class FailoverScenarios
             var value = KvScenarios.Value("A", attempt);
             try
             {
-                using var cts = new CancellationTokenSource(OpTimeout);
+                using var cts = new CancellationTokenSource(_opTimeout);
                 var r = await kv.TryUpdateAsync(LeaseKey, value, rev, cancellationToken: cts.Token).ConfigureAwait(false);
                 if (r.Success)
                 {
@@ -211,7 +211,7 @@ internal static class FailoverScenarios
                     if (r.Error is NatsKVWrongLastRevisionException)
                     {
                         // An earlier attempt timed out on our side but was committed: adopt its revision if it is ours.
-                        using var cts2 = new CancellationTokenSource(OpTimeout);
+                        using var cts2 = new CancellationTokenSource(_opTimeout);
                         var entry = await kv.GetEntryAsync<string>(LeaseKey, cancellationToken: cts2.Token).ConfigureAwait(false);
                         if (entry.Value is { } v && v.Contains("\"owner\":\"A\"", StringComparison.Ordinal))
                         {
@@ -253,7 +253,7 @@ internal static class FailoverScenarios
             {
                 try
                 {
-                    using var cts = new CancellationTokenSource(OpTimeout);
+                    using var cts = new CancellationTokenSource(_opTimeout);
                     var ack = await js.PublishAsync(LogScenarios.Subject(p), data, opts: new NatsJSPubOpts { MsgId = id.ToString() },
                         cancellationToken: cts.Token).ConfigureAwait(false);
                     ack.EnsureSuccess();
@@ -336,7 +336,7 @@ internal static class FailoverScenarios
     public static async Task<NatsConnection> ConnectAsync(string urls, bool fast = false)
     {
         var opts = fast
-            ? NatsOpts.Default with { Url = urls, RequestTimeout = OpTimeout, ConnectTimeout = OpTimeout }
+            ? NatsOpts.Default with { Url = urls, RequestTimeout = _opTimeout, ConnectTimeout = _opTimeout }
             : NatsOpts.Default with { Url = urls, RequestTimeout = TimeSpan.FromSeconds(10) };
         var c = new NatsConnection(opts);
         await c.ConnectAsync().ConfigureAwait(false);

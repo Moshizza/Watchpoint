@@ -9,8 +9,8 @@ namespace Watchpoint.Host;
 /// </summary>
 public sealed class StartupOrchestrator : IHostedLifecycleService
 {
-    private static readonly Meter HostMeter = new("Watchpoint.Host");
-    private static readonly Histogram<double> StartupDuration = HostMeter.CreateHistogram<double>(
+    private static readonly Meter _hostMeter = new("Watchpoint.Host");
+    private static readonly Histogram<double> _startupDuration = _hostMeter.CreateHistogram<double>(
         "watchpoint.host.startup.duration",
         "ms",
         "Duration of startup tasks");
@@ -95,7 +95,7 @@ public sealed class StartupOrchestrator : IHostedLifecycleService
                 }
 
                 var durationMs = (long)_timeProvider.GetElapsedTime(taskStart).TotalMilliseconds;
-                StartupDuration.Record(durationMs, new KeyValuePair<string, object?>("task", task.Name));
+                _startupDuration.Record(durationMs, new KeyValuePair<string, object?>("task", task.Name));
                 HostingLog.LogStartupTaskCompleted(_logger, task.Name, durationMs);
             }
 

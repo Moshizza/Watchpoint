@@ -31,7 +31,7 @@ public static class Program
 
     /// <summary>Readiness reason when the <c>storage</c> health check is unhealthy (HST §6.2).</summary>
     public const string DatabaseReason = "database";
-    private static readonly JsonSerializerOptions IndentedJsonOptions = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions _indentedJsonOptions = new() { WriteIndented = true };
 
     /// <summary>
     /// Configures the application configuration builder with all settings sources in precedence order.
@@ -491,7 +491,7 @@ public static class Program
             nodeObj["Id"] = id.ToString();
         }
 
-        File.WriteAllText(path, JsonSerializer.Serialize(root, IndentedJsonOptions));
+        File.WriteAllText(path, JsonSerializer.Serialize(root, _indentedJsonOptions));
     }
 
     private static bool IsPrivilegedProcess()
