@@ -15,6 +15,7 @@ internal static class UnixNative
     public const short POSIX_SPAWN_SETPGROUP = 0x02;
     public const short POSIX_SPAWN_SETSIGDEF = 0x04;
     public const short POSIX_SPAWN_SETSIGMASK = 0x08;
+    public const short POSIX_SPAWN_CLOEXEC_DEFAULT_MACOS = 0x4000;
 #pragma warning restore SA1310, CA1707
 
     private const string Libc = "libc";
@@ -46,6 +47,15 @@ internal static class UnixNative
     [DllImport(Libc, EntryPoint = "posix_spawn_file_actions_addopen")]
     [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
     public static extern int FileActionsAddOpen(nint fileActions, int fd, nint path, int flags, uint mode);
+
+    [DllImport(Libc, EntryPoint = "posix_spawn_file_actions_addclose")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
+    public static extern int FileActionsAddClose(nint fileActions, int fd);
+
+    /// <summary>glibc 2.34 and later; absent from musl and macOS (<see cref="EntryPointNotFoundException"/>).</summary>
+    [DllImport(Libc, EntryPoint = "posix_spawn_file_actions_addclosefrom_np")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
+    public static extern int FileActionsAddCloseFrom(nint fileActions, int fromFd);
 
     [DllImport(Libc, EntryPoint = "posix_spawn_file_actions_addchdir_np")]
     [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]

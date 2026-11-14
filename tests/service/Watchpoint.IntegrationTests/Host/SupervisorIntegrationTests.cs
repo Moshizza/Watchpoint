@@ -206,6 +206,17 @@ public sealed class SupervisorIntegrationTests
         {
             await using var supervisor = new Supervisor(new SupervisorOptions { RunDirectory = Path.Combine(data, "run") }, loggerFactory);
 
+            // The child inherits nothing but stdin, stdout and stderr, even a descriptor that is inheritable when
+            // it is started (another thread starting a process has such descriptors for a moment; a child holding
+            // one would keep the reader of that pipe waiting for as long as it lives).
+            using (var inheritable = new System.IO.Pipes.AnonymousPipeServerStream(System.IO.Pipes.PipeDirection.In, HandleInheritability.Inheritable))
+            {
+                var quiet = await supervisor.StartAsync(
+                    new ProcessSpec { Name = "quiet", Executable = "/bin/sleep", Arguments = ["600"] }, Ct).WaitAsync(_limit, Ct);
+                Directory.EnumerateFileSystemEntries($"/proc/{quiet.Pid}/fd").Select(Path.GetFileName).Order().ShouldBe(["0", "1", "2"]);
+                await quiet.StopAsync(Ct).WaitAsync(_limit, Ct);
+            }
+
             // A chatty child: 20,000 lines are read to the last one (the readiness line comes after them) although
             // only 1,024 may wait for the logger; what is not logged is counted.
             var chatty = await supervisor.StartAsync(

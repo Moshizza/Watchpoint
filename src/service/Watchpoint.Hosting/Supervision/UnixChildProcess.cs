@@ -65,6 +65,11 @@ internal sealed class UnixChildProcess : IChildProcess
                 Check(UnixNative.FileActionsAddChdir(fileActions, AllocString(spec.WorkingDirectory, allocations)), "addchdir");
             }
 
+            // Nothing else is inherited. Other threads open descriptors that are inheritable for a moment (the
+            // runtime's own Process.Start does, under a lock this code cannot take): a child holding the write
+            // end of someone else's pipe would keep that pipe's reader waiting for as long as the child lives.
+            var closeOnExecByDefault = AddCloseInherited(fileActions);
+
             // New process group (pgid = child pid); default handling for the signals the .NET runtime ignores or
             // handles, and nothing blocked, whatever thread spawns.
             Check(UnixNative.SigEmptySet(signals), "sigemptyset");
@@ -82,7 +87,8 @@ internal sealed class UnixChildProcess : IChildProcess
             Check(
                 UnixNative.AttrSetFlags(
                     attributes,
-                    UnixNative.POSIX_SPAWN_SETPGROUP | UnixNative.POSIX_SPAWN_SETSIGDEF | UnixNative.POSIX_SPAWN_SETSIGMASK),
+                    (short)(UnixNative.POSIX_SPAWN_SETPGROUP | UnixNative.POSIX_SPAWN_SETSIGDEF | UnixNative.POSIX_SPAWN_SETSIGMASK
+                        | (closeOnExecByDefault ? UnixNative.POSIX_SPAWN_CLOEXEC_DEFAULT_MACOS : 0))),
                 "setflags");
 
             var error = UnixNative.PosixSpawn(out var pid, path, fileActions, attributes, argv, envp);
@@ -130,6 +136,41 @@ internal sealed class UnixChildProcess : IChildProcess
         _stdout.Dispose();
         _stderr.Dispose();
         return ValueTask.CompletedTask;
+    }
+
+    /// <summary>
+    /// Makes the child keep only descriptors 0–2. glibc ≥ 2.34: <c>closefrom(3)</c> in the child. macOS: the
+    /// close-on-exec-by-default flag (returns <see langword="true"/>). Otherwise (musl, old glibc): a close action
+    /// for every descriptor open now, which leaves only the instant between this listing and the spawn.
+    /// </summary>
+    private static bool AddCloseInherited(nint fileActions)
+    {
+        if (OperatingSystem.IsMacOS())
+        {
+            return true;
+        }
+
+        try
+        {
+            Check(UnixNative.FileActionsAddCloseFrom(fileActions, 3), "addclosefrom");
+            return false;
+        }
+        catch (EntryPointNotFoundException)
+        {
+            // Fall through to the listing.
+        }
+
+        foreach (var entry in Directory.EnumerateFileSystemEntries("/proc/self/fd"))
+        {
+            if (int.TryParse(Path.GetFileName(entry), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var fd)
+                && fd > 2)
+            {
+                // A descriptor closed in the meantime is not an error for the child (EBADF is ignored).
+                Check(UnixNative.FileActionsAddClose(fileActions, fd), "addclose");
+            }
+        }
+
+        return false;
     }
 
     private static void Check(int error, string call)
