@@ -28,6 +28,9 @@ internal static class NatsServerBinary
 
     private static readonly SemaphoreSlim Gate = new(1, 1);
 
+    /// <summary>The pinned archives: asset suffix → SHA-256.</summary>
+    public static IReadOnlyDictionary<string, string> PinnedArchives => Archives.Values.ToDictionary(a => a.Asset, a => a.Sha256);
+
     public static string FileName => OperatingSystem.IsWindows() ? "nats-server.exe" : "nats-server";
 
     /// <summary>

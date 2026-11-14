@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting.Systemd;
 using Serilog;
+using Watchpoint.Host.Dev;
 using Watchpoint.Host.Nats;
 using Watchpoint.Hosting;
 using Watchpoint.Hosting.Supervision;
@@ -234,6 +235,13 @@ public static class Program
         if (settings.Nats.Mode == NatsMode.Bundled)
         {
             builder.Services.AddStartupTask<BundledNatsStartupTask>();
+        }
+
+        // Development seed (spec HST §9): refused outside Development by the task itself (HST1140).
+        if (!string.IsNullOrWhiteSpace(settings.Dev.SeedFile))
+        {
+            builder.Services.AddSingleton<IDevSeedStep, UsersDevSeedStep>();
+            builder.Services.AddStartupTask<DevSeedStartupTask>();
         }
 
         builder.Services.AddHealthChecks();

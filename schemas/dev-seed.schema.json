@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.watchpoint.dev/dev-seed/1.json",
+  "title": "Watchpoint Development Seed Document Schema",
+  "description": "Objects created at the first start of a Development node (spec HST §9). Never used in Production.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["site"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "site": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "timeZone"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "timeZone": { "type": "string", "minLength": 1, "maxLength": 64 }
+      }
+    },
+    "locations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "name", "kind"],
+        "properties": {
+          "key": { "$ref": "#/$defs/key" },
+          "parent": { "$ref": "#/$defs/key" },
+          "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "kind": { "enum": ["site", "building", "floor", "zone", "room", "outdoor"] }
+        }
+      }
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["family", "key", "name"],
+        "properties": {
+          "family": { "$ref": "#/$defs/key" },
+          "key": { "$ref": "#/$defs/key" },
+          "name": { "type": "string", "minLength": 1, "maxLength": 200 }
+        }
+      }
+    },
+    "users": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["login", "password"],
+        "properties": {
+          "login": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "password": { "type": "string", "minLength": 1, "maxLength": 256 },
+          "displayName": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "administrator": { "type": "boolean" }
+        }
+      }
+    },
+    "connections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["package", "serverType", "name"],
+        "properties": {
+          "package": { "type": "string", "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9-]*){1,5}$", "maxLength": 128 },
+          "serverType": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "location": { "$ref": "#/$defs/key" },
+          "settings": { "type": "object" },
+          "secrets": { "type": "object", "additionalProperties": { "type": "string" } },
+          "autoImport": { "type": "boolean" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "key": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$" }
+  }
+}
