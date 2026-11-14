@@ -12,7 +12,7 @@ namespace Watchpoint.Integration.Simulator.Tests;
 
 public sealed class RemoteSimulatorTests
 {
-    private static readonly TimeProvider Clock = TimeProvider.System;
+    private static readonly TimeProvider _clock = TimeProvider.System;
 
     [Fact]
     public async Task SIM_I_002_Remote_mode_against_wpsim()
@@ -40,7 +40,7 @@ public sealed class RemoteSimulatorTests
             await connector.InitializeAsync(context, ct);
             await connector.StartAsync(ct);
 
-            await Task.Delay(TimeSpan.FromMilliseconds(200), Clock, ct);
+            await Task.Delay(TimeSpan.FromMilliseconds(200), _clock, ct);
 
             using var client = new HttpClient { BaseAddress = new Uri(address) };
             var injectResp = await client.PostAsJsonAsync("/control/inject", new
@@ -50,7 +50,7 @@ public sealed class RemoteSimulatorTests
             }, ct);
             injectResp.IsSuccessStatusCode.ShouldBeTrue();
 
-            await Task.Delay(TimeSpan.FromMilliseconds(200), Clock, ct);
+            await Task.Delay(TimeSpan.FromMilliseconds(200), _clock, ct);
 
             context.Sink.Properties.Any(p => p.Device.NativeId == "door-0001" && p.PropertyPath == "doorPosition.position").ShouldBeTrue();
 
@@ -90,12 +90,12 @@ public sealed class RemoteSimulatorTests
             await connector.InitializeAsync(context, ct);
             await connector.StartAsync(ct);
 
-            await Task.Delay(TimeSpan.FromMilliseconds(150), Clock, ct);
+            await Task.Delay(TimeSpan.FromMilliseconds(150), _clock, ct);
 
             using var client = new HttpClient { BaseAddress = new Uri(address) };
 
             await client.PostAsync("/control/drop", null, ct);
-            await Task.Delay(TimeSpan.FromMilliseconds(150), Clock, ct);
+            await Task.Delay(TimeSpan.FromMilliseconds(150), _clock, ct);
 
             for (int i = 1; i <= 5; i++)
             {
@@ -110,10 +110,10 @@ public sealed class RemoteSimulatorTests
             var reconnected = new SimulatorConnector();
             await reconnected.InitializeAsync(context, ct);
             await reconnected.StartAsync(ct);
-            await Task.Delay(TimeSpan.FromMilliseconds(200), Clock, ct);
+            await Task.Delay(TimeSpan.FromMilliseconds(200), _clock, ct);
 
             await reconnected.CatchUpAsync(ct);
-            await Task.Delay(TimeSpan.FromMilliseconds(250), Clock, ct);
+            await Task.Delay(TimeSpan.FromMilliseconds(250), _clock, ct);
 
             for (int i = 1; i <= 5; i++)
             {

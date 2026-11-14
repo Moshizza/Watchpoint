@@ -172,9 +172,9 @@ public abstract class ConnectorConformanceTests<TConnector> where TConnector : I
         await connector.InitializeAsync(context, CancellationToken.None);
 
         await connector.StartAsync(CancellationToken.None);
-        await Task.Yield();
 
-        context.Health.History.Any(h => h.Status == ConnectionStatus.Connected).ShouldBeTrue("Health must report Connected status when simulator is up");
+        await WaitForHealthAsync(context, h => h.History.Any(r => r.Status == ConnectionStatus.Connected),
+            "Health must report Connected status when simulator is up");
 
         await connector.StopAsync(CancellationToken.None);
     }
@@ -658,11 +658,12 @@ public abstract class ConnectorConformanceTests<TConnector> where TConnector : I
 
         await connector1.StartAsync(CancellationToken.None);
         await connector2.StartAsync(CancellationToken.None);
+        await WaitForHealthAsync(context2, h => h.Status == ConnectionStatus.Connected, "the second connector must connect to its own simulator");
 
         await sim1.DropConnectionAsync();
         await Task.Yield();
 
-        context2.Health.Status.ShouldBe(ConnectionStatus.Connected);
+        context2.Health.Status.ShouldBe(ConnectionStatus.Connected, "dropping the first simulator must not affect the second connector");
 
         await connector1.StopAsync(CancellationToken.None);
         await connector2.StopAsync(CancellationToken.None);
@@ -1041,4 +1042,25 @@ public abstract class ConnectorConformanceTests<TConnector> where TConnector : I
     }
 
     private static bool connectorIsNot<TFeature>() => !typeof(TFeature).IsAssignableFrom(typeof(TConnector));
+
+    /// <summary>
+    /// Waits (real clock, 20 ms polls, 5 s at most) until <paramref name="condition"/> holds for the context's health:
+    /// connectors connect in the background after <c>StartAsync</c>, so a single yield is not enough to observe it.
+    /// </summary>
+    /// <param name="context">Context whose health is observed.</param>
+    /// <param name="condition">Condition on the recorded health.</param>
+    /// <param name="because">Failure message when the condition does not hold in time.</param>
+    protected static async Task WaitForHealthAsync(TestConnectorContext context, Func<TestConnectionHealth, bool> condition, string because)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(condition);
+        var clock = TimeProvider.System;
+        var started = clock.GetTimestamp();
+        while (!condition(context.Health) && clock.GetElapsedTime(started) < TimeSpan.FromSeconds(5))
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(20), clock, TestContext.Current.CancellationToken);
+        }
+
+        condition(context.Health).ShouldBeTrue(because);
+    }
 }

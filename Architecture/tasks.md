@@ -74,6 +74,7 @@ Every AI agent working on the project has a unique name, used as its branch pref
 | `jules-1` | Mohcine (Moshizza) | 2026-11-05 |
 | `claude-orion` | Mohcine (Moshizza) | 2026-11-07 |
 | `jules-3` | Mohcine (Moshizza) | 2026-11-09 |
+| `claude-vega` | Mohcine (Moshizza) | 2026-11-14 |
 
 ## 2. Tasks
 

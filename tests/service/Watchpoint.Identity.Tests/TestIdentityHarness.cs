@@ -14,7 +14,8 @@ namespace Watchpoint.Identity.Tests;
 
 internal sealed class TestIdentityHarness : IDisposable
 {
-    private readonly SqliteConnection _connection;
+    // Keeps the shared in-memory database alive; contexts open their own connections to it.
+    private readonly SqliteConnection _keepAlive;
 
     public Microsoft.Extensions.Time.Testing.FakeTimeProvider Clock { get; }
     public IDbContextFactory<IdentityDbContext> DbFactory { get; }
@@ -33,11 +34,15 @@ internal sealed class TestIdentityHarness : IDisposable
     public TestIdentityHarness(Microsoft.Extensions.Time.Testing.FakeTimeProvider? clock = null, PasswordPolicyOptions? policyOptions = null)
     {
         Clock = clock ?? TestTime.CreateProvider();
-        _connection = new SqliteConnection("DataSource=:memory:");
-        _connection.Open();
+        // One connection per context, to a named shared-cache in-memory database: SessionRegistry.Touch persists on a
+        // background task, and two contexts sharing one SqliteConnection fail with "unable to delete/modify
+        // user-function due to active statements" when that write overlaps the test's own query.
+        var connectionString = $"Data Source=file:identity-{Guid.NewGuid():N}?mode=memory&cache=shared";
+        _keepAlive = new SqliteConnection(connectionString);
+        _keepAlive.Open();
 
         var options = new DbContextOptionsBuilder<IdentityDbContext>()
-            .UseSqlite(_connection)
+            .UseSqlite(connectionString)
             .Options;
 
         var info = new StorageContextInfo("Identity", StorageNaming.TablePrefixes, Clock);
@@ -68,7 +73,7 @@ internal sealed class TestIdentityHarness : IDisposable
     public void Dispose()
     {
         KeyRing.Dispose();
-        _connection.Dispose();
+        _keepAlive.Dispose();
     }
 
     private sealed class SimpleDbContextFactory(Func<IdentityDbContext> factory) : IDbContextFactory<IdentityDbContext>

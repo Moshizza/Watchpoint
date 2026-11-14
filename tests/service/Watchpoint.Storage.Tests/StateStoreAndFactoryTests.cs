@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Logging;
 using Shouldly;
 using Watchpoint.Kernel.Ids;
 using Watchpoint.Kernel.Text;
@@ -13,7 +14,6 @@ using Watchpoint.Storage.Postgres;
 using Watchpoint.Testing.Logging;
 using Watchpoint.Testing.Time;
 using Xunit;
-using Microsoft.Extensions.Logging;
 
 namespace Watchpoint.Storage.Tests;
 

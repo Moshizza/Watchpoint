@@ -10,7 +10,7 @@ namespace Watchpoint.Hosting;
 /// </summary>
 public sealed class RedactionEnricher : ILogEventEnricher
 {
-    private static readonly Regex SensitiveRegex = new(
+    private static readonly Regex _sensitiveRegex = new(
         @"(?i)(password|secret|token|apikey|authorization|cookie)",
         RegexOptions.Compiled);
 
@@ -23,7 +23,7 @@ public sealed class RedactionEnricher : ILogEventEnricher
         var sensitiveKeys = new List<string>();
         foreach (var property in logEvent.Properties)
         {
-            if (SensitiveRegex.IsMatch(property.Key))
+            if (_sensitiveRegex.IsMatch(property.Key))
             {
                 sensitiveKeys.Add(property.Key);
             }

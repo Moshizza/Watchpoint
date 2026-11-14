@@ -347,7 +347,15 @@ public sealed class MqttConnector : ConnectorBase, ICommandExecutor
             _session.Client.ApplicationMessageReceivedAsync -= OnApplicationMessageReceivedAsync;
             if (_session.Client.IsConnected)
             {
-                await _session.Client.DisconnectAsync(new MqttClientDisconnectOptions(), ct).ConfigureAwait(false);
+                try
+                {
+                    await _session.Client.DisconnectAsync(new MqttClientDisconnectOptions(), ct).ConfigureAwait(false);
+                }
+                catch (MQTTnet.Exceptions.MqttCommunicationException)
+                {
+                    // The broker dropped the socket between the IsConnected check and the DISCONNECT packet (broken
+                    // pipe): the session is already gone, which is what stopping wants (INT-C-007).
+                }
             }
         }
     }
