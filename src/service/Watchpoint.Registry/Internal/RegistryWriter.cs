@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Watchpoint.Kernel.Ids;
 using Watchpoint.Kernel.Results;
+using Watchpoint.Kernel.Time;
 using Watchpoint.Model.Contracts;
 using Watchpoint.Registry.Contracts;
 using Watchpoint.Registry.Internal.Storage;
@@ -14,19 +15,16 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly IDbContextFactory<RegistryDbContext> _dbFactory;
     private readonly ITypeCatalog _typeCatalog;
-    private readonly IRegistryChangePublisher _publisher;
+    private readonly RegistryOutbox _outbox;
     private readonly TimeProvider _clock;
     private readonly ILogger<RegistryWriter> _logger;
     private readonly Action<RegistrySnapshot> _snapshotUpdater;
     private readonly Func<RegistrySnapshot> _snapshotProvider;
 
-    // Guarded by _gate. Counts the batches applied since the node started (spec REG §5).
-    private long _revision;
-
     public RegistryWriter(
         IDbContextFactory<RegistryDbContext> dbFactory,
         ITypeCatalog typeCatalog,
-        IRegistryChangePublisher publisher,
+        RegistryOutbox outbox,
         TimeProvider clock,
         ILogger<RegistryWriter> logger,
         Action<RegistrySnapshot> snapshotUpdater,
@@ -34,7 +32,7 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
     {
         _dbFactory = dbFactory;
         _typeCatalog = typeCatalog;
-        _publisher = publisher;
+        _outbox = outbox;
         _clock = clock;
         _logger = logger;
         _snapshotUpdater = snapshotUpdater;
@@ -150,6 +148,12 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
 
             await PersistChangesAsync(db, batch, site, locations, tagFamilies, tags, servers, devices, links, customFields, touchedLocationPaths, ct);
 
+            // The revision and the registry.changed record are committed with the batch (transactional outbox, REG §6 step 4):
+            // a node stop or a log outage after this point loses nothing, and the revision never restarts or repeats.
+            var revision = await NextRevisionAsync(db, ct);
+            var changes = DescribeChanges(batch, currentSnapshot);
+            RegistryOutbox.Add(db, revision, _clock.UtcNowMs(), context, changes);
+
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
 
@@ -174,12 +178,12 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
             RegistryMetrics.BatchesCommitted.Add(1);
             RegistryMetrics.ChangesApplied.Add(batch.Changes.Count);
             RegistryMetrics.BatchApplyDuration.Record(duration.TotalSeconds);
-            RegistryLog.BatchApplied(_logger, batch.Changes.Count, duration.TotalMilliseconds);
+            RegistryMetrics.RevisionCommitted(revision);
+            RegistryLog.BatchApplied(_logger, context.Reason ?? "unknown", batch.Changes.Count, duration.TotalMilliseconds, revision);
 
-            // 7. Fire Changed event & publish to publisher
+            // 7. Wake the outbox publisher and fire the in-process Changed event
+            _outbox.Signal();
             Changed?.Invoke(this, new RegistryChangedEventArgs(batch, context));
-            var applied = new RegistryApplyResult(++_revision, DescribeChanges(batch, currentSnapshot));
-            await _publisher.PublishAsync(applied, context, ct);
 
             return Result.Success();
         }
@@ -671,6 +675,24 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
         }
 
         return Result.Success();
+    }
+
+    /// <summary>
+    /// Increments the persisted revision inside the current transaction and returns the new value. The row is created on
+    /// first use (databases created without the migration, e.g. the unit tests' SQLite). A concurrent writer on another
+    /// node fails on the concurrency token instead of reusing a revision.
+    /// </summary>
+    private static async Task<long> NextRevisionAsync(RegistryDbContext db, CancellationToken ct)
+    {
+        var row = await db.Revision.AsTracking().FirstOrDefaultAsync(r => r.Id == RevisionRecord.SingletonId, ct);
+        if (row == null)
+        {
+            row = new RevisionRecord { Id = RevisionRecord.SingletonId, Value = 0 };
+            db.Revision.Add(row);
+        }
+
+        row.Value++;
+        return row.Value;
     }
 
     private async Task PersistChangesAsync(

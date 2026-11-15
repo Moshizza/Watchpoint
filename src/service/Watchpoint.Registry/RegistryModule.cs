@@ -20,7 +20,8 @@ namespace Watchpoint.Registry;
 public static class RegistryModule
 {
     /// <summary>
-    /// Adds Watchpoint Registry services, including DbContext, in-memory reader, and writer.
+    /// Adds Watchpoint Registry services, including DbContext, in-memory reader, writer and the transactional outbox
+    /// (<see cref="IRegistryOutbox"/>, published to the event log by the pipeline module).
     /// </summary>
     public static IServiceCollection AddWatchpointRegistry(this IServiceCollection services)
     {
@@ -30,8 +31,9 @@ public static class RegistryModule
             RegistryDbContext.ModuleName,
             providers => providers.Add<RegistryPostgresDbContext>("postgres"));
 
-        services.TryAddSingleton<NoOpRegistryChangePublisher>();
-        services.TryAddSingleton<IRegistryChangePublisher>(sp => sp.GetRequiredService<NoOpRegistryChangePublisher>());
+        services.TryAddSingleton(TimeProvider.System);
+        services.TryAddSingleton<RegistryOutbox>();
+        services.TryAddSingleton<IRegistryOutbox>(sp => sp.GetRequiredService<RegistryOutbox>());
         services.TryAddSingleton<DeviceEnrichmentCache>();
 
         // Snapshot holder
@@ -211,14 +213,4 @@ public static class RegistryModule
             links,
             customFields);
     }
-}
-
-/// <summary>
-/// Default no-op change publisher for when PIP is not registered.
-/// </summary>
-public sealed class NoOpRegistryChangePublisher : IRegistryChangePublisher
-{
-    /// <inheritdoc />
-    public Task PublishAsync(RegistryApplyResult result, ChangeContext context, CancellationToken ct = default) =>
-        Task.CompletedTask;
 }

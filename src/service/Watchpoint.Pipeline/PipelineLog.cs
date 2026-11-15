@@ -32,6 +32,15 @@ internal static partial class PipelineLog
     [LoggerMessage(EventId = 1609, Level = LogLevel.Error, Message = "Consumer {Consumer} dropped an unacknowledged batch of {Records} records, sequences {First} to {Last}, after {Deliveries} deliveries")]
     public static partial void ConsumerBatchDropped(ILogger logger, string consumer, int records, long first, long last, int deliveries);
 
-    [LoggerMessage(EventId = 1611, Level = LogLevel.Error, Message = "registry.changed revision {Revision} could not be appended to the log: {Reason}; log consumers must resynchronise")]
-    public static partial void RegistryChangeNotPublished(ILogger logger, long revision, string reason);
+    [LoggerMessage(EventId = 1611, Level = LogLevel.Warning, Message = "registry.changed revision {Revision} could not be appended to the log: {Reason}; the outbox retries in {Delay}")]
+    public static partial void OutboxPublishRetried(ILogger logger, long revision, string reason, TimeSpan delay);
+
+    [LoggerMessage(EventId = 1612, Level = LogLevel.Information, Message = "Registry outbox published revisions {First} to {Last} ({Records} records) after {FailedAttempts} failed attempts")]
+    public static partial void OutboxCaughtUp(ILogger logger, long first, long last, int records, int failedAttempts);
+
+    [LoggerMessage(EventId = 1613, Level = LogLevel.Error, Message = "registry.changed revision {Revision} was refused by the log ({Code}) and is skipped; log consumers must resynchronise")]
+    public static partial void OutboxRecordSkipped(ILogger logger, Exception exception, long revision, string code);
+
+    [LoggerMessage(EventId = 1614, Level = LogLevel.Warning, Message = "Registry outbox database call failed: {Reason}; retrying in {Delay}")]
+    public static partial void OutboxDatabaseFailed(ILogger logger, Exception exception, string reason, TimeSpan delay);
 }
