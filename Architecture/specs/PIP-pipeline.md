@@ -38,7 +38,7 @@ Watchpoint.Pipeline/
 │   ├── IObservationIngest.cs, IngestResult.cs
 │   ├── LogRecord.cs, LogEnvelope.cs, RecordKinds.cs
 │   ├── ILogRecordTypeRegistry.cs
-│   ├── IPartitionSubscriber.cs, PartitionContext.cs
+│   ├── IPartitionSubscriber.cs (subscriber, IPartitionDispatcher, ILastValueSource, IIngestFloodingListener, IPipelineLifecycle), PartitionContext.cs
 │   ├── IEventLogWriter.cs, IEventLogReader.cs, ILogConsumerFactory.cs, IEventLogSetup.cs, EventLogEndpoint.cs
 │   ├── ISideEffectQueue.cs
 │   ├── Partitioning.cs
@@ -48,10 +48,10 @@ Watchpoint.Pipeline/
 │   ├── Log/EventLogWriter.cs, EventLogReader.cs, LogConsumer.cs, LogConsumerFactory.cs   (log logic, broker-agnostic)
 │   ├── Log/ILogBroker.cs, LogEnvelopeJson.cs, LogMessageCodec.cs, LogNaming.cs, LogRecordTypeRegistry.cs
 │   ├── Nats/NatsConnectionProvider.cs, NatsLogBroker.cs (JetStream behind ILogBroker), StreamProvisioner.cs
-│   ├── Ingest/IngestService.cs, ObservationValidator.cs, ConnectionQuota.cs, CoalescingBuffer.cs
-│   ├── Partitions/PartitionRouter.cs, PartitionWorker.cs, LastValueCache.cs
+│   ├── Ingest/IngestService.cs, ObservationValidator.cs, ConnectionQuota.cs, CoalescingBuffer.cs, IngestItem.cs, IIngestDirectory.cs (REG + MOD lookups)
+│   ├── Partitions/PartitionRouter.cs (workers, dispatcher, recovery, lifecycle), PartitionWorker.cs, LastValueCache.cs
 │   ├── SideEffects/SideEffectQueue.cs
-│   └── PipelineOptions.cs
+│   └── PipelineOptions.cs (Log), IngestOptions.cs (Ingest, SideEffects)
 ├── PipelineModule.cs
 └── PipelineLog.cs                 event ids 1600–1699
 ```
@@ -396,15 +396,33 @@ public sealed record RejectedObservation(Guid ObservationId, Error Error);
 
 Batch size limit: 5,000 observations (`pipeline.batch.too_large`, `IngestLimits.CheckBatchSize`).
 
+Rules of `IngestAsync` (T1.10):
+
+- **Bad input is never thrown.** Every observation ends in exactly one outcome: accepted, unchanged,
+  coalesced, rejected (in `Rejected`, with the error) or dropped because its target is disabled
+  (counted in no field). A batch above the limit rejects **all** its observations with
+  `pipeline.batch.too_large`. Only cancellation throws (`OperationCanceledException`); observations
+  already handed to a partition are then still processed.
+- **Completion = durability.** The call completes when every observation has its outcome, i.e. when
+  the accepted ones are in the log and the subscribers saw them. An observation waiting for the
+  connection quota (§8) keeps its call open until it is appended or replaced by a newer value, so a
+  connector that awaits its calls is slowed down to its quota.
+- **Order.** Observations of one call reach their partition in the order of the batch, also when part
+  of the batch waited for the quota. Calls of one connection that run concurrently have no order
+  between them (the IRT sink sends one batch at a time per connection).
+- The record id of an accepted observation is `Observation.Id`: a connector that sends an observation
+  again after an error does not create a second record (JetStream duplicate window).
+- After `IPipelineLifecycle.StopAsync` observations are rejected with `pipeline.log.unavailable`.
+
 ## 7. Ingest processing (T1.10)
 
 ```mermaid
 flowchart LR
-    S["IngestAsync(batch)"] --> Q["Connection quota<br/>(token bucket)"]
-    Q -- within quota --> V["Validate + normalise<br/>(MOD, REG)"]
+    S["IngestAsync(batch)"] --> V["Validate + normalise<br/>(MOD, REG)"]
+    V --> Q["Connection quota<br/>(token bucket)"]
+    Q -- within quota --> R["Route to partition channel<br/>(bounded)"]
     Q -- over quota --> CB["Coalescing buffer<br/>properties: latest per path<br/>events/health: FIFO"]
-    CB -- drained as tokens refill --> V
-    V --> R["Route to partition channel<br/>(bounded)"]
+    CB -- drained as tokens refill --> R
     R --> W["Partition worker"]
     W --> D{"Changed?<br/>(last value cache)"}
     D -- no --> T["Touch: refresh lastSeen<br/>(subscribers notified, no log)"]
@@ -428,8 +446,25 @@ For each observation, in this order; the first failure rejects it:
 | 7 | Health faults are known codes (MOD `health.faults` enum) | `model.value.enum_unknown` |
 
 Rejected observations are returned in `IngestResult.Rejected`, counted per connection and
-error code, and logged at most once per minute per (connection, code) (log 1620 with a
-sample).
+error code (metric `watchpoint.pipeline.observations`, `outcome=rejected`, `code`), and logged at
+most once per minute per (connection, code) (log 1620 with the count since the last line and a
+sample id).
+
+Notes (T1.10):
+
+- **Validation runs before the quota.** It is in-memory and cheap (registry snapshot, type
+  catalogue), so a rejected observation consumes no token and — more important — can never replace a
+  valid value in the coalescing buffer.
+- Step 1 also rejects an empty id, an undefined `Quality` or `Connectivity`, and fields of another
+  kind (a property observation carrying an event path or a health report).
+- Step 4: a target whose type is not in the catalogue has no properties and no events.
+- Step 5 is entirely MOD's (`IValueValidator`): decimal arithmetic, culture-invariant; the pipeline
+  adds nothing to it. The severity of an `event` record is the event's severity in the type.
+- Step 7: the health faults are a **set**: duplicates are removed and the codes are stored in ordinal
+  order, so the same state always compares equal (§7.2). A type without `health.faults` accepts no
+  fault. An empty `Reason` is stored as `null`.
+- The registry lookups are behind `IIngestDirectory` (device → its server's connection, enabled, type,
+  unsupported capabilities), implemented on `IRegistryReader` and `ITypeCatalog`.
 
 ### 7.2 Change detection (`LastValueCache`, per partition worker)
 
@@ -441,6 +476,17 @@ sample).
 - Health observation equal to current health → `Unchanged` (touch).
 - Events are never deduplicated by value (each is a fact), but by `Observation.Id`
   (JetStream duplicate window) in case of resend.
+- Equality is `WpValue` equality of the **normalised** value (after MOD: canonical unit, enum code)
+  plus the quality. A value seen for the first time is always a change (`prev` = `null`).
+- **The cache holds what the log holds.** It is written only for records that are durable (or
+  replayed at recovery), never before the append succeeded; within a batch later observations are
+  compared with the earlier ones of the same batch. The consequence that matters: there is never a
+  false "unchanged" — after a restart without restored values the cache is empty and the first
+  observation of every property is appended again (a harmless extra record).
+- **No deadband in the pipeline.** Every change of a normalised value is appended, so STA, ALM and
+  AUT see the real value. Deadband is a **history** policy of the property (`history.mode =
+  deadband`, absolute or percent, SCM §4, applied by the HIS writer, HIS §6) and a reporting option of
+  connectors (e.g. C-MODBUS `deadband`); applying it here would hide values from alarm conditions.
 
 ### 7.3 Partition workers
 
@@ -459,7 +505,9 @@ public interface IPartitionSubscriber
     // Called on the partition worker thread; must not do I/O; must be fast (< 1 ms typical).
     void OnRecords(PartitionContext context, IReadOnlyList<LogRecord> records);
     void OnTouched(PartitionContext context, TouchInfo touch) { }
+    void OnClockDrift(PartitionContext context, ClockDriftHint hint) { }   // §7.1 step 6
     void OnRecoveryStarting(int partition) { }
+    long? GetRecoveryCheckpoint(int partition) => null;         // last sequence applied; null = no replay needed (§7.4)
     void OnRecoveryCompleted(int partition, long lastSequence) { }
     void OnTick(PartitionContext context) { }                     // every Ingest:TickInterval (1 s), on the worker thread
 }
@@ -477,6 +525,7 @@ public sealed class PartitionContext
     public int Partition { get; }
     public long CurrentSequence { get; }
     public DateTimeOffset Now { get; }
+    public bool IsRecovering { get; }                            // replay at recovery (§7.4)
     // Follow-up records (e.g. alarm.raised) appended after this batch, in the same partition:
     public void Emit(LogEnvelope followUp);
     public void EnqueueSideEffect(SideEffect effect);
@@ -486,25 +535,72 @@ public sealed class PartitionContext
 - Follow-up records emitted during a batch are appended as a new batch **before** the worker
   reads new input, so causality is preserved; follow-up depth limited to 4 (a 5th level is
   dropped with log 1640 Error — indicates a rule loop).
-- Posted work items (`IPartitionDispatcher`) are queued in the worker's control queue, which
-  has priority over the input channel; they may emit follow-up records like subscribers.
+- Posted work items (`IPartitionDispatcher`) are queued in the worker's control queue (bounded,
+  1,024 items; `PostAsync` waits when it is full), which has priority over the input channel: it is
+  emptied before every batch. They may emit follow-up records like subscribers. An exception of the
+  work is the poster's (its task faults; log 1645); the worker goes on.
 - `OnTick` is called every `Ingest:TickInterval` (default 1 s) when no batch is in progress
   for longer than the interval, so modules can run time-based logic (staleness, delays)
-  without their own threads.
+  without their own threads. Intervals that pass during a long batch give **one** tick after it.
 - A subscriber throwing is a bug: the exception is logged (1641 Error) with the record id, the
   subscriber is skipped for that batch, processing continues (one faulty module must not stop
   supervision); metric `watchpoint.pipeline.subscriber.errors`.
 
+Worker rules (T1.10):
+
+- **Isolation.** A worker owns its channel, its last value cache, its `PartitionContext` and its
+  sequence; nothing mutable is shared between workers, and "the worker thread" means its loop: one
+  call at a time per partition, on a pool thread. A partition that is slow, blocked in a subscriber or
+  waiting for the log does not delay the others. An unexpected exception while a batch is processed
+  rejects the observations of that batch that have no outcome yet (log 1643) and the worker continues.
+- **Order of a batch**: change detection → append → `OnRecords` (all subscribers, then the follow-ups
+  they emitted, level by level) → `OnTouched` and `OnClockDrift` for the observations of the batch →
+  the callers. A follow-up must belong to the worker's partition (`Emit` throws otherwise).
+- **When the log does not take a record.** `pipeline.log.unavailable` (after `Log:AppendTimeout`): the
+  worker reads the partition back from its last sequence to learn which records of the batch were
+  stored (a prefix, §5.4). Those are accepted and dispatched; the first missing one and everything
+  after it in the batch is rejected with `pipeline.log.unavailable`. While the log cannot be read
+  either, the worker waits (back-off 50 ms…1 s): it never continues with an unknown log state, and the
+  full channel holds the producers back. `pipeline.record.invalid` / `pipeline.record.too_large`
+  (nothing of the batch appended): the records are appended one at a time, the offending one is
+  rejected, and the rest of the batch is planned again — so cache, subscribers and callers always
+  agree with the log. Follow-up records are retried until they are stored (their subscriber already
+  changed its state); an invalid one is dropped alone (log 1642).
+- **Shutdown** (`IPipelineLifecycle.StopAsync`): the channels are closed for writers, the workers
+  finish what is queued, for at most 10 s in total; then they are stopped and what is still queued is
+  rejected with `pipeline.log.unavailable` (log 1644 with the count) — never dropped silently. A
+  worker held by a subscriber that does not return is not waited for.
+
 ### 7.4 Recovery handshake (with STA, startup phase `Recovery`)
 
-1. Workers are created but not started.
-2. Each subscriber's module restores its own snapshot (STA §8) and reports checkpoints.
+The host runs `IPipelineLifecycle.RecoverAsync` in phase `Recovery` (order 100, after the modules
+restored their snapshots) and `StartAsync` in phase `Runtime`; `StartAsync` recovers first if that was
+not done.
+
+1. Workers are created but not started. Observations ingested meanwhile wait in the partition
+   channels (bounded).
+2. Each subscriber's module restores its own snapshot (STA §8) and reports checkpoints:
+   `OnRecoveryStarting(p)`, then `GetRecoveryCheckpoint(p)` = last `WP_LOG` sequence it applied for
+   `p` (0 = everything available; `null` = the subscriber keeps no state and gets no replay).
 3. PIP replays each partition from `min(checkpoints of all subscribers for p) + 1` to the end,
    calling `OnRecords` only for subscribers whose checkpoint is below the record sequence. All
    recovered partitions are read with one `ReadPartitionsAsync` from the smallest start sequence
    (records below a partition's own start are skipped) and dispatched to the partition workers.
-4. `LastValueCache` is filled from STA's restored state.
+4. `LastValueCache` follows every replayed `property` and `health` record, then takes the current
+   values of the registered `ILastValueSource`s (STA: `ProvideLastValues(partition, sink)`), which
+   also cover what was not replayed.
 5. `OnRecoveryCompleted` for all subscribers; workers start consuming new input.
+
+During the replay `PartitionContext.IsRecovering` is true:
+
+- **Side effects are not enqueued** (`EnqueueSideEffect` is ignored): an effect may have run before
+  the node stopped, and §9 guarantees at most once.
+- **Follow-up records** emitted by a subscriber are kept until the replay of the partition ends and
+  then appended, **unless a record with the same id was replayed** (it was appended before the stop).
+  Subscribers therefore derive the id of a follow-up from its cause (e.g. UUID v5 of the cause record
+  id and the rule), not from a random generator.
+
+Log 1610 is written per partition that replayed at least one record.
 
 If the replay start sequence is older than `GetFirstAvailableSequenceAsync` (log retention
 passed), PIP logs 1650 Error and continues from the first available sequence; STA marks all
@@ -520,6 +616,25 @@ values `uncertain` until refreshed (connections resync anyway on start).
 | Flooding fault | Coalescing active for more than 10 s, or FIFO part > 100,000 items → the connection gets health fault `flooding` (via IRT) and `IngestAsync` waits until the FIFO falls below 50,000 | — |
 | Events never dropped | Events and health observations are never discarded by the pipeline | — |
 
+Details (T1.10):
+
+- One token per valid observation. While something of a connection waits in the buffer, everything
+  of that connection goes through the buffer, so the order of the connection is kept.
+- The buffer is one queue in arrival order. A property observation that replaces a waiting one
+  **keeps the place of the one it replaces** (a property that changes all the time is not starved);
+  the replaced observation completes as `Coalesced` in the call that sent it. A buffered observation
+  is appended when a token is available (drained in chunks of ≤ 500, as fast as tokens refill).
+- The call that sent a waiting observation stays open (§6), so the memory is bounded: properties by
+  the number of distinct (target, path), events and health by the flooding limit plus one batch per
+  concurrent call. Every queue of the pipeline is bounded: partition channels, control queues,
+  coalescing buffers, side-effect queues.
+- Flooding is signalled to `IIngestFloodingListener.OnFloodingChanged(connection, flooding, pending)`
+  (implemented by IRT, IRT §8; calls for one connection arrive in order): raised once (log 1631),
+  cleared when the buffer of the connection is empty again (log 1632). While a connection is flooding
+  and its FIFO part is at or above 50,000, a new `IngestAsync` of that connection waits before it adds
+  anything.
+- When the pipeline stops, what still waits in a buffer is rejected with `pipeline.log.unavailable`.
+
 ## 9. Side-effect queue
 
 ```csharp
@@ -530,19 +645,29 @@ public sealed record SideEffect(Guid Id, SideEffectClass Class, string Kind, Fun
 
 public interface ISideEffectQueue
 {
-    bool TryEnqueue(SideEffect effect);              // false if the class queue is full (counted, logged)
-    SideEffectQueueStats GetStats();
+    bool TryEnqueue(SideEffect effect);              // false if the class queue is full or stopped (counted, logged 1661)
+    SideEffectQueueStats GetStats();                 // per class: queued, running, completed, failed, rejected, duplicates
 }
 ```
 
 - One bounded queue per class (`SideEffects:Capacity:<Class>`, default 10,000) with
   `SideEffects:Workers:<Class>` workers (AlarmAction 4, Notification 4, Snapshot 4,
   Script 4, Webhook 4, Background 2). Higher classes are never blocked by lower ones.
-- Each run has its timeout (cancellation); failures retried up to `MaxAttempts` with
-  exponential back-off (1 s, 2 s, 4 s…); final failure logged (1660) and counted.
+- Each run has its timeout: the token is cancelled, and a run that ignores it is abandoned so that it
+  cannot hold a worker. Failures (exception, timeout) are retried up to `MaxAttempts` with exponential
+  back-off (1 s, 2 s, 4 s…, at most 1 min); the final failure is logged (1660) and counted
+  (`watchpoint.pipeline.sideeffects.failed`), and the effect is dropped: a poison effect never blocks
+  its queue.
+- **`SideEffect.Id` is the idempotency key**: an effect whose id was already enqueued on this node
+  (the last 65,536 ids per class are remembered) is not run again; `TryEnqueue` returns `true` and
+  counts a duplicate. Modules derive the id from the record that causes the effect, so a record
+  processed twice does not run its effect twice.
 - Guarantee: **at-most-once after durability** — effects are lost if the node stops before
-  running them. Modules needing stronger guarantees persist their own work (NOT persists its
-  delivery queue; CMD persists commands in the log).
+  running them, and effects enqueued during a recovery replay are ignored (§7.4). Modules needing
+  stronger guarantees persist their own work (NOT persists its delivery queue; CMD persists commands
+  in the log).
+- Shutdown: no new effects; the workers finish what is queued for at most 10 s, then they are
+  cancelled.
 
 ## 10. Settings
 
@@ -554,13 +679,16 @@ public interface ISideEffectQueue
 | `Log:StreamPrefix` | empty | `^[A-Z0-9_]{0,16}$` |
 | `Log:Replicas` | 1 | 1, 3, 5 |
 | `Log:AppendTimeout` | `PT30S` | PT1S–PT90S (below the 2 min duplicate window) |
+| `Log:AllowInsecureRemote` | `false` | `true` allows a NATS server off loopback without TLS (§13); development and tests only |
 | `Ingest:PartitionQueueCapacity` | 10000 | 100–1,000,000 |
 | `Ingest:MaxBatch` | 500 | 1–5,000 |
 | `Ingest:Linger` | `PT0.002S` | 0–PT0.1S |
-| `Ingest:ConnectionRate` / `ConnectionBurst` | 2000 / 20000 | |
-| `Ingest:MaxFutureSkew` | `PT5M` | |
+| `Ingest:ConnectionRate` / `ConnectionBurst` | 2000 / 20000 | ≥ 1 |
+| `Ingest:MaxFutureSkew` | `PT5M` | ≥ 0 |
 | `Ingest:TickInterval` | `PT1S` | PT0.1S–PT10S |
-| `SideEffects:Capacity:<Class>`, `SideEffects:Workers:<Class>` | see §9 | |
+| `SideEffects:Capacity:<Class>`, `SideEffects:Workers:<Class>` | see §9 | ≥ 1 / 1–64 |
+
+A setting out of range stops the start (exit code 78, HST §4).
 
 ## 11. Errors
 
@@ -570,7 +698,7 @@ public interface ISideEffectQueue
 | `pipeline.observation.malformed` | Validation | Missing/contradictory fields |
 | `pipeline.target.unknown` | NotFound | Device/server unknown |
 | `pipeline.target.foreign` | Forbidden | Target belongs to another connection |
-| `pipeline.log.unavailable` | Unavailable | JetStream not reachable / publish timeout (the log writer retries for `Log:AppendTimeout`, 30 s, before surfacing) |
+| `pipeline.log.unavailable` | Unavailable | JetStream not reachable / publish timeout (the log writer retries for `Log:AppendTimeout`, 30 s, before surfacing); also the rejection of observations not processed when the pipeline stops |
 | `pipeline.record.invalid` | Validation | Envelope incomplete or contradictory, or kind not registered (§5.2); nothing appended |
 | `pipeline.record.too_large` | Validation | Record larger than 1 MB (headers + body); nothing appended |
 | `pipeline.stream.incompatible` | Internal | Existing stream conflicts in a setting that cannot be changed, or JetStream has no storage for it (start-up, §5.1) |
@@ -599,16 +727,23 @@ contracts return values, not `Result`.
 | 1620 | Warning | Connection {ConnectionId} rejected {Count} observations with {Code} in the last minute; sample {Sample} |
 | 1630 | Warning | Connection {ConnectionId} over quota; coalescing active |
 | 1631 | Error | Connection {ConnectionId} flooding: {Pending} pending events |
+| 1632 | Information | Connection {ConnectionId} back within quota after {Coalesced} coalesced observations |
+| 1633 | Error | Flooding listener {Listener} failed |
 | 1640 | Error | Follow-up depth exceeded in partition {Partition} for record {RecordId} |
 | 1641 | Error | Subscriber {Subscriber} failed on record {RecordId} |
+| 1642 | Error | Follow-up record {RecordId} of kind {Kind} in partition {Partition} cannot be appended and is dropped: {Reason} |
+| 1643 | Error | Worker of partition {Partition} failed; {Count} observations are rejected |
+| 1644 | Warning | Pipeline stopped before {Count} queued observations were processed; they are rejected |
+| 1645 | Error | Posted work failed in partition {Partition} |
 | 1650 | Error | Replay for partition {Partition} starts after retention: wanted {Wanted}, first available {First} |
 | 1660 | Warning | Side effect {Kind} ({Class}) failed after {Attempts} attempts |
+| 1661 | Warning | Side-effect queue {Class} is full or stopped; {Count} effects were refused, last {Kind} (at most once per minute per class) |
 
 Metrics (`Watchpoint.Pipeline`):
 
 | Instrument | Type | Unit | Tags |
 |---|---|---|---|
-| `watchpoint.pipeline.observations` | counter | `{observations}` | `connection`, `outcome` (accepted, unchanged, coalesced, rejected, disabled) |
+| `watchpoint.pipeline.observations` | counter | `{observations}` | `connection`, `outcome` (accepted, unchanged, coalesced, rejected, disabled), `code` (rejected only) |
 | `watchpoint.pipeline.records` | counter | `{records}` | `kind` |
 | `watchpoint.pipeline.append.duration` | histogram | ms | — |
 | `watchpoint.pipeline.outbox.pending` | observable gauge | `{records}` | — (unsent registry records, as last read by the publisher) |
@@ -625,9 +760,15 @@ source `Watchpoint.Pipeline`.
 
 ## 13. Security
 
-- NATS connection uses the token from SEC (`bootstrap:nats.token`), TLS when not loopback. The host
-  hands URL and token to the module as `EventLogEndpoint` (modules do not reference
-  `Watchpoint.Hosting`, architecture rule ARCH-3).
+- NATS connection uses the token from SEC (`bootstrap:nats.token`), TLS when not loopback: unless
+  every server of the URL is a loopback address (`localhost`, `127.0.0.0/8`, `::1` — the bundled
+  server), the client **requires** TLS and does not connect to a server that offers none. On loopback
+  TLS is used when the server offers it. `Log:AllowInsecureRemote=true` lifts the requirement
+  (development and tests). The host hands URL and token to the module as `EventLogEndpoint` (modules
+  do not reference `Watchpoint.Hosting`, architecture rule ARCH-3).
+- Host wiring (HST §5.2): the `Registry` and `Pipeline` modules are in the host's module catalogue.
+  Start-up tasks: `EventLogStreams` (Infrastructure, 20), `PipelineRecovery` (Recovery, 100),
+  `PipelineWorkers` (Runtime, 0); shutdown task `PipelineDrain` (Runtime).
 - Connections can only report for their own devices (step 2 in §7.1).
 - Envelope bodies may contain personal data (event payloads): log retention is bounded; logs
   never print bodies (only ids and kinds).
@@ -678,7 +819,7 @@ with real NATS (Testcontainers, scoped prefixes).
 | PIP-U-036 | U | Follow-up depth limit | Subscriber emitting recursively → 4 levels appended, 5th dropped, log 1640 |
 | PIP-U-037 | U | Faulty subscriber isolated | Subscriber throws → others still called; log 1641; metric +1 |
 | PIP-U-038 | U | Partition queue back-pressure | Capacity 10, worker paused → 11th ingest awaits until worker resumes |
-| PIP-U-039 | U | Quota: coalescing keeps latest per property | Rate 1/s burst 1; 100 updates of same property in 1 s → after drain, last value appended; `Coalesced` = 98 (± bucket) |
+| PIP-U-039 | U | Quota: coalescing keeps latest per property | Rate 1/s burst 1; 100 updates of same property in one batch → first and last value appended; `Accepted` = 2, `Coalesced` = 98 |
 | PIP-U-040 | U | Quota: events never coalesced | 100 events over quota → all 100 appended eventually in order |
 | PIP-U-041 | U | Flooding fault | FIFO > 100,000 (scaled down via options in test) → flooding fault reported to IRT hook; ingest waits until < half |
 | PIP-U-042 | U | Recovery replays from minimum checkpoint | Checkpoints STA 50, ALM 40 → replay from 41; STA receives only > 50 |
@@ -687,12 +828,15 @@ with real NATS (Testcontainers, scoped prefixes).
 | PIP-U-045 | U | Side-effect timeout and retry | Effect hanging → cancelled at timeout; MaxAttempts 3 → 3 runs with back-off (TestClock) |
 | PIP-U-046 | U | Posted work runs on the partition worker, before queued input | Post work while 100 inputs queued → work runs before them; serialised with records |
 | PIP-U-047 | U | `OnTick` cadence | TestClock advancing 5 s with idle worker → 5 ticks; during a long batch ticks are not concurrent |
-| PIP-U-048 | U | Outbox published in revision order with revision dedup id | Fake outbox with revisions 3, 1, 2 unsent → `WP_CFG` holds 1, 2, 3 with `Nats-Msg-Id` = `RecordId(revision)` (UUID v8, deterministic), body §5.3, origin from the context; a record committed later wakes the idle publisher without the poll; 1612 for the backlog |
-| PIP-U-049 | U | Outbox retries with back-off while the log is down, then catches up | Broker losing every publish → 1611 with delays 1, 2, 4, 8 s (TestClock), nothing marked, nothing stored; broker back → both records stored in order once, 1612 with the failed attempts |
-| PIP-U-050 | U | Outbox publisher resumes from the oldest unsent record | Revisions 1…3 sent, 4 and 5 unsent → only 4 and 5 published, two publish attempts |
-| PIP-U-051 | U | Outbox record marked sent only after ack; duplicate after crash stored once | Ack held back → record in the log but unsent until the ack; revision 2 appended then unmarked (crash before the mark) → new publisher sends the same id, log keeps one copy |
-| PIP-U-052 | U | Outbox record refused by the log is skipped and logged | 15,000 changes (> 1 MB) → 1613 `pipeline.record.too_large`, marked sent, next record published |
-| PIP-U-053 | U | Outbox sent records pruned after retention once per interval; database faults retried | Idle publisher prunes at start then not before 1 h; a record sent 25 h ago is deleted; outbox throwing → 1614 with delays 1, 2 s, then publishes when the database is back |
+| PIP-U-048 | U | TLS required for non-loopback NATS | Loopback URLs → TLS optional; any other server → TLS required unless `Log:AllowInsecureRemote`; the token never appears in `ToString` |
+| PIP-U-049 | U | Log failure keeps cache, subscribers and callers consistent with the log | The log stores the first record of a batch and stops answering → that one accepted, the rest rejected with `pipeline.log.unavailable`; the rejected value is a change when sent again (no false "unchanged") |
+| PIP-U-050 | U | Shutdown drains within a bounded time | One partition blocked in a subscriber → the others drain; after the drain time the blocked partition's queue is rejected, logged 1644 |
+| PIP-U-051 | U | Outbox published in revision order with revision dedup id | Fake outbox with revisions 3, 1, 2 unsent → `WP_CFG` holds 1, 2, 3 with `Nats-Msg-Id` = `RecordId(revision)` (UUID v8, deterministic), body §5.3, origin from the context; a record committed later wakes the idle publisher without the poll; 1612 for the backlog |
+| PIP-U-052 | U | Outbox retries with back-off while the log is down, then catches up | Broker losing every publish → 1611 with delays 1, 2, 4, 8 s (TestClock), nothing marked, nothing stored; broker back → both records stored in order once, 1612 with the failed attempts |
+| PIP-U-053 | U | Outbox publisher resumes from the oldest unsent record | Revisions 1…3 sent, 4 and 5 unsent → only 4 and 5 published, two publish attempts |
+| PIP-U-054 | U | Outbox record marked sent only after ack; duplicate after crash stored once | Ack held back → record in the log but unsent until the ack; revision 2 appended then unmarked (crash before the mark) → new publisher sends the same id, log keeps one copy |
+| PIP-U-055 | U | Outbox record refused by the log is skipped and logged | 15,000 changes (> 1 MB) → 1613 `pipeline.record.too_large`, marked sent, next record published |
+| PIP-U-056 | U | Outbox sent records pruned after retention once per interval; database faults retried | Idle publisher prunes at start then not before 1 h; a record sent 25 h ago is deleted; outbox throwing → 1614 with delays 1, 2 s, then publishes when the database is back |
 | PIP-I-001 | I | Streams provisioned on real NATS | Start module → three streams with expected subjects/retention |
 | PIP-I-002 | I | Provisioning idempotent | Restart → no error, configs unchanged |
 | PIP-I-003 | I | Append and replay one or several partitions | 1,000 records over 4 partitions → replay of p returns its records in order; `ReadPartitionsAsync({p, q})` returns the records of p and q in global sequence order, nothing else |
@@ -704,18 +848,19 @@ with real NATS (Testcontainers, scoped prefixes).
 | PIP-I-009 | I | End-to-end ingest to subscriber | Registry with 10 devices; ingest 1,000 observations → subscriber received accepted records; IngestResult counts correct |
 | PIP-I-010 | I | Throughput target (CI indicative) | 50,000 property observations over 1,000 devices → ≥ 5,000/s sustained on CI runner (warn below, fail below 1,000/s) |
 | PIP-I-011 | I | Latency target | p95 received → subscribers done < 50 ms at 1,000 obs/s |
-| PIP-I-012 | I | Crash before ack loses nothing that was acknowledged | Kill pipeline process mid-batch (test host) → after restart, every observation whose IngestAsync completed is in the log |
-| PIP-I-013 | I | Recovery handshake with real state module | Ingest, restart node, values restored and replay applied once |
-| PIP-I-014 | I | Coalescing under real load | One connection at 10× quota for 30 s → events complete, properties coalesced, flooding fault raised then cleared |
+| PIP-I-012 | I | Crash before ack loses nothing that was acknowledged | Eight producers ingest; the node's connections to the log are cut mid-batch without flush (in-process stand-in for a killed process) → after restart, every observation whose IngestAsync completed is in the log, once |
+| PIP-I-013 | I | Recovery handshake with real state module | Ingest, snapshot, ingest more, restart node → values restored and replay applied once; change detection continues from the restored values. Uses a stand-in for STA (snapshot, checkpoints, `ILastValueSource`) until T1.11; STA-I covers the real module |
+| PIP-I-014 | I | Coalescing under real load | One connection at 10× quota (quota scaled to 200/s by options) for 5 s → events complete and in order, properties coalesced with the latest value in the log, quota respected, flooding fault raised then cleared |
 | PIP-I-015 | I | Global config stream consumer | REG publishes `registry.changed` → consumer receives in order with revision |
-| PIP-I-016 | I | Log down during commits: everything published in order once it is back | Dedicated NATS; publisher running; NATS stopped; 5 registry batches commit at once (callers never wait for the log); 1611 logged; NATS back → consumer receives revisions 1…6 in order, all rows sent, 1612 logged (`IntegrationTests/Registry`) |
-| PIP-I-017 | I | Node restart with unsent records resumes from the oldest | Node without pipeline commits 3 batches; next node with the pipeline publishes them, then a 4th → consumer receives 1…4 in order; no unsent row |
-| PIP-I-018 | I | Duplicate publish after a crash between publish and mark deduplicated | Revision 1 published; `sent_at` reset (crash before the mark); new node publishes again → `WP_CFG` holds one message, row sent |
+| PIP-I-016 | I | Host runs the pipeline | Host process with Registry and Pipeline modules on PostgreSQL and NATS → ready; the three streams exist |
+| PIP-I-017 | I | Log down during commits: everything published in order once it is back | Dedicated NATS; publisher running; NATS stopped; 5 registry batches commit at once (callers never wait for the log); 1611 logged; NATS back → consumer receives revisions 1…6 in order, all rows sent, 1612 logged (`IntegrationTests/Registry`) |
+| PIP-I-018 | I | Node restart with unsent records resumes from the oldest | Node without pipeline commits 3 batches; next node with the pipeline publishes them, then a 4th → consumer receives 1…4 in order; no unsent row |
+| PIP-I-019 | I | Duplicate publish after a crash between publish and mark deduplicated | Revision 1 published; `sent_at` reset (crash before the mark); new node publishes again → `WP_CFG` holds one message, row sent |
 
 ## 15. Tasks
 
 | Task | Sections | Tests |
 |---|---|---|
 | T1.09 | §4, §5, §6 (contracts), §10 (log settings), §11, §12 (log part) | PIP-U-001…PIP-U-020, PIP-I-001…PIP-I-008, REG-I-005 |
-| T1.10 | §7, §8, §9, §10 (ingest settings), §12 (ingest part), §13 | PIP-U-021…PIP-U-047, PIP-I-009…PIP-I-015 |
-| T1.09b | §5.3 (`registry.changed`), §5.5, §12 (outbox events and metrics) | PIP-U-048…PIP-U-053, PIP-I-016…PIP-I-018 |
+| T1.10 | §6 (rules), §7, §8, §9, §10 (ingest settings), §12 (ingest part), §13 | PIP-U-021…PIP-U-050, PIP-I-009…PIP-I-016 |
+| T1.09b | §5.3 (`registry.changed`), §5.5, §12 (outbox events and metrics) | PIP-U-051…PIP-U-056, PIP-I-017…PIP-I-019 |

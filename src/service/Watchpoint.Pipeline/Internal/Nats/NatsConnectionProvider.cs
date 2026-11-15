@@ -9,10 +9,10 @@ namespace Watchpoint.Pipeline.Internal.Nats;
 /// replayed records, and one for readers, consumers and stream management. Connections are opened on first use and
 /// reconnect by themselves, without limit.
 /// </summary>
-internal sealed class NatsConnectionProvider(EventLogEndpoint endpoint) : IAsyncDisposable
+internal sealed class NatsConnectionProvider(EventLogEndpoint endpoint, PipelineOptions options) : IAsyncDisposable
 {
-    private readonly Lazy<NatsConnection> _writer = new(() => Create(endpoint, "watchpoint-pipeline-writer"));
-    private readonly Lazy<NatsConnection> _reader = new(() => Create(endpoint, "watchpoint-pipeline-reader"));
+    private readonly Lazy<NatsConnection> _writer = new(() => new NatsConnection(BuildOptions(endpoint, "watchpoint-pipeline-writer", options)));
+    private readonly Lazy<NatsConnection> _reader = new(() => new NatsConnection(BuildOptions(endpoint, "watchpoint-pipeline-reader", options)));
 
     public NatsConnection Writer => _writer.Value;
 
@@ -41,15 +41,54 @@ internal sealed class NatsConnectionProvider(EventLogEndpoint endpoint) : IAsync
         }
     }
 
-    private static NatsConnection Create(EventLogEndpoint endpoint, string name) => new(NatsOpts.Default with
+    /// <summary>
+    /// The connection options (spec PIP §13): token authentication, and TLS required unless every server of the URL is
+    /// on loopback (the bundled server) or <c>Log:AllowInsecureRemote</c> is set. On loopback TLS is used when the
+    /// server offers it.
+    /// </summary>
+    internal static NatsOpts BuildOptions(EventLogEndpoint endpoint, string name, PipelineOptions options)
     {
-        Url = endpoint.Url,
-        Name = name,
-        AuthOpts = endpoint.Token is null ? NatsAuthOpts.Default : new NatsAuthOpts { Token = endpoint.Token },
-        ConnectTimeout = TimeSpan.FromSeconds(2),
-        RetryOnInitialConnect = true,
-        MaxReconnectRetry = -1,
-        ReconnectWaitMin = TimeSpan.FromMilliseconds(100),
-        ReconnectWaitMax = TimeSpan.FromSeconds(2),
-    });
+        var requireTls = !options.AllowInsecureRemote && !IsLoopback(endpoint.Url);
+        return NatsOpts.Default with
+        {
+            Url = endpoint.Url,
+            Name = name,
+            AuthOpts = endpoint.Token is null ? NatsAuthOpts.Default : new NatsAuthOpts { Token = endpoint.Token },
+            TlsOpts = requireTls ? new NatsTlsOpts { Mode = TlsMode.Require } : NatsTlsOpts.Default,
+            ConnectTimeout = TimeSpan.FromSeconds(2),
+            RetryOnInitialConnect = true,
+            MaxReconnectRetry = -1,
+            ReconnectWaitMin = TimeSpan.FromMilliseconds(100),
+            ReconnectWaitMax = TimeSpan.FromSeconds(2),
+        };
+    }
+
+    /// <summary>Whether every server of a NATS URL (one, or several separated by commas) is a loopback address.</summary>
+    internal static bool IsLoopback(string url)
+    {
+        var servers = url.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (servers.Length == 0)
+        {
+            return false;
+        }
+
+        foreach (var server in servers)
+        {
+            var text = server.Contains("://", StringComparison.Ordinal) ? server : "nats://" + server;
+            if (!Uri.TryCreate(text, UriKind.Absolute, out var uri))
+            {
+                return false;
+            }
+
+            var host = uri.Host.Trim('[', ']');
+            var loopback = string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase)
+                || (System.Net.IPAddress.TryParse(host, out var address) && System.Net.IPAddress.IsLoopback(address));
+            if (!loopback)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
 }

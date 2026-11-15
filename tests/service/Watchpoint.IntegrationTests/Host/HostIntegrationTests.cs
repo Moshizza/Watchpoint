@@ -3,7 +3,9 @@ using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
+using NATS.Net;
 using Shouldly;
+using Watchpoint.Testing.Async;
 using Watchpoint.Testing.Containers;
 using Xunit;
 
@@ -11,7 +13,7 @@ namespace Watchpoint.IntegrationTests.Host;
 
 [Trait("layer", "I")]
 [Trait("spec", "HST")]
-public sealed class HostIntegrationTests(PostgresContainerFixture postgres, NatsContainerFixture nats)
+public sealed class HostIntegrationTests(PostgresContainerFixture postgres)
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -19,12 +21,8 @@ public sealed class HostIntegrationTests(PostgresContainerFixture postgres, Nats
     public async Task HST_I_001_Host_starts_with_compose_infrastructure()
     {
         await using var db = await postgres.CreateDatabaseAsync(nameof(HostIntegrationTests), Ct);
-        await nats.StartAsync(Ct);
-        await using var host = HostProcess.Start("i001", new Dictionary<string, JsonNode>
-        {
-            ["Database"] = HostProcess.DatabaseSection(db.ConnectionString),
-            ["Nats"] = new JsonObject { ["Mode"] = "External", ["Url"] = nats.Url },
-        });
+        await using var host = await HostProcess.StartWithNatsAsync(
+            "i001", new Dictionary<string, JsonNode> { ["Database"] = HostProcess.DatabaseSection(db.ConnectionString) }, Ct);
 
         using var http = new HttpClient();
         var ready = await PollAsync(TimeSpan.FromSeconds(30), host, async () =>
@@ -45,7 +43,7 @@ public sealed class HostIntegrationTests(PostgresContainerFixture postgres, Nats
         var closedPort = HostProcess.GetFreePort();
         database["Databases"]!["default"]!["Host"] = "127.0.0.1";
         database["Databases"]!["default"]!["Port"] = closedPort.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        await using var host = HostProcess.Start("i002", new Dictionary<string, JsonNode> { ["Database"] = database });
+        await using var host = await HostProcess.StartWithNatsAsync("i002", new Dictionary<string, JsonNode> { ["Database"] = database }, Ct);
 
         using var http = new HttpClient();
         var reportedDatabase = await PollAsync(TimeSpan.FromSeconds(10), host, async () =>
@@ -70,10 +68,8 @@ public sealed class HostIntegrationTests(PostgresContainerFixture postgres, Nats
     public async Task HST_I_003_Management_endpoints_only_on_management_port()
     {
         await using var db = await postgres.CreateDatabaseAsync(nameof(HostIntegrationTests), Ct);
-        await using var host = HostProcess.Start("i003", new Dictionary<string, JsonNode>
-        {
-            ["Database"] = HostProcess.DatabaseSection(db.ConnectionString),
-        });
+        await using var host = await HostProcess.StartWithNatsAsync(
+            "i003", new Dictionary<string, JsonNode> { ["Database"] = HostProcess.DatabaseSection(db.ConnectionString) }, Ct);
 
         using var http = new HttpClient();
         var managementResponded = await PollAsync(TimeSpan.FromSeconds(30), host, async () =>
@@ -85,6 +81,46 @@ public sealed class HostIntegrationTests(PostgresContainerFixture postgres, Nats
         managementResponded.ShouldBeTrue();
         using var main = await http.GetAsync($"http://127.0.0.1:{host.MainPort}/metrics", Ct);
         main.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    [Trait("spec", "PIP")]
+    public async Task PIP_I_016_Host_runs_the_pipeline()
+    {
+        // With the other host tests: hosts started side by side would compete for the default management port.
+        await using var db = await postgres.CreateDatabaseAsync(nameof(HostIntegrationTests), Ct);
+        await using var host = await HostProcess.StartWithNatsAsync(
+            "pipi016", new Dictionary<string, JsonNode> { ["Database"] = HostProcess.DatabaseSection(db.ConnectionString) }, Ct);
+
+        // The node becomes ready: streams provisioned (Infrastructure), recovery done, workers running.
+        using var http = new HttpClient();
+        await Eventually.UntilAsync(
+            () =>
+            {
+                host.HasExited.ShouldBeFalse("the host stopped during start-up");
+                try
+                {
+                    using var response = http.Send(new HttpRequestMessage(HttpMethod.Get, $"http://127.0.0.1:{host.MainPort}/health/ready"), Ct);
+                    return response.StatusCode == HttpStatusCode.OK;
+                }
+                catch (HttpRequestException)
+                {
+                    return false;
+                }
+            },
+            TimeSpan.FromSeconds(60),
+            "the host with the pipeline is ready",
+            TimeSpan.FromMilliseconds(200),
+            Ct);
+
+        // Its three streams exist on its NATS server.
+        await using var client = new NatsClient(host.NatsUrl);
+        var js = client.CreateJetStreamContext();
+        foreach (var (stream, subject) in new[] { ("WP_LOG", "wp.log.>"), ("WP_CFG", "wp.cfg.>"), ("WP_SYS", "wp.sys.>") })
+        {
+            var config = (await js.GetStreamAsync(stream, cancellationToken: Ct)).Info.Config;
+            config.Subjects.ShouldBe([subject]);
+        }
     }
 
     [Fact]
@@ -101,9 +137,10 @@ public sealed class HostIntegrationTests(PostgresContainerFixture postgres, Nats
         socket.Bind(new UnixDomainSocketEndPoint(socketPath));
         try
         {
-            await using var host = HostProcess.Start(
+            await using var host = await HostProcess.StartWithNatsAsync(
                 "i004",
                 new Dictionary<string, JsonNode> { ["Database"] = HostProcess.DatabaseSection(db.ConnectionString) },
+                Ct,
                 new Dictionary<string, string> { ["NOTIFY_SOCKET"] = socketPath, ["WATCHDOG_USEC"] = "2000000" });
 
             var buffer = new byte[1024];

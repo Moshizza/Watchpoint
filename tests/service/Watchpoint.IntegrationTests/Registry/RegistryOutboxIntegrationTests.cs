@@ -75,12 +75,12 @@ public sealed class RegistryOutboxIntegrationTests(PostgresContainerFixture post
     }
 
     [Fact]
-    public async Task PIP_I_016_Log_down_during_commits_everything_published_in_order_once_it_is_back()
+    public async Task PIP_I_017_Log_down_during_commits_everything_published_in_order_once_it_is_back()
     {
         // A NATS server of its own, so it can be stopped; short timeouts so the outage and the recovery are quick.
         await using var server = await RestartableNatsContainer.StartNewAsync(Ct);
-        var db = await DatabaseAsync(nameof(PIP_I_016_Log_down_during_commits_everything_published_in_order_once_it_is_back));
-        var scope = new NatsScope("t16.wp", "T16_");
+        var db = await DatabaseAsync(nameof(PIP_I_017_Log_down_during_commits_everything_published_in_order_once_it_is_back));
+        var scope = new NatsScope("t17.wp", "T17_");
         var options = PipelineNode.OptionsFor(scope);
         options.AppendTimeout = TimeSpan.FromSeconds(2);
         options.OutboxRetryDelayMin = TimeSpan.FromMilliseconds(200);
@@ -107,18 +107,18 @@ public sealed class RegistryOutboxIntegrationTests(PostgresContainerFixture post
         // The log is back: everything is published in revision order, once, and marked sent.
         await server.StartAsync(Ct);
         await UntilAsync(async () => (await node.Outbox.ReadUnsentAsync(1, Ct)).Count == 0, "the outbox was not drained after the restart", TimeSpan.FromSeconds(60));
-        var revisions = await node.ReadRevisionsAsync("pip-i-016", 6);
+        var revisions = await node.ReadRevisionsAsync("pip-i-017", 6);
         revisions.ShouldBe([1L, 2L, 3L, 4L, 5L, 6L]);
         node.Logs.WithEventId(1612).ShouldNotBeEmpty();
         (await ScalarAsync<long>(db.ConnectionString, "SELECT count(*) FROM wp_registry.outbox WHERE sent_at IS NOT NULL;")).ShouldBe(6);
     }
 
     [Fact]
-    public async Task PIP_I_017_Node_restart_with_unsent_records_resumes_from_the_oldest()
+    public async Task PIP_I_018_Node_restart_with_unsent_records_resumes_from_the_oldest()
     {
         await nats.StartAsync(Ct);
-        var db = await DatabaseAsync(nameof(PIP_I_017_Node_restart_with_unsent_records_resumes_from_the_oldest));
-        var scope = nats.CreateScope(nameof(PIP_I_017_Node_restart_with_unsent_records_resumes_from_the_oldest));
+        var db = await DatabaseAsync(nameof(PIP_I_018_Node_restart_with_unsent_records_resumes_from_the_oldest));
+        var scope = nats.CreateScope(nameof(PIP_I_018_Node_restart_with_unsent_records_resumes_from_the_oldest));
         var rootId = LocationId.New();
 
         // The first node commits three batches while nothing publishes (no pipeline module: the log was never reachable).
@@ -135,17 +135,17 @@ public sealed class RegistryOutboxIntegrationTests(PostgresContainerFixture post
         await UntilAsync(async () => (await node.Outbox.ReadUnsentAsync(1, Ct)).Count == 0, "the backlog was not published");
         (await node.Writer.ApplyAsync(Rename(node, rootId, "four"), _context, Ct)).IsSuccess.ShouldBeTrue();
 
-        var revisions = await node.ReadRevisionsAsync("pip-i-017", 4);
+        var revisions = await node.ReadRevisionsAsync("pip-i-018", 4);
         revisions.ShouldBe([1L, 2L, 3L, 4L]);
         (await ScalarAsync<long>(db.ConnectionString, "SELECT count(*) FROM wp_registry.outbox WHERE sent_at IS NULL;")).ShouldBe(0);
     }
 
     [Fact]
-    public async Task PIP_I_018_Duplicate_publish_after_a_crash_between_publish_and_mark_is_deduplicated()
+    public async Task PIP_I_019_Duplicate_publish_after_a_crash_between_publish_and_mark_is_deduplicated()
     {
         await nats.StartAsync(Ct);
-        var db = await DatabaseAsync(nameof(PIP_I_018_Duplicate_publish_after_a_crash_between_publish_and_mark_is_deduplicated));
-        var scope = nats.CreateScope(nameof(PIP_I_018_Duplicate_publish_after_a_crash_between_publish_and_mark_is_deduplicated));
+        var db = await DatabaseAsync(nameof(PIP_I_019_Duplicate_publish_after_a_crash_between_publish_and_mark_is_deduplicated));
+        var scope = nats.CreateScope(nameof(PIP_I_019_Duplicate_publish_after_a_crash_between_publish_and_mark_is_deduplicated));
         var rootId = LocationId.New();
 
         await using (var crashed = await Node.StartAsync(db, nats.Url, PipelineNode.OptionsFor(scope)))
@@ -167,7 +167,7 @@ public sealed class RegistryOutboxIntegrationTests(PostgresContainerFixture post
         await using var client = new NatsClient(nats.Url);
         var stream = await client.CreateJetStreamContext().GetStreamAsync(scope.StreamPrefix + "WP_CFG", cancellationToken: Ct);
         stream.Info.State.Messages.ShouldBe(1);
-        var revisions = await node.ReadRevisionsAsync("pip-i-018", 1);
+        var revisions = await node.ReadRevisionsAsync("pip-i-019", 1);
         revisions.ShouldBe([1L]);
         (await ScalarAsync<long>(db.ConnectionString, "SELECT count(*) FROM wp_registry.outbox WHERE sent_at IS NULL;")).ShouldBe(0);
     }

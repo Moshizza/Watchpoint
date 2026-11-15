@@ -38,7 +38,7 @@ public sealed class OutboxPublisherTests : IDisposable
     }
 
     [Fact]
-    public async Task PIP_U_048_Outbox_published_in_revision_order_with_revision_dedup_id()
+    public async Task PIP_U_051_Outbox_published_in_revision_order_with_revision_dedup_id()
     {
         // Written out of order (the fake lets us), unsent: the publisher sends them by revision, one at a time.
         var r3 = _outbox.Add(3);
@@ -80,7 +80,7 @@ public sealed class OutboxPublisherTests : IDisposable
     }
 
     [Fact]
-    public async Task PIP_U_049_Outbox_retries_with_back_off_while_the_log_is_down_then_catches_up()
+    public async Task PIP_U_052_Outbox_retries_with_back_off_while_the_log_is_down_then_catches_up()
     {
         _outbox.Add(1);
         _outbox.Add(2);
@@ -108,7 +108,7 @@ public sealed class OutboxPublisherTests : IDisposable
     }
 
     [Fact]
-    public async Task PIP_U_050_Outbox_publisher_resumes_from_the_oldest_unsent_record()
+    public async Task PIP_U_053_Outbox_publisher_resumes_from_the_oldest_unsent_record()
     {
         // Records 1…3 were sent by the node before it stopped; 4 and 5 were committed while the log was down.
         foreach (var revision in new[] { 1L, 2L, 3L })
@@ -129,7 +129,7 @@ public sealed class OutboxPublisherTests : IDisposable
     }
 
     [Fact]
-    public async Task PIP_U_051_Outbox_record_marked_sent_only_after_ack_and_duplicate_after_crash_stored_once()
+    public async Task PIP_U_054_Outbox_record_marked_sent_only_after_ack_and_duplicate_after_crash_stored_once()
     {
         // The acknowledgement is held back: the record is in the log but not yet marked.
         var ackGate = new TaskCompletionSource();
@@ -164,7 +164,7 @@ public sealed class OutboxPublisherTests : IDisposable
     }
 
     [Fact]
-    public async Task PIP_U_052_Outbox_record_refused_by_the_log_is_skipped_and_logged()
+    public async Task PIP_U_055_Outbox_record_refused_by_the_log_is_skipped_and_logged()
     {
         // 15,000 changes make a body above the 1 MB message limit: the log can never store it.
         _outbox.Add(1, changes: 15_000);
@@ -181,7 +181,7 @@ public sealed class OutboxPublisherTests : IDisposable
     }
 
     [Fact]
-    public async Task PIP_U_053_Outbox_sent_records_pruned_after_retention_once_per_interval_and_database_faults_retried()
+    public async Task PIP_U_056_Outbox_sent_records_pruned_after_retention_once_per_interval_and_database_faults_retried()
     {
         // The clock is advanced by exactly one poll interval at a time, once the publisher armed its poll timer: a longer
         // advance would also fire the timer armed by the round it triggered.

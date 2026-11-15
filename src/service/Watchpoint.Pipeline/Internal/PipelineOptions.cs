@@ -36,6 +36,12 @@ internal sealed partial class PipelineOptions
     /// </summary>
     public TimeSpan AppendTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
+    /// <summary>
+    /// <c>Log:AllowInsecureRemote</c>: allows a NATS server that is not on loopback without TLS (spec PIP §13);
+    /// for development and tests only.
+    /// </summary>
+    public bool AllowInsecureRemote { get; set; }
+
     /// <summary>Maximum age of <c>WP_CFG</c> and <c>WP_SYS</c> records.</summary>
     public TimeSpan GlobalRetention { get; set; } = TimeSpan.FromDays(30);
 
@@ -131,6 +137,18 @@ internal sealed partial class PipelineOptions
             else
             {
                 problems.Add($"Log:Replicas '{replicas}' is not a number.");
+            }
+        }
+
+        if (section["AllowInsecureRemote"] is { } insecure)
+        {
+            if (bool.TryParse(insecure, out var allow))
+            {
+                options.AllowInsecureRemote = allow;
+            }
+            else
+            {
+                problems.Add($"Log:AllowInsecureRemote '{insecure}' is not true or false.");
             }
         }
 
