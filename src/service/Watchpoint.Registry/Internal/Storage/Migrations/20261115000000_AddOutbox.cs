@@ -27,10 +27,12 @@ internal sealed partial class AddOutbox : Migration
                 table.PrimaryKey("pk_revision", x => x.id);
             });
 
+        // Column types stated: the target model of the migration is empty (project convention), so EF cannot infer them.
         migrationBuilder.InsertData(
             schema: "wp_registry",
             table: "revision",
             columns: new[] { "id", "value" },
+            columnTypes: new[] { "integer", "bigint" },
             values: new object[] { 1, 0L });
 
         migrationBuilder.CreateTable(
