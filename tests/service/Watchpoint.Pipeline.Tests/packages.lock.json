@@ -431,11 +431,11 @@
           "Microsoft.Extensions.Configuration.Binder": "[10.0.14, )",
           "Microsoft.Extensions.Diagnostics": "[10.0.14, )",
           "Microsoft.Extensions.Diagnostics.HealthChecks": "[10.0.14, )",
+          "Microsoft.Extensions.Hosting.Abstractions": "[10.0.14, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.14, )",
           "Microsoft.Extensions.Options": "[10.0.14, )",
           "NATS.Net": "[3.3.2, )",
           "System.IO.Hashing": "[10.0.14, )",
-          "Watchpoint.Hosting": "[1.0.0, )",
           "Watchpoint.Kernel": "[1.0.0, )",
           "Watchpoint.Model": "[1.0.0, )",
           "Watchpoint.Registry": "[1.0.0, )"
