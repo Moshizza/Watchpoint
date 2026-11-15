@@ -166,12 +166,11 @@ internal sealed class PartitionRouter : IPartitionDispatcher, IPipelineLifecycle
             }
             catch (Exception ex) when (ex is TimeoutException or OperationCanceledException)
             {
+                // Not waited for: a worker held by a subscriber that never returns must not hold the shutdown.
                 foreach (var worker in _workers)
                 {
                     worker.Abort();
                 }
-
-                await all.ConfigureAwait(false);
             }
 
             var backlog = 0;

@@ -55,12 +55,10 @@ internal sealed class PartitionWorker : IAsyncDisposable
         _input = Channel.CreateBounded<IngestItem>(new BoundedChannelOptions(_options.PartitionQueueCapacity)
         {
             FullMode = BoundedChannelFullMode.Wait,
-            SingleReader = true,
         });
         _control = Channel.CreateBounded<ControlItem>(new BoundedChannelOptions(_options.ControlQueueCapacity)
         {
             FullMode = BoundedChannelFullMode.Wait,
-            SingleReader = true,
         });
         _context = new PartitionContext(partition, services.SideEffects);
         _batch = new List<IngestItem>(_options.MaxBatch);
@@ -185,21 +183,14 @@ internal sealed class PartitionWorker : IAsyncDisposable
 
     public Task Completion => _loop ?? Task.CompletedTask;
 
-    /// <summary>Rejects what was never processed (after the loop ended, or when the worker never started).</summary>
+    /// <summary>
+    /// Rejects what is still queued (after the worker was stopped, or when it never started). Safe while the loop is
+    /// still inside a subscriber: the loop rejects the batch it holds itself when it ends.
+    /// </summary>
     public int RejectBacklog()
     {
         var count = 0;
         var error = PipelineErrors.LogUnavailable("The pipeline stopped before the observation was processed.");
-        foreach (var item in _batch)
-        {
-            if (!item.Settled)
-            {
-                item.Reject(error);
-                count++;
-            }
-        }
-
-        _batch.Clear();
         while (_input.Reader.TryRead(out var item))
         {
             item.Reject(error);
@@ -218,18 +209,17 @@ internal sealed class PartitionWorker : IAsyncDisposable
     {
         CompleteInput();
         Abort();
-        if (_loop is not null)
-        {
-            await _loop.ConfigureAwait(false);
-        }
-
         RejectBacklog();
         if (_timer is not null)
         {
             await _timer.DisposeAsync().ConfigureAwait(false);
         }
 
-        _abort.Dispose();
+        // A loop held by a subscriber that never returns is not waited for: it ends when the subscriber does.
+        if (_loop is null || _loop.IsCompleted)
+        {
+            _abort.Dispose();
+        }
     }
 
     // ---- The loop ----
@@ -312,7 +302,17 @@ internal sealed class PartitionWorker : IAsyncDisposable
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            // Aborted: the backlog is rejected by the owner.
+            // Aborted: what is queued is rejected by the owner.
+        }
+        finally
+        {
+            var error = PipelineErrors.LogUnavailable("The pipeline stopped before the observation was processed.");
+            foreach (var item in _batch)
+            {
+                item.Reject(error);
+            }
+
+            _batch.Clear();
         }
     }
 

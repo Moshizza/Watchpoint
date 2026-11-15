@@ -50,6 +50,18 @@ internal sealed class ConnectionQuota
         _refilled = time.GetTimestamp();
     }
 
+    /// <summary>The events and health observations waiting for the quota (for tests and diagnostics).</summary>
+    public int PendingEvents
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _buffer.FifoCount;
+            }
+        }
+    }
+
     /// <summary>Whether the connection is flooding (for tests and diagnostics).</summary>
     public bool Flooding
     {
