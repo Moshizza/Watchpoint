@@ -39,12 +39,15 @@ Watchpoint.Pipeline/
 │   ├── LogRecord.cs, LogEnvelope.cs, RecordKinds.cs
 │   ├── ILogRecordTypeRegistry.cs
 │   ├── IPartitionSubscriber.cs, PartitionContext.cs
-│   ├── IEventLogWriter.cs, IEventLogReader.cs, ILogConsumerFactory.cs
+│   ├── IEventLogWriter.cs, IEventLogReader.cs, ILogConsumerFactory.cs, IEventLogSetup.cs, EventLogEndpoint.cs
 │   ├── ISideEffectQueue.cs
 │   ├── Partitioning.cs
 │   └── PipelineErrors.cs
+│   ├── LogConsumerExtensions.cs (consumer helper), PipelineException.cs, RecordBodies.cs
 ├── Internal/
-│   ├── Nats/NatsConnectionProvider.cs, StreamProvisioner.cs, NatsLogWriter.cs, NatsLogReader.cs, NatsConsumerFactory.cs
+│   ├── Log/EventLogWriter.cs, EventLogReader.cs, LogConsumer.cs, LogConsumerFactory.cs   (log logic, broker-agnostic)
+│   ├── Log/ILogBroker.cs, LogEnvelopeJson.cs, LogMessageCodec.cs, LogNaming.cs, LogRecordTypeRegistry.cs
+│   ├── Nats/NatsConnectionProvider.cs, NatsLogBroker.cs (JetStream behind ILogBroker), StreamProvisioner.cs
 │   ├── Ingest/IngestService.cs, ObservationValidator.cs, ConnectionQuota.cs, CoalescingBuffer.cs
 │   ├── Partitions/PartitionRouter.cs, PartitionWorker.cs, LastValueCache.cs
 │   ├── SideEffects/SideEffectQueue.cs
@@ -59,11 +62,17 @@ Watchpoint.Pipeline/
 public static class Partitioning
 {
     public const int PartitionCount = 64;                    // fixed forever (changing it = data migration)
-    public static int Of(Guid entityId);                     // XxHash32(entityId bytes, seed 0) % 64
+    public static int Of(Guid entityId);                     // XXH32(entityId bytes, seed 0) % 64
     public static int Of(DeviceId id) => Of(id.Value);
     public static int Of(ServerId id) => Of(id.Value);       // servers are partitioned like devices
 }
 ```
+
+The function is part of the stored data format and never changes. `entityId bytes` are the 16
+bytes of the UUID in RFC 9562 network order (the order of the hexadecimal digits in the text
+form; **not** the mixed-endian layout of .NET `Guid.ToByteArray()`), so any language computes the
+same partition. PIP-U-001 pins golden values computed with an independent XXH32 implementation,
+e.g. `00000000-0000-7000-8000-000000000001` → 53, `ffffffff-ffff-ffff-ffff-ffffffffffff` → 42.
 
 All records about a device (or server) go to its partition. Records about alarms and
 commands use the partition of their **source device** (so they are ordered with the device's
@@ -85,8 +94,24 @@ Common stream settings: file storage, `Duplicates` window 2 minutes (dedup by
 `DenyDelete`/`DenyPurge` true. Subjects and stream names get the configured prefixes
 (`Log:SubjectPrefix` default `wp`, `Log:StreamPrefix` default empty) so tests can isolate.
 
-`StreamProvisioner` (startup phase `Infrastructure`, order 20) creates or updates the streams
-idempotently and fails start-up if existing streams have incompatible subjects.
+`StreamProvisioner` (contract `IEventLogSetup.EnsureStreamsAsync`, run by the host in startup
+phase `Infrastructure`, order 20) creates or updates the streams idempotently, `WP_CFG` and
+`WP_SYS` first:
+
+- missing stream → created;
+- settings that drifted from the configuration (max age, max bytes, duplicate window, max message
+  size, replicas, direct access, discard policy) → stream updated (log 1603);
+- a difference JetStream cannot change — other subjects, storage type, retention policy, delete or
+  purge protection off — → start-up fails with `pipeline.stream.incompatible`; the stream is not
+  touched;
+- JetStream **reserves** `MaxBytes` of every stream against its file store limit (`10047
+  insufficient storage`; the bundled server's limit is 20 % of the free disk, min 10 GB, HST §7.4,
+  less than the 24 GB the defaults ask for on most machines). When the reservation is refused the
+  size is halved until it fits (never below the current size of an existing stream, floor 64 MB)
+  and a warning is logged (1604); only when nothing fits does start-up fail;
+- NATS not reachable → retried for `Log:AppendTimeout` (log 1602), then `pipeline.log.unavailable`.
+
+Tests use small streams for the same reason (many scopes share one server).
 
 The **sequence** used everywhere is the JetStream **stream sequence** of `WP_LOG`
 (`ulong`, exposed as `long`). Checkpoints are per partition: "last WP_LOG sequence applied
@@ -101,6 +126,7 @@ Every record is a NATS message with headers and a JSON body:
 | `Nats-Msg-Id` | record id (UUID v7) — dedup |
 | `Wp-Kind` | record kind, e.g. `property`, `event`, `health`, `alarm.raised` |
 | `Wp-Schema` | body schema version, integer (`1`) |
+| `Wp-Envelope` | envelope format version, integer (`1`) |
 | `traceparent` | W3C trace context, if any |
 
 Body (`LogEnvelope`, JSON profile `Log`):
@@ -128,12 +154,31 @@ Body (`LogEnvelope`, JSON profile `Log`):
 | `dev` / `srv` | Device id / server id (one of them for device-bound records) |
 | `origin.type` | `connection`, `user`, `system`, `automation`, `script`, `federation` |
 
+Rules:
+
+- **Deterministic serialisation**: every member is written, in the order above, without
+  whitespace; absent values are `null`; ids are lowercase UUIDs; times are UTC with milliseconds.
+- **Forward compatibility**: readers ignore members they do not know and accept missing optional
+  ones (`src`, `p`, `dev`, `srv`, `origin`, `corr`), so members can be added without a version
+  change. A change readers cannot ignore increments `Wp-Envelope`; a record with a newer envelope
+  version, or one that cannot be decoded (no `id`, `kind`, `ts` or `body`), is logged (1605) and
+  skipped by readers and consumers — it never blocks a partition.
+- **Validation before publish** (`LogEnvelope.Validate`, error `pipeline.record.invalid`): `id`,
+  `kind`, `ts` present; kind = 1–4 dot-separated tokens of ASCII letters and digits, each starting
+  with a lowercase letter, ≤ 64 characters, and **registered** (§5.3); `body` a JSON object; in
+  `WP_LOG` a `dev` or `srv` and `p` = `Partitioning.Of(dev ?? srv)`; in the global streams `p` = 0.
+- **Size**: header block + body ≤ 1 MB, checked before publish (`pipeline.record.too_large`). A
+  batch is validated as a whole: one bad record and nothing of the batch is appended.
+
 ```csharp
 public sealed record LogEnvelope(Guid Id, string Kind, DateTimeOffset Ts, DateTimeOffset? Src, int P,
     DeviceId? Dev, ServerId? Srv, RecordOrigin Origin, RecordCorrelation Corr, JsonElement Body);
 
 public sealed record LogRecord(long Sequence, LogEnvelope Envelope)
 {
+    public int SchemaVersion { get; init; }                  // Wp-Schema
+    public string? TraceParent { get; init; }                // traceparent header
+    public ActivityContext? GetTraceContext();
     public T BodyAs<T>(ILogRecordTypeRegistry registry);    // deserialise with the registered type info
 }
 ```
@@ -148,9 +193,22 @@ public sealed record LogRecord(long Sequence, LogEnvelope Envelope)
 | `registry.changed` (WP_CFG) | `{ "revision": 42, "context": {…}, "changes": [{ "entity": "device", "id": "…", "kind": "updated" }] }` | REG |
 
 Modules register further kinds (`alarm.*`, `command.*`, `config.published`…) through
-`ILogRecordTypeRegistry.Register<TBody>(kind, schemaVersion, JsonTypeInfo<TBody>)`. Unknown
-kinds encountered when reading are **skipped** with a debug log (forward compatibility in
-mixed-version clusters).
+`ILogRecordTypeRegistry.Register<TBody>(kind, schemaVersion, JsonTypeInfo<TBody>)`. A record can
+only be **appended** with a registered kind (its schema version becomes `Wp-Schema`). Kinds, or
+schema versions newer than the registered one, encountered when reading are yielded by the reader
+and **skipped** by the consumer helper with a debug log (1606) — forward compatibility in
+mixed-version clusters (`ILogRecordTypeRegistry.CanRead`).
+
+`registry.changed` (REG §6): one record per applied batch, in apply order. `changes` lists the
+entities the batch names (`site`, `location`, `tagFamily`, `tag`, `server`, `device`, `link`,
+`customField`) with `created`/`updated`/`deleted`. The record is appended after the registry
+transaction committed; if the log stays unavailable for `Log:AppendTimeout` the change is kept, an
+error is logged (1611) and consumers see a gap in `revision` (they then read the registry again).
+Until REG persists its revision it restarts at 1 with the node: consumers order by log sequence.
+
+**Known limitation (until T1.09b, see REG §9).** Registry changes are not yet published through a
+transactional outbox: a `registry.changed` record can be missing after a log outage longer than
+`Log:AppendTimeout` or a node stop between commit and publish, and the revision is not persisted.
 
 ### 5.4 Writer and reader contracts
 
@@ -160,6 +218,8 @@ public interface IEventLogWriter
     // Appends in order; completes when JetStream acknowledged all (durable). Same-partition order preserved.
     ValueTask<IReadOnlyList<long>> AppendAsync(IReadOnlyList<LogEnvelope> records, CancellationToken ct);
     ValueTask<long> AppendGlobalAsync(LogStream stream /* Cfg | Sys */, LogEnvelope record, CancellationToken ct);
+    // Both throw PipelineException: pipeline.record.invalid / pipeline.record.too_large (nothing appended),
+    // pipeline.log.unavailable (per partition a prefix of the records is stored; repeat with the same records).
 }
 
 public interface IEventLogReader
@@ -183,29 +243,88 @@ public interface ILogConsumer : IAsyncDisposable
 {
     IAsyncEnumerable<LogRecordBatch> ReadBatchesAsync(CancellationToken ct);   // up to MaxBatch records or MaxWait
 }
-public sealed record LogRecordBatch(IReadOnlyList<LogRecord> Records, Func<CancellationToken, ValueTask> AckAsync);
+public sealed record LogRecordBatch(IReadOnlyList<LogRecord> Records, Func<CancellationToken, ValueTask> AckAsync)
+{
+    public int Delivery { get; init; }          // 1 for the first delivery of the batch
+    public bool IsLastDelivery { get; init; }   // dropped if not acknowledged this time
+}
 public sealed record LogConsumerOptions(int MaxBatch = 1000, TimeSpan? MaxWait = null /* 1 s */,
     TimeSpan? AckWait = null /* 60 s */, int MaxDeliver = 10);
+
+public enum LogStream { Log, Cfg, Sys }
+
+public static class LogConsumerExtensions   // consumer helper
+{
+    public static Task ProcessAsync(this ILogConsumer consumer, LogProcessingOptions options,
+        LogRecordHandler handler, CancellationToken ct);
+}
 ```
+
+Durable consumer rules (at-least-once, **in stream order**):
+
+- JetStream consumer: durable, pull, explicit ack, `DeliverPolicy.All`, created or updated on the
+  first read (idempotent; a consumer deleted meanwhile is created again). Kind filters become
+  subject filters (`wp.log.*.<kind>`; `*` = one token, trailing `>` = the rest, e.g. `alarm.*`).
+- A batch is returned as soon as records are available (up to `MaxBatch`); an idle consumer long-polls
+  for `MaxWait` (JetStream's minimum is just above 1 s).
+- `AckAsync` acknowledges every record of the batch and completes when JetStream confirmed the
+  last one. **Asking for the next batch without acknowledging yields the same batch again**
+  (`Delivery` + 1) from memory: nothing newer is fetched while a batch is open, so later records are
+  never delivered before earlier ones. JetStream's own redelivery (`nak`, `AckWait`) is not used for
+  this, because JetStream delivers newer messages before redelivered ones.
+- After `MaxDeliver` deliveries without acknowledgement the batch is dropped: logged as an error
+  with its sequence range (1609) and acknowledged. `MaxDeliver` is enforced by the client; the
+  JetStream consumer has no delivery limit, so the server never drops a record silently.
+- **Restart**: when a consumer is opened and JetStream still holds deliveries that were never
+  acknowledged, the consumer is rewound to its acknowledgement floor (consumer reset API; on servers
+  without it the consumer is re-created at floor + 1). Reading resumes right after the last
+  acknowledged batch, in order. Records acknowledged by a lost ack may come again and are dropped by
+  sequence.
+- A NATS outage is retried with back-off (log 1602); the consumer resumes by itself.
+
+`ProcessAsync` (the way modules consume): calls the handler once per record in sequence order;
+skips records at or below the last applied sequence (`LogProcessingOptions.LastAppliedSequence`:
+a handler that stores `LogRecord.Sequence` with its effect is idempotent across restarts) and
+records this node cannot read (1606); a failing handler makes the batch come again after a
+back-off, starting at the failed record (1607); a record still failing on the last delivery is
+logged (1608) and skipped; the batch is acknowledged only after every record was handled, and the
+acknowledgement is repeated until the log confirms it. The handler runs inside an activity that
+continues the trace of the append (`traceparent`).
 
 Replay of a partition uses an **ordered consumer** with filter `wp.log.<pp>.>` and
 `DeliverPolicy.ByStartSequence`. `ReadPartitionsAsync` uses one ordered consumer with filter
 `wp.log.>` when all 64 partitions are requested, otherwise one filter per partition.
+A replay covers the sequences up to the last one present when it started. The end is reached when
+JetStream reports no pending message for the consumer, never on an empty answer alone; after a
+connection loss the replay resumes after the last record it yielded (no gap, no duplicate), and
+fails with `pipeline.log.unavailable` after `Log:AppendTimeout` without progress.
 Measured ([ADR-001](../decisions/ADR-001-nats-jetstream-event-log-and-leases.md)): whole-log
 replay ≈ 180k records/s; a filtered replay costs about the same as scanning the whole log range
 (one partition ≈ 16k records/s delivered), so recovery never runs 64 filtered consumers.
 
-Writer rules (ADR-001):
+Writer rules (ADR-001, amended by T1.09):
 
-- `AppendAsync` pipelines publishes with a bounded window of in-flight acks (default 1,024;
-  ≥ 256 needed for the 20,000 records/s budget) and preserves per-partition order (one NATS
-  connection per writer, publishes sent in order).
-- After a timeout or a connection loss the writer **re-sends the same envelope with the same
-  `Nats-Msg-Id`** until acked (the 2 min duplicate window makes this exactly-once in the log);
-  callers are completed only on ack.
+- **One lane per partition** (and per global stream): at most one publish of a lane is in flight;
+  the next record of a partition is sent only after the previous one was acknowledged. Lanes run
+  concurrently (≤ 66 publishes in flight, one NATS connection for the writer). This replaces the
+  window of 1,024 in-flight acks of ADR-001: with several unacknowledged publishes of **one**
+  partition in flight, a lost first publish and a stored second one end up in the wrong order after
+  the retry, and the log cannot be corrected (`DenyDelete`). Measured (4 vCPU, nats-server 2.15.2
+  in Docker): ≈ 41,000 records/s over 64 partitions, ≈ 4,000 records/s on one partition (raw
+  JetStream: 50,000 and 4,700; the unsafe window: 89,000). The 20,000 records/s budget holds as
+  soon as about six partitions are active; one device is limited to 2,000/s by its quota (§8).
+- After a timeout (2 s per attempt) or a connection loss the writer **re-sends the same envelope
+  with the same `Nats-Msg-Id`** with back-off (50 ms doubling to 1 s) until acked (the 2 min
+  duplicate window makes this exactly-once in the log; a duplicate ack carries the sequence of the
+  stored record); callers are completed only on ack.
+- **Nothing is buffered** in the writer: callers wait for their lane. While the log is unreachable
+  an append waits at most `Log:AppendTimeout` (30 s), then fails with `pipeline.log.unavailable`.
+  A caller that repeats the call must use the same record ids and do so within the duplicate
+  window (`AppendTimeout` ≤ 90 s keeps the writer's own retries inside it).
+- A batch is validated and encoded before the first publish (§5.2).
 - M1 sends no expected-sequence headers (one owner). Fenced appends (CLU T9.01) use
   `Nats-Expected-Last-Subject-Sequence` **with** `Nats-Expected-Last-Subject-Sequence-Subject =
-  wp.log.<pp>.>` (CLU §5).
+  wp.log.<pp>.>` (CLU §5); the lanes are what fencing needs (one awaited publish per partition).
 
 ## 6. Ingest contract (used by IRT)
 
@@ -243,7 +362,7 @@ public sealed record IngestResult(int Accepted, int Unchanged, int Coalesced,
 public sealed record RejectedObservation(Guid ObservationId, Error Error);
 ```
 
-Batch size limit: 5,000 observations (`pipeline.batch.too_large`).
+Batch size limit: 5,000 observations (`pipeline.batch.too_large`, `IngestLimits.CheckBatchSize`).
 
 ## 7. Ingest processing (T1.10)
 
@@ -398,10 +517,11 @@ public interface ISideEffectQueue
 | Key | Default | Range |
 |---|---|---|
 | `Log:Retention` | `P7D` | P1D–P90D |
-| `Log:MaxBytes` | 20 GB | ≥ 1 GB |
+| `Log:MaxBytes` | 20 GB | ≥ 1 GB (bytes, or a number with `MB`, `GB`, `TB`) |
 | `Log:SubjectPrefix` | `wp` | `^[a-z0-9]{1,16}(\.[a-z0-9]{1,16})?$` |
 | `Log:StreamPrefix` | empty | `^[A-Z0-9_]{0,16}$` |
 | `Log:Replicas` | 1 | 1, 3, 5 |
+| `Log:AppendTimeout` | `PT30S` | PT1S–PT90S (below the 2 min duplicate window) |
 | `Ingest:PartitionQueueCapacity` | 10000 | 100–1,000,000 |
 | `Ingest:MaxBatch` | 500 | 1–5,000 |
 | `Ingest:Linger` | `PT0.002S` | 0–PT0.1S |
@@ -418,8 +538,13 @@ public interface ISideEffectQueue
 | `pipeline.observation.malformed` | Validation | Missing/contradictory fields |
 | `pipeline.target.unknown` | NotFound | Device/server unknown |
 | `pipeline.target.foreign` | Forbidden | Target belongs to another connection |
-| `pipeline.log.unavailable` | Unavailable | JetStream not reachable / publish timeout (ingest retries internally for 30 s before surfacing) |
-| `pipeline.stream.incompatible` | Internal | Existing stream configuration conflicts (start-up) |
+| `pipeline.log.unavailable` | Unavailable | JetStream not reachable / publish timeout (the log writer retries for `Log:AppendTimeout`, 30 s, before surfacing) |
+| `pipeline.record.invalid` | Validation | Envelope incomplete or contradictory, or kind not registered (§5.2); nothing appended |
+| `pipeline.record.too_large` | Validation | Record larger than 1 MB (headers + body); nothing appended |
+| `pipeline.stream.incompatible` | Internal | Existing stream conflicts in a setting that cannot be changed, or JetStream has no storage for it (start-up, §5.1) |
+
+Log errors are raised as `PipelineException` (carrying the `Error`): the writer and reader
+contracts return values, not `Result`.
 
 ## 12. Observability
 
@@ -427,7 +552,15 @@ public interface ISideEffectQueue
 |---|---|---|
 | 1601 | Information | Streams ready: {Streams} |
 | 1602 | Warning | Event log unavailable, retrying: {Reason} |
+| 1603 | Information | Stream {Stream} configuration updated: {Changes} |
+| 1604 | Warning | Stream {Stream} limited to {Bytes} bytes instead of {Wanted}: JetStream has no more storage to reserve |
+| 1605 | Error | Record at sequence {Sequence} of {Stream} cannot be decoded and is skipped: {Reason} |
+| 1606 | Debug | Record {RecordId} at sequence {Sequence} skipped by {Consumer}: kind {Kind} (schema {Schema}) is not known to this node |
+| 1607 | Warning | Consumer {Consumer} failed on record {RecordId} at sequence {Sequence} (delivery {Delivery}); the batch is delivered again |
+| 1608 | Error | Consumer {Consumer} dropped record {RecordId} of kind {Kind} at sequence {Sequence} after {Deliveries} deliveries |
+| 1609 | Error | Consumer {Consumer} dropped an unacknowledged batch of {Records} records, sequences {First} to {Last}, after {Deliveries} deliveries |
 | 1610 | Information | Partition {Partition} recovered from sequence {From} to {To} ({Records} records) in {DurationMs} ms |
+| 1611 | Error | registry.changed revision {Revision} could not be appended to the log: {Reason}; log consumers must resynchronise |
 | 1620 | Warning | Connection {ConnectionId} rejected {Count} observations with {Code} in the last minute; sample {Sample} |
 | 1630 | Warning | Connection {ConnectionId} over quota; coalescing active |
 | 1631 | Error | Connection {ConnectionId} flooding: {Pending} pending events |
@@ -450,19 +583,22 @@ Metrics (`Watchpoint.Pipeline`):
 | `watchpoint.pipeline.sideeffects.queue` | gauge | | `class` |
 | `watchpoint.pipeline.sideeffects.failed` | counter | | `class`, `kind` |
 
-Health check (`ready`): NATS connected and streams present.
+Health check (`ready`, name `pipeline-log`): NATS connected and streams present. Traces: activity
+source `Watchpoint.Pipeline`.
 
 ## 13. Security
 
-- NATS connection uses the token from SEC (`bootstrap:nats.token`), TLS when not loopback.
+- NATS connection uses the token from SEC (`bootstrap:nats.token`), TLS when not loopback. The host
+  hands URL and token to the module as `EventLogEndpoint` (modules do not reference
+  `Watchpoint.Hosting`, architecture rule ARCH-3).
 - Connections can only report for their own devices (step 2 in §7.1).
 - Envelope bodies may contain personal data (event payloads): log retention is bounded; logs
   never print bodies (only ids and kinds).
 
 ## 14. Tests
 
-Unit: `tests/service/Watchpoint.Pipeline.Tests` (in-memory log fake implementing
-`IEventLogWriter/Reader` with sequences). Integration: `Watchpoint.IntegrationTests/Pipeline`
+Unit: `tests/service/Watchpoint.Pipeline.Tests` (the real writer, reader and consumers on an
+in-memory broker fake with sequences, deduplication and injected failures). Integration: `Watchpoint.IntegrationTests/Pipeline`
 with real NATS (Testcontainers, scoped prefixes).
 
 | Id | Layer | Test | Given / When / Then |

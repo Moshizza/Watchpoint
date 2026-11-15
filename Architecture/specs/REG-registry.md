@@ -192,8 +192,12 @@ public sealed record EntityChange(string Entity /* "device" … */, Guid Id, Cha
    per modified entity.
 4. Build a new snapshot (incremental: copy-on-write of changed indexes), swap atomically,
    increment `Revision`.
-5. Publish a `registry.changed` record to the event log (PIP §6, kind `config`) containing
-   `Revision`, `ChangeContext` and the `EntityChange` list; raise `Changed` in-process.
+5. Publish a `registry.changed` record to the event log (stream `WP_CFG`, PIP §5.3) containing
+   `Revision`, `ChangeContext` and the `EntityChange` list; raise `Changed` in-process. The record
+   is published through `IRegistryChangePublisher.PublishAsync(RegistryApplyResult, ChangeContext, ct)`,
+   implemented by PIP (a no-op when the pipeline module is not registered). `EntityChange` lists
+   the entities named by the batch (for a link: its source device). The revision counts the batches
+   applied since the node started (not yet persisted).
 6. Deleting a location with children or objects: requires `ReassignTo` (objects and child
    locations move there) else `registry.location.not_empty`.
 7. Deleting a server: `DeleteDevices=false` and devices exist → `registry.server.not_empty`.
@@ -316,6 +320,18 @@ unless excluded).
 
 Attribute validation errors come from MOD (`model.value.*`) with paths
 `/changes/<i>/device/attributes/<key>`.
+
+**Known limitation (until T1.09b).** The `registry.changed` record is published after the registry
+transaction committed, and the revision is counted in memory:
+
+- the revision restarts at 1 when the node restarts;
+- if the event log stays unavailable for `Log:AppendTimeout` (30 s) after the commit, the change is
+  kept, error 1611 is logged (PIP §12) and no record is published — consumers see a gap in the
+  revisions and must read the registry again; a node that stops between commit and publish loses the
+  record the same way.
+
+T1.09b replaces this with a transactional outbox: revision and change record are stored in the
+registry transaction and published to the log from the outbox, in order.
 
 ## 10. Data (`wp_registry` schema)
 

@@ -20,6 +20,9 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
     private readonly Action<RegistrySnapshot> _snapshotUpdater;
     private readonly Func<RegistrySnapshot> _snapshotProvider;
 
+    // Guarded by _gate. Counts the batches applied since the node started (spec REG §5).
+    private long _revision;
+
     public RegistryWriter(
         IDbContextFactory<RegistryDbContext> dbFactory,
         ITypeCatalog typeCatalog,
@@ -41,6 +44,42 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
     public void Dispose()
     {
         _gate.Dispose();
+    }
+
+    /// <summary>The entities named by a batch, with what happened to each compared with the snapshot before the batch.</summary>
+    private static List<EntityChange> DescribeChanges(RegistryChangeBatch batch, RegistrySnapshot before)
+    {
+        static ChangeKind Upsert(bool existed) => existed ? ChangeKind.Updated : ChangeKind.Created;
+
+        var changes = new List<EntityChange>(batch.Changes.Count);
+        foreach (var change in batch.Changes)
+        {
+            changes.Add(change switch
+            {
+                RegistryChange.UpdateSite c => new EntityChange("site", c.Site.Id.Value, ChangeKind.Updated),
+                RegistryChange.UpsertLocation c => new EntityChange("location", c.Location.Id.Value, Upsert(before.Locations.ContainsKey(c.Location.Id))),
+                RegistryChange.DeleteLocation c => new EntityChange("location", c.Id.Value, ChangeKind.Deleted),
+                RegistryChange.UpsertTagFamily c => new EntityChange("tagFamily", c.Family.Id.Value, Upsert(before.TagFamilies.ContainsKey(c.Family.Id))),
+                RegistryChange.DeleteTagFamily c => new EntityChange("tagFamily", c.Id.Value, ChangeKind.Deleted),
+                RegistryChange.UpsertTag c => new EntityChange("tag", c.Tag.Id.Value, Upsert(before.Tags.ContainsKey(c.Tag.Id))),
+                RegistryChange.DeleteTag c => new EntityChange("tag", c.Id.Value, ChangeKind.Deleted),
+                RegistryChange.UpsertServer c => new EntityChange("server", c.Server.Id.Value, Upsert(before.Servers.ContainsKey(c.Server.Id))),
+                RegistryChange.DeleteServer c => new EntityChange("server", c.Id.Value, ChangeKind.Deleted),
+                RegistryChange.UpsertDevice c => new EntityChange("device", c.Device.Id.Value, Upsert(before.Devices.ContainsKey(c.Device.Id))),
+                RegistryChange.PatchDevice c => new EntityChange("device", c.Id.Value, ChangeKind.Updated),
+                RegistryChange.DeleteDevice c => new EntityChange("device", c.Id.Value, ChangeKind.Deleted),
+                RegistryChange.UpsertDeviceLink c => new EntityChange(
+                    "link",
+                    c.Link.SourceDeviceId.Value,
+                    Upsert(before.Links.Any(l => l.SourceDeviceId == c.Link.SourceDeviceId && l.Role == c.Link.Role && l.TargetDeviceId == c.Link.TargetDeviceId))),
+                RegistryChange.DeleteDeviceLink c => new EntityChange("link", c.SourceDeviceId.Value, ChangeKind.Deleted),
+                RegistryChange.UpsertCustomField c => new EntityChange("customField", c.CustomField.Id.Value, Upsert(before.CustomFields.ContainsKey(c.CustomField.Id))),
+                RegistryChange.DeleteCustomField c => new EntityChange("customField", c.Id.Value, ChangeKind.Deleted),
+                _ => throw new InvalidOperationException($"Unknown registry change {change.GetType().Name}."),
+            });
+        }
+
+        return changes;
     }
 
     public event EventHandler<RegistryChangedEventArgs>? Changed;
@@ -139,7 +178,8 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
 
             // 7. Fire Changed event & publish to publisher
             Changed?.Invoke(this, new RegistryChangedEventArgs(batch, context));
-            await _publisher.PublishAsync(batch, context, ct);
+            var applied = new RegistryApplyResult(++_revision, DescribeChanges(batch, currentSnapshot));
+            await _publisher.PublishAsync(applied, context, ct);
 
             return Result.Success();
         }

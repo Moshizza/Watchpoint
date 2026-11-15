@@ -725,7 +725,9 @@ public sealed partial class RegistryUnitTests : IDisposable
         res.IsSuccess.ShouldBeTrue();
 
         _publisher.Published.Count.ShouldBe(1);
-        _publisher.Published[0].Batch.ShouldBe(batch);
+        _publisher.Published[0].Result.Revision.ShouldBe(1);
+        _publisher.Published[0].Result.Changes.ShouldBe([new EntityChange("site", site.Id.Value, ChangeKind.Updated)]);
+        _publisher.Published[0].Context.ShouldBe(_context);
     }
 
     private sealed class TestDbContextFactory(DbContextOptions<RegistryDbContext> options, StorageContextInfo info) : IDbContextFactory<RegistryDbContext>
@@ -736,11 +738,11 @@ public sealed partial class RegistryUnitTests : IDisposable
 
     private sealed class TestPublisher : IRegistryChangePublisher
     {
-        public List<(RegistryChangeBatch Batch, ChangeContext Context)> Published { get; } = [];
+        public List<(RegistryApplyResult Result, ChangeContext Context)> Published { get; } = [];
 
-        public Task PublishAsync(RegistryChangeBatch batch, ChangeContext context, CancellationToken ct = default)
+        public Task PublishAsync(RegistryApplyResult result, ChangeContext context, CancellationToken ct = default)
         {
-            Published.Add((batch, context));
+            Published.Add((result, context));
             return Task.CompletedTask;
         }
     }

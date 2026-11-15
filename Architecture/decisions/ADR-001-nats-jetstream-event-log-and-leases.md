@@ -154,3 +154,22 @@ them. The OS page cache was not dropped (sandbox); a cold disk will be slower.
   implements the headers itself (as the spike does) or upgrades the client if one appears.
 - Not measured: cold-disk replay, multi-host network latency, `sync_interval` values between
   "always" and the default, one-stream-per-partition layout (option 3).
+
+## 7. Amendment (T1.09, 2026-11-14)
+
+Decision 2 ("M1 appends pipelined") and the first consequence ("writer pipelines with a bounded
+in-flight window (≥ 256)") are replaced by **one lane per partition**: at most one unacknowledged
+publish per partition, lanes in parallel (PIP §5.4). Reason: decision 3 (retry with the same
+`Nats-Msg-Id`) cannot keep the order of a partition when two of its publishes are in flight — the
+first is lost (connection drop, or a rejection during a leader change), the second is stored, and
+the retried first lands behind it; `DenyDelete` makes that permanent. §4.5 counted missing and
+duplicated records after failover, not their order. Measured with the T1.09 writer (4 vCPU,
+nats-server 2.15.2 in Docker, R1): ≈ 41,000 records/s over 64 partitions, ≈ 4,000 records/s on a
+single partition; raw JetStream on the same machine: 64 lanes ≈ 50,000, window 1,024 ≈ 89,000.
+The 20,000 records/s budget is met from about six active partitions. Atomic batches per lane
+(decision 2, T9.01) remain the way to raise the per-partition rate.
+
+Also found by T1.09: JetStream reserves `MaxBytes` per stream (PIP §5.1), delivers newer messages
+before negatively acknowledged ones and, after a restart of the reader, before deliveries that
+were never acknowledged (PIP §5.4 durable consumer rules), and answers a pull on a deleted
+consumer with silence.

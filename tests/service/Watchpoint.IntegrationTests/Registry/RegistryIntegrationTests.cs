@@ -3,14 +3,18 @@ using System.Globalization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using NATS.Net;
 using Npgsql;
 using Shouldly;
+using Watchpoint.IntegrationTests.Pipeline;
 using Watchpoint.Kernel.Ids;
 using Watchpoint.Kernel.Text;
 using Watchpoint.Kernel.Values;
 using Watchpoint.Model;
 using Watchpoint.Model.Contracts;
 using Watchpoint.Model.Documents;
+using Watchpoint.Pipeline;
+using Watchpoint.Pipeline.Contracts;
 using Watchpoint.Registry;
 using Watchpoint.Registry.Contracts;
 using Watchpoint.Storage.Contracts;
@@ -24,7 +28,7 @@ using Xunit;
 namespace Watchpoint.IntegrationTests.Registry;
 
 [SuppressMessage("Naming", "CA1707:Identifiers should not contain underscores", Justification = "Test naming convention")]
-public sealed class RegistryIntegrationTests(PostgresContainerFixture postgres) : IAsyncDisposable
+public sealed class RegistryIntegrationTests(PostgresContainerFixture postgres, NatsContainerFixture nats) : IAsyncDisposable
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
     private readonly List<IAsyncDisposable> _owned = [];
@@ -196,6 +200,67 @@ public sealed class RegistryIntegrationTests(PostgresContainerFixture postgres) 
         // Database row check
         var dbRoomPath = await ScalarAsync<string>(db.ConnectionString, $"SELECT path FROM wp_registry.locations WHERE id = '{roomId.Value}';");
         dbRoomPath.ShouldBe("/Campus/Building B/Floor 1/Room 101");
+    }
+
+    [Fact]
+    public async Task REG_I_005_Registry_changed_record_published_to_the_log()
+    {
+        await nats.StartAsync(Ct);
+        var db = await DatabaseAsync(nameof(REG_I_005_Registry_changed_record_published_to_the_log));
+        var scope = nats.CreateScope(nameof(REG_I_005_Registry_changed_record_published_to_the_log));
+        var log = PipelineNode.OptionsFor(scope);
+        await using var node = await NodeAsync(db, services =>
+        {
+            // The pipeline module replaces the registry's no-op publisher, whatever the registration order.
+            services.AddSingleton(new EventLogEndpoint(nats.Url, null));
+            services.AddPipeline(log);
+        });
+        node.Services.GetRequiredService<IRegistryChangePublisher>().ShouldNotBeOfType<NoOpRegistryChangePublisher>();
+        await node.Services.GetRequiredService<IEventLogSetup>().EnsureStreamsAsync(Ct);
+
+        // A consumer on the configuration stream, filtered on the registry kind.
+        var registry = node.Services.GetRequiredService<ILogRecordTypeRegistry>();
+        await using var consumer = node.Services.GetRequiredService<ILogConsumerFactory>()
+            .CreateDurable("reg-i-005", LogStream.Cfg, [RecordKinds.RegistryChanged], new LogConsumerOptions());
+        await using var batches = consumer.ReadBatchesAsync(Ct).GetAsyncEnumerator(Ct);
+
+        var siteId = SiteId.New();
+        var rootId = LocationId.New();
+        var site = new Site(siteId, new LocalizedName("Main Site", new Dictionary<string, string>()), "UTC", 0);
+        var root = new Location(rootId, null, new LocalizedName("Root", new Dictionary<string, string>()), LocationKind.Site, "", 0, null, null, null, 0, 0);
+        var context = new ChangeContext("test-user", "integration-test", "corr-1");
+        (await node.Writer.ApplyAsync(
+            new RegistryChangeBatch([new RegistryChange.UpdateSite(site), new RegistryChange.UpsertLocation(root)]), context, Ct)).IsSuccess.ShouldBeTrue();
+        (await node.Writer.ApplyAsync(
+            new RegistryChangeBatch([new RegistryChange.UpsertLocation(root with { Notes = "changed" }, ExpectedVersion: 1)]), context, Ct)).IsSuccess.ShouldBeTrue();
+        (await node.Writer.ApplyAsync(
+            new RegistryChangeBatch([new RegistryChange.UpsertLocation(root with { Notes = "stale" }, ExpectedVersion: 7)]), context, Ct)).IsSuccess.ShouldBeFalse();
+
+        // After apply, the consumer receives one record per applied batch, in order, with revision and changes.
+        var records = new List<LogRecord>();
+        while (records.Count < 2)
+        {
+            (await batches.MoveNextAsync().AsTask().WaitAsync(TestTimeouts.Container, Ct)).ShouldBeTrue();
+            records.AddRange(batches.Current.Records);
+            await batches.Current.AckAsync(Ct);
+        }
+
+        records.Count.ShouldBe(2); // the rejected batch published nothing
+        records.Select(r => r.Sequence).ShouldBe([1L, 2L]);
+        records.ShouldAllBe(r => r.Envelope.Kind == RecordKinds.RegistryChanged && r.Envelope.P == 0 && r.Envelope.Dev == null);
+        var first = records[0].BodyAs<RegistryChangedBody>(registry);
+        first.Revision.ShouldBe(1);
+        first.Context.ShouldBe(new RegistryChangedContext("test-user", "integration-test", "corr-1"));
+        first.Changes.ShouldBe([new RegistryChangedEntity("site", siteId.Value, "updated"), new RegistryChangedEntity("location", rootId.Value, "created")]);
+        var second = records[1].BodyAs<RegistryChangedBody>(registry);
+        second.Revision.ShouldBe(2);
+        second.Changes.ShouldBe([new RegistryChangedEntity("location", rootId.Value, "updated")]);
+
+        // The record is on the configuration subject of the log, not in a partition.
+        await using var client = new NatsClient(nats.Url);
+        var stream = await client.CreateJetStreamContext().GetStreamAsync(scope.StreamPrefix + "WP_CFG", new() { SubjectsFilter = ">" }, Ct);
+        stream.Info.State.Subjects.ShouldNotBeNull().Keys.ShouldBe([scope.SubjectPrefix + ".cfg.registry.changed"]);
+        (await node.Services.GetRequiredService<IEventLogReader>().GetLastSequenceAsync(Ct)).ShouldBe(0);
     }
 
     [Fact]
@@ -378,7 +443,7 @@ public sealed class RegistryIntegrationTests(PostgresContainerFixture postgres) 
         return db;
     }
 
-    private static async Task<Node> NodeAsync(PostgresDatabase db)
+    private static async Task<Node> NodeAsync(PostgresDatabase db, Action<IServiceCollection>? configure = null)
     {
         var cs = new NpgsqlConnectionStringBuilder(db.ConnectionString);
         var settings = new Dictionary<string, string?>
@@ -400,6 +465,7 @@ public sealed class RegistryIntegrationTests(PostgresContainerFixture postgres) 
         services.AddPostgresStorage();
         services.AddWatchpointModel();
         services.AddWatchpointRegistry();
+        configure?.Invoke(services);
         node.Services = services.BuildServiceProvider();
         await node.Services.GetRequiredService<IStorageStartup>().MigrateAsync(Ct);
         return node;
