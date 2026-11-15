@@ -12,6 +12,8 @@
     <ProjectReference Include="../Watchpoint.Identity/Watchpoint.Identity.csproj" />
     <ProjectReference Include="../Watchpoint.Model/Watchpoint.Model.csproj" />
     <ProjectReference Include="../Watchpoint.Integrations/Watchpoint.Integrations.csproj" />
+    <ProjectReference Include="../Watchpoint.Registry/Watchpoint.Registry.csproj" />
+    <ProjectReference Include="../Watchpoint.Pipeline/Watchpoint.Pipeline.csproj" />
   </ItemGroup>
 
   <ItemGroup>

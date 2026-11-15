@@ -702,6 +702,8 @@
           "Watchpoint.Identity": "[1.0.0, )",
           "Watchpoint.Integrations": "[1.0.0, )",
           "Watchpoint.Model": "[1.0.0, )",
+          "Watchpoint.Pipeline": "[1.0.0, )",
+          "Watchpoint.Registry": "[1.0.0, )",
           "Watchpoint.Storage": "[1.0.0, )",
           "Watchpoint.Storage.Postgres": "[1.0.0, )"
         }

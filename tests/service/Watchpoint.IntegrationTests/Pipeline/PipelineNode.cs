@@ -54,17 +54,21 @@ internal sealed class PipelineNode : IAsyncDisposable
         MaxBytes = logBytes,
         GlobalMaxBytes = 16 * Mb,
         MinStreamBytes = 8 * Mb,
+
+        // The test server has no TLS, and its address is not always a loopback one (Docker in Docker).
+        AllowInsecureRemote = true,
     };
 
     /// <summary>Builds the module and provisions the streams, like the host does at start-up.</summary>
-    public static async Task<PipelineNode> StartAsync(string natsUrl, PipelineOptions options, CancellationToken ct, Action<IServiceCollection>? configure = null)
+    public static async Task<PipelineNode> StartAsync(
+        string natsUrl, PipelineOptions options, CancellationToken ct, Action<IServiceCollection>? configure = null, IngestOptions? ingest = null)
     {
         var logs = new LogCollector();
         var services = new ServiceCollection();
         services.AddLogging(b => b.AddProvider(logs).SetMinimumLevel(LogLevel.Trace));
         services.AddSingleton(new EventLogEndpoint(natsUrl, null));
         configure?.Invoke(services);
-        services.AddPipeline(options);
+        services.AddPipeline(options, ingest);
         var provider = services.BuildServiceProvider();
         var node = new PipelineNode(provider, options, logs);
         try
