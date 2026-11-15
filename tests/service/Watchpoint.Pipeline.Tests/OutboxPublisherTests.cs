@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Logging;
 using Shouldly;
+using Watchpoint.Kernel.Testing;
 using Watchpoint.Pipeline.Contracts;
 using Watchpoint.Pipeline.Internal;
-using Watchpoint.Kernel.Testing;
 using Watchpoint.Pipeline.Tests.Fakes;
 using Watchpoint.Testing.Time;
 using Xunit;
