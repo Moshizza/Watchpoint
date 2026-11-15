@@ -3,7 +3,9 @@ using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
+using NATS.Net;
 using Shouldly;
+using Watchpoint.Testing.Async;
 using Watchpoint.Testing.Containers;
 using Xunit;
 
@@ -79,6 +81,46 @@ public sealed class HostIntegrationTests(PostgresContainerFixture postgres)
         managementResponded.ShouldBeTrue();
         using var main = await http.GetAsync($"http://127.0.0.1:{host.MainPort}/metrics", Ct);
         main.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    [Trait("spec", "PIP")]
+    public async Task PIP_I_016_Host_runs_the_pipeline()
+    {
+        // With the other host tests: hosts started side by side would compete for the default management port.
+        await using var db = await postgres.CreateDatabaseAsync(nameof(HostIntegrationTests), Ct);
+        await using var host = await HostProcess.StartWithNatsAsync(
+            "pipi016", new Dictionary<string, JsonNode> { ["Database"] = HostProcess.DatabaseSection(db.ConnectionString) }, Ct);
+
+        // The node becomes ready: streams provisioned (Infrastructure), recovery done, workers running.
+        using var http = new HttpClient();
+        await Eventually.UntilAsync(
+            () =>
+            {
+                host.HasExited.ShouldBeFalse("the host stopped during start-up");
+                try
+                {
+                    using var response = http.Send(new HttpRequestMessage(HttpMethod.Get, $"http://127.0.0.1:{host.MainPort}/health/ready"), Ct);
+                    return response.StatusCode == HttpStatusCode.OK;
+                }
+                catch (HttpRequestException)
+                {
+                    return false;
+                }
+            },
+            TimeSpan.FromSeconds(60),
+            "the host with the pipeline is ready",
+            TimeSpan.FromMilliseconds(200),
+            Ct);
+
+        // Its three streams exist on its NATS server.
+        await using var client = new NatsClient(host.NatsUrl);
+        var js = client.CreateJetStreamContext();
+        foreach (var (stream, subject) in new[] { ("WP_LOG", "wp.log.>"), ("WP_CFG", "wp.cfg.>"), ("WP_SYS", "wp.sys.>") })
+        {
+            var config = (await js.GetStreamAsync(stream, cancellationToken: Ct)).Info.Config;
+            config.Subjects.ShouldBe([subject]);
+        }
     }
 
     [Fact]

@@ -1,14 +1,10 @@
 using System.Collections.Concurrent;
 using System.Globalization;
-using System.Net;
-using System.Text.Json.Nodes;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using NATS.Net;
 using Npgsql;
 using Shouldly;
-using Watchpoint.IntegrationTests.Host;
 using Watchpoint.Kernel.Ids;
 using Watchpoint.Kernel.Text;
 using Watchpoint.Kernel.Values;
@@ -253,44 +249,6 @@ public sealed class PipelineIngestIntegrationTests(PostgresContainerFixture post
         received.ShouldAllBe(r => r.Body.Context == new RegistryChangedContext("test-user", "integration-test", "corr-1"));
     }
 
-    [Fact]
-    public async Task PIP_I_016_Host_runs_the_pipeline()
-    {
-        await using var db = await postgres.CreateDatabaseAsync(nameof(PipelineIngestIntegrationTests), Ct);
-        await using var host = await HostProcess.StartWithNatsAsync(
-            "pipi016", new Dictionary<string, JsonNode> { ["Database"] = HostProcess.DatabaseSection(db.ConnectionString) }, Ct);
-
-        // The node becomes ready: streams provisioned (Infrastructure), recovery done, workers running.
-        using var http = new HttpClient();
-        await Eventually.UntilAsync(
-            () =>
-            {
-                host.HasExited.ShouldBeFalse("the host stopped during start-up");
-                try
-                {
-                    using var response = http.Send(new HttpRequestMessage(HttpMethod.Get, $"http://127.0.0.1:{host.MainPort}/health/ready"), Ct);
-                    return response.StatusCode == HttpStatusCode.OK;
-                }
-                catch (HttpRequestException)
-                {
-                    return false;
-                }
-            },
-            TimeSpan.FromSeconds(60),
-            "the host with the pipeline is ready",
-            TimeSpan.FromMilliseconds(200),
-            Ct);
-
-        // Its three streams exist on its NATS server.
-        await using var client = new NatsClient(host.NatsUrl);
-        var js = client.CreateJetStreamContext();
-        foreach (var (stream, subject) in new[] { ("WP_LOG", "wp.log.>"), ("WP_CFG", "wp.cfg.>"), ("WP_SYS", "wp.sys.>") })
-        {
-            var config = (await js.GetStreamAsync(stream, cancellationToken: Ct)).Info.Config;
-            config.Subjects.ShouldBe([subject]);
-        }
-    }
-
     private static HashSet<int> AllPartitions() => [.. Enumerable.Range(0, Partitioning.PartitionCount)];
 
     private static ILogger NullLoggerOf(ServiceProvider node) => node.GetRequiredService<ILoggerFactory>().CreateLogger("pip-i-015");
@@ -324,7 +282,7 @@ public sealed class PipelineIngestIntegrationTests(PostgresContainerFixture post
         services.AddWatchpointStorage(configuration, isDevelopment: true);
         services.AddPostgresStorage();
         services.AddWatchpointModel();
-        services.AddWatchpointRegistry();
+        services.AddWatchpointRegistry(SiteId.New());
         services.AddSingleton(new EventLogEndpoint(nats.Url, null));
         services.AddPipeline(PipelineNode.OptionsFor(scope));
         if (subscriber is not null)
