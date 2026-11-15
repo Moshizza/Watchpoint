@@ -263,7 +263,7 @@ public sealed class RegistryOutboxIntegrationTests(PostgresContainerFixture post
             services.AddWatchpointStorage(configuration, isDevelopment: true);
             services.AddPostgresStorage();
             services.AddWatchpointModel();
-            services.AddWatchpointRegistry();
+            services.AddWatchpointRegistry(SiteId.New());
             if (natsUrl is not null)
             {
                 services.AddSingleton(new EventLogEndpoint(natsUrl, null));
