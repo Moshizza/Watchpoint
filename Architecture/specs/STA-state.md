@@ -244,9 +244,9 @@ public sealed record SnapshotContribution(IReadOnlyList<StateItem> Upserts, IRea
 1. Read checkpoints (`consumer = state`) and all `device` items for owned partitions →
    rebuild `PartitionStateStore`s (entities no longer in REG are discarded; entities in REG
    without a snapshot are initialised as new).
-2. Report checkpoints to PIP; PIP replays records after them (PIP §7.4); STA applies them.
+2. Report checkpoints to PIP (`IPartitionSubscriber.GetRecoveryCheckpoint`); PIP replays records after them (PIP §7.4); STA applies them.
 3. Recompute summaries, `ServerUnavailable`, aggregates from scratch.
-4. `OnRecoveryCompleted`: provide current values to PIP's last value cache.
+4. Provide current values to PIP's last value cache (`ILastValueSource.ProvideLastValues`, called by PIP after the replay, just before `OnRecoveryCompleted`).
 5. Mark readiness for the State module.
 
 Target: 25,000 devices with 10 properties each recovered in < 60 s including replay of

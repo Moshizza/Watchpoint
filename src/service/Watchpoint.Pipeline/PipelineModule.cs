@@ -7,10 +7,10 @@ using Watchpoint.Kernel.Json;
 using Watchpoint.Pipeline.Contracts;
 using Watchpoint.Pipeline.Internal;
 using Watchpoint.Pipeline.Internal.Ingest;
-using Watchpoint.Pipeline.Internal.Partitions;
-using Watchpoint.Pipeline.Internal.SideEffects;
 using Watchpoint.Pipeline.Internal.Log;
 using Watchpoint.Pipeline.Internal.Nats;
+using Watchpoint.Pipeline.Internal.Partitions;
+using Watchpoint.Pipeline.Internal.SideEffects;
 using Watchpoint.Registry.Contracts;
 
 namespace Watchpoint.Pipeline;

@@ -298,7 +298,7 @@ Checks every 10 s per running connection:
 | Hung command | A command call exceeded its deadline + 30 s | Log 1860; restart connection |
 | Hung start | `StartAsync` not returned after 5 s | Log 1861; Faulted |
 | Silent connector | Connected, no health report, no observation and no completed request for `Connections:SilenceTimeout` (default 30 min; per connector type override in manifest `limits.silenceTimeout`) | Log 1862 (warning) only |
-| Flooding | PIP flooding signal (PIP §8) | Report fault `flooding` on root server health; status reason |
+| Flooding | PIP flooding signal (PIP §8, `IIngestFloodingListener`) | Report fault `flooding` on root server health; status reason |
 
 ### 7.4 Inventory coordination
 
