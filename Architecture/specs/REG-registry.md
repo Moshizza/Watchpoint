@@ -91,7 +91,7 @@ Invariants (validated by the writer, each with an error code in §9):
 
 | # | Invariant |
 |---|---|
-| R1 | Exactly one `Site`; created at first start from settings or the dev seed |
+| R1 | Exactly one `Site`, whose id is the installation's `Site:Id` (HST §4); created at first start from settings or the dev seed (see *Site identity* below) |
 | R2 | Location tree: one root (kind `Organisation` or `Site`), no cycles, depth ≤ 10, sibling names unique (NameRules comparison) |
 | R3 | `Tag.Key` unique; tag in an exclusive family → an object holds at most one tag of that family |
 | R4 | `Server.Type` and `Device.Type` resolve in MOD with role `server` / `device` |
@@ -101,6 +101,16 @@ Invariants (validated by the writer, each with an error code in §9):
 | R8 | Attributes valid for the type (MOD `ValidateAttributes`); custom fields valid for their definitions |
 | R9 | Link endpoints exist; `CameraViews.From` has capability `videoSource` (from M6; until then any device); no duplicate (kind, from, to) |
 | R10 | Every device/server has a location |
+
+**Site identity (R1).** The host passes `Site:Id` (a v7 uuid generated at first start and written back to
+`watchpoint.json`, HST §4) to `AddWatchpointRegistry(SiteId)`. Without a site row the snapshot holds the default
+site (`Default Site`, `UTC`) with that id, and the first `UpdateSite` (the dev seed's `site` section, HST §9, or the
+API) writes the row with it; the Identity token issuer `urn:watchpoint:site:<Site:Id>` (IDN §6.2) and the
+site row therefore name the same id. When a row already exists with another id (installations created before
+`Site:Id` existed, or a node whose `watchpoint.json` was edited), **the stored row wins**: it is the id the
+installation's data and the other nodes of the site refer to, and a single node's settings file must not rewrite
+the shared database. The Registry keeps the row, logs event 1504 once at load naming both ids, and the operator
+sets `Site:Id` to the stored id (every node of the site carries the same `Site:Id`).
 
 ## 5. Public contract — reading
 
@@ -404,6 +414,7 @@ JSON shape of a device (API):
 | 1501 | Information | Registry loaded: {Locations} locations, {Servers} servers, {Devices} devices in {DurationMs} ms |
 | 1502 | Information | Registry batch applied by {Origin}: {Created} created, {Updated} updated, {Deleted} deleted, revision {Revision} |
 | 1503 | Warning | Registry batch rejected: {ErrorCount} errors from {Origin} |
+| 1504 | Warning | Registry site row {StoredSiteId} differs from Site:Id {ConfiguredSiteId}: keeping the stored row; set Site:Id to the stored id so the token issuer matches the site |
 | 1510 | Information | Reconciled connection {ConnectionId}: {Updated} updated, {Orphaned} orphaned, {Restored} restored, {New} new, {Imported} imported |
 | 1511 | Warning | Reconcile warning {Code} for {NativeId} |
 
@@ -469,6 +480,8 @@ persistence fake). Integration: `Watchpoint.IntegrationTests/Registry`.
 | REG-U-043 | U | Import selected discovered items with overrides | names/location/tags applied; children follow parent |
 | REG-U-044 | U | Reconcile is idempotent | Same report twice → second run `Unchanged = n`, no writes |
 | REG-U-045 | U | Reconcile publishes one batch with origin `integration:<id>` | |
+| REG-U-046 | U | Created site carries `Site:Id` | No site row; `AddWatchpointRegistry(siteId)` → `Site.Id == siteId`; an `UpdateSite` writes the row with that id |
+| REG-U-047 | U | Stored site row with another id wins | Row with id A, `Site:Id` = B → `Site.Id == A`; one warning 1504 naming A and B; no write |
 | REG-U-048 | U | Revision persisted and continued after restart | Two batches → revisions 1, 2; a new writer on the same database applies one → revision 3 (no restart at 1, no reuse); `revision.value` = 3 |
 | REG-U-049 | U | Rejected batch takes no revision and writes no record | Batch, stale `ExpectedVersion` batch, batch → outbox revisions 1, 2 |
 | REG-U-050 | U | Outbox read in revision order, mark sent, bounded retention | 3 records; `ReadUnsentAsync(2)` → 1, 2; mark 1 and 2 sent (idempotent, unknown revision ignored) → unsent [3]; 25 h later `DeleteSentBeforeAsync(now − 24 h)` deletes 2, never the unsent one; a record sent just now is kept |
@@ -491,4 +504,5 @@ persistence fake). Integration: `Watchpoint.IntegrationTests/Registry`.
 |---|---|---|
 | T1.07 | §4–§7, §9–§13 (except reconciliation) | REG-U-001…REG-U-030, REG-I-001…REG-I-004, REG-I-006, REG-I-009 |
 | T1.08 | §8 | REG-U-031…REG-U-045, REG-I-007 |
+| T1.07b | §4 R1 (site identity), §12 (event 1504) | REG-U-046, REG-U-047 |
 | T1.09b | §6 (steps 3–5, `IRegistryOutbox`), §10 (`revision`, `outbox`) | REG-U-048…REG-U-051, REG-I-011; REG-I-005 moved onto the outbox |
