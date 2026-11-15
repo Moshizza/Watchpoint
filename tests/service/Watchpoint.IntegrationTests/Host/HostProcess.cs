@@ -4,6 +4,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text.Json.Nodes;
 using Npgsql;
+using Watchpoint.Testing.Containers;
 
 namespace Watchpoint.IntegrationTests.Host;
 
@@ -13,6 +14,7 @@ internal sealed class HostProcess : IAsyncDisposable
     private readonly Process _process;
     private readonly string _tempDir;
     private readonly bool _keepData;
+    private NatsContainerFixture? _nats;
 
     private HostProcess(Process process, string tempDir, bool keepData, int mainPort, int managementPort)
     {
@@ -29,6 +31,9 @@ internal sealed class HostProcess : IAsyncDisposable
 
     /// <summary>The data folder (<c>Paths:Data</c>); binaries are in its <c>bin</c> subfolder.</summary>
     public string DataDirectory => _tempDir;
+
+    /// <summary>The URL of the host's own NATS server (<see cref="StartWithNatsAsync"/>).</summary>
+    public string NatsUrl => _nats?.Url ?? throw new InvalidOperationException("The host was not started with its own NATS server.");
 
     public bool HasExited => _process.HasExited;
 
@@ -67,22 +72,33 @@ internal sealed class HostProcess : IAsyncDisposable
     }
 
     /// <summary>
-    /// The <c>Nats</c> and <c>Log</c> sections for a host on the shared test NATS server: External mode, and stream and
-    /// subject prefixes of its own, so that hosts of different tests do not see each other's event log.
+    /// Starts a host with a NATS server of its own (a container that lives as long as the host). The host's event log
+    /// reserves gigabytes of JetStream storage (PIP §5.1), which would starve the tests sharing the assembly's NATS
+    /// server; see <see cref="NatsUrl"/>.
     /// </summary>
-    public static Dictionary<string, JsonNode> WithNats(
-        Dictionary<string, JsonNode> sections, Watchpoint.Testing.Containers.NatsContainerFixture nats, string testName)
+    public static async Task<HostProcess> StartWithNatsAsync(
+        string name,
+        Dictionary<string, JsonNode> sections,
+        CancellationToken ct,
+        IReadOnlyDictionary<string, string>? environment = null)
     {
-        var scope = nats.CreateScope(testName);
-        sections["Nats"] = new JsonObject { ["Mode"] = "External", ["Url"] = nats.Url };
-        sections["Log"] = new JsonObject
+        var nats = NatsContainerFixture.WithOptions(new ContainerFixtureOptions());
+        try
         {
-            ["SubjectPrefix"] = scope.SubjectPrefix,
-            ["StreamPrefix"] = scope.StreamPrefix,
-            ["MaxBytes"] = "1GB",
-            ["AllowInsecureRemote"] = "true",
-        };
-        return sections;
+            await nats.StartAsync(ct);
+            sections["Nats"] = new JsonObject { ["Mode"] = "External", ["Url"] = nats.Url };
+
+            // The test server has no TLS, and its address is not always a loopback one (Docker in Docker).
+            sections["Log"] = new JsonObject { ["MaxBytes"] = "1GB", ["AllowInsecureRemote"] = "true" };
+            var host = Start(name, sections, environment);
+            host._nats = nats;
+            return host;
+        }
+        catch
+        {
+            await nats.DisposeAsync();
+            throw;
+        }
     }
 
     /// <summary>A new, empty data folder for <see cref="Start"/> (to prepare files before the host starts, or to start a second host on it).</summary>
@@ -96,7 +112,7 @@ internal sealed class HostProcess : IAsyncDisposable
     /// <summary>
     /// Starts the host in Development with <paramref name="sections"/> added to the generated settings. NATS is
     /// External unless a <c>Nats</c> section says otherwise (Bundled needs the nats-server binary in <c>bin</c>); the
-    /// host needs a reachable NATS server for its event log (see <see cref="WithNats"/>).
+    /// host needs a reachable NATS server for its event log (see <see cref="StartWithNatsAsync"/>).
     /// With <paramref name="dataDirectory"/> the folder is used as is and kept when the host is disposed.
     /// </summary>
     public static HostProcess Start(
@@ -173,6 +189,11 @@ internal sealed class HostProcess : IAsyncDisposable
         }
 
         _process.Dispose();
+        if (_nats is not null)
+        {
+            await _nats.DisposeAsync();
+        }
+
         if (_keepData)
         {
             return;

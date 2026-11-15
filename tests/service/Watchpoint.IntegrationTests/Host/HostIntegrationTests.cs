@@ -11,7 +11,7 @@ namespace Watchpoint.IntegrationTests.Host;
 
 [Trait("layer", "I")]
 [Trait("spec", "HST")]
-public sealed class HostIntegrationTests(PostgresContainerFixture postgres, NatsContainerFixture nats)
+public sealed class HostIntegrationTests(PostgresContainerFixture postgres)
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -19,9 +19,8 @@ public sealed class HostIntegrationTests(PostgresContainerFixture postgres, Nats
     public async Task HST_I_001_Host_starts_with_compose_infrastructure()
     {
         await using var db = await postgres.CreateDatabaseAsync(nameof(HostIntegrationTests), Ct);
-        await nats.StartAsync(Ct);
-        await using var host = HostProcess.Start("i001", HostProcess.WithNats(
-            new Dictionary<string, JsonNode> { ["Database"] = HostProcess.DatabaseSection(db.ConnectionString) }, nats, "hsti001"));
+        await using var host = await HostProcess.StartWithNatsAsync(
+            "i001", new Dictionary<string, JsonNode> { ["Database"] = HostProcess.DatabaseSection(db.ConnectionString) }, Ct);
 
         using var http = new HttpClient();
         var ready = await PollAsync(TimeSpan.FromSeconds(30), host, async () =>
@@ -42,9 +41,7 @@ public sealed class HostIntegrationTests(PostgresContainerFixture postgres, Nats
         var closedPort = HostProcess.GetFreePort();
         database["Databases"]!["default"]!["Host"] = "127.0.0.1";
         database["Databases"]!["default"]!["Port"] = closedPort.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        await nats.StartAsync(Ct);
-        await using var host = HostProcess.Start(
-            "i002", HostProcess.WithNats(new Dictionary<string, JsonNode> { ["Database"] = database }, nats, "hsti002"));
+        await using var host = await HostProcess.StartWithNatsAsync("i002", new Dictionary<string, JsonNode> { ["Database"] = database }, Ct);
 
         using var http = new HttpClient();
         var reportedDatabase = await PollAsync(TimeSpan.FromSeconds(10), host, async () =>
@@ -69,9 +66,8 @@ public sealed class HostIntegrationTests(PostgresContainerFixture postgres, Nats
     public async Task HST_I_003_Management_endpoints_only_on_management_port()
     {
         await using var db = await postgres.CreateDatabaseAsync(nameof(HostIntegrationTests), Ct);
-        await nats.StartAsync(Ct);
-        await using var host = HostProcess.Start("i003", HostProcess.WithNats(
-            new Dictionary<string, JsonNode> { ["Database"] = HostProcess.DatabaseSection(db.ConnectionString) }, nats, "hsti003"));
+        await using var host = await HostProcess.StartWithNatsAsync(
+            "i003", new Dictionary<string, JsonNode> { ["Database"] = HostProcess.DatabaseSection(db.ConnectionString) }, Ct);
 
         using var http = new HttpClient();
         var managementResponded = await PollAsync(TimeSpan.FromSeconds(30), host, async () =>
@@ -94,15 +90,15 @@ public sealed class HostIntegrationTests(PostgresContainerFixture postgres, Nats
         }
 
         await using var db = await postgres.CreateDatabaseAsync(nameof(HostIntegrationTests), Ct);
-        await nats.StartAsync(Ct);
         var socketPath = Path.Combine(Path.GetTempPath(), $"notify_{Guid.NewGuid():N}.sock");
         using var socket = new Socket(AddressFamily.Unix, SocketType.Dgram, ProtocolType.Unspecified);
         socket.Bind(new UnixDomainSocketEndPoint(socketPath));
         try
         {
-            await using var host = HostProcess.Start(
+            await using var host = await HostProcess.StartWithNatsAsync(
                 "i004",
-                HostProcess.WithNats(new Dictionary<string, JsonNode> { ["Database"] = HostProcess.DatabaseSection(db.ConnectionString) }, nats, "hsti004"),
+                new Dictionary<string, JsonNode> { ["Database"] = HostProcess.DatabaseSection(db.ConnectionString) },
+                Ct,
                 new Dictionary<string, string> { ["NOTIFY_SOCKET"] = socketPath, ["WATCHDOG_USEC"] = "2000000" });
 
             var buffer = new byte[1024];

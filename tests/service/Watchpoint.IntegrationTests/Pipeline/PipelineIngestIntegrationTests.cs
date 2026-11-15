@@ -257,10 +257,8 @@ public sealed class PipelineIngestIntegrationTests(PostgresContainerFixture post
     public async Task PIP_I_016_Host_runs_the_pipeline()
     {
         await using var db = await postgres.CreateDatabaseAsync(nameof(PipelineIngestIntegrationTests), Ct);
-        await nats.StartAsync(Ct);
-        var sections = HostProcess.WithNats(
-            new Dictionary<string, JsonNode> { ["Database"] = HostProcess.DatabaseSection(db.ConnectionString) }, nats, "pipi016");
-        await using var host = HostProcess.Start("pipi016", sections);
+        await using var host = await HostProcess.StartWithNatsAsync(
+            "pipi016", new Dictionary<string, JsonNode> { ["Database"] = HostProcess.DatabaseSection(db.ConnectionString) }, Ct);
 
         // The node becomes ready: streams provisioned (Infrastructure), recovery done, workers running.
         using var http = new HttpClient();
@@ -283,15 +281,13 @@ public sealed class PipelineIngestIntegrationTests(PostgresContainerFixture post
             TimeSpan.FromMilliseconds(200),
             Ct);
 
-        // Its three streams exist on the NATS server, under the prefixes of its settings.
-        await using var client = new NatsClient(nats.Url);
+        // Its three streams exist on its NATS server.
+        await using var client = new NatsClient(host.NatsUrl);
         var js = client.CreateJetStreamContext();
-        var prefix = sections["Log"]!["StreamPrefix"]!.GetValue<string>();
-        var subjects = sections["Log"]!["SubjectPrefix"]!.GetValue<string>();
-        foreach (var (stream, subject) in new[] { ("WP_LOG", ".log.>"), ("WP_CFG", ".cfg.>"), ("WP_SYS", ".sys.>") })
+        foreach (var (stream, subject) in new[] { ("WP_LOG", "wp.log.>"), ("WP_CFG", "wp.cfg.>"), ("WP_SYS", "wp.sys.>") })
         {
-            var config = (await js.GetStreamAsync(prefix + stream, cancellationToken: Ct)).Info.Config;
-            config.Subjects.ShouldBe([subjects + subject]);
+            var config = (await js.GetStreamAsync(stream, cancellationToken: Ct)).Info.Config;
+            config.Subjects.ShouldBe([subject]);
         }
     }
 
