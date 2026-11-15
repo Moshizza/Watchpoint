@@ -13,6 +13,7 @@ using Watchpoint.Model.Contracts;
 using Watchpoint.Model.Documents;
 using Watchpoint.Pipeline;
 using Watchpoint.Pipeline.Contracts;
+using Watchpoint.Pipeline.Internal;
 using Watchpoint.Pipeline.Internal.Nats;
 using Watchpoint.Registry;
 using Watchpoint.Registry.Contracts;
@@ -293,6 +294,9 @@ public sealed class PipelineIngestIntegrationTests(PostgresContainerFixture post
         var provider = services.BuildServiceProvider();
         await provider.GetRequiredService<IStorageStartup>().MigrateAsync(Ct);
         await provider.GetRequiredService<IEventLogSetup>().EnsureStreamsAsync(Ct);
+
+        // The registry's outbox publisher (a hosted service, started by the host) sends registry.changed to the log.
+        await provider.GetRequiredService<RegistryOutboxPublisher>().StartAsync(Ct);
         return provider;
     }
 
