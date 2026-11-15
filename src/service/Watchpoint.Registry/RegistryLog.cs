@@ -16,6 +16,9 @@ internal static partial class RegistryLog
     [LoggerMessage(EventId = 4, Level = LogLevel.Warning, Message = "Registry invariant violation: {Rule} - {ErrorMessage}")]
     public static partial void InvariantViolation(ILogger logger, string rule, string errorMessage);
 
+    [LoggerMessage(EventId = 1504, Level = LogLevel.Warning, Message = "Registry site row {StoredSiteId} differs from Site:Id {ConfiguredSiteId}: keeping the stored row; set Site:Id to the stored id so the token issuer matches the site")]
+    public static partial void SiteIdMismatch(ILogger logger, Guid storedSiteId, Guid configuredSiteId);
+
     [LoggerMessage(EventId = 1510, Level = LogLevel.Information, Message = "Reconciled connection {ConnectionId}: {Updated} updated, {Orphaned} orphaned, {Restored} restored, {New} new, {Imported} imported")]
     public static partial void ConnectionReconciled(ILogger logger, Guid connectionId, int updated, int orphaned, int restored, int @new, int imported);
 

@@ -464,7 +464,7 @@ public sealed class RegistryIntegrationTests(PostgresContainerFixture postgres, 
         services.AddWatchpointStorage(configuration, isDevelopment: true);
         services.AddPostgresStorage();
         services.AddWatchpointModel();
-        services.AddWatchpointRegistry();
+        services.AddWatchpointRegistry(SiteId.New());
         configure?.Invoke(services);
         node.Services = services.BuildServiceProvider();
         await node.Services.GetRequiredService<IStorageStartup>().MigrateAsync(Ct);

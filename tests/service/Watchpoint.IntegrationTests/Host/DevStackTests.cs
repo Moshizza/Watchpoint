@@ -9,6 +9,7 @@ using Shouldly;
 using Watchpoint.Host.Dev;
 using Watchpoint.Hosting;
 using Watchpoint.Identity.Contracts;
+using Watchpoint.Kernel.Ids;
 using Watchpoint.Registry;
 using Watchpoint.Registry.Contracts;
 using Watchpoint.Storage.Contracts;
@@ -81,7 +82,7 @@ public sealed partial class DevStackTests(PostgresContainerFixture postgres)
         services.AddPostgresStorage();
         services.AddIdentityModule();
         Watchpoint.Model.ModelModule.AddWatchpointModel(services);
-        services.AddWatchpointRegistry();
+        services.AddWatchpointRegistry(SiteId.New());
         await using var provider = services.BuildServiceProvider();
 
         // The administrator of the seed can sign in.
