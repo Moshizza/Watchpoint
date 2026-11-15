@@ -34,4 +34,49 @@ internal static partial class PipelineLog
 
     [LoggerMessage(EventId = 1611, Level = LogLevel.Error, Message = "registry.changed revision {Revision} could not be appended to the log: {Reason}; log consumers must resynchronise")]
     public static partial void RegistryChangeNotPublished(ILogger logger, long revision, string reason);
+
+    [LoggerMessage(EventId = 1610, Level = LogLevel.Information, Message = "Partition {Partition} recovered from sequence {From} to {To} ({Records} records) in {DurationMs} ms")]
+    public static partial void PartitionRecovered(ILogger logger, int partition, long from, long to, long records, long durationMs);
+
+    [LoggerMessage(EventId = 1620, Level = LogLevel.Warning, Message = "Connection {ConnectionId} rejected {Count} observations with {Code} in the last minute; sample {Sample}")]
+    public static partial void ObservationsRejected(ILogger logger, Guid connectionId, long count, string code, Guid sample);
+
+    [LoggerMessage(EventId = 1630, Level = LogLevel.Warning, Message = "Connection {ConnectionId} over quota; coalescing active")]
+    public static partial void OverQuota(ILogger logger, Guid connectionId);
+
+    [LoggerMessage(EventId = 1631, Level = LogLevel.Error, Message = "Connection {ConnectionId} flooding: {Pending} pending events")]
+    public static partial void Flooding(ILogger logger, Guid connectionId, int pending);
+
+    [LoggerMessage(EventId = 1632, Level = LogLevel.Information, Message = "Connection {ConnectionId} back within quota after {Coalesced} coalesced observations")]
+    public static partial void WithinQuota(ILogger logger, Guid connectionId, long coalesced);
+
+    [LoggerMessage(EventId = 1633, Level = LogLevel.Error, Message = "Flooding listener {Listener} failed")]
+    public static partial void FloodingListenerFailed(ILogger logger, Exception exception, string listener);
+
+    [LoggerMessage(EventId = 1640, Level = LogLevel.Error, Message = "Follow-up depth exceeded in partition {Partition} for record {RecordId}")]
+    public static partial void FollowUpDepthExceeded(ILogger logger, int partition, Guid recordId);
+
+    [LoggerMessage(EventId = 1641, Level = LogLevel.Error, Message = "Subscriber {Subscriber} failed on record {RecordId}")]
+    public static partial void SubscriberFailed(ILogger logger, Exception exception, string subscriber, Guid recordId);
+
+    [LoggerMessage(EventId = 1642, Level = LogLevel.Error, Message = "Follow-up record {RecordId} of kind {Kind} in partition {Partition} cannot be appended and is dropped: {Reason}")]
+    public static partial void FollowUpDropped(ILogger logger, Guid recordId, string kind, int partition, string reason);
+
+    [LoggerMessage(EventId = 1643, Level = LogLevel.Error, Message = "Worker of partition {Partition} failed; {Count} observations are rejected")]
+    public static partial void WorkerFailed(ILogger logger, Exception exception, int partition, int count);
+
+    [LoggerMessage(EventId = 1644, Level = LogLevel.Warning, Message = "Pipeline stopped before {Count} queued observations were processed; they are rejected")]
+    public static partial void StoppedWithBacklog(ILogger logger, int count);
+
+    [LoggerMessage(EventId = 1645, Level = LogLevel.Error, Message = "Posted work failed in partition {Partition}")]
+    public static partial void PostedWorkFailed(ILogger logger, Exception exception, int partition);
+
+    [LoggerMessage(EventId = 1650, Level = LogLevel.Error, Message = "Replay for partition {Partition} starts after retention: wanted {Wanted}, first available {First}")]
+    public static partial void ReplayAfterRetention(ILogger logger, int partition, long wanted, long first);
+
+    [LoggerMessage(EventId = 1660, Level = LogLevel.Warning, Message = "Side effect {Kind} ({Class}) failed after {Attempts} attempts")]
+    public static partial void SideEffectFailed(ILogger logger, Exception? exception, string kind, string @class, int attempts);
+
+    [LoggerMessage(EventId = 1661, Level = LogLevel.Warning, Message = "Side-effect queue {Class} is full or stopped; {Count} effects were refused, last {Kind}")]
+    public static partial void SideEffectRefused(ILogger logger, string @class, long count, string kind);
 }

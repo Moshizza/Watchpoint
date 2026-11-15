@@ -20,6 +20,33 @@ public static class PipelineErrors
     /// <summary>Code of <see cref="StreamIncompatible"/>.</summary>
     public const string StreamIncompatibleCode = "pipeline.stream.incompatible";
 
+    /// <summary>Code of <see cref="ObservationMalformed"/>.</summary>
+    public const string ObservationMalformedCode = "pipeline.observation.malformed";
+
+    /// <summary>Code of <see cref="TargetUnknown"/>.</summary>
+    public const string TargetUnknownCode = "pipeline.target.unknown";
+
+    /// <summary>Code of <see cref="TargetForeign"/>.</summary>
+    public const string TargetForeignCode = "pipeline.target.foreign";
+
+    /// <summary>An observation misses a field its kind needs, or holds contradictory fields.</summary>
+    /// <param name="reason">What is wrong (for developers).</param>
+    /// <returns>The error (Validation).</returns>
+    public static Error ObservationMalformed(string reason) =>
+        Error.Create(ErrorKind.Validation, ObservationMalformedCode) with { DeveloperDetail = reason };
+
+    /// <summary>The device or server of an observation is not in the registry.</summary>
+    /// <param name="target">The device or server id.</param>
+    /// <returns>The error (NotFound).</returns>
+    public static Error TargetUnknown(Guid target) =>
+        Error.Create(ErrorKind.NotFound, TargetUnknownCode, ("target", target.ToString()));
+
+    /// <summary>The device or server of an observation belongs to another connection.</summary>
+    /// <param name="target">The device or server id.</param>
+    /// <returns>The error (Forbidden).</returns>
+    public static Error TargetForeign(Guid target) =>
+        Error.Create(ErrorKind.Forbidden, TargetForeignCode, ("target", target.ToString()));
+
     /// <summary>An ingest batch holds more observations than allowed.</summary>
     /// <param name="count">The number of observations.</param>
     /// <param name="max">The limit.</param>
