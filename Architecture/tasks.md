@@ -82,6 +82,7 @@ Every AI agent working on the project has a unique name, used as its branch pref
 | `claude-deneb` | Mohcine (Moshizza) | 2026-11-14 |
 | `claude-altair` | Mohcine (Moshizza) | 2026-11-14 |
 | `claude-polaris` | Mohcine (Moshizza) | 2026-11-14 |
+| `claude-vela` | Mohcine (Moshizza) | 2026-11-15 |
 
 ## 2. Tasks
 
@@ -121,7 +122,7 @@ spec that must exist and pass.
 | T1.08 | Registry: inventory reconciliation (rediscovery by native id, orphans, vendor names) | REG §8 | T1.07 | REG-U-031…REG-U-045, REG-I-007 | [#19](https://github.com/Moshizza/Watchpoint/issues/19) | jules-7325543338548804014-454e7657 | done |
 | T1.09 | Pipeline: event log streams, envelope, partition router, log writer/reader, consumer helpers | PIP §4–§6 | T1.02, T0.09 | PIP-U-001…PIP-U-020, PIP-I-001…PIP-I-008, REG-I-005 | [#20](https://github.com/Moshizza/Watchpoint/issues/20) | `claude-nova/T1.09-pipeline-event-log` | done |
 | T1.09b | Registry transactional outbox: persist the revision and change records in the registry transaction, publish to the log from the outbox (no lost or out-of-order registry changes across restarts or log outages) | PIP §5, REG §9 | T1.09 | (tests to define) | — | — | todo |
-| T1.10 | Pipeline: ingest (type validation, units, dedup, deadband, enrichment), back-pressure, side-effect dispatcher | PIP §7–§9 | T1.09, T1.07 | PIP-U-021…PIP-U-047, PIP-I-009…PIP-I-015 | [#21](https://github.com/Moshizza/Watchpoint/issues/21) | — | todo |
+| T1.10 | Pipeline: ingest (type validation, units, dedup, deadband, enrichment), back-pressure, side-effect dispatcher | PIP §7–§9 | T1.09, T1.07 | PIP-U-021…PIP-U-047, PIP-I-009…PIP-I-015 | [#21](https://github.com/Moshizza/Watchpoint/issues/21) | `claude-vela/T1.10-pipeline-ingest` | in progress |
 | T1.11 | State: live store, overall state computation, aggregates, queries, change feed | STA §4–§7 | T1.10 | STA-U-001…STA-U-035 | [#22](https://github.com/Moshizza/Watchpoint/issues/22) | — | todo |
 | T1.12 | State: snapshotter and recovery (snapshot + replay) | STA §8 | T1.11 | STA-U-036…STA-U-045, STA-I-001…STA-I-006 | [#23](https://github.com/Moshizza/Watchpoint/issues/23) | — | todo |
 | T1.13 | Integration contract (`Watchpoint.Integration.Abstractions`) | INT §4–§8 | T0.03, T0.04 | INT-U-001…INT-U-010 | [#24](https://github.com/Moshizza/Watchpoint/issues/24) | claude-orion/T1.13-integration-contract | done |
