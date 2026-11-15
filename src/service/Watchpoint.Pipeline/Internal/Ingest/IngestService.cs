@@ -26,6 +26,7 @@ internal sealed class IngestService : IObservationIngest, IDisposable
     private readonly IReadOnlyList<IIngestFloodingListener> _listeners;
     private readonly ILogger<IngestService> _logger;
     private readonly Func<IngestItem, CancellationToken, ValueTask> _route;
+    private int _disposed;
 
     public IngestService(
         ObservationValidator validator,
@@ -114,8 +115,12 @@ internal sealed class IngestService : IObservationIngest, IDisposable
 
     public void Dispose()
     {
-        _stop.Cancel();
-        _stop.Dispose();
+        // The container disposes the service once per registration (class and interface).
+        if (Interlocked.Exchange(ref _disposed, 1) == 0)
+        {
+            _stop.Cancel();
+            _stop.Dispose();
+        }
     }
 
     /// <summary>The quota of a connection (for tests).</summary>

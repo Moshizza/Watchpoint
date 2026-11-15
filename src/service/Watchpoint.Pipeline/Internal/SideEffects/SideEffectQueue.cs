@@ -23,6 +23,7 @@ internal sealed class SideEffectQueue : ISideEffectQueue, IAsyncDisposable
     private readonly List<Task> _workers = [];
     private bool _started;
     private bool _stopped;
+    private int _disposed;
 
     public SideEffectQueue(IngestOptions options, TimeProvider timeProvider, PipelineMetrics metrics, ILogger<SideEffectQueue> logger)
     {
@@ -151,6 +152,12 @@ internal sealed class SideEffectQueue : ISideEffectQueue, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        // The container disposes the queue once per registration (class and interface).
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+        {
+            return;
+        }
+
         await StopAsync(new CancellationToken(canceled: true)).ConfigureAwait(false);
         _stop.Dispose();
     }

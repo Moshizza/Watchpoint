@@ -66,6 +66,25 @@ internal sealed class HostProcess : IAsyncDisposable
         };
     }
 
+    /// <summary>
+    /// The <c>Nats</c> and <c>Log</c> sections for a host on the shared test NATS server: External mode, and stream and
+    /// subject prefixes of its own, so that hosts of different tests do not see each other's event log.
+    /// </summary>
+    public static Dictionary<string, JsonNode> WithNats(
+        Dictionary<string, JsonNode> sections, Watchpoint.Testing.Containers.NatsContainerFixture nats, string testName)
+    {
+        var scope = nats.CreateScope(testName);
+        sections["Nats"] = new JsonObject { ["Mode"] = "External", ["Url"] = nats.Url };
+        sections["Log"] = new JsonObject
+        {
+            ["SubjectPrefix"] = scope.SubjectPrefix,
+            ["StreamPrefix"] = scope.StreamPrefix,
+            ["MaxBytes"] = "1GB",
+            ["AllowInsecureRemote"] = "true",
+        };
+        return sections;
+    }
+
     /// <summary>A new, empty data folder for <see cref="Start"/> (to prepare files before the host starts, or to start a second host on it).</summary>
     public static string NewDataDirectory(string name)
     {
@@ -76,7 +95,8 @@ internal sealed class HostProcess : IAsyncDisposable
 
     /// <summary>
     /// Starts the host in Development with <paramref name="sections"/> added to the generated settings. NATS is
-    /// External unless a <c>Nats</c> section says otherwise (Bundled needs the nats-server binary in <c>bin</c>).
+    /// External unless a <c>Nats</c> section says otherwise (Bundled needs the nats-server binary in <c>bin</c>); the
+    /// host needs a reachable NATS server for its event log (see <see cref="WithNats"/>).
     /// With <paramref name="dataDirectory"/> the folder is used as is and kept when the host is disposed.
     /// </summary>
     public static HostProcess Start(

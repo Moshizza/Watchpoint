@@ -20,11 +20,8 @@ public sealed class HostIntegrationTests(PostgresContainerFixture postgres, Nats
     {
         await using var db = await postgres.CreateDatabaseAsync(nameof(HostIntegrationTests), Ct);
         await nats.StartAsync(Ct);
-        await using var host = HostProcess.Start("i001", new Dictionary<string, JsonNode>
-        {
-            ["Database"] = HostProcess.DatabaseSection(db.ConnectionString),
-            ["Nats"] = new JsonObject { ["Mode"] = "External", ["Url"] = nats.Url },
-        });
+        await using var host = HostProcess.Start("i001", HostProcess.WithNats(
+            new Dictionary<string, JsonNode> { ["Database"] = HostProcess.DatabaseSection(db.ConnectionString) }, nats, "hsti001"));
 
         using var http = new HttpClient();
         var ready = await PollAsync(TimeSpan.FromSeconds(30), host, async () =>
@@ -45,7 +42,9 @@ public sealed class HostIntegrationTests(PostgresContainerFixture postgres, Nats
         var closedPort = HostProcess.GetFreePort();
         database["Databases"]!["default"]!["Host"] = "127.0.0.1";
         database["Databases"]!["default"]!["Port"] = closedPort.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        await using var host = HostProcess.Start("i002", new Dictionary<string, JsonNode> { ["Database"] = database });
+        await nats.StartAsync(Ct);
+        await using var host = HostProcess.Start(
+            "i002", HostProcess.WithNats(new Dictionary<string, JsonNode> { ["Database"] = database }, nats, "hsti002"));
 
         using var http = new HttpClient();
         var reportedDatabase = await PollAsync(TimeSpan.FromSeconds(10), host, async () =>
@@ -70,10 +69,9 @@ public sealed class HostIntegrationTests(PostgresContainerFixture postgres, Nats
     public async Task HST_I_003_Management_endpoints_only_on_management_port()
     {
         await using var db = await postgres.CreateDatabaseAsync(nameof(HostIntegrationTests), Ct);
-        await using var host = HostProcess.Start("i003", new Dictionary<string, JsonNode>
-        {
-            ["Database"] = HostProcess.DatabaseSection(db.ConnectionString),
-        });
+        await nats.StartAsync(Ct);
+        await using var host = HostProcess.Start("i003", HostProcess.WithNats(
+            new Dictionary<string, JsonNode> { ["Database"] = HostProcess.DatabaseSection(db.ConnectionString) }, nats, "hsti003"));
 
         using var http = new HttpClient();
         var managementResponded = await PollAsync(TimeSpan.FromSeconds(30), host, async () =>
@@ -96,6 +94,7 @@ public sealed class HostIntegrationTests(PostgresContainerFixture postgres, Nats
         }
 
         await using var db = await postgres.CreateDatabaseAsync(nameof(HostIntegrationTests), Ct);
+        await nats.StartAsync(Ct);
         var socketPath = Path.Combine(Path.GetTempPath(), $"notify_{Guid.NewGuid():N}.sock");
         using var socket = new Socket(AddressFamily.Unix, SocketType.Dgram, ProtocolType.Unspecified);
         socket.Bind(new UnixDomainSocketEndPoint(socketPath));
@@ -103,7 +102,7 @@ public sealed class HostIntegrationTests(PostgresContainerFixture postgres, Nats
         {
             await using var host = HostProcess.Start(
                 "i004",
-                new Dictionary<string, JsonNode> { ["Database"] = HostProcess.DatabaseSection(db.ConnectionString) },
+                HostProcess.WithNats(new Dictionary<string, JsonNode> { ["Database"] = HostProcess.DatabaseSection(db.ConnectionString) }, nats, "hsti004"),
                 new Dictionary<string, string> { ["NOTIFY_SOCKET"] = socketPath, ["WATCHDOG_USEC"] = "2000000" });
 
             var buffer = new byte[1024];

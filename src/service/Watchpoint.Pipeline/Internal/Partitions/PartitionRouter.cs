@@ -23,6 +23,7 @@ internal sealed class PartitionRouter : IPartitionDispatcher, IPipelineLifecycle
     private bool _recovered;
     private bool _stopped;
     private volatile bool _running;
+    private int _disposed;
 
     public PartitionRouter(
         IngestOptions options,
@@ -194,6 +195,12 @@ internal sealed class PartitionRouter : IPartitionDispatcher, IPipelineLifecycle
 
     public async ValueTask DisposeAsync()
     {
+        // The container disposes the router once per registration (class and interfaces).
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+        {
+            return;
+        }
+
         await StopAsync(new CancellationToken(canceled: true)).ConfigureAwait(false);
         foreach (var worker in _workers)
         {
@@ -292,7 +299,7 @@ internal sealed class PartitionRouter : IPartitionDispatcher, IPipelineLifecycle
         for (var p = 0; p < _workers.Length; p++)
         {
             await _workers[p].CompleteRecoveryAsync(last, _lastValueSources, ct).ConfigureAwait(false);
-            if (starts[p] <= last)
+            if (replayed[p] > 0)
             {
                 PipelineLog.PartitionRecovered(_services.Logger, p, starts[p], last, replayed[p], elapsed);
             }
