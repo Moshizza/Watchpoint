@@ -20,4 +20,12 @@ internal static class RegistryMetrics
 
     public static readonly Histogram<double> SnapshotSwapDuration =
         _meter.CreateHistogram<double>("wp_registry_snapshot_swap_duration_seconds", "s", "Duration of snapshot swap in seconds");
+
+    private static long _revision;
+
+    /// <summary><c>watchpoint.registry.revision</c> (spec REG §12): the last revision committed by this node.</summary>
+    public static readonly ObservableGauge<long> Revision =
+        _meter.CreateObservableGauge("watchpoint.registry.revision", () => Volatile.Read(ref _revision), "{revision}", "The registry revision last committed by this node");
+
+    public static void RevisionCommitted(long revision) => Volatile.Write(ref _revision, revision);
 }

@@ -24,8 +24,9 @@ internal sealed class PipelineHarness : IDisposable
     private readonly PipelineMetrics _metrics = new();
     private readonly EventLogWriter _writer;
 
-    public PipelineHarness(PipelineOptions? options = null)
+    public PipelineHarness(PipelineOptions? options = null, FakeTimeProvider? time = null)
     {
+        Time = time ?? TestTime.CreateProvider();
         Options = options ?? new PipelineOptions { SubjectPrefix = "t1.wp", StreamPrefix = "T1_" };
         Naming = new LogNaming(Options);
         Broker = new InMemoryLogBroker(Time);
@@ -38,7 +39,7 @@ internal sealed class PipelineHarness : IDisposable
         Consumers = new LogConsumerFactory(Broker, Options, Time, _loggerFactory);
     }
 
-    public FakeTimeProvider Time { get; } = TestTime.CreateProvider();
+    public FakeTimeProvider Time { get; }
 
     public LogCollector Logs { get; } = new();
 
@@ -50,6 +51,8 @@ internal sealed class PipelineHarness : IDisposable
 
     public ILogRecordTypeRegistry Registry { get; }
 
+    public PipelineMetrics Metrics => _metrics;
+
     public IEventLogWriter Writer => _writer;
 
     public IEventLogReader Reader { get; }
@@ -59,6 +62,8 @@ internal sealed class PipelineHarness : IDisposable
     public string LogStreamName => Naming.StreamName(LogStream.Log);
 
     public ILogger Logger(string category) => _loggerFactory.CreateLogger(category);
+
+    public ILogger<T> Logger<T>() => _loggerFactory.CreateLogger<T>();
 
     /// <summary>The n-th test device whose partition is <paramref name="partition"/>.</summary>
     public static DeviceId DeviceIn(int partition, int nth = 1)

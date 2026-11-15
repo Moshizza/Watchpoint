@@ -156,7 +156,8 @@ public sealed record DeviceEnrichment(DeviceId Id, string DisplayNameDefault, Se
 ```csharp
 public interface IRegistryWriter
 {
-    Task<Result<RegistryApplyResult>> ApplyAsync(RegistryChangeBatch batch, ChangeContext context, CancellationToken ct);
+    Task<Result> ApplyAsync(RegistryChangeBatch batch, ChangeContext context, CancellationToken ct);
+    event EventHandler<RegistryChangedEventArgs>? Changed;   // in-process, after the snapshot swap
 }
 
 public sealed record ChangeContext(UserId? Actor, string Origin /* "api", "integration:<connId>", "seed", "publish:<changeSetId>" */,
@@ -187,8 +188,17 @@ public sealed record DevicePatch(Optional<LocalizedName?> Name, Optional<Locatio
     Optional<bool> Enabled, Optional<bool> Maintenance, Optional<IReadOnlyDictionary<string, WpValue>> AttributesMerge);
 // Optional<T> is a Kernel-style "set or not set" wrapper defined in this module (HasValue + Value).
 
-public sealed record RegistryApplyResult(long Revision, IReadOnlyList<EntityChange> Changes);
 public sealed record EntityChange(string Entity /* "device" … */, Guid Id, ChangeKind Kind /* Created, Updated, Deleted */);
+
+// The transactional outbox (T1.09b): written by the writer in the batch transaction, read by PIP's outbox publisher (PIP §5.5).
+public interface IRegistryOutbox
+{
+    Task<IReadOnlyList<RegistryOutboxRecord>> ReadUnsentAsync(int limit, CancellationToken ct);   // oldest first, revision order
+    Task MarkSentAsync(long revision, CancellationToken ct);                                      // after the log acknowledged
+    Task<int> DeleteSentBeforeAsync(DateTimeOffset threshold, CancellationToken ct);              // bounded retention; never unsent rows
+    Task WaitForRecordsAsync(CancellationToken ct);   // completes when this node committed a record since the previous wait (signal, not queue)
+}
+public sealed record RegistryOutboxRecord(long Revision, DateTimeOffset CreatedAt, ChangeContext Context, IReadOnlyList<EntityChange> Changes);
 ```
 
 `ApplyAsync` semantics:
@@ -199,15 +209,19 @@ public sealed record EntityChange(string Entity /* "device" … */, Guid Id, Cha
 2. Optimistic concurrency: `ExpectedVersion` (when given) must equal the current version,
    else `common.version.conflict` (args `entity`, `id`, `expected`, `actual`).
 3. Persist in **one database transaction** (registry schema). Versions incremented by one
-   per modified entity.
-4. Build a new snapshot (incremental: copy-on-write of changed indexes), swap atomically,
-   increment `Revision`.
-5. Publish a `registry.changed` record to the event log (stream `WP_CFG`, PIP §5.3) containing
-   `Revision`, `ChangeContext` and the `EntityChange` list; raise `Changed` in-process. The record
-   is published through `IRegistryChangePublisher.PublishAsync(RegistryApplyResult, ChangeContext, ct)`,
-   implemented by PIP (a no-op when the pipeline module is not registered). `EntityChange` lists
-   the entities named by the batch (for a link: its source device). The revision counts the batches
-   applied since the node started (not yet persisted).
+   per modified entity. In the same transaction the persisted **revision** (§10, table
+   `revision`) is incremented by one and the `registry.changed` record of the batch — revision,
+   commit time, `ChangeContext` and the `EntityChange` list — is written to the **outbox** table
+   (§10). `EntityChange` lists the entities named by the batch (for a link: its source device).
+   A rejected batch takes no revision and writes no record. The revision therefore increases by
+   one per committed batch, survives restarts and is never reused; a concurrent writer on
+   another node fails on the revision's concurrency token instead of reusing a value.
+4. Build a new snapshot (incremental: copy-on-write of changed indexes), swap atomically.
+5. Signal the outbox (`IRegistryOutbox.WaitForRecordsAsync` completes) and raise `Changed`
+   in-process. The record reaches the event log (stream `WP_CFG`, PIP §5.3) through the pipeline
+   module's **outbox publisher** (PIP §5.5), in revision order, at least once: the caller never
+   waits for the log, and a node stop or a log outage after the commit loses nothing. Without the
+   pipeline module the records stay in the outbox (unsent rows are never deleted).
 6. Deleting a location with children or objects: requires `ReassignTo` (objects and child
    locations move there) else `registry.location.not_empty`.
 7. Deleting a server: `DeleteDevices=false` and devices exist → `registry.server.not_empty`.
@@ -256,7 +270,7 @@ public interface IInventoryReconciler
     Task<Result<ReconciliationResult>> ReconcileAsync(ConnectionId connection, InventoryReport report,
         ReconcileOptions options, CancellationToken ct);
     Task<IReadOnlyList<DiscoveredItem>> GetDiscoveredAsync(ConnectionId connection, DiscoveredStatus? status, CancellationToken ct);
-    Task<Result<RegistryApplyResult>> ImportAsync(ConnectionId connection, ImportRequest request, ChangeContext ctx, CancellationToken ct);
+    Task<Result> ImportAsync(ConnectionId connection, ImportRequest request, ChangeContext ctx, CancellationToken ct);
     Task<Result> SetIgnoredAsync(ConnectionId connection, IReadOnlyList<string> nativeIds, bool ignored, CancellationToken ct);
 }
 
@@ -331,17 +345,8 @@ unless excluded).
 Attribute validation errors come from MOD (`model.value.*`) with paths
 `/changes/<i>/device/attributes/<key>`.
 
-**Known limitation (until T1.09b).** The `registry.changed` record is published after the registry
-transaction committed, and the revision is counted in memory:
-
-- the revision restarts at 1 when the node restarts;
-- if the event log stays unavailable for `Log:AppendTimeout` (30 s) after the commit, the change is
-  kept, error 1611 is logged (PIP §12) and no record is published — consumers see a gap in the
-  revisions and must read the registry again; a node that stops between commit and publish loses the
-  record the same way.
-
-T1.09b replaces this with a transactional outbox: revision and change record are stored in the
-registry transaction and published to the log from the outbox, in order.
+The `registry.changed` record is stored with the batch (§6 step 3, table `outbox` in §10) and
+published by PIP (§5.5); a log outage or a node stop cannot lose it.
 
 ## 10. Data (`wp_registry` schema)
 
@@ -357,6 +362,8 @@ registry transaction and published to the log from the outbox, in order.
 | `device_links` | id, kind text, from_id uuid, to_id uuid, row_version, … | PK id; unique (kind, from_id, to_id); FK from_id, to_id ON DELETE CASCADE |
 | `custom_fields` | id, target text, key text, name jsonb, schema jsonb, row_version, … | PK id; unique (target, key) |
 | `discovered_items` | connection_id uuid, native_id text, kind text (`device`), server_native_id text, parent_native_id text null, type_id, type_version, vendor_name, vendor_attributes jsonb, status text, first_seen, last_seen | PK (connection_id, native_id) |
+| `revision` | id int (always 1), value bigint | PK id; `value` is a concurrency token; one row inserted by the migration (value 0; created on first use where the migration did not run) |
+| `outbox` | revision bigint, created_at timestamptz, actor text null, reason text null, correlation_id text null, changes jsonb (`[{ "entity", "id", "kind" }]`, the `changes` of the log record), sent_at timestamptz null | PK revision; index sent_at. Written in the batch transaction (§6 step 3); `sent_at` set by the pipeline's publisher after the log acknowledged the record (PIP §5.5); sent rows deleted after 24 h (PIP §5.5), unsent rows never |
 
 `connection_id` is a plain uuid (owned by IRT, no cross-schema FK).
 
@@ -475,16 +482,21 @@ persistence fake). Integration: `Watchpoint.IntegrationTests/Registry`.
 | REG-U-045 | U | Reconcile publishes one batch with origin `integration:<id>` | |
 | REG-U-046 | U | Created site carries `Site:Id` | No site row; `AddWatchpointRegistry(siteId)` → `Site.Id == siteId`; an `UpdateSite` writes the row with that id |
 | REG-U-047 | U | Stored site row with another id wins | Row with id A, `Site:Id` = B → `Site.Id == A`; one warning 1504 naming A and B; no write |
+| REG-U-048 | U | Revision persisted and continued after restart | Two batches → revisions 1, 2; a new writer on the same database applies one → revision 3 (no restart at 1, no reuse); `revision.value` = 3 |
+| REG-U-049 | U | Rejected batch takes no revision and writes no record | Batch, stale `ExpectedVersion` batch, batch → outbox revisions 1, 2 |
+| REG-U-050 | U | Outbox read in revision order, mark sent, bounded retention | 3 records; `ReadUnsentAsync(2)` → 1, 2; mark 1 and 2 sent (idempotent, unknown revision ignored) → unsent [3]; 25 h later `DeleteSentBeforeAsync(now − 24 h)` deletes 2, never the unsent one; a record sent just now is kept |
+| REG-U-051 | U | Commit signals a waiting publisher once | `WaitForRecordsAsync` pending until a batch commits; two commits before the next wait complete it once, nothing more pending |
 | REG-I-001 | I | Persist and reload | Apply batch; new registry instance loads same snapshot (deep equality) |
 | REG-I-002 | I | Transaction atomicity | Failure injected mid-persist → nothing persisted, snapshot unchanged |
 | REG-I-003 | I | Unique constraints back up validation | Direct duplicate insert (bypassing validation) → DB rejects |
 | REG-I-004 | I | Location move SQL updates descendants | 3-level subtree moved → paths correct in DB |
-| REG-I-005 | I | `registry.changed` record published to the log | After apply, consumer on config subject receives record with revision and changes |
+| REG-I-005 | I | `registry.changed` record published to the log | After apply, the pipeline's outbox publisher appends the record; a consumer on the config subject receives one record per applied batch, in order, with revision and changes (nothing for a rejected batch) |
 | REG-I-006 | I | Concurrent writers: version conflict surfaces | Two writers update same device → one succeeds, one conflict |
 | REG-I-007 | I | Discovered items persisted | Reconcile with new items → rows; import → status imported |
 | REG-I-008 | I | API device list with filters and paging | Through API test host: filters map to query; cursor works |
 | REG-I-009 | I | Load time 50,000 devices | Seed 50,000 devices → snapshot load < 3 s on a developer machine or with `WATCHPOINT_STRICT_TIMING=1` (benchmark run); on shared CI runners (`CI=true`) < 10 s (TST §4.7), and the measured time is written to the test output. Memory < 150 MB is a benchmark measurement, not asserted in CI |
 | REG-I-010 | I | PATCH device with If-Match | Correct ETag → 200 new ETag; stale → 412 `common.version.conflict` |
+| REG-I-011 | I | Revision persisted across node restart | Node A (no pipeline) applies 2 batches, stops; node B on the same database applies one → `revision.value` = 3, outbox holds revisions 1…3 unsent with context and changes, `created_at` ascending |
 
 ## 15. Tasks
 
@@ -493,3 +505,4 @@ persistence fake). Integration: `Watchpoint.IntegrationTests/Registry`.
 | T1.07 | §4–§7, §9–§13 (except reconciliation) | REG-U-001…REG-U-030, REG-I-001…REG-I-004, REG-I-006, REG-I-009 |
 | T1.08 | §8 | REG-U-031…REG-U-045, REG-I-007 |
 | T1.07b | §4 R1 (site identity), §12 (event 1504) | REG-U-046, REG-U-047 |
+| T1.09b | §6 (steps 3–5, `IRegistryOutbox`), §10 (`revision`, `outbox`) | REG-U-048…REG-U-051, REG-I-011; REG-I-005 moved onto the outbox |

@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 using Shouldly;
 using Watchpoint.Kernel.Ids;
 using Watchpoint.Kernel.Results;
@@ -26,10 +27,10 @@ public sealed partial class RegistryUnitTests : IDisposable
     private readonly DbContextOptions<RegistryDbContext> _options;
     private readonly StorageContextInfo _info;
     private readonly TestTypeCatalog _types = new();
-    private readonly TestPublisher _publisher = new();
-    private readonly TimeProvider _clock = TestTime.CreateProvider();
+    private readonly FakeTimeProvider _clock = TestTime.CreateProvider();
     private RegistrySnapshot _snapshot;
     private readonly TestDbContextFactory _factory;
+    private readonly RegistryOutbox _outbox;
     private readonly RegistryWriter _writer;
     private readonly RegistryReader _reader;
     private readonly DeviceEnrichmentCache _cache = new();
@@ -65,7 +66,8 @@ public sealed partial class RegistryUnitTests : IDisposable
             new Dictionary<CustomFieldId, CustomFieldDefinition>());
 
         _factory = new TestDbContextFactory(_options, _info);
-        _writer = new RegistryWriter(_factory, _types, _publisher, _clock, NullLogger<RegistryWriter>.Instance, s => _snapshot = s, () => _snapshot);
+        _outbox = new RegistryOutbox(_factory, _clock);
+        _writer = new RegistryWriter(_factory, _types, _outbox, _clock, NullLogger<RegistryWriter>.Instance, s => _snapshot = s, () => _snapshot);
         _reader = new RegistryReader(() => _snapshot);
     }
 
@@ -716,7 +718,7 @@ public sealed partial class RegistryUnitTests : IDisposable
     }
 
     [Fact]
-    public async Task REG_U_030_Registry_change_publisher_dispatch()
+    public async Task REG_U_030_Registry_change_recorded_in_the_outbox()
     {
         var site = _reader.GetSite();
         var batch = new RegistryChangeBatch([new RegistryChange.UpdateSite(site with { DefaultTimezone = "UTC" })]);
@@ -724,27 +726,18 @@ public sealed partial class RegistryUnitTests : IDisposable
         var res = await _writer.ApplyAsync(batch, _context, TestContext.Current.CancellationToken);
         res.IsSuccess.ShouldBeTrue();
 
-        _publisher.Published.Count.ShouldBe(1);
-        _publisher.Published[0].Result.Revision.ShouldBe(1);
-        _publisher.Published[0].Result.Changes.ShouldBe([new EntityChange("site", site.Id.Value, ChangeKind.Updated)]);
-        _publisher.Published[0].Context.ShouldBe(_context);
+        var unsent = await _outbox.ReadUnsentAsync(10, TestContext.Current.CancellationToken);
+        unsent.Count.ShouldBe(1);
+        unsent[0].Revision.ShouldBe(1);
+        unsent[0].CreatedAt.ShouldBe(_clock.GetUtcNow());
+        unsent[0].Changes.ShouldBe([new EntityChange("site", site.Id.Value, ChangeKind.Updated)]);
+        unsent[0].Context.ShouldBe(_context);
     }
 
     private sealed class TestDbContextFactory(DbContextOptions<RegistryDbContext> options, StorageContextInfo info) : IDbContextFactory<RegistryDbContext>
     {
         public RegistryDbContext CreateDbContext() => new(options, info);
         public Task<RegistryDbContext> CreateDbContextAsync(CancellationToken cancellationToken = default) => Task.FromResult(new RegistryDbContext(options, info));
-    }
-
-    private sealed class TestPublisher : IRegistryChangePublisher
-    {
-        public List<(RegistryApplyResult Result, ChangeContext Context)> Published { get; } = [];
-
-        public Task PublishAsync(RegistryApplyResult result, ChangeContext context, CancellationToken ct = default)
-        {
-            Published.Add((result, context));
-            return Task.CompletedTask;
-        }
     }
 
     private sealed class TestTypeCatalog : ITypeCatalog

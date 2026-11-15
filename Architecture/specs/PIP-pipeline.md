@@ -123,7 +123,7 @@ Every record is a NATS message with headers and a JSON body:
 
 | Header | Value |
 |---|---|
-| `Nats-Msg-Id` | record id (UUID v7) — dedup |
+| `Nats-Msg-Id` | record id (UUID v7; for `registry.changed` a UUID v8 derived from the revision, §5.5) — dedup |
 | `Wp-Kind` | record kind, e.g. `property`, `event`, `health`, `alarm.raised` |
 | `Wp-Schema` | body schema version, integer (`1`) |
 | `Wp-Envelope` | envelope format version, integer (`1`) |
@@ -199,16 +199,12 @@ schema versions newer than the registered one, encountered when reading are yiel
 and **skipped** by the consumer helper with a debug log (1606) — forward compatibility in
 mixed-version clusters (`ILogRecordTypeRegistry.CanRead`).
 
-`registry.changed` (REG §6): one record per applied batch, in apply order. `changes` lists the
-entities the batch names (`site`, `location`, `tagFamily`, `tag`, `server`, `device`, `link`,
-`customField`) with `created`/`updated`/`deleted`. The record is appended after the registry
-transaction committed; if the log stays unavailable for `Log:AppendTimeout` the change is kept, an
-error is logged (1611) and consumers see a gap in `revision` (they then read the registry again).
-Until REG persists its revision it restarts at 1 with the node: consumers order by log sequence.
-
-**Known limitation (until T1.09b, see REG §9).** Registry changes are not yet published through a
-transactional outbox: a `registry.changed` record can be missing after a log outage longer than
-`Log:AppendTimeout` or a node stop between commit and publish, and the revision is not persisted.
+`registry.changed` (REG §6): one record per committed batch, in revision order. REG stores the
+record in its outbox table in the transaction of the batch; the **outbox publisher** (§5.5) appends
+it to `WP_CFG` with a record id derived from the revision, so a publish repeated after a crash is a
+duplicate for the log. Delivery is at least once: a consumer treats `revision` as its idempotency
+key (a record whose revision is at or below the last one applied is skipped). A gap in the
+revisions means a record the log refused (§5.5): the consumer reads the registry again.
 
 ### 5.4 Writer and reader contracts
 
@@ -325,6 +321,42 @@ Writer rules (ADR-001, amended by T1.09):
 - M1 sends no expected-sequence headers (one owner). Fenced appends (CLU T9.01) use
   `Nats-Expected-Last-Subject-Sequence` **with** `Nats-Expected-Last-Subject-Sequence-Subject =
   wp.log.<pp>.>` (CLU §5); the lanes are what fencing needs (one awaited publish per partition).
+
+### 5.5 Registry outbox publisher (T1.09b)
+
+`RegistryOutboxPublisher` (a hosted service of the module, exactly one per node) publishes the
+registry's transactional outbox (REG §6, §10, `IRegistryOutbox`) to `WP_CFG`:
+
+- **Loop**: read the oldest unsent records (at most 100, revision order); for each, in order:
+  append it with `IEventLogWriter.AppendGlobalAsync(Cfg)`, then mark it sent. A record is marked
+  sent **only after the log acknowledged it**. When nothing is unsent, sent rows are pruned (below)
+  and the publisher waits for the registry's signal (`IRegistryOutbox.WaitForRecordsAsync`, a commit
+  on this node) or the poll interval of 5 s (records of another node, a missed signal).
+- **Record**: id = `RecordId(revision)`, a UUID v8 (RFC 9562) whose last eight bytes carry the
+  revision (prefix `REGCHG`), so a repeated publish carries the same `Nats-Msg-Id`; kind
+  `registry.changed`; `ts` = the commit time of the batch (`created_at`); `p` 0; origin `user`
+  when the context's user id is a UUID, else `system`; body §5.3.
+- **Log down**: `AppendGlobalAsync` fails after `Log:AppendTimeout` with `pipeline.log.unavailable`;
+  the publisher logs 1611, waits (1 s doubling to 30 s, `TimeProvider`) and repeats the **same**
+  record; nothing later is sent before it. Callers of `IRegistryWriter.ApplyAsync` are not affected.
+  When the backlog is published, or after failed attempts, 1612 is logged.
+- **Restart**: the publisher starts from the oldest unsent record. A node that stopped between the
+  acknowledgement and the mark publishes the record again: within the 2 min duplicate window the
+  log stores it once; later it is stored twice, which the revision-based consumer rule (§5.3) absorbs.
+- **Refused record**: a record the log cannot store (`pipeline.record.too_large`: a batch of
+  thousands of changes exceeds 1 MB; `pipeline.record.invalid`) is logged (1613), skipped and
+  marked sent; consumers see the gap and resynchronise from the registry.
+- **Database down**: a failed outbox read or mark is logged (1614) and retried with the same
+  back-off; a mark that fails after a successful publish leads to a repeated publish (above).
+- **Retention**: sent rows are deleted 24 h after they were sent, checked at most once an hour
+  while idle; unsent rows are never deleted, so a log outage of any length loses nothing (the
+  outbox grows by one row per batch meanwhile).
+- These values (poll 5 s, back-off 1–30 s, batch 100, retention 24 h, prune hourly) are fixed in
+  `PipelineOptions`, not configurable in M1; tests shorten them.
+- **Several nodes (M9)**: one database must have one publisher. The seam is the loop itself
+  (`RegistryOutboxPublisher.RunAsync`): the cluster module starts it on the holder of a
+  `registry-outbox` lease (CLU §5) instead of on every node. Until then the revision-derived ids
+  make an accidental double publisher harmless within the duplicate window.
 
 ## 6. Ingest contract (used by IRT)
 
@@ -688,7 +720,10 @@ contracts return values, not `Result`.
 | 1608 | Error | Consumer {Consumer} dropped record {RecordId} of kind {Kind} at sequence {Sequence} after {Deliveries} deliveries |
 | 1609 | Error | Consumer {Consumer} dropped an unacknowledged batch of {Records} records, sequences {First} to {Last}, after {Deliveries} deliveries |
 | 1610 | Information | Partition {Partition} recovered from sequence {From} to {To} ({Records} records) in {DurationMs} ms |
-| 1611 | Error | registry.changed revision {Revision} could not be appended to the log: {Reason}; log consumers must resynchronise |
+| 1611 | Warning | registry.changed revision {Revision} could not be appended to the log: {Reason}; the outbox retries in {Delay} |
+| 1612 | Information | Registry outbox published revisions {First} to {Last} ({Records} records) after {FailedAttempts} failed attempts |
+| 1613 | Error | registry.changed revision {Revision} was refused by the log ({Code}) and is skipped; log consumers must resynchronise |
+| 1614 | Warning | Registry outbox database call failed: {Reason}; retrying in {Delay} |
 | 1620 | Warning | Connection {ConnectionId} rejected {Count} observations with {Code} in the last minute; sample {Sample} |
 | 1630 | Warning | Connection {ConnectionId} over quota; coalescing active |
 | 1631 | Error | Connection {ConnectionId} flooding: {Pending} pending events |
@@ -711,6 +746,8 @@ Metrics (`Watchpoint.Pipeline`):
 | `watchpoint.pipeline.observations` | counter | `{observations}` | `connection`, `outcome` (accepted, unchanged, coalesced, rejected, disabled), `code` (rejected only) |
 | `watchpoint.pipeline.records` | counter | `{records}` | `kind` |
 | `watchpoint.pipeline.append.duration` | histogram | ms | — |
+| `watchpoint.pipeline.outbox.pending` | observable gauge | `{records}` | — (unsent registry records, as last read by the publisher) |
+| `watchpoint.pipeline.outbox.retries` | counter | `{attempts}` | — (failed appends of registry records) |
 | `watchpoint.pipeline.partition.queue` | observable gauge | `{items}` | `partition` |
 | `watchpoint.pipeline.ingest.latency` | histogram | ms | — (received → subscribers done) |
 | `watchpoint.pipeline.subscriber.duration` | histogram | ms | `subscriber` |
@@ -794,6 +831,12 @@ with real NATS (Testcontainers, scoped prefixes).
 | PIP-U-048 | U | TLS required for non-loopback NATS | Loopback URLs → TLS optional; any other server → TLS required unless `Log:AllowInsecureRemote`; the token never appears in `ToString` |
 | PIP-U-049 | U | Log failure keeps cache, subscribers and callers consistent with the log | The log stores the first record of a batch and stops answering → that one accepted, the rest rejected with `pipeline.log.unavailable`; the rejected value is a change when sent again (no false "unchanged") |
 | PIP-U-050 | U | Shutdown drains within a bounded time | One partition blocked in a subscriber → the others drain; after the drain time the blocked partition's queue is rejected, logged 1644 |
+| PIP-U-051 | U | Outbox published in revision order with revision dedup id | Fake outbox with revisions 3, 1, 2 unsent → `WP_CFG` holds 1, 2, 3 with `Nats-Msg-Id` = `RecordId(revision)` (UUID v8, deterministic), body §5.3, origin from the context; a record committed later wakes the idle publisher without the poll; 1612 for the backlog |
+| PIP-U-052 | U | Outbox retries with back-off while the log is down, then catches up | Broker losing every publish → 1611 with delays 1, 2, 4, 8 s (TestClock), nothing marked, nothing stored; broker back → both records stored in order once, 1612 with the failed attempts |
+| PIP-U-053 | U | Outbox publisher resumes from the oldest unsent record | Revisions 1…3 sent, 4 and 5 unsent → only 4 and 5 published, two publish attempts |
+| PIP-U-054 | U | Outbox record marked sent only after ack; duplicate after crash stored once | Ack held back → record in the log but unsent until the ack; revision 2 appended then unmarked (crash before the mark) → new publisher sends the same id, log keeps one copy |
+| PIP-U-055 | U | Outbox record refused by the log is skipped and logged | 15,000 changes (> 1 MB) → 1613 `pipeline.record.too_large`, marked sent, next record published |
+| PIP-U-056 | U | Outbox sent records pruned after retention once per interval; database faults retried | Idle publisher prunes at start then not before 1 h; a record sent 25 h ago is deleted; outbox throwing → 1614 with delays 1, 2 s, then publishes when the database is back |
 | PIP-I-001 | I | Streams provisioned on real NATS | Start module → three streams with expected subjects/retention |
 | PIP-I-002 | I | Provisioning idempotent | Restart → no error, configs unchanged |
 | PIP-I-003 | I | Append and replay one or several partitions | 1,000 records over 4 partitions → replay of p returns its records in order; `ReadPartitionsAsync({p, q})` returns the records of p and q in global sequence order, nothing else |
@@ -810,6 +853,9 @@ with real NATS (Testcontainers, scoped prefixes).
 | PIP-I-014 | I | Coalescing under real load | One connection at 10× quota (quota scaled to 200/s by options) for 5 s → events complete and in order, properties coalesced with the latest value in the log, quota respected, flooding fault raised then cleared |
 | PIP-I-015 | I | Global config stream consumer | REG publishes `registry.changed` → consumer receives in order with revision |
 | PIP-I-016 | I | Host runs the pipeline | Host process with Registry and Pipeline modules on PostgreSQL and NATS → ready; the three streams exist |
+| PIP-I-017 | I | Log down during commits: everything published in order once it is back | Dedicated NATS; publisher running; NATS stopped; 5 registry batches commit at once (callers never wait for the log); 1611 logged; NATS back → consumer receives revisions 1…6 in order, all rows sent, 1612 logged (`IntegrationTests/Registry`) |
+| PIP-I-018 | I | Node restart with unsent records resumes from the oldest | Node without pipeline commits 3 batches; next node with the pipeline publishes them, then a 4th → consumer receives 1…4 in order; no unsent row |
+| PIP-I-019 | I | Duplicate publish after a crash between publish and mark deduplicated | Revision 1 published; `sent_at` reset (crash before the mark); new node publishes again → `WP_CFG` holds one message, row sent |
 
 ## 15. Tasks
 
@@ -817,3 +863,4 @@ with real NATS (Testcontainers, scoped prefixes).
 |---|---|---|
 | T1.09 | §4, §5, §6 (contracts), §10 (log settings), §11, §12 (log part) | PIP-U-001…PIP-U-020, PIP-I-001…PIP-I-008, REG-I-005 |
 | T1.10 | §6 (rules), §7, §8, §9, §10 (ingest settings), §12 (ingest part), §13 | PIP-U-021…PIP-U-050, PIP-I-009…PIP-I-016 |
+| T1.09b | §5.3 (`registry.changed`), §5.5, §12 (outbox events and metrics) | PIP-U-051…PIP-U-056, PIP-I-017…PIP-I-019 |

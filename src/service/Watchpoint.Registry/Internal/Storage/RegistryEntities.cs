@@ -150,3 +150,27 @@ internal sealed class CustomFieldRecord
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 }
+
+/// <summary>The single row holding the registry revision (spec REG §10, table <c>revision</c>).</summary>
+[Table("revision", Schema = "wp_registry")]
+internal sealed class RevisionRecord
+{
+    /// <summary>The key of the only row.</summary>
+    public const int SingletonId = 1;
+
+    public int Id { get; set; } = SingletonId;
+    public long Value { get; set; }
+}
+
+/// <summary>One <c>registry.changed</c> record of the transactional outbox (spec REG §10, table <c>outbox</c>).</summary>
+[Table("outbox", Schema = "wp_registry")]
+internal sealed class OutboxRecord
+{
+    public long Revision { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public string? Actor { get; set; }
+    public string? Reason { get; set; }
+    public string? CorrelationId { get; set; }
+    public string Changes { get; set; } = "[]";
+    public DateTimeOffset? SentAt { get; set; }
+}

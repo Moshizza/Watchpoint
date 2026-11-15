@@ -15,6 +15,7 @@ using Watchpoint.Model.Contracts;
 using Watchpoint.Model.Documents;
 using Watchpoint.Pipeline;
 using Watchpoint.Pipeline.Contracts;
+using Watchpoint.Pipeline.Internal;
 using Watchpoint.Registry;
 using Watchpoint.Registry.Contracts;
 using Watchpoint.Storage.Contracts;
@@ -211,12 +212,14 @@ public sealed class RegistryIntegrationTests(PostgresContainerFixture postgres, 
         var log = PipelineNode.OptionsFor(scope);
         await using var node = await NodeAsync(db, services =>
         {
-            // The pipeline module replaces the registry's no-op publisher, whatever the registration order.
             services.AddSingleton(new EventLogEndpoint(nats.Url, null));
             services.AddPipeline(log);
         });
-        node.Services.GetRequiredService<IRegistryChangePublisher>().ShouldNotBeOfType<NoOpRegistryChangePublisher>();
         await node.Services.GetRequiredService<IEventLogSetup>().EnsureStreamsAsync(Ct);
+
+        // The pipeline's outbox publisher (a hosted service) sends the records the registry wrote in its transactions.
+        var publisher = node.Services.GetRequiredService<RegistryOutboxPublisher>();
+        await publisher.StartAsync(Ct);
 
         // A consumer on the configuration stream, filtered on the registry kind.
         var registry = node.Services.GetRequiredService<ILogRecordTypeRegistry>();
@@ -261,6 +264,7 @@ public sealed class RegistryIntegrationTests(PostgresContainerFixture postgres, 
         var stream = await client.CreateJetStreamContext().GetStreamAsync(scope.StreamPrefix + "WP_CFG", new() { SubjectsFilter = ">" }, Ct);
         stream.Info.State.Subjects.ShouldNotBeNull().Keys.ShouldBe([scope.SubjectPrefix + ".cfg.registry.changed"]);
         (await node.Services.GetRequiredService<IEventLogReader>().GetLastSequenceAsync(Ct)).ShouldBe(0);
+        await publisher.StopAsync(Ct);
     }
 
     [Fact]

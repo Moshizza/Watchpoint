@@ -11,7 +11,6 @@ using Watchpoint.Pipeline.Internal.Log;
 using Watchpoint.Pipeline.Internal.Nats;
 using Watchpoint.Pipeline.Internal.Partitions;
 using Watchpoint.Pipeline.Internal.SideEffects;
-using Watchpoint.Registry.Contracts;
 
 namespace Watchpoint.Pipeline;
 
@@ -23,8 +22,8 @@ public static class PipelineModule
 
     /// <summary>
     /// Adds the event log: record kind registry, log writer and reader, durable consumers, stream provisioning
-    /// (<see cref="IEventLogSetup"/>, run by the host at start-up) and the readiness health check. Replaces the
-    /// registry's change publisher by the one that appends <c>registry.changed</c> records. Adds the ingest
+    /// (<see cref="IEventLogSetup"/>, run by the host at start-up), the readiness health check and the registry outbox
+    /// publisher (a hosted service appending the registry's <c>registry.changed</c> records, PIP §5.5). Adds the ingest
     /// (<see cref="IObservationIngest"/>, validated against the registry and the type catalogue), the partition
     /// workers (<see cref="IPartitionDispatcher"/>; modules register <see cref="IPartitionSubscriber"/>s), the
     /// side-effect queue and <see cref="IPipelineLifecycle"/>, which the host runs at start-up and shutdown. The host
@@ -57,7 +56,8 @@ public static class PipelineModule
         services.AddSingleton<StreamProvisioner>();
         services.AddSingleton<IEventLogSetup>(sp => sp.GetRequiredService<StreamProvisioner>());
         services.AddHealthChecks().AddCheck<PipelineLogHealthCheck>(HealthCheckName, HealthStatus.Unhealthy, ["ready"]);
-        services.Replace(ServiceDescriptor.Singleton<IRegistryChangePublisher, LogRegistryChangePublisher>());
+        services.AddSingleton<RegistryOutboxPublisher>();
+        services.AddHostedService(sp => sp.GetRequiredService<RegistryOutboxPublisher>());
 
         // Ingest (spec PIP §7–§9).
         services.AddSingleton(ingest ?? new IngestOptions());

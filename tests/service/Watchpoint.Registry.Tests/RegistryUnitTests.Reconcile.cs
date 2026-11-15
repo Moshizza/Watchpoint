@@ -523,12 +523,13 @@ public partial class RegistryUnitTests
             Devices: [new InventoryDevice("door-1", "srv-1", null, devType, "Door 1", new Dictionary<string, WpValue>(), new HashSet<CapabilityId>(), [])],
             IsComplete: true);
 
-        _publisher.Published.Clear();
+        var before = (await _outbox.ReadUnsentAsync(100, TestContext.Current.CancellationToken)).Count;
         var res = await reconciler.ReconcileAsync(connId, report, new ReconcileOptions(AutoImportNew: true, DefaultLocation: root.Id), TestContext.Current.CancellationToken);
         res.IsSuccess.ShouldBeTrue();
 
-        _publisher.Published.Count.ShouldBe(1);
-        _publisher.Published[0].Context.Reason.ShouldBe($"integration:{connId.Value}");
+        var records = await _outbox.ReadUnsentAsync(100, TestContext.Current.CancellationToken);
+        records.Count.ShouldBe(before + 1);
+        records[^1].Context.Reason.ShouldBe($"integration:{connId.Value}");
     }
 
     private sealed class TestTypeCatalogWithVendorSchema : ITypeCatalog

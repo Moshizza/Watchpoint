@@ -34,7 +34,7 @@ public sealed partial class RegistryUnitTests
         collector.Entries.ShouldBeEmpty();
 
         // The first UpdateSite (dev seed or API) writes the row with Site:Id; the seed creates the root location with it (R2).
-        using var writer = new RegistryWriter(_factory, _types, _publisher, _clock, NullLogger<RegistryWriter>.Instance, s => snapshot = s, () => snapshot);
+        using var writer = new RegistryWriter(_factory, _types, _outbox, _clock, NullLogger<RegistryWriter>.Instance, s => snapshot = s, () => snapshot);
         var root = new Location(LocationId.New(), null, new LocalizedName("HQ", new Dictionary<string, string>()), LocationKind.Site, "/HQ", 0, null, null, null, 0, 0);
         var batch = new RegistryChangeBatch([
             new RegistryChange.UpdateSite(snapshot.Site with { DefaultTimezone = "Europe/Paris" }),

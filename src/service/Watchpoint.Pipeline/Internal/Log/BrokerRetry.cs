@@ -60,8 +60,10 @@ internal static class BrokerRetry
         }
     }
 
-    public static TimeSpan Next(TimeSpan delay, PipelineOptions options) =>
-        delay + delay < options.RetryDelayMax ? delay + delay : options.RetryDelayMax;
+    public static TimeSpan Next(TimeSpan delay, PipelineOptions options) => Next(delay, options.RetryDelayMax);
+
+    /// <summary>Doubles the delay up to <paramref name="max"/>.</summary>
+    public static TimeSpan Next(TimeSpan delay, TimeSpan max) => delay + delay < max ? delay + delay : max;
 
     /// <summary>Logs event 1602 at most once per 5 s per caller.</summary>
     public static void LogThrottled(ILogger logger, TimeProvider timeProvider, ref long lastLog, string reason)

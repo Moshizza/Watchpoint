@@ -16,6 +16,8 @@ internal class RegistryDbContext(DbContextOptions options, StorageContextInfo in
     public DbSet<DeviceLinkRecord> DeviceLinks => Set<DeviceLinkRecord>();
     public DbSet<CustomFieldRecord> CustomFields => Set<CustomFieldRecord>();
     public DbSet<DiscoveredItemRecord> DiscoveredItems => Set<DiscoveredItemRecord>();
+    public DbSet<RevisionRecord> Revision => Set<RevisionRecord>();
+    public DbSet<OutboxRecord> Outbox => Set<OutboxRecord>();
 
     protected override void OnModuleModelCreating(ModelBuilder modelBuilder)
     {
@@ -126,6 +128,28 @@ internal class RegistryDbContext(DbContextOptions options, StorageContextInfo in
             {
                 b.Property(e => e.VendorAttributes).HasColumnType("jsonb");
             }
+        });
+
+        modelBuilder.Entity<RevisionRecord>(b =>
+        {
+            b.ToTable("revision");
+            b.HasKey(e => e.Id);
+            b.Property(e => e.Id).ValueGeneratedNever();
+
+            // Two writers incrementing the same revision surface as a concurrency conflict, never as a reused revision.
+            b.Property(e => e.Value).IsConcurrencyToken();
+        });
+
+        modelBuilder.Entity<OutboxRecord>(b =>
+        {
+            b.ToTable("outbox");
+            b.HasKey(e => e.Revision);
+            b.Property(e => e.Revision).ValueGeneratedNever();
+            if (Database.ProviderName?.Contains("Npgsql", StringComparison.Ordinal) == true)
+            {
+                b.Property(e => e.Changes).HasColumnType("jsonb");
+            }
+            b.HasIndex(e => e.SentAt);
         });
     }
 }

@@ -72,6 +72,24 @@ internal sealed partial class PipelineOptions
     /// <summary>Messages asked per request when replaying.</summary>
     public int ReadPageSize { get; set; } = 1000;
 
+    /// <summary>Registry outbox (PIP §5.5): how often the publisher polls for records when it was not signalled.</summary>
+    public TimeSpan OutboxPollInterval { get; set; } = TimeSpan.FromSeconds(5);
+
+    /// <summary>Registry outbox: the first delay after a failed publish or database call; doubled up to <see cref="OutboxRetryDelayMax"/>.</summary>
+    public TimeSpan OutboxRetryDelayMin { get; set; } = TimeSpan.FromSeconds(1);
+
+    /// <summary>Registry outbox: the longest delay between two attempts.</summary>
+    public TimeSpan OutboxRetryDelayMax { get; set; } = TimeSpan.FromSeconds(30);
+
+    /// <summary>Registry outbox: unsent records read per round.</summary>
+    public int OutboxBatchSize { get; set; } = 100;
+
+    /// <summary>Registry outbox: how long a sent record is kept before it is deleted.</summary>
+    public TimeSpan OutboxSentRetention { get; set; } = TimeSpan.FromHours(24);
+
+    /// <summary>Registry outbox: how often sent records are pruned (when the publisher is idle).</summary>
+    public TimeSpan OutboxPruneInterval { get; set; } = TimeSpan.FromHours(1);
+
     /// <summary>
     /// Whether a durable consumer is rewound to its last acknowledged record with the JetStream consumer reset API;
     /// otherwise (servers without that API) the consumer is deleted and re-created at that position.
