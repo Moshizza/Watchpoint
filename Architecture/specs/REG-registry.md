@@ -114,6 +114,11 @@ sets `Site:Id` to the stored id (every node of the site carries the same `Site:I
 
 ## 5. Public contract — reading
 
+> **Known divergence, fixed by T1.07c.** The code merged in T1.07–T1.09b does not yet have this
+> shape (reader member names, `Revision`, `GetEnrichment`/`DeviceEnrichment`, `Changed` on the
+> reader, Kernel `Page<T>`/`PageRequest` instead of the REG-local records). This section is the
+> target; T1.07c aligns the code (2026-11 architecture review, D1).
+
 ```csharp
 public interface IRegistryReader
 {
@@ -152,6 +157,11 @@ public sealed record DeviceEnrichment(DeviceId Id, string DisplayNameDefault, Se
 ```
 
 ## 6. Public contract — writing
+
+> **Known divergence, fixed by T1.07c.** The code's `ChangeContext(UserId, Reason, CorrelationId)`,
+> `DeleteLocation/DeleteServer/DeleteDevice(Id, ExpectedVersion)` and link methods differ from the
+> text below. This section is the target: T1.07c brings `ChangeContext(Actor, Origin, ChangeSet,
+> Comment)` (with the matching outbox columns), `ReassignTo`, `DeleteDevices` and `DeleteChildren`.
 
 ```csharp
 public interface IRegistryWriter
@@ -262,7 +272,9 @@ from length(@old)+1) WHERE path LIKE @old || '%'`).
 ## 8. Inventory reconciliation (T1.08)
 
 Connections report what their server contains (INT `Describe` / discovery). The reconciler
-compares it with the registry.
+compares it with the registry. Connectors report an INT `InventorySnapshot`
+(`InventoryServerItem`, `InventoryDeviceItem`, `InventoryLinkItem`); the integration runtime
+(IRT, T1.16) maps it to the `InventoryReport` below before calling the reconciler.
 
 ```csharp
 public interface IInventoryReconciler
@@ -319,6 +331,10 @@ unless excluded).
 
 ## 9. Errors
 
+> **Known divergence, fixed by T1.07c.** The code currently emits `registry.entity_not_found`,
+> `common.version.conflict` and one generic invariant error; T1.07c maps each violation to the
+> codes below (the catalogue is the API and UI contract).
+
 | Code | Kind | Args | Invariant |
 |---|---|---|---|
 | `registry.site.not_initialised` | Unavailable | — | R1 |
@@ -352,7 +368,7 @@ published by PIP (§5.5); a log outage or a node stop cannot lose it.
 
 | Table | Columns (type) | Keys and indexes |
 |---|---|---|
-| `site` | id uuid, name jsonb, time_zone text, row_version bigint, created_at, updated_at | PK id |
+| `sites` | id uuid, name jsonb, time_zone text, row_version bigint, created_at, updated_at | PK id |
 | `locations` | id uuid, parent_id uuid null, name jsonb, kind text, path text, depth smallint, time_zone text null, geo_lat double null, geo_lon double null, notes text null, sort_order int, row_version, created_at, updated_at | PK id; FK parent_id → locations; index path (text_pattern_ops); unique (parent_id, name_key) where name_key = normalised default name |
 | `tag_families` | id, name jsonb, exclusive bool, row_version, … | PK id |
 | `tags` | id, key text, name jsonb, family_id uuid null, color text null, row_version, … | PK id; unique key; FK family_id |

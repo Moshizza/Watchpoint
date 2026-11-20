@@ -34,23 +34,21 @@ partitions (CLU — in M1 one node owns all partitions).
 ```
 Watchpoint.Pipeline/
 ├── Contracts/
-│   ├── Observation.cs, ObservationKind.cs
-│   ├── IObservationIngest.cs, IngestResult.cs
-│   ├── LogRecord.cs, LogEnvelope.cs, RecordKinds.cs
+│   ├── Observation.cs (Observation, ObservationKind), IObservationIngest.cs (with IngestResult)
+│   ├── LogRecord.cs, LogEnvelope.cs, LogStream.cs, RecordKinds.cs, RecordBodies.cs, RecordCorrelation.cs, RecordOrigin.cs
 │   ├── ILogRecordTypeRegistry.cs
 │   ├── IPartitionSubscriber.cs (subscriber, IPartitionDispatcher, ILastValueSource, IIngestFloodingListener, IPipelineLifecycle), PartitionContext.cs
 │   ├── IEventLogWriter.cs, IEventLogReader.cs, ILogConsumerFactory.cs, IEventLogSetup.cs, EventLogEndpoint.cs
-│   ├── ISideEffectQueue.cs
-│   ├── Partitioning.cs
-│   └── PipelineErrors.cs
-│   ├── LogConsumerExtensions.cs (consumer helper), PipelineException.cs, RecordBodies.cs
+│   ├── LogConsumerExtensions.cs (consumer helper), ISideEffectQueue.cs, Partitioning.cs
+│   └── PipelineErrors.cs, PipelineException.cs
 ├── Internal/
 │   ├── Log/EventLogWriter.cs, EventLogReader.cs, LogConsumer.cs, LogConsumerFactory.cs   (log logic, broker-agnostic)
-│   ├── Log/ILogBroker.cs, LogEnvelopeJson.cs, LogMessageCodec.cs, LogNaming.cs, LogRecordTypeRegistry.cs
+│   ├── Log/ILogBroker.cs, LogEnvelopeJson.cs, LogMessageCodec.cs, LogNaming.cs, LogRecordTypeRegistry.cs, BrokerRetry.cs, Deadline.cs
 │   ├── Nats/NatsConnectionProvider.cs, NatsLogBroker.cs (JetStream behind ILogBroker), StreamProvisioner.cs
 │   ├── Ingest/IngestService.cs, ObservationValidator.cs, ConnectionQuota.cs, CoalescingBuffer.cs, IngestItem.cs, IIngestDirectory.cs (REG + MOD lookups)
 │   ├── Partitions/PartitionRouter.cs (workers, dispatcher, recovery, lifecycle), PartitionWorker.cs, LastValueCache.cs
 │   ├── SideEffects/SideEffectQueue.cs
+│   ├── RegistryOutboxPublisher.cs (§5.5), PipelineMetrics.cs, PipelineLogHealthCheck.cs, PipelineJsonContext.cs
 │   └── PipelineOptions.cs (Log), IngestOptions.cs (Ingest, SideEffects)
 ├── PipelineModule.cs
 └── PipelineLog.cs                 event ids 1600–1699

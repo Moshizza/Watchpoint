@@ -30,21 +30,24 @@ Not in scope: isolated and remote host processes (IHO, M4 — this spec defines 
 ```
 Watchpoint.Integrations/
 ├── Contracts/
-│   ├── PackageInfo.cs, PackageState.cs, IPackageCatalog.cs
-│   ├── Connection.cs, ConnectionState.cs, IConnectionManager.cs
-│   ├── IConnectionCommandChannel.cs
+│   ├── PackageInfo.cs, PackageState.cs, PackageJson.cs, IPackageCatalog.cs, IPackageWatcher.cs
+│   ├── IntegrationsOptions.cs, IntegrationsServiceCollectionExtensions.cs
+│   ├── Connection.cs, ConnectionState.cs, IConnectionManager.cs          (T1.16)
+│   ├── IConnectionCommandChannel.cs                                       (T1.16)
 │   ├── ConnectionSettingsSchema.cs
 │   └── IntegrationErrors.cs
 ├── Internal/
 │   ├── Packages/PackageWatcher.cs, FolderChangeSource.cs, PackageUnpacker.cs, PackageVerifier.cs,
 │   │            SignatureVerifier.cs, TrustedKeys.cs, ConnectorCodeChecker.cs, PackageCatalog.cs,
-│   │            PackageLoadContext.cs, PackageLoadContextPool.cs, SharedAssemblies.cs
+│   │            PackageLoadContext.cs, PackageLoadContextPool.cs, SharedAssemblies.cs,
+│   │            PackageProblems.cs, PackageSeams.cs
+│   ├── IntegrationsMetrics.cs, PackageScanHealthCheck.cs
 │   ├── Connections/ConnectionManager.cs, ConnectionRuntime.cs (state machine per connection),
-│   │               ConnectionWatchdog.cs, InventoryCoordinator.cs
-│   ├── Hosting/IConnectionHost.cs, InProcessHost.cs
+│   │               ConnectionWatchdog.cs, InventoryCoordinator.cs                      (T1.16)
+│   ├── Hosting/IConnectionHost.cs, InProcessHost.cs                                    (T1.16)
 │   ├── Context/ConnectorContext.cs, ObservationSink.cs, DeviceMap.cs, ConnectionStore.cs,
 │   │           Scheduler.cs, RequestGate.cs, SecretAccessor.cs, ConnectionHealthReporter.cs,
-│   │           SecureHttp.cs, InboundEndpoints.cs, ConnectorMetrics.cs
+│   │           SecureHttp.cs, InboundEndpoints.cs, ConnectorMetrics.cs                 (T1.16)
 │   └── Storage/IntegrationsDbContext.cs (+ Postgres subclass, migrations)
 ├── Contracts/PackageEndpoints.cs  the package endpoints (§10), mapped by the host module
 └── IntegrationLog.cs              event ids 1800–1999
@@ -351,6 +354,12 @@ Checks every 10 s per running connection:
 | `Connections:SinkBuffer` | 50000 |
 | `Connections:MaxRestartBackoff` | `PT5M` |
 
+`Integrations:BuiltinPath` and `Integrations:RescanInterval` are bound by the host module
+(`Watchpoint.Host/Modules/IntegrationRuntimeModule.cs`). Not settings: the watcher debounce is fixed
+at 2 s (`IntegrationsOptions.Debounce`), and the product version compared with
+`minWatchpointVersion` is the host assembly version (`IntegrationsOptions.ProductVersion`). The
+`Connections:*` keys arrive with T1.16.
+
 ## 10. API (owned by IRT)
 
 | Method and path | Permission (M3) | Description |
@@ -411,12 +420,12 @@ Live stream topic `connections` (API §8): status changes.
 | `irt.package.reserved_id` | Validation (package problem) | §4.4: `watchpoint.*` id with a development key outside the builtin folder |
 | `irt.package.file_name_invalid` | Validation | Upload file name is not `<name>.wpkg` |
 | `irt.package.shared_assembly_shadowed` | (warning) | §5 |
-| `irt.connection.not_found` | NotFound | |
-| `irt.connection.isolation_required` | Validation | §7.1 |
-| `irt.host.unavailable` | Unprocessable | Host mode not available (M1: isolated/remote) |
-| `irt.connection.not_running` | Unprocessable | Discover/diagnostics on a stopped connection |
-| `irt.store.limit` | Validation | Store size limits |
-| `irt.inventory.type_unknown` | (warning) | §7.4 |
+| `irt.connection.not_found` | NotFound | (T1.16) |
+| `irt.connection.isolation_required` | Validation | (T1.16) §7.1 |
+| `irt.host.unavailable` | Unprocessable | (T1.16) Host mode not available (M1: isolated/remote) |
+| `irt.connection.not_running` | Unprocessable | (T1.16) Discover/diagnostics on a stopped connection |
+| `irt.store.limit` | Validation | (T1.16) Store size limits |
+| `irt.inventory.type_unknown` | (warning) | (T1.16) §7.4 |
 
 ## 13. Observability
 
@@ -426,13 +435,25 @@ Live stream topic `connections` (API §8): status changes.
 | 1802 | Warning | Package {Package}@{Version} invalid: {Problems} |
 | 1803 | Information | Package {Package}@{Version} active |
 | 1804 | Warning | Package {Package}@{Version} signed with a development key |
-| 1820 | Information | Connection {ConnectionId} ({Name}) state {From} → {To}: {Reason} |
-| 1830 | Information | Connection {ConnectionId} reconciled: {Summary} |
-| 1840 | Warning | Connection {ConnectionId} dropped {Count} reports for unknown devices in the last minute |
-| 1850 | Error | Connector {ConnectionId} faulted: {Exception} |
-| 1851 | Error | Connector {ConnectionId} did not stop within timeout; instance abandoned |
-| 1860–1862 | Warning/Error | Watchdog findings |
-| 1880 | Warning | Upgrade of {ConnectionId} to {Version} rolled back: {Reason} |
+| 1805 | Information | Package {Package}@{Version} {State} by {Actor} |
+| 1806 | Information | Package {Package}@{Version} removed |
+| 1807 | Warning | Package {Package}@{Version}: file {Path} is missing but connections still use it |
+| 1808 | Warning | Package folder watcher lost events for {Folder}; rescanning |
+| 1809 | Debug | Package source {Path} is still being written; retrying |
+| 1810 | Error | Package scan failed |
+| 1811 | Warning | Package state of {Package}@{Version} could not be saved |
+| 1812 | Error | A handler of the package catalogue Changed event failed |
+| 1813 | Warning | Development key {File} ignored: {Reason} |
+| 1814 | Warning | Package {Package}@{Version} ships its own copy of shared assembly {Assembly}; the host's copy is used |
+| 1815 | Information | Package {FileName} installed by {Actor} |
+| 1816 | Debug | Load context {Context} unloaded |
+| 1820 (T1.16) | Information | Connection {ConnectionId} ({Name}) state {From} → {To}: {Reason} |
+| 1830 (T1.16) | Information | Connection {ConnectionId} reconciled: {Summary} |
+| 1840 (T1.16) | Warning | Connection {ConnectionId} dropped {Count} reports for unknown devices in the last minute |
+| 1850 (T1.16) | Error | Connector {ConnectionId} faulted: {Exception} |
+| 1851 (T1.16) | Error | Connector {ConnectionId} did not stop within timeout; instance abandoned |
+| 1860–1862 (T1.16) | Warning/Error | Watchdog findings |
+| 1880 (T4.09) | Warning | Upgrade of {ConnectionId} to {Version} rolled back: {Reason} |
 
 Metrics (`Watchpoint.Integrations`): `watchpoint.integrations.connections` (gauge by `state`),
 `watchpoint.integrations.restarts` (counter by `connection`), `watchpoint.integrations.sink.buffer`
