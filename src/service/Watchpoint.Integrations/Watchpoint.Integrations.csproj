@@ -3,7 +3,7 @@
   <!-- Integration runtime (Architecture/specs/IRT-integration-runtime.md): packages (T1.15), connections (T1.16). -->
   <PropertyGroup>
     <RootNamespace>Watchpoint.Integrations</RootNamespace>
-    <Description>Integration runtime: package discovery, verification, catalogue and load contexts (spec IRT).</Description>
+    <Description>Integration runtime: package discovery, verification, catalogue and load contexts; connections, connection runtime and connector context (spec IRT).</Description>
   </PropertyGroup>
 
   <!-- ASP.NET Core shared framework: the package endpoints (IRT §10), health checks, logging and metrics abstractions. -->
@@ -21,6 +21,10 @@
     <ProjectReference Include="../Watchpoint.Model.Documents/Watchpoint.Model.Documents.csproj" />
     <ProjectReference Include="../Watchpoint.Model/Watchpoint.Model.csproj" />
     <ProjectReference Include="../Watchpoint.Storage/Watchpoint.Storage.csproj" />
+    <!-- Connections (T1.16): ingest (PIP), inventory reconciliation and device map (REG), connection secrets (SEC). -->
+    <ProjectReference Include="../Watchpoint.Pipeline/Watchpoint.Pipeline.csproj" />
+    <ProjectReference Include="../Watchpoint.Registry/Watchpoint.Registry.csproj" />
+    <ProjectReference Include="../Watchpoint.Secrets/Watchpoint.Secrets.csproj" />
     <ProjectReference Include="../../integrations/Watchpoint.Integration.Abstractions/Watchpoint.Integration.Abstractions.csproj" />
     <!-- Shared with packages (IRT §5): the host's copy is the one every load context uses. -->
     <ProjectReference Include="../../integrations/Watchpoint.Integration.Sdk/Watchpoint.Integration.Sdk.csproj" />
