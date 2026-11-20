@@ -30,7 +30,7 @@ internal sealed class AllowAllConnectionAdmission : IConnectionAdmission
 /// optimistic concurrency), one <see cref="ConnectionRuntime"/> per connection, staggered activation at the
 /// <c>Connections</c> start-up phase, the watchdog, and the hooks from the package catalogue, the registry and the ingest.
 /// </summary>
-internal sealed class ConnectionManager : IConnectionManager, IConnectionCommandChannel, IPackageConnections, IIngestFloodingListener, IAsyncDisposable
+internal sealed class ConnectionManager : IConnectionManager, IConnectionsLifecycle, IConnectionCommandChannel, IPackageConnections, IIngestFloodingListener, IAsyncDisposable
 {
     public const int MaxNameLength = 128;
     public static readonly TimeSpan MaxProtocolTrace = TimeSpan.FromHours(1);
@@ -165,6 +165,18 @@ internal sealed class ConnectionManager : IConnectionManager, IConnectionCommand
 
         _lastPurge = _time.GetUtcNow();
         _watchdog = _time.CreateTimer(_ => Watchdog(), null, _options.WatchdogInterval, _options.WatchdogInterval);
+    }
+
+    public async Task StopAllAsync(CancellationToken ct)
+    {
+        _watchdog?.Dispose();
+        lock (_staggerTimers)
+        {
+            _staggerTimers.ForEach(t => t.Dispose());
+            _staggerTimers.Clear();
+        }
+
+        await Task.WhenAll(_runtimes.Values.Select(r => r.ShutdownAsync())).WaitAsync(ct).ConfigureAwait(false);
     }
 
     public IReadOnlyList<Connection> List() => [.. _runtimes.Values.Select(r => r.Connection).OrderBy(c => c.Name.Default, StringComparer.Ordinal)];

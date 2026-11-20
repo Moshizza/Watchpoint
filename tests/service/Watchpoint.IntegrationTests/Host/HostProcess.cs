@@ -15,6 +15,7 @@ internal sealed class HostProcess : IAsyncDisposable
     private readonly string _tempDir;
     private readonly bool _keepData;
     private NatsContainerFixture? _nats;
+    private System.Collections.Concurrent.ConcurrentQueue<string> _output = new();
 
     private HostProcess(Process process, string tempDir, bool keepData, int mainPort, int managementPort)
     {
@@ -36,6 +37,9 @@ internal sealed class HostProcess : IAsyncDisposable
     public string NatsUrl => _nats?.Url ?? throw new InvalidOperationException("The host was not started with its own NATS server.");
 
     public bool HasExited => _process.HasExited;
+
+    /// <summary>Gets the last lines (at most 200) the host wrote to its standard output and error, for diagnostics.</summary>
+    public string Output => string.Join(Environment.NewLine, _output);
 
     public int ExitCode => _process.ExitCode;
 
@@ -80,7 +84,8 @@ internal sealed class HostProcess : IAsyncDisposable
         string name,
         Dictionary<string, JsonNode> sections,
         CancellationToken ct,
-        IReadOnlyDictionary<string, string>? environment = null)
+        IReadOnlyDictionary<string, string>? environment = null,
+        string? dataDirectory = null)
     {
         var nats = NatsContainerFixture.WithOptions(new ContainerFixtureOptions());
         try
@@ -90,7 +95,7 @@ internal sealed class HostProcess : IAsyncDisposable
 
             // The test server has no TLS, and its address is not always a loopback one (Docker in Docker).
             sections["Log"] = new JsonObject { ["MaxBytes"] = "1GB", ["AllowInsecureRemote"] = "true" };
-            var host = Start(name, sections, environment);
+            var host = Start(name, sections, environment, dataDirectory);
             host._nats = nats;
             return host;
         }
@@ -162,13 +167,27 @@ internal sealed class HostProcess : IAsyncDisposable
             process.StartInfo.EnvironmentVariables[key] = value;
         }
 
-        // Drain the redirected streams so the child never blocks on a full pipe.
-        process.OutputDataReceived += (_, _) => { };
-        process.ErrorDataReceived += (_, _) => { };
+        // Drain the redirected streams so the child never blocks on a full pipe; the last lines are kept for diagnostics.
+        var output = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        void Keep(string? line)
+        {
+            if (line is null)
+            {
+                return;
+            }
+
+            output.Enqueue(line);
+            while (output.Count > 200 && output.TryDequeue(out _))
+            {
+            }
+        }
+
+        process.OutputDataReceived += (_, e) => Keep(e.Data);
+        process.ErrorDataReceived += (_, e) => Keep(e.Data);
         process.Start();
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
-        return new HostProcess(process, tempDir, dataDirectory is not null, mainPort, managementPort);
+        return new HostProcess(process, tempDir, dataDirectory is not null, mainPort, managementPort) { _output = output };
     }
 
     /// <summary>Kills the host process only (not its children), as a crash or <c>kill -9</c> would.</summary>

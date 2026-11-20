@@ -736,7 +736,15 @@ internal sealed class ConnectionRuntime : IAsyncDisposable
     private Task Track(Task task)
     {
         _background.TryAdd(task, 0);
-        _ = task.ContinueWith(t => _background.TryRemove(t, out _), CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+        _ = task.ContinueWith(t =>
+        {
+            _background.TryRemove(t, out _);
+            if (t.IsFaulted)
+            {
+                // No fire-and-forget without a trace: every background failure is logged.
+                IntegrationLog.RuntimeOperationFailed(_logger, t.Exception!.GetBaseException(), _connection.Id.Value, "background work");
+            }
+        }, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
         return task;
     }
 
@@ -946,7 +954,17 @@ internal sealed class ConnectionRuntime : IAsyncDisposable
                 }
             }
 
-            var result = await _services.Inventory.ReconcileAsync(Connection, snapshot, ct).ConfigureAwait(false);
+            Result<ReconciliationResult> result;
+            try
+            {
+                result = await _services.Inventory.ReconcileAsync(Connection, snapshot, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+            {
+                IntegrationLog.RuntimeOperationFailed(_logger, ex, _connection.Id.Value, "reconcile");
+                return Error.Internal("reconcile failed: " + ex.GetType().Name);
+            }
+
             if (result.IsSuccess && instance.Services is not null)
             {
                 RebuildMap(instance);

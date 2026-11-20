@@ -145,3 +145,22 @@ public interface IConnectionAdmission
     /// <returns>Success or the refusal.</returns>
     Result Admit(PackageInfo package, string serverType);
 }
+
+/// <summary>Start and stop of the connections, called by the host's start-up and shutdown tasks.</summary>
+public interface IConnectionsLifecycle
+{
+    /// <summary>Loads the stored connections (phase <c>Catalogue</c>, after the package scan); idempotent.</summary>
+    /// <param name="ct">Cancels the load.</param>
+    /// <returns>A task.</returns>
+    Task LoadAsync(CancellationToken ct);
+
+    /// <summary>Starts the enabled connections, <c>Connections:StartStagger</c> apart, and the watchdog (phase <c>Connections</c>).</summary>
+    /// <param name="ct">Cancels the wait.</param>
+    /// <returns>A task completing once the starts are scheduled.</returns>
+    Task ActivateAsync(CancellationToken ct);
+
+    /// <summary>Stops every connector (node shutdown); the connections stay enabled.</summary>
+    /// <param name="ct">Cancels the wait.</param>
+    /// <returns>A task completing when the connectors are stopped or abandoned.</returns>
+    Task StopAllAsync(CancellationToken ct);
+}

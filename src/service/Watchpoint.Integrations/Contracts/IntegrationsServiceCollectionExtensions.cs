@@ -75,6 +75,7 @@ public static class IntegrationsServiceCollectionExtensions
         services.AddSingleton(sp => ActivatorUtilities.CreateInstance<ConnectionManager>(sp));
         services.AddSingleton<IConnectionManager>(sp => sp.GetRequiredService<ConnectionManager>());
         services.AddSingleton<IConnectionCommandChannel>(sp => sp.GetRequiredService<ConnectionManager>());
+        services.AddSingleton<IConnectionsLifecycle>(sp => sp.GetRequiredService<ConnectionManager>());
 
         // Resolved on first use: the manager depends on the catalogue and the ingest, which depend on these.
         services.Replace(ServiceDescriptor.Singleton<IPackageConnections, LazyPackageConnections>());

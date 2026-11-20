@@ -86,9 +86,6 @@
     },
     "failures": {
       "type": "array",
-      "items": {
-        "type": "object"
-      },
       "default": []
     },
     "scenario": {
