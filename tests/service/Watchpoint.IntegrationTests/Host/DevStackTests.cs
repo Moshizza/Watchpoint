@@ -24,7 +24,6 @@ using Xunit;
 namespace Watchpoint.IntegrationTests.Host;
 
 /// <summary>The development stack and seed (spec HST §8, §9).</summary>
-[Collection(HostProcesses.Name)]
 [Trait("layer", "I")]
 [Trait("spec", "HST")]
 public sealed partial class DevStackTests(PostgresContainerFixture postgres)
