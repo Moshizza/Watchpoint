@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.Extensions.Configuration;
 using Watchpoint.Kernel.Text;
 
 namespace Watchpoint.Hosting;
@@ -61,6 +62,39 @@ public sealed class NodeSettings : IValidatableObject
 
     /// <summary>Shutdown options.</summary>
     public ShutdownSection Shutdown { get; set; } = new();
+
+    /// <summary>
+    /// Binds node settings from configuration (spec HST §4). A list that the configuration sets replaces its default:
+    /// the configuration binder appends array items to a list's initial value, so without this step
+    /// <c>Http:Urls = ["http://127.0.0.1:5000"]</c> would also keep listening on <c>https://0.0.0.0:8443</c>.
+    /// </summary>
+    /// <param name="configuration">The configuration root.</param>
+    /// <returns>The bound settings.</returns>
+    public static NodeSettings Bind(IConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        var settings = new NodeSettings();
+        if (IsSet(configuration, "Node:Roles"))
+        {
+            settings.Node.Roles = [];
+        }
+
+        if (IsSet(configuration, "Http:Urls"))
+        {
+            settings.Http.Urls = [];
+        }
+
+        if (IsSet(configuration, "Management:Urls"))
+        {
+            settings.Management.Urls = [];
+        }
+
+        configuration.Bind(settings);
+        return settings;
+
+        static bool IsSet(IConfiguration configuration, string key) => configuration.GetSection(key).GetChildren().Any();
+    }
 
     /// <inheritdoc />
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)

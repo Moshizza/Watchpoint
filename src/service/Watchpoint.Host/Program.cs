@@ -82,8 +82,7 @@ public static class Program
         var watchpointJsonPath = ResolveWatchpointJsonPath(args);
 
         // Bind NodeSettings
-        var settings = new NodeSettings();
-        builder.Configuration.Bind(settings);
+        var settings = NodeSettings.Bind(builder.Configuration);
 
         // Until Serilog is configured, start-up problems are logged through a console bootstrap logger.
         using (var bootstrapLoggers = new Serilog.Extensions.Logging.SerilogLoggerFactory(
