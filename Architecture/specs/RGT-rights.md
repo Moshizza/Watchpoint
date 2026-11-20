@@ -83,10 +83,16 @@ Grant patterns: a grant's permission may end with `.*` (all permissions under th
 | operation.commands | Generated: `commands.<capability>.<command>` for every capability command in MOD (Devices; constraints RequireReason, RequireFourEyes, RequireStepUp, ClientKinds), plus `commands.approve` (Devices), `commands.viewAll` (Devices), `commands.cancelAny` (Devices), `commands.priority.critical` (None) |
 | operation.video (M6) | `video.live`, `video.playback` (MaxLookback), `video.export`, `video.ptz`, `video.unmask` |
 | operation.workspace | `operate.workspaces.save` (None), `operate.workspaces.publish` (None), `operate.duringMaintenance` (None; Sensitive — operation side stays available during maintenance mode, MNT) |
-| configuration | `config.registry.view/edit`, `config.integrations.view/edit/install/operate`, `config.alarms.view/edit`, `config.calendars.edit`, `config.users.view/edit`, `config.rights.view/edit`, `config.synoptics.*` (M6), `config.automations.*` (M8), `config.scripts.*` (M8), `config.notifications.*` (M5), `config.system.*`, `config.publish` (publish drafts), `config.approve`, `config.locks.break`, `config.maintenance` (start/stop maintenance mode), `config.licence` (licence panel, requests, import — M7), `config.system.cluster` (join tokens, roles, drain, moves — M9), `config.system.health` (thresholds — M9), `config.federation.*` (M9) — scope Locations for registry/alarms/synoptics, None otherwise |
+| configuration | M3 codes, explicit: `config.registry.view`, `config.registry.edit`, `config.integrations.view`, `config.integrations.edit`, `config.integrations.install`, `config.integrations.operate`, `config.alarms.view`, `config.alarms.edit`, `config.calendars.edit`, `config.users.view`, `config.users.edit`, `config.rights.view`, `config.rights.edit`; later families: `config.synoptics.*` (M6), `config.automations.*` (M8), `config.scripts.*` (M8), `config.notifications.*` (M5), `config.system.*`, `config.publish` (publish drafts), `config.approve`, `config.locks.break`, `config.maintenance` (start/stop maintenance mode), `config.licence` (licence panel, requests, import — M7), `config.system.cluster` (join tokens, roles, drain, moves — M9), `config.system.health` (thresholds — M9), `config.federation.*` (M9) — scope Locations for registry/alarms/synoptics, None otherwise |
 | automations (M8) | `automations.view`, `automations.run`, `automations.control` (Locations), `automations.answer`, `automations.testReal` (None); scripts: `scripts.testReal` (None), `alarms.raise.script` (Devices) |
 | reports (M5) | `reports.run`, `reports.schedule`, `reports.schedule.manage`, `config.reports.view/edit`, `admin.bi.manage` (all None) |
 | administration | `admin.audit.view`, `admin.sessions.view`, `admin.sessions.manage`, `admin.health.view`, `admin.diagnostics.export`, `admin.privacy` (None) |
+
+A family written with `.*` (M5+) is not a code: the module that brings it registers its exact codes
+at phase `Catalogue` through `IPermissionCatalogue.Register`, and its spec's API table is the source of
+truth for them. Architecture test ARCH-11 (TST §6, T0.17) checks that every `Permission("…")` literal
+in the code is a code of this table or is registered by its module, so an unknown code fails CI instead
+of being rejected at run time by the permission filter (API §4) (2026-11 review, D6).
 
 `CommandPermissionGenerator` regenerates command permissions when MOD's catalogue changes
 (new package types) — labels come from capability command translations.

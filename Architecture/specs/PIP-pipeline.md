@@ -34,23 +34,21 @@ partitions (CLU — in M1 one node owns all partitions).
 ```
 Watchpoint.Pipeline/
 ├── Contracts/
-│   ├── Observation.cs, ObservationKind.cs
-│   ├── IObservationIngest.cs, IngestResult.cs
-│   ├── LogRecord.cs, LogEnvelope.cs, RecordKinds.cs
+│   ├── Observation.cs (Observation, ObservationKind), IObservationIngest.cs (with IngestResult)
+│   ├── LogRecord.cs, LogEnvelope.cs, LogStream.cs, RecordKinds.cs, RecordBodies.cs, RecordCorrelation.cs, RecordOrigin.cs
 │   ├── ILogRecordTypeRegistry.cs
 │   ├── IPartitionSubscriber.cs (subscriber, IPartitionDispatcher, ILastValueSource, IIngestFloodingListener, IPipelineLifecycle), PartitionContext.cs
 │   ├── IEventLogWriter.cs, IEventLogReader.cs, ILogConsumerFactory.cs, IEventLogSetup.cs, EventLogEndpoint.cs
-│   ├── ISideEffectQueue.cs
-│   ├── Partitioning.cs
-│   └── PipelineErrors.cs
-│   ├── LogConsumerExtensions.cs (consumer helper), PipelineException.cs, RecordBodies.cs
+│   ├── LogConsumerExtensions.cs (consumer helper), ISideEffectQueue.cs, Partitioning.cs
+│   └── PipelineErrors.cs, PipelineException.cs
 ├── Internal/
 │   ├── Log/EventLogWriter.cs, EventLogReader.cs, LogConsumer.cs, LogConsumerFactory.cs   (log logic, broker-agnostic)
-│   ├── Log/ILogBroker.cs, LogEnvelopeJson.cs, LogMessageCodec.cs, LogNaming.cs, LogRecordTypeRegistry.cs
+│   ├── Log/ILogBroker.cs, LogEnvelopeJson.cs, LogMessageCodec.cs, LogNaming.cs, LogRecordTypeRegistry.cs, BrokerRetry.cs, Deadline.cs
 │   ├── Nats/NatsConnectionProvider.cs, NatsLogBroker.cs (JetStream behind ILogBroker), StreamProvisioner.cs
 │   ├── Ingest/IngestService.cs, ObservationValidator.cs, ConnectionQuota.cs, CoalescingBuffer.cs, IngestItem.cs, IIngestDirectory.cs (REG + MOD lookups)
 │   ├── Partitions/PartitionRouter.cs (workers, dispatcher, recovery, lifecycle), PartitionWorker.cs, LastValueCache.cs
 │   ├── SideEffects/SideEffectQueue.cs
+│   ├── RegistryOutboxPublisher.cs (§5.5), PipelineMetrics.cs, PipelineLogHealthCheck.cs, PipelineJsonContext.cs
 │   └── PipelineOptions.cs (Log), IngestOptions.cs (Ingest, SideEffects)
 ├── PipelineModule.cs
 └── PipelineLog.cs                 event ids 1600–1699
@@ -309,6 +307,10 @@ Writer rules (ADR-001, amended by T1.09):
   in Docker): ≈ 41,000 records/s over 64 partitions, ≈ 4,000 records/s on one partition (raw
   JetStream: 50,000 and 4,700; the unsafe window: 89,000). The 20,000 records/s budget holds as
   soon as about six partitions are active; one device is limited to 2,000/s by its quota (§8).
+  These figures are R1. At R3 (clusters, CLU §4: majority acknowledgement) each lane waits for a
+  replicated ack, so per-partition throughput is expected to fall to roughly half or a third
+  (≈ 1,300–2,000 records/s). T9.01 measures it; below 2,000 records/s per partition, atomic batches
+  per worker batch (ADR-001 decision 2) are implemented before T9.02.
 - After a timeout (2 s per attempt) or a connection loss the writer **re-sends the same envelope
   with the same `Nats-Msg-Id`** with back-off (50 ms doubling to 1 s) until acked (the 2 min
   duplicate window makes this exactly-once in the log; a duplicate ack carries the sequence of the
@@ -345,7 +347,9 @@ registry's transactional outbox (REG §6, §10, `IRegistryOutbox`) to `WP_CFG`:
   log stores it once; later it is stored twice, which the revision-based consumer rule (§5.3) absorbs.
 - **Refused record**: a record the log cannot store (`pipeline.record.too_large`: a batch of
   thousands of changes exceeds 1 MB; `pipeline.record.invalid`) is logged (1613), skipped and
-  marked sent; consumers see the gap and resynchronise from the registry.
+  marked sent; consumers see the gap and resynchronise from the registry. Since T1.09c the registry
+  refuses, before commit, a batch whose record would exceed the log's limit (`registry.batch.too_large`,
+  arg `bytes`, REG §6), so this path is defence in depth (a hand-built or legacy row).
 - **Database down**: a failed outbox read or mark is logged (1614) and retried with the same
   back-off; a mark that fails after a successful publish leads to a repeated publish (above).
 - **Retention**: sent rows are deleted 24 h after they were sent, checked at most once an hour
@@ -353,10 +357,12 @@ registry's transactional outbox (REG §6, §10, `IRegistryOutbox`) to `WP_CFG`:
   outbox grows by one row per batch meanwhile).
 - These values (poll 5 s, back-off 1–30 s, batch 100, retention 24 h, prune hourly) are fixed in
   `PipelineOptions`, not configurable in M1; tests shorten them.
-- **Several nodes (M9)**: one database must have one publisher. The seam is the loop itself
-  (`RegistryOutboxPublisher.RunAsync`): the cluster module starts it on the holder of a
-  `registry-outbox` lease (CLU §5) instead of on every node. Until then the revision-derived ids
-  make an accidental double publisher harmless within the duplicate window.
+- **Several nodes (M9)**: one database must have one publisher. The publisher receives the Kernel
+  `ILeaseGate` (K) and awaits `WaitUntilHeldAsync("registry-outbox", ct)` before each run of its loop,
+  stopping when the lease is lost. CLU (T9.01) implements the gate with its lease manager (CLU §5); the
+  M1 implementation is always held. PIP never references CLU and CLU never reaches PIP internals.
+  Until M9 the revision-derived ids make an accidental double publisher harmless within the duplicate
+  window.
 
 ## 6. Ingest contract (used by IRT)
 
@@ -487,6 +493,12 @@ Notes (T1.10):
   AUT see the real value. Deadband is a **history** policy of the property (`history.mode =
   deadband`, absolute or percent, SCM §4, applied by the HIS writer, HIS §6) and a reporting option of
   connectors (e.g. C-MODBUS `deadband`); applying it here would hide values from alarm conditions.
+- **Purge of deleted targets (PIP owns it, T1.10b).** PIP subscribes to the registry's `Changed`
+  event; for each change with `kind = deleted` on a device or server it posts, through
+  `IPartitionDispatcher.PostAsync`, a work item to the target's partition that removes every cache
+  entry (properties and health) of that target. A record of a deleted target that is still in flight
+  is rejected at validation (`pipeline.target.unknown`), so no entry comes back. STA does not purge
+  PIP's cache (STA §6.3).
 
 ### 7.3 Partition workers
 
@@ -495,12 +507,14 @@ Notes (T1.10):
 - Worker loop: read up to `Ingest:MaxBatch` (500) items or wait `Ingest:Linger` (2 ms) after
   the first; process change detection; build envelopes; `AppendAsync` (awaits ack); then
   call subscribers for each record **in order**; then complete the ingest callers' awaits.
-- **Subscribers** (`IPartitionSubscriber`), registered by modules with an `Order`:
+- **Subscribers** (`IPartitionSubscriber`), registered by modules with an `Order`. Each module has its own
+  order (list in the comment below; a new subscriber takes a free value); subscribers with an equal order would
+  run in registration order, so specs never share one:
 
 ```csharp
 public interface IPartitionSubscriber
 {
-    int Order { get; }                                            // STA = 100, CMD = 200, ALM = 300, AUT = 400…
+    int Order { get; }                                            // STA 100, EVT 150, CMD 200, ALM 300, AUT 400, SCR 450, NOT 500
     string Name { get; }
     // Called on the partition worker thread; must not do I/O; must be fast (< 1 ms typical).
     void OnRecords(PartitionContext context, IReadOnlyList<LogRecord> records);
@@ -545,6 +559,10 @@ public sealed class PartitionContext
 - A subscriber throwing is a bug: the exception is logged (1641 Error) with the record id, the
   subscriber is skipped for that batch, processing continues (one faulty module must not stop
   supervision); metric `watchpoint.pipeline.subscriber.errors`.
+- **Subscriber budget.** Each `OnRecords`/`OnTouched`/`OnTick` call is timed
+  (`watchpoint.pipeline.subscriber.duration`). A call longer than `Ingest:SubscriberBudget` (5 ms) is
+  logged (1646 Warning, at most once per minute per subscriber) and never interrupted: it is a soft
+  budget against which M2 modules (ALM, AUT expressions) are measured from the start.
 
 Worker rules (T1.10):
 
@@ -673,7 +691,7 @@ public interface ISideEffectQueue
 
 | Key | Default | Range |
 |---|---|---|
-| `Log:Retention` | `P7D` | P1D–P90D |
+| `Log:Retention` | `P7D` | P1D–P30D (privacy purge completes after this window, HIS §12) |
 | `Log:MaxBytes` | 20 GB | ≥ 1 GB (bytes, or a number with `MB`, `GB`, `TB`) |
 | `Log:SubjectPrefix` | `wp` | `^[a-z0-9]{1,16}(\.[a-z0-9]{1,16})?$` |
 | `Log:StreamPrefix` | empty | `^[A-Z0-9_]{0,16}$` |
@@ -686,6 +704,7 @@ public interface ISideEffectQueue
 | `Ingest:ConnectionRate` / `ConnectionBurst` | 2000 / 20000 | ≥ 1 |
 | `Ingest:MaxFutureSkew` | `PT5M` | ≥ 0 |
 | `Ingest:TickInterval` | `PT1S` | PT0.1S–PT10S |
+| `Ingest:SubscriberBudget` | `PT0.005S` | PT0.001S–PT1S |
 | `SideEffects:Capacity:<Class>`, `SideEffects:Workers:<Class>` | see §9 | ≥ 1 / 1–64 |
 
 A setting out of range stops the start (exit code 78, HST §4).
@@ -735,6 +754,7 @@ contracts return values, not `Result`.
 | 1643 | Error | Worker of partition {Partition} failed; {Count} observations are rejected |
 | 1644 | Warning | Pipeline stopped before {Count} queued observations were processed; they are rejected |
 | 1645 | Error | Posted work failed in partition {Partition} |
+| 1646 | Warning | Subscriber {Subscriber} took {Duration} ms in partition {Partition} (budget {Budget} ms; at most once per minute per subscriber) |
 | 1650 | Error | Replay for partition {Partition} starts after retention: wanted {Wanted}, first available {First} |
 | 1660 | Warning | Side effect {Kind} ({Class}) failed after {Attempts} attempts |
 | 1661 | Warning | Side-effect queue {Class} is full or stopped; {Count} effects were refused, last {Kind} (at most once per minute per class) |
@@ -770,8 +790,10 @@ source `Watchpoint.Pipeline`.
   Start-up tasks: `EventLogStreams` (Infrastructure, 20), `PipelineRecovery` (Recovery, 100),
   `PipelineWorkers` (Runtime, 0); shutdown task `PipelineDrain` (Runtime).
 - Connections can only report for their own devices (step 2 in §7.1).
-- Envelope bodies may contain personal data (event payloads): log retention is bounded; logs
-  never print bodies (only ids and kinds).
+- Envelope bodies may contain personal data (event payloads): log retention is bounded (≤ 30 days,
+  `DenyDelete`/`DenyPurge` keep records until then, so a privacy purge completes only when the window
+  has passed, HIS §12); logs never print bodies (only ids and kinds). Crypto-shredding of payload
+  fields (per-subject keys destroyed by the purge) is an M5 decision record.
 
 ## 14. Tests
 
@@ -835,8 +857,10 @@ with real NATS (Testcontainers, scoped prefixes).
 | PIP-U-052 | U | Outbox retries with back-off while the log is down, then catches up | Broker losing every publish → 1611 with delays 1, 2, 4, 8 s (TestClock), nothing marked, nothing stored; broker back → both records stored in order once, 1612 with the failed attempts |
 | PIP-U-053 | U | Outbox publisher resumes from the oldest unsent record | Revisions 1…3 sent, 4 and 5 unsent → only 4 and 5 published, two publish attempts |
 | PIP-U-054 | U | Outbox record marked sent only after ack; duplicate after crash stored once | Ack held back → record in the log but unsent until the ack; revision 2 appended then unmarked (crash before the mark) → new publisher sends the same id, log keeps one copy |
-| PIP-U-055 | U | Outbox record refused by the log is skipped and logged | 15,000 changes (> 1 MB) → 1613 `pipeline.record.too_large`, marked sent, next record published |
+| PIP-U-055 | U | Outbox record refused by the log is skipped and logged | Hand-built outbox row whose record exceeds 1 MB (the registry refuses such batches since T1.09c) → 1613 `pipeline.record.too_large`, marked sent, next record published |
 | PIP-U-056 | U | Outbox sent records pruned after retention once per interval; database faults retried | Idle publisher prunes at start then not before 1 h; a record sent 25 h ago is deleted; outbox throwing → 1614 with delays 1, 2 s, then publishes when the database is back |
+| PIP-U-057 | U | Deleted targets are purged from the last value cache | Device with cached property and health; registry `Changed` (`deleted`) → posted work removes both entries; the next observation for it is rejected `pipeline.target.unknown` |
+| PIP-U-058 | U | Slow subscriber logged against the budget | Subscriber that advances the test clock by 8 ms per call, budget 5 ms → one 1646 per minute, records still processed |
 | PIP-I-001 | I | Streams provisioned on real NATS | Start module → three streams with expected subjects/retention |
 | PIP-I-002 | I | Provisioning idempotent | Restart → no error, configs unchanged |
 | PIP-I-003 | I | Append and replay one or several partitions | 1,000 records over 4 partitions → replay of p returns its records in order; `ReadPartitionsAsync({p, q})` returns the records of p and q in global sequence order, nothing else |
@@ -861,6 +885,8 @@ with real NATS (Testcontainers, scoped prefixes).
 
 | Task | Sections | Tests |
 |---|---|---|
-| T1.09 | §4, §5, §6 (contracts), §10 (log settings), §11, §12 (log part) | PIP-U-001…PIP-U-020, PIP-I-001…PIP-I-008, REG-I-005 |
+| T1.09 | §4, §5, §6 (contracts), §10 (log settings), §11, §12 (log part) | PIP-U-001…PIP-U-020, PIP-I-001…PIP-I-008 (REG-I-005 moved to T1.09b) |
 | T1.10 | §6 (rules), §7, §8, §9, §10 (ingest settings), §12 (ingest part), §13 | PIP-U-021…PIP-U-050, PIP-I-009…PIP-I-016 |
 | T1.09b | §5.3 (`registry.changed`), §5.5, §12 (outbox events and metrics) | PIP-U-051…PIP-U-056, PIP-I-017…PIP-I-019 |
+| T1.09c | §5.5 (refused record as defence in depth; `ILeaseGate` in the publisher, always held in M1) | PIP-U-055 (adjusted) |
+| T1.10b | §7.2 (purge of deleted targets), §7.3 (subscriber budget), §10 (`Log:Retention` ≤ P30D, `Ingest:SubscriberBudget`), §12 (1646) | PIP-U-057, PIP-U-058 |

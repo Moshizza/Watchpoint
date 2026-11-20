@@ -53,6 +53,8 @@ the `wpctl` command-line tool.
 - Upgrade in place: detects existing installation, stops the service, replaces binaries (keeps
   data), runs `wpctl upgrade --post-install` (migrations + health check, §8.2), restarts.
 - Uninstall keeps data unless "remove data" is checked (double confirmation).
+- Every installer (Windows, Linux packages, OCI images, Helm) writes `Node:Environment = Production`;
+  no installer option or wizard step sets `Development` (HST §12, S-031).
 
 ### 4.2 Linux packages (nfpm)
 

@@ -34,6 +34,8 @@ infrastructure.
 
 ## 3. Layout
 
+Log event ids: 6000–6099 ([README §8](../README.md#8-observability-conventions)).
+
 ```
 src/portal/
 ├── Watchpoint.Portal/

@@ -30,24 +30,27 @@ Not in scope: isolated and remote host processes (IHO, M4 — this spec defines 
 ```
 Watchpoint.Integrations/
 ├── Contracts/
-│   ├── PackageInfo.cs, PackageState.cs, IPackageCatalog.cs
-│   ├── Connection.cs, ConnectionState.cs, IConnectionManager.cs
-│   ├── IConnectionCommandChannel.cs
+│   ├── PackageInfo.cs, PackageState.cs, PackageJson.cs, IPackageCatalog.cs, IPackageWatcher.cs
+│   ├── IntegrationsOptions.cs, IntegrationsServiceCollectionExtensions.cs
+│   ├── Connection.cs, ConnectionState.cs, IConnectionManager.cs          (T1.16)
+│   ├── IConnectionCommandChannel.cs                                       (T1.16)
 │   ├── ConnectionSettingsSchema.cs
 │   └── IntegrationErrors.cs
 ├── Internal/
 │   ├── Packages/PackageWatcher.cs, FolderChangeSource.cs, PackageUnpacker.cs, PackageVerifier.cs,
 │   │            SignatureVerifier.cs, TrustedKeys.cs, ConnectorCodeChecker.cs, PackageCatalog.cs,
-│   │            PackageLoadContext.cs, PackageLoadContextPool.cs, SharedAssemblies.cs
+│   │            PackageLoadContext.cs, PackageLoadContextPool.cs, SharedAssemblies.cs,
+│   │            PackageProblems.cs, PackageSeams.cs
+│   ├── IntegrationsMetrics.cs, PackageScanHealthCheck.cs
 │   ├── Connections/ConnectionManager.cs, ConnectionRuntime.cs (state machine per connection),
-│   │               ConnectionWatchdog.cs, InventoryCoordinator.cs
-│   ├── Hosting/IConnectionHost.cs, InProcessHost.cs
+│   │               ConnectionWatchdog.cs, InventoryCoordinator.cs                      (T1.16)
+│   ├── Hosting/IConnectionHost.cs, InProcessHost.cs                                    (T1.16)
 │   ├── Context/ConnectorContext.cs, ObservationSink.cs, DeviceMap.cs, ConnectionStore.cs,
 │   │           Scheduler.cs, RequestGate.cs, SecretAccessor.cs, ConnectionHealthReporter.cs,
-│   │           SecureHttp.cs, InboundEndpoints.cs, ConnectorMetrics.cs
+│   │           SecureHttp.cs, InboundEndpoints.cs, ConnectorMetrics.cs                 (T1.16)
 │   └── Storage/IntegrationsDbContext.cs (+ Postgres subclass, migrations)
 ├── Contracts/PackageEndpoints.cs  the package endpoints (§10), mapped by the host module
-└── IntegrationLog.cs              event ids 1800–1999
+└── IntegrationLog.cs              event ids 1800–1949 (IHO: 1950–1999)
 
 The host module (`Watchpoint.Host/Modules/IntegrationRuntimeModule.cs`) registers the services, the
 start-up task (phase `Catalogue`, order 10) and maps the endpoints. Test helpers that build packages
@@ -163,6 +166,12 @@ folder it is `Invalid` (`irt.package.reserved_id`).
 versions of the same package may be active at the same time (connections pin a version).
 Disabling a package version stops its connections (state `Disabled` by package) and keeps
 types registered (devices keep working as definitions).
+
+**Until T4.01 (isolated host) only builtin packages run outside Development.** Connectors run in-process
+until M4 (ADR-003) and an in-process connector can stop the node. Outside Development a package becomes
+`Active` only if it is builtin or signed by a release key (§4.4); development keys are trusted only in
+Development and `TrustedKeys.EmbeddedReleaseKeys` is empty, so in production builds every user or vendor
+package is refused (`irt.package.untrusted_key`) until T4.01 ships release keys with isolation. Do not plan a pilot with a third-party package before M4 (2026-11 review, D14).
 
 ## 5. Load contexts
 
@@ -308,6 +317,16 @@ Checks every 10 s per running connection:
   with `AutoImportNew = connection.AutoImport`, default location = connection location.
 - Triggers: first connect, every `DescribeInterval` (default 1 h) while connected, connector
   `ReportInventoryChanged`, manual "rediscover".
+- Mapping INT → REG (owned by IRT, `InventoryCoordinator`; REG §8 keeps `InventoryReport`):
+
+  | INT (`InventorySnapshot`) | REG (`InventoryReport`) | Rule |
+  |---|---|---|
+  | `Servers` / `Devices` / `IsComplete` | `Servers` / `Devices` / `IsComplete` | Copied; `IsComplete = false` never orphans missing items (REG §8) |
+  | `*Item.NativeId`, `ParentNativeId`, `ServerNativeId` | same names | Copied |
+  | `TypeId` + `TypeVersion` (strings) | `Type` (`TypeRef`) | Resolved with MOD; unknown → `irt.inventory.type_unknown`, item skipped |
+  | `VendorName`, `VendorAttributes` | same names | Copied |
+  | `UnsupportedOptionalCapabilities` (strings) | same name (`IReadOnlySet<CapabilityId>`) | Parsed; an invalid id → item skipped with the same warning |
+  | `InventoryLinkItem(Kind, ToNativeId, ToServerNativeId)` | `InventoryLink(Kind, ToNativeId, ToServerNativeId)` | Copied; `Kind` is the link kind string (`cameraViews`, `memberOf`, `controls`, `powers`, `partOf`) |
 - Device map (`IDeviceMap`) for the connector is rebuilt from REG on `Changed` events concerning
   the connection's servers/devices and pushed to the instance (event `Changed`).
 
@@ -351,6 +370,12 @@ Checks every 10 s per running connection:
 | `Connections:SinkBuffer` | 50000 |
 | `Connections:MaxRestartBackoff` | `PT5M` |
 
+`Integrations:BuiltinPath` and `Integrations:RescanInterval` are bound by the host module
+(`Watchpoint.Host/Modules/IntegrationRuntimeModule.cs`). Not settings: the watcher debounce is fixed
+at 2 s (`IntegrationsOptions.Debounce`), and the product version compared with
+`minWatchpointVersion` is the host assembly version (`IntegrationsOptions.ProductVersion`). The
+`Connections:*` keys arrive with T1.16.
+
 ## 10. API (owned by IRT)
 
 | Method and path | Permission (M3) | Description |
@@ -363,7 +388,9 @@ Checks every 10 s per running connection:
 | `POST /api/v1/packages/{id}/versions/{version}/enable` / `disable` | `config.integrations.install` | |
 
 Until the API framework and its permission filter exist (T1.19), the endpoints that change the node
-(`POST`) are mapped only when `Node:Environment = Development`; the `GET` endpoints are always mapped.
+(`POST`) are mapped only when `Node:Environment = Development` and answer only requests from a loopback
+address (`127.0.0.0/8`, `::1`; others get 404), so a development node reachable on a network cannot be
+changed from it (T1.16, also for the connection POSTs); the `GET` endpoints are always mapped.
 Package rows (§6) hold only verified packages; invalid ones are not persisted (the file is the source
 of truth and is verified again at the next scan).
 | `GET /api/v1/connections` | `config.integrations.view` (operators see status via HLT later) | List with status |
@@ -411,12 +438,12 @@ Live stream topic `connections` (API §8): status changes.
 | `irt.package.reserved_id` | Validation (package problem) | §4.4: `watchpoint.*` id with a development key outside the builtin folder |
 | `irt.package.file_name_invalid` | Validation | Upload file name is not `<name>.wpkg` |
 | `irt.package.shared_assembly_shadowed` | (warning) | §5 |
-| `irt.connection.not_found` | NotFound | |
-| `irt.connection.isolation_required` | Validation | §7.1 |
-| `irt.host.unavailable` | Unprocessable | Host mode not available (M1: isolated/remote) |
-| `irt.connection.not_running` | Unprocessable | Discover/diagnostics on a stopped connection |
-| `irt.store.limit` | Validation | Store size limits |
-| `irt.inventory.type_unknown` | (warning) | §7.4 |
+| `irt.connection.not_found` | NotFound | (T1.16) |
+| `irt.connection.isolation_required` | Validation | (T1.16) §7.1 |
+| `irt.host.unavailable` | Unprocessable | (T1.16) Host mode not available (M1: isolated/remote) |
+| `irt.connection.not_running` | Unprocessable | (T1.16) Discover/diagnostics on a stopped connection |
+| `irt.store.limit` | Validation | (T1.16) Store size limits |
+| `irt.inventory.type_unknown` | (warning) | (T1.16) §7.4 |
 
 ## 13. Observability
 
@@ -426,13 +453,25 @@ Live stream topic `connections` (API §8): status changes.
 | 1802 | Warning | Package {Package}@{Version} invalid: {Problems} |
 | 1803 | Information | Package {Package}@{Version} active |
 | 1804 | Warning | Package {Package}@{Version} signed with a development key |
-| 1820 | Information | Connection {ConnectionId} ({Name}) state {From} → {To}: {Reason} |
-| 1830 | Information | Connection {ConnectionId} reconciled: {Summary} |
-| 1840 | Warning | Connection {ConnectionId} dropped {Count} reports for unknown devices in the last minute |
-| 1850 | Error | Connector {ConnectionId} faulted: {Exception} |
-| 1851 | Error | Connector {ConnectionId} did not stop within timeout; instance abandoned |
-| 1860–1862 | Warning/Error | Watchdog findings |
-| 1880 | Warning | Upgrade of {ConnectionId} to {Version} rolled back: {Reason} |
+| 1805 | Information | Package {Package}@{Version} {State} by {Actor} |
+| 1806 | Information | Package {Package}@{Version} removed |
+| 1807 | Warning | Package {Package}@{Version}: file {Path} is missing but connections still use it |
+| 1808 | Warning | Package folder watcher lost events for {Folder}; rescanning |
+| 1809 | Debug | Package source {Path} is still being written; retrying |
+| 1810 | Error | Package scan failed |
+| 1811 | Warning | Package state of {Package}@{Version} could not be saved |
+| 1812 | Error | A handler of the package catalogue Changed event failed |
+| 1813 | Warning | Development key {File} ignored: {Reason} |
+| 1814 | Warning | Package {Package}@{Version} ships its own copy of shared assembly {Assembly}; the host's copy is used |
+| 1815 | Information | Package {FileName} installed by {Actor} |
+| 1816 | Debug | Load context {Context} unloaded |
+| 1820 (T1.16) | Information | Connection {ConnectionId} ({Name}) state {From} → {To}: {Reason} |
+| 1830 (T1.16) | Information | Connection {ConnectionId} reconciled: {Summary} |
+| 1840 (T1.16) | Warning | Connection {ConnectionId} dropped {Count} reports for unknown devices in the last minute |
+| 1850 (T1.16) | Error | Connector {ConnectionId} faulted: {Exception} |
+| 1851 (T1.16) | Error | Connector {ConnectionId} did not stop within timeout; instance abandoned |
+| 1860–1862 (T1.16) | Warning/Error | Watchdog findings |
+| 1880 (T4.09) | Warning | Upgrade of {ConnectionId} to {Version} rolled back: {Reason} |
 
 Metrics (`Watchpoint.Integrations`): `watchpoint.integrations.connections` (gauge by `state`),
 `watchpoint.integrations.restarts` (counter by `connection`), `watchpoint.integrations.sink.buffer`

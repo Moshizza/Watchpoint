@@ -24,6 +24,8 @@ expressions. Used by ALM, RGT, AUT, NOT, EXP, RPT.
 
 ## 3. Model
 
+Log event ids: 2350–2399 ([README §8](../README.md#8-observability-conventions)).
+
 ```csharp
 public sealed record Calendar(CalendarId Id, string Key /* ^[a-z][a-z0-9-]{1,63}$, unique */, LocalizedName Name,
     string? TimeZone /* IANA; null = site time zone */, IReadOnlyDictionary<IsoDayOfWeek, IReadOnlyList<TimeRange>> Weekly,

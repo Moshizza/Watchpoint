@@ -25,6 +25,8 @@ templates, a visual editor (React Flow) and a live runs panel.
 
 ## 3. Layout
 
+Log event ids: 2900–2999 ([README §8](../README.md#8-observability-conventions)).
+
 ```
 Watchpoint.Automations/
 ├── Contracts/

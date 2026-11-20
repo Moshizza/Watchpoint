@@ -28,6 +28,8 @@ Not in scope: the metrics/telemetry pipeline itself (HST OpenTelemetry), node li
 
 ## 3. Layout
 
+Log event ids: 3700–3749 ([README §8](../README.md#8-observability-conventions)).
+
 ```
 Watchpoint.Health/
 ├── Contracts/HealthSnapshot.cs, HealthItem.cs, HealthStatus.cs, ThresholdRule.cs, IHealthService.cs, Recommendation.cs
@@ -58,7 +60,7 @@ public sealed record HealthSnapshot(DateTimeOffset At, HealthStatus Overall, IRe
 | Node resources | CPU %, memory working set, GC pause p99, thread pool queue, disk free per data volume, open handles | CPU 80/95 %; memory 80/90 % of limit; disk free 15/5 % (or 20/5 GB) immediate |
 | Clock | NTP offset vs peers (cluster) and vs `GET /api/v1/time` peers | 1 s / 2 s (CLU skew limit) |
 | Database | Reachable, latency p95, connections used/max, replication lag (HA), database size, longest transaction, table bloat estimate (weekly) | latency 50/200 ms; connections 80/95 %; lag 5/30 s |
-| Event log | NATS cluster members up, JetStream storage used, stream lag per consumer, R3 health | storage 80/90 %; consumer lag 10,000/100,000 records |
+| Event log | NATS cluster members up, JetStream storage used, stream lag per consumer, R3 health; `log.effectiveRetention` = bytes the stream may hold (`MaxBytes` actually reserved, PIP §5.1) / ingest bytes per second, shown as a duration next to `Log:Retention` | storage 80/90 %; consumer lag 10,000/100,000 records; effective retention < `Log:Retention` → Warning, < 2 × `State:SnapshotInterval` → Error, and `ready` degraded (reason `logRetention`) while the stream is sized at its 64 MB floor |
 | Pipeline | Ingest rate, latency p95 (received → subscribers done), partition backlog, coalesced and quota-dropped counts, side-effect queues depth | latency 300 ms / 1 s; backlog 5,000/50,000 |
 | Integrations | Per connection state, reasons, flooding, silent connector; per host state, restarts | state Faulted → Error; Degraded/Reconnecting > 5 min → Warning |
 | Video | Gateways up, streams, WebRTC failures rate | gateway down → Error |
@@ -161,9 +163,10 @@ Errors: `health.item.not_found`, `health.bundle.too_large` (> 2 GB → narrow th
 | HLT-U-028 | API permissions and live topic |
 | HLT-U-029 | Dashboard rendering: statuses with colour + icon + text, drawer history chart |
 | HLT-U-030 | Translations coverage of labels, messages and recommendations |
+| HLT-U-031 | `log.effectiveRetention`: reserved bytes / ingest rate; Warning below `Log:Retention`, Error below 2 × snapshot interval, readiness degraded at the 64 MB floor |
 
 ## 12. Tasks
 
 | Task | Sections | Tests |
 |---|---|---|
-| T9.05 | all | HLT-U-001…HLT-U-030 |
+| T9.05 | all | HLT-U-001…HLT-U-031 |

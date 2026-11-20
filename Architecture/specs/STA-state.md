@@ -148,6 +148,9 @@ public sealed record StateChange(Guid EntityId, long Sequence, IReadOnlyList<Pro
 - STA listens to `IRegistryReader.Changed`. For each created device/server: post to its
   partition an initialisation (all properties unknown — or the definition's `Default` — health
   `Unknown`, summary computed). For deleted ones: remove state, adjust aggregates.
+- PIP's last value cache is not STA's: PIP purges the entries of deleted devices/servers itself on the
+  same registry changes (PIP §7.2, T1.10b). STA discards entities no longer in REG only from its own
+  state (here and at recovery, §8.2).
 - Type version changes: properties no longer in the type are dropped; new ones initialised.
 - Flags (`Enabled`, `Maintenance`) and memberships (location, tags, server) changes: posted
   to the partition; summary recomputed (flags) and aggregates moved (memberships).
@@ -240,6 +243,9 @@ public sealed record SnapshotContribution(IReadOnlyList<StateItem> Upserts, IRea
   quality) — they are recomputed at recovery.
 
 ### 8.2 Recovery (startup phase `Recovery`)
+
+Start-up task `StateRestore` (phase `Recovery`, order 50, before `PipelineRecovery` at order 100, PIP §13);
+other snapshot participants (`ISnapshotParticipant`: CMD, ALM) restore inside it.
 
 1. Read checkpoints (`consumer = state`) and all `device` items for owned partitions →
    rebuild `PartitionStateStore`s (entities no longer in REG are discarded; entities in REG

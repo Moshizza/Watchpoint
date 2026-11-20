@@ -34,6 +34,8 @@ question). Tests use the package's own `ModbusTestServer` (in the test project).
 
 ## 3. Layout
 
+Log event ids: 5200–5299 ([README §8](../README.md#8-observability-conventions)).
+
 ```
 Watchpoint.Integration.Modbus/
 ├── manifest.json, settings/modbus.settings.json
@@ -269,4 +271,6 @@ address 40001 — check the address style (zero-based vs 4xxxx)").
 
 | Task | Sections | Tests |
 |---|---|---|
-| T4.05 | all | MODB-U-001…MODB-U-030, MODB-I-001, MODB-I-003…MODB-I-006, conformance (MODB-I-002 moved to T1.17b) |
+| T4.05 | all | MODB-U-001…MODB-U-030, MODB-I-004, MODB-I-005, conformance (MODB-I-001, -003, -006 redone in T4.05c; MODB-I-002 moved to T1.17b) |
+| T4.05c | §11 | MODB-I-001, MODB-I-003, MODB-I-006 (to spec; the T4.05 versions test other things) |
+| T1.17b | §11 | MODB-I-002 (end-to-end through the integration runtime) |

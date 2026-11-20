@@ -11,8 +11,9 @@ must pass (see [README §12 — definition of done](README.md#12-definition-of-d
 Each task has a GitHub issue (column **Issue**) once its milestone is opened.
 
 1. Pick a task whose status is `todo` and whose dependencies are all `done`.
-2. Open its issue and **assign yourself** (right panel → Assignees). Assignment is instant
-   and visible to everyone; if someone is already assigned, pick another task.
+2. Open its issue and claim it: people **assign themselves** (right panel → Assignees);
+   agents comment `Taken by <agent-name> (<branch>)` ([CLAUDE.md §2](../CLAUDE.md)). If someone
+   is already assigned, has commented, or has a branch `*/<task-id>-*`, pick another task.
 3. Create the branch `<owner>/<task-id>-<short-slug>` from `main`, where `<owner>` is your
    agent name from the [agent registry](#agent-registry) (e.g.
    `claude-atlas/T1.07-registry-core`) or your GitHub username if you work without an agent
@@ -85,6 +86,14 @@ Every AI agent working on the project has a unique name, used as its branch pref
 | `claude-mira` | Mohcine (Moshizza) | 2026-11-14 |
 | `claude-vela` | Mohcine (Moshizza) | 2026-11-15 |
 | `claude-lynx` | Mohcine (Moshizza) | 2026-11-15 |
+| `jules-4` | Mohcine (Moshizza) | 2026-11-12 |
+| `claude-hermes` | Mohcine (Moshizza) | 2026-11-20 |
+| `claude-castor` | Mohcine (Moshizza) | 2026-11-20 |
+
+Owners of merged tasks keep the branch name actually used. Early Jules sessions pushed
+branches without an agent prefix (`jules-<session>-<hash>`: T1.08, T1.14, T1.17, T1.18, T2.08,
+T4.06); they count as Jules agents of Mohcine. New work always uses a registered
+`<agent>/<task-id>-<slug>` branch.
 
 ## 2. Tasks
 
@@ -99,47 +108,53 @@ spec that must exist and pass.
 | T0.02 | CI workflow `ci.yml`, issue and pull-request templates, Dependabot config, Semgrep and secret-scan jobs | README §10–§11 | T0.01 | CI-003 (workflow runs on PR), CI-004 (failing test fails CI) | [#2](https://github.com/Moshizza/Watchpoint/issues/2) | claude-atlas/T0.02-ci-workflow | done |
 | T0.03 | Kernel: typed ids, `Result`/`Error`/`ErrorKind`, `TimeProvider` helpers, paging and sorting | K §4–§7 | T0.01 | K-U-001…K-U-030 | [#3](https://github.com/Moshizza/Watchpoint/issues/3) | claude-atlas/T0.03-kernel-part1 | done |
 | T0.04 | Kernel: cursors, JSON options and converters, translatable texts, validation helpers, `WpValue`, `Watchpoint.Kernel.Testing` | K §7–§11 | T0.03 | K-U-031…K-U-062 | [#4](https://github.com/Moshizza/Watchpoint/issues/4) | claude-atlas/T0.04-kernel-part2 | done |
-| T0.05 | Test infrastructure: `Watchpoint.Testing`, Testcontainers fixtures (PostgreSQL + TimescaleDB, NATS), architecture tests, test naming analyzer | TST | T0.03 | TST-U-001…TST-I-010 | [#5](https://github.com/Moshizza/Watchpoint/issues/5) | claude-orion/T0.05-test-infrastructure | done |
+| T0.05 | Test infrastructure: `Watchpoint.Testing`, Testcontainers fixtures (PostgreSQL + TimescaleDB, NATS), architecture tests, test naming analyzer | TST | T0.03 | TST-U-001…TST-U-013, TST-I-001…TST-I-010 | [#5](https://github.com/Moshizza/Watchpoint/issues/5) | claude-orion/T0.05-test-infrastructure | done |
 | T0.06 | JSON Schemas: capability, device type, integration manifest; schema versioning | SCM §3–§5 | T0.01 | SCM-U-001…SCM-U-020 | [#6](https://github.com/Moshizza/Watchpoint/issues/6) | jules-1/T0.06-json-schemas-14734361605283558806 | done |
 | T0.07 | Standard type library v0 + `wptypes` validator CLI | SCM §6–§8 | T0.06 | SCM-U-021…SCM-U-040 | [#7](https://github.com/Moshizza/Watchpoint/issues/7) | claude-atlas/T0.07-type-library-wptypes | done |
 | T0.08 | UI workspace skeleton: package scaffolds, TypeScript strict, ESLint, Prettier, Vitest, Tailwind preset | README §7, UIC §3 | T0.01 | UIC-U-001…UIC-U-003 | [#8](https://github.com/Moshizza/Watchpoint/issues/8) | claude-atlas/T0.08-ui-workspace-skeleton | done |
 | T0.09 | Spike: NATS JetStream as event log and KV lease store (throughput, replay, KV CAS) → decision record | PIP §5, CLU §4 | T0.05 | Spike report | [#9](https://github.com/Moshizza/Watchpoint/issues/9) | claude-orion/T0.09-spike-nats-jetstream | done |
-| T0.10 | Spike: go2rtc RTSP → WebRTC in Electron on Windows, Linux, macOS (H.264, H.265) → decision record | VID §4 | T0.01 | Spike report | [#10](https://github.com/Moshizza/Watchpoint/issues/10) | — | todo |
+| T0.10 | Spike: go2rtc RTSP → WebRTC in Electron on Windows, Linux, macOS (H.264, H.265) → decision record. **M6 prerequisite** (T6.05): `blocked` until M6 opens so `next-task.py` does not offer it to service agents |  VID §4 | T0.01 | Spike report | [#10](https://github.com/Moshizza/Watchpoint/issues/10) | — | blocked |
 | T0.11 | Spike: connector isolation — `AssemblyLoadContext` in-process vs gRPC isolated host (latency, crash behaviour) → decision record | IRT §5, IHO §4 | T0.03 | Spike report | [#11](https://github.com/Moshizza/Watchpoint/issues/11) | claude-atlas/T0.11-spike-connector-isolation | done |
-| T0.12 | Fix intermittent INT-U-020 and HST-I-005 | INT §10, HST §7 | — | INT-U-020, HST-I-005 | — | claude-rigel/flaky-int-u-020-hst-i-005 | done |
-| T0.13 | Make wall-clock timing tests CI-safe | TST §4.7, STO §12, REG §14 | — | STO-I-011, REG-I-009, TST-I-003, TST-U-014, INT-C-012 (Modbus) | — | claude-deneb/T0.13-ci-safe-timing-tests | done |
-| T0.14 | EXP-U-040: assert the evaluator hot path is allocation-free instead of a fake-clock timing that cannot fail | EXP §5, §10; TST §4.7 | — | EXP-U-040 | — | claude-altair/T0.14-exp-allocation-free-hot-path | done |
+| T0.12 | Fix intermittent INT-U-020 and HST-I-005 | INT §10, HST §7 | — | (fix) INT-U-020, HST-I-005 | — | claude-rigel/flaky-int-u-020-hst-i-005 | done |
+| T0.13 | Make wall-clock timing tests CI-safe | TST §4.7, STO §12, REG §14 | — | (fix) STO-I-011, REG-I-009, TST-I-003, INT-C-012 (Modbus); TST-U-014 (new, TST §11) | — | claude-deneb/T0.13-ci-safe-timing-tests | done |
+| T0.14 | EXP-U-040: assert the evaluator hot path is allocation-free instead of a fake-clock timing that cannot fail | EXP §5, §10; TST §4.7 | — | (fix) EXP-U-040 | — | claude-altair/T0.14-exp-allocation-free-hot-path | done |
+| T0.16a | Apply architecture review: tasks sheet | reviews/2026-11-architecture-review §1 | — | — (documentation) | — | claude-hermes/T0.16a-tasks-sheet | done |
+| T0.16b | Apply architecture review: module specs (PIP, REG, IRT, HST, IDN, MOD) | reviews/2026-11-architecture-review §2 | — | — (documentation) | — | claude-hermes/T0.16b-module-specs | done |
+| T0.16c | Apply architecture review: cross-cutting specs (event ids, subscriber orders, README, LIC, DSK, API, HST, CLU) | reviews/2026-11-architecture-review §3 | — | — (documentation) | — | claude-hermes/T0.16c-cross-cutting | done |
+| T0.16d | Apply architecture review: approved tier-2 decisions D2–D3, D5–D14 | reviews/2026-11-architecture-review §4 | — | — (documentation) | — | claude-hermes/T0.16d-tier2-decisions | done |
+| T0.17 | Architecture test, per module: every error code emitted (`Error.Create`/`Errors.*` literals) and every event id logged appears in the module spec's errors and observability sections; every `Permission("…")` literal is a known code (RGT §4, D6) | TST §6; README §12; RGT §4 | T0.05 | ARCH-9 (error codes), ARCH-10 (event ids), ARCH-11 (permission codes, D6) | — | — | todo |
 
 ### M1 — First device on screen
 
 | ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
 |---|---|---|---|---|---|---|---|
 | T1.01 | Host: generic host, node settings, module registration, Windows service / systemd hosting, health endpoints | HST §4–§6 | T0.04 | HST-U-001…HST-U-015, HST-U-026, HST-U-027, HST-I-001…HST-I-004 | [#12](https://github.com/Moshizza/Watchpoint/issues/12) | claude-orion/T1.01-host-finish | done |
-| T1.02 | Host: process supervisor, bundled NATS start/stop, dev compose stack | HST §7–§8 | T1.01 | HST-U-016…HST-U-025, HST-U-028…HST-U-045, HST-I-005…HST-I-007, HST-I-009, HST-I-010 (HST-I-008 written, enabled by T1.16) | [#13](https://github.com/Moshizza/Watchpoint/issues/13) | claude-lyra/T1.02-process-supervisor-nats | done |
+| T1.02 | Host: process supervisor, bundled NATS start/stop, dev compose stack | HST §7–§9 | T1.01 | HST-U-016…HST-U-025, HST-U-028…HST-U-045, HST-I-005…HST-I-007, HST-I-009, HST-I-010 (HST-I-008 written, enabled by T1.16) | [#13](https://github.com/Moshizza/Watchpoint/issues/13) | claude-lyra/T1.02-process-supervisor-nats | done |
 | T1.03 | Storage: store contracts, provider model, connection manager, migration runner, PostgreSQL provider skeleton | STO §4–§6 | T0.05 | STO-U-001…STO-U-015, STO-I-001…STO-I-006 | [#14](https://github.com/Moshizza/Watchpoint/issues/14) | claude-atlas/T1.03-storage-contracts | done |
 | T1.04 | Storage: configuration store base (EF context per module, versioning column), state store (snapshot upserts) | STO §7–§8 | T1.03 | STO-U-016…STO-U-025, STO-I-007…STO-I-015 | [#15](https://github.com/Moshizza/Watchpoint/issues/15) | claude-atlas/T1.04-storage-state-store | done |
 | T1.05 | Secrets vault: master key providers (file, DPAPI), AES-GCM, secret API, access audit hook | SEC | T1.04 | SEC-U-001…SEC-U-020, SEC-I-001…SEC-I-005 | [#16](https://github.com/Moshizza/Watchpoint/issues/16) | claude-atlas/T1.05-secrets-vault | done |
 | T1.06 | Model: type catalogue (load standard library and package types, resolve `extends`, validate, query) | MOD | T0.07, T1.04 | MOD-U-001…MOD-U-035, MOD-I-001…MOD-I-004 | [#17](https://github.com/Moshizza/Watchpoint/issues/17) | jules-3/T1.06-model-type-catalogue-6607702112006375908 | done |
-| T1.07 | Registry: servers, devices, locations, tags, links — entities, persistence, queries | REG §4–§7 | T1.06 | REG-U-001…REG-U-030, REG-I-001…REG-I-004, REG-I-006, REG-I-009 | [#18](https://github.com/Moshizza/Watchpoint/issues/18) | jules-3/T1.07-registry-core-1150500357666495793 | done |
+| T1.07 | Registry: servers, devices, locations, tags, links — entities, persistence, queries | REG §4–§7, §9–§13 | T1.06 | REG-U-001…REG-U-030, REG-I-001…REG-I-004, REG-I-006, REG-I-009 | [#18](https://github.com/Moshizza/Watchpoint/issues/18) | jules-3/T1.07-registry-core-1150500357666495793 | done |
 | T1.08 | Registry: inventory reconciliation (rediscovery by native id, orphans, vendor names) | REG §8 | T1.07 | REG-U-031…REG-U-045, REG-I-007 | [#19](https://github.com/Moshizza/Watchpoint/issues/19) | jules-7325543338548804014-454e7657 | done |
 | T1.07b | Registry: site row carries `Site:Id` (default site and dev seed), warning on a stored row with another id | REG §4 R1, §12 | T1.18s, T1.07 | REG-U-046, REG-U-047 | — | claude-mira/T1.07b-registry-site-id | done |
-| T1.09 | Pipeline: event log streams, envelope, partition router, log writer/reader, consumer helpers | PIP §4–§6 | T1.02, T0.09 | PIP-U-001…PIP-U-020, PIP-I-001…PIP-I-008, REG-I-005 | [#20](https://github.com/Moshizza/Watchpoint/issues/20) | `claude-nova/T1.09-pipeline-event-log` | done |
-| T1.09b | Registry transactional outbox: persist the revision and change records in the registry transaction, publish to the log from the outbox (no lost or out-of-order registry changes across restarts or log outages) | PIP §5, REG §9 | T1.09 | (tests to define) | — | — | todo |
-| T1.10 | Pipeline: ingest (type validation, units, dedup, deadband, enrichment), back-pressure, side-effect dispatcher | PIP §7–§9, §13 | T1.09, T1.07 | PIP-U-021…PIP-U-050, PIP-I-009…PIP-I-016 | [#21](https://github.com/Moshizza/Watchpoint/issues/21) | `claude-vela/T1.10-pipeline-ingest` | done |
-| T1.09b | Registry transactional outbox: persist the revision and change records in the registry transaction, publish to the log from the outbox (no lost or out-of-order registry changes across restarts or log outages) | PIP §5.5, REG §6, §10 | T1.09 | REG-U-048…REG-U-051, REG-I-011, PIP-U-051…PIP-U-056, PIP-I-017…PIP-I-019 | — | claude-lynx/T1.09b-registry-outbox | done |
-| T1.10 | Pipeline: ingest (type validation, units, dedup, deadband, enrichment), back-pressure, side-effect dispatcher | PIP §7–§9 | T1.09, T1.07 | PIP-U-021…PIP-U-047, PIP-I-009…PIP-I-015 | [#21](https://github.com/Moshizza/Watchpoint/issues/21) | — | todo |
-| T1.11 | State: live store, overall state computation, aggregates, queries, change feed | STA §4–§7 | T1.10 | STA-U-001…STA-U-035 | [#22](https://github.com/Moshizza/Watchpoint/issues/22) | — | todo |
-| T1.12 | State: snapshotter and recovery (snapshot + replay) | STA §8 | T1.11 | STA-U-036…STA-U-045, STA-I-001…STA-I-006 | [#23](https://github.com/Moshizza/Watchpoint/issues/23) | — | todo |
+| T1.09 | Pipeline: event log streams, envelope, partition router, log writer/reader, consumer helpers | PIP §4–§6 | T1.02, T0.09 | PIP-U-001…PIP-U-020, PIP-I-001…PIP-I-008 | [#20](https://github.com/Moshizza/Watchpoint/issues/20) | `claude-nova/T1.09-pipeline-event-log` | done |
+| T1.09b | Registry transactional outbox: persist the revision and change records in the registry transaction, publish to the log from the outbox (no lost or out-of-order registry changes across restarts or log outages) | PIP §5.5, REG §6, §10 | T1.09 | REG-U-048…REG-U-051, REG-I-005, REG-I-011, PIP-U-051…PIP-U-056, PIP-I-017…PIP-I-019 | — | claude-lynx/T1.09b-registry-outbox | done |
+| T1.10 | Pipeline: ingest (type validation, units, dedup, deadband, enrichment), back-pressure, side-effect dispatcher | PIP §6–§10, §12–§13 | T1.09, T1.07 | PIP-U-021…PIP-U-050, PIP-I-009…PIP-I-016 | [#21](https://github.com/Moshizza/Watchpoint/issues/21) | `claude-vela/T1.10-pipeline-ingest` | done |
+| T1.07c | Registry: align the code to REG §5–§6 and §9 (spec is the target, D1 of the 2026-11 review): reader/writer member names, `ChangeContext(Actor, Origin, ChangeSet, Comment)` + outbox columns, Kernel `Page<T>`/`PageRequest` instead of the REG-local types, `GetEnrichment`/`DeviceEnrichment`, `Revision`, `DeleteLocation` `ReassignTo`, `DeleteServer` `DeleteDevices`, `DeleteDevice` `DeleteChildren`, REG §9 error catalogue, `ready` unhealthy with reason `siteId` on a site id mismatch (REG §4 R1, D12); adapt the T1.09b/T1.10 callers; on merge set T1.11 back to `todo`. Fable-class (cross-module contract change) | REG §5–§6, §9; K §7 | T1.09b | REG-U-001…REG-U-051, REG-I-001…REG-I-011 and PIP-U-021…PIP-U-056 adapted and passing; each REG §9 code asserted by at least one REG-U test; REG-U-053 | — | — | todo |
+| T1.09c | Registry: refuse a batch whose `registry.changed` record would exceed the log's record limit, before commit (`registry.batch.too_large`, arg `bytes`); the PIP §5.5 skip stays as defence in depth; Kernel `ILeaseGate` + `AlwaysHeldLeaseGate` awaited by the outbox publisher (D7) | REG §6, §9; PIP §5.5; K §6.1 | T1.09b | REG-U-052, PIP-U-055 (adjusted: hand-built oversize row), K-U-063 | — | — | todo |
+| T1.10b | Pipeline: purge last-value cache entries of deleted devices/servers on registry changes (`Changed` with `kind = deleted`, posted through `IPartitionDispatcher`); PIP owns the purge; subscriber soft budget `Ingest:SubscriberBudget` + log 1646 (D13); `Log:Retention` capped at P30D (D11) | PIP §7.2, §7.3, §10; STA §6.3 | T1.10 | PIP-U-057, PIP-U-058 | — | — | todo |
+| T1.11 | State: live store, overall state computation, aggregates, queries, change feed. `blocked` until T1.07c is merged (`next-task.py` reads only `T<m>.<nn>` ids, so it cannot see the T1.07c dependency) | STA §4–§7 | T1.10, T1.07c | STA-U-001…STA-U-035 | [#22](https://github.com/Moshizza/Watchpoint/issues/22) | — | blocked |
+| T1.12 | State: snapshotter and recovery (snapshot + replay), `ILastValueSource` implementation, uses `GetRecoveryCheckpoint` (STA §8.2) | STA §8 | T1.11 | STA-U-036…STA-U-045, STA-I-001…STA-I-006 | [#23](https://github.com/Moshizza/Watchpoint/issues/23) | — | todo |
 | T1.13 | Integration contract (`Watchpoint.Integration.Abstractions`) | INT §4–§8 | T0.03, T0.04 | INT-U-001…INT-U-010 | [#24](https://github.com/Moshizza/Watchpoint/issues/24) | claude-orion/T1.13-integration-contract | done |
 | T1.14 | Integration SDK helpers (polling scheduler, resilience, device map, connection store client, secure HTTP, redacting logger) | INT §9–§11 | T1.13 | INT-U-011…INT-U-040 | [#25](https://github.com/Moshizza/Watchpoint/issues/25) | jules-523469058024656279-7e0abb3b | done |
 | T1.15 | Integration runtime: package folder watcher, manifest reader, verifier (dev mode), package catalogue, load contexts | IRT §4–§6 | T1.13, T1.06 | IRT-U-001…IRT-U-025, IRT-I-001…IRT-I-004 | [#26](https://github.com/Moshizza/Watchpoint/issues/26) | claude-vega/T1.15-integration-runtime-packages | done |
-| T1.16 | Integration runtime: connection manager, connection state machine, watchdog, connector context implementation, connection store | IRT §7–§10 | T1.15, T1.10, T1.08, T1.05 | IRT-U-026…IRT-U-060, IRT-I-005…IRT-I-012, HST-I-008 (enable; written in T1.02) | [#27](https://github.com/Moshizza/Watchpoint/issues/27) | — | todo |
+| T1.16 | Integration runtime: connection manager, connection state machine, watchdog, connector context implementation, connection store, `IIngestFloodingListener` (IRT §7.3); Development-only POSTs answer loopback only (IRT §10); dev-seed steps for site, locations, tags (REG) and connections + import (IRT), HST §9; remove the `Skip` of HST-I-008 | IRT §7–§10 | T1.15, T1.10, T1.08, T1.05 | IRT-U-026…IRT-U-060, IRT-I-005…IRT-I-012, HST-I-008 (enable; written in T1.02) | [#27](https://github.com/Moshizza/Watchpoint/issues/27) | — | todo |
 | T1.17 | Simulator connector (types, scenarios, random and scripted changes, commands with configurable outcomes) | C-SIM | T1.14 | SIM-U-001…SIM-U-030, SIM-I-002, SIM-I-003 | [#28](https://github.com/Moshizza/Watchpoint/issues/28) | jules-2365140055605449599-7f8a9063 | done |
-| T1.17b | Simulator, Modbus and MQTT end-to-end tests | C-SIM, C-MODBUS, C-MQTT | T1.16, T1.07, T1.09, T4.05, T4.06 | SIM-I-001, SIM-I-004, SIM-I-005, MODB-I-002, MQTT-I-004 | — | — | todo |
+| T1.17b | Simulator, Modbus and MQTT end-to-end tests | C-SIM, C-MODBUS, C-MQTT | T1.16, T1.07, T1.09, T4.05, T4.06, T2.03 | SIM-I-001, SIM-I-004, SIM-I-005, MODB-I-002, MQTT-I-004 | — | — | todo |
 | T1.18 | Identity minimal: local users, Argon2id, sign-in, access/refresh tokens, bootstrap admin, session registry | IDN §4–§7 | T1.04 | IDN-U-001…IDN-U-030, IDN-I-001…IDN-I-006 | [#29](https://github.com/Moshizza/Watchpoint/issues/29) | jules-14674020379193774426-43566f4b | done |
 | T1.18r | Identity security review and fixes (T1.18 code) | IDN §4–§7 | T1.18 | IDN-U-*, IDN-I-*, new tests (IDN-U-101…IDN-U-124) | — | claude-sirius/T1.18r-identity-security-review | done |
-| T1.18s | Identity settings binding (§7.1) and per-site token issuer | IDN §6–§7 | T1.18r | IDN-U-125…IDN-U-129, HST-U-046, HST-U-047 | — | claude-polaris/T3.08-identity-mfa-lockout | done |
-| T1.19 | API: REST framework (problem details, paging, ETag, idempotency, permission filter, OpenAPI) + endpoints for registry, state, connections, types, dev seed | API §4–§7 | T1.11, T1.16, T1.18 | API-U-001…API-U-030, API-I-001…API-I-015, REG-I-008, REG-I-010 | [#30](https://github.com/Moshizza/Watchpoint/issues/30) | — | todo |
+| T1.18s | Identity settings binding (§7.1) and per-site token issuer | IDN §6–§7 | T1.18r | IDN-U-125…IDN-U-129, HST-U-046, HST-U-047 | — | claude-polaris/T3.08-identity-mfa-lockout (with T3.08, #172) | done |
+| T1.19 | API: REST framework (problem details, paging, ETag, idempotency, permission filter, OpenAPI) + endpoints for registry, state, connections, types, dev seed; Development refused on a production install and 1102 at Warning in Development (HST §12) | API §4–§7 | T1.11, T1.16, T1.18 | API-U-001…API-U-030, API-I-001…API-I-015, HST-U-048, REG-I-008, REG-I-010, MOD-I-003, MOD-I-004 (extend to HTTP) | [#30](https://github.com/Moshizza/Watchpoint/issues/30) | — | todo |
 | T1.20 | API: live hub (subscriptions, snapshots + deltas, sequences, resume, coalescing, limits) | API §8–§10 | T1.19 | API-U-031…API-U-055, API-I-016…API-I-025 | [#31](https://github.com/Moshizza/Watchpoint/issues/31) | — | todo |
 | T1.21 | UI core: generated API client, live connection client, model package | UIC §4–§6 | T1.20, T0.08 | UIC-U-004…UIC-U-030 | [#32](https://github.com/Moshizza/Watchpoint/issues/32) | — | todo |
 | T1.22 | UI core: i18n (en/fr/ar, RTL, ICU), design system base (theme, layout, DataGrid, tree, state badges) | UIC §8–§10 | T0.08 | UIC-U-031…UIC-U-060 | [#33](https://github.com/Moshizza/Watchpoint/issues/33) | jules-1/T1.22-ui-core-12272030307080811265 | done |
@@ -187,7 +202,7 @@ spec that must exist and pass.
 | T3.12 | UI configuration: devices, locations, tags, links, bulk edit | UIF §8 | T3.10 | UIF-U-051…UIF-U-070 | [#65](https://github.com/Moshizza/Watchpoint/issues/65) | — | todo |
 | T3.13 | UI configuration: alarm rules (with CEL editor), procedures editor | UIF §9 | T3.10, T2.11, T2.07 | UIF-U-071…UIF-U-090 | [#66](https://github.com/Moshizza/Watchpoint/issues/66) | — | todo |
 | T3.14 | UI configuration: users, groups, rights editor, rights-copy wizard, sessions, maintenance dialog | UIF §10–§11 | T3.10, T3.05, T3.09, T3.06 | UIF-U-091…UIF-U-120 | [#67](https://github.com/Moshizza/Watchpoint/issues/67) | — | todo |
-| T3.16 | Desktop shell part 3: workstation enrolment and certificate sign-in, kiosk mode | DSK §11–§12 | T2.17, T3.08 | DSK-U-030…DSK-U-034 | [#69](https://github.com/Moshizza/Watchpoint/issues/69) | — | todo |
+| T3.16 | Desktop shell part 3: workstation enrolment and certificate sign-in, kiosk mode | DSK §11–§12 | T2.17, T3.08 | DSK-U-030…DSK-U-034, DSK-U-035 (written, enabled by T9.03) | [#69](https://github.com/Moshizza/Watchpoint/issues/69) | — | todo |
 | T3.15 | E2E scenarios E-020…E-028 | tests/e2e-scenarios | T3.11…T3.14 | E-020…E-028 | [#68](https://github.com/Moshizza/Watchpoint/issues/68) | — | todo |
 
 ### M4 — Real protocols
@@ -198,7 +213,7 @@ spec that must exist and pass.
 | T4.02 | Remote integration host: pairing, mTLS, outbound connection, package push, buffering | IHO §8–§10 | T4.01, T1.05 | IHO-U-031…IHO-U-050, IHO-I-009…IHO-I-014, ALM-U-126 | [#71](https://github.com/Moshizza/Watchpoint/issues/71) | — | todo |
 | T4.03 | Connector conformance suite (`Watchpoint.Integration.Testing`) applied to C-SIM | INT §12 | T1.17 | INT-C-001…INT-C-040 | [#72](https://github.com/Moshizza/Watchpoint/issues/72) | jules-1/T4.03-connector-conformance-suite-4547813729490188497 | done |
 | T4.04 | Ping / HTTP check connector | C-PING | T4.03 | PING-U-001…PING-U-020, PING-I-001…PING-I-004, conformance | [#73](https://github.com/Moshizza/Watchpoint/issues/73) | — | todo |
-| T4.05 | Modbus TCP connector with mapping templates | C-MODBUS | T4.03 | MODB-U-001…MODB-U-030, MODB-I-001, MODB-I-003…MODB-I-006, conformance | [#74](https://github.com/Moshizza/Watchpoint/issues/74) | jules-4/T4.05-modbus-tcp-connector-275718167346246961 | done |
+| T4.05 | Modbus TCP connector with mapping templates | C-MODBUS | T4.03 | MODB-U-001…MODB-U-030, MODB-I-004, MODB-I-005, conformance (MODB-I-001, -003, -006 redone in T4.05c; MODB-I-002 in T1.17b) | [#74](https://github.com/Moshizza/Watchpoint/issues/74) | jules-4/T4.05-modbus-tcp-connector-275718167346246961 | done |
 | T4.05c | Modbus integration tests to spec: MODB-I-001 (3 units, 200 points, polling), MODB-I-003 (server restart/reset, qualities, recovery), MODB-I-006 (50 units × 100 registers load benchmark); the T4.05 versions test other things | C-MODBUS §tests | T4.05 | MODB-I-001, MODB-I-003, MODB-I-006 | — | — | todo |
 | T4.06 | MQTT connector | C-MQTT | T4.03 | MQTT-U-001…MQTT-U-022, MQTT-I-001, MQTT-I-002, MQTT-I-003, MQTT-I-005, MQTT-I-006, conformance | [#75](https://github.com/Moshizza/Watchpoint/issues/75) | jules-4049734125398880372-2291d2a8 | done |
 | T4.07 | SNMP connector (polling, traps, MIB import, inbound UDP contract) | C-SNMP | T4.03 | SNMP-U-001…SNMP-U-022, SNMP-I-001…SNMP-I-006, conformance | [#76](https://github.com/Moshizza/Watchpoint/issues/76) | — | todo |
@@ -258,11 +273,11 @@ spec that must exist and pass.
 
 | ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| T9.01 | Cluster membership, node roles, lease manager with fencing tokens | CLU §4–§6 | T0.09, T1.09 | CLU-U-001…CLU-U-035, CLU-I-001…CLU-I-006 | [#108](https://github.com/Moshizza/Watchpoint/issues/108) | — | todo |
+| T9.01 | Cluster membership, node roles, lease manager with fencing tokens, `ILeaseGate` implementation (D7), NATS cluster keys; measure R3 lane throughput (D8: below 2,000 records/s per partition, implement atomic batches per worker batch before T9.02) | CLU §4–§6; PIP §5.4 | T0.09, T1.09 | CLU-U-001…CLU-U-035, CLU-U-081, CLU-U-082, CLU-I-001…CLU-I-006 | [#108](https://github.com/Moshizza/Watchpoint/issues/108) | — | todo |
 | T9.02 | Failover of connections, pipeline partitions, command queues, timers | CLU §7–§8 | T9.01, T2.03 | CLU-U-036…CLU-U-060, CLU-I-007…CLU-I-015 | [#109](https://github.com/Moshizza/Watchpoint/issues/109) | — | todo |
-| T9.03 | Placement engine, drain, rolling upgrade support, client node lists | CLU §9–§10 | T9.02 | CLU-U-061…CLU-U-080 | [#110](https://github.com/Moshizza/Watchpoint/issues/110) | — | todo |
+| T9.03 | Placement engine, drain, rolling upgrade support, client node lists | CLU §9–§10 | T9.02 | CLU-U-061…CLU-U-080, DSK-U-035 (enable) | [#110](https://github.com/Moshizza/Watchpoint/issues/110) | — | todo |
 | T9.04 | Spike + integration: PostgreSQL HA (Patroni vs pg_auto_failover), witness packaging | CLU §11 | T9.01 | Spike report, CLU-I-016…CLU-I-020 | [#111](https://github.com/Moshizza/Watchpoint/issues/111) | — | todo |
-| T9.05 | System health dashboard: collectors, thresholds, capacity advisor, diagnostic bundle | HLT | T9.01 | HLT-U-001…HLT-U-030 | [#112](https://github.com/Moshizza/Watchpoint/issues/112) | — | todo |
+| T9.05 | System health dashboard: collectors, thresholds, capacity advisor, diagnostic bundle | HLT | T9.01 | HLT-U-001…HLT-U-031 | [#112](https://github.com/Moshizza/Watchpoint/issues/112) | — | todo |
 | T9.06 | Federation links: mTLS gRPC, filters, resume cursors, federation identity | FED §4–§7 | T9.02, T3.04 | FED-U-001…FED-U-040, FED-I-001…FED-I-004 | [#113](https://github.com/Moshizza/Watchpoint/issues/113) | — | todo |
 | T9.07 | Federation: central console, remote commands, handover schedules, remote queries | FED §8–§10 | T9.06, T2.11 | FED-U-041…FED-U-070, FED-I-005…FED-I-008 | [#114](https://github.com/Moshizza/Watchpoint/issues/114) | — | todo |
 | T9.08 | Load-test programme (k6 + device simulator), capacity sheet | tests/performance-tests | T9.03 | P-001…P-012 | [#115](https://github.com/Moshizza/Watchpoint/issues/115) | — | todo |
@@ -285,7 +300,7 @@ spec that must exist and pass.
 | T11.03 | Installers: Inno Setup (Windows), .deb/.rpm (nfpm), OCI images, Helm chart, client installers | DEP §3–§6 | T9.03 | DEP-I-001…DEP-I-015 | [#122](https://github.com/Moshizza/Watchpoint/issues/122) | — | todo |
 | T11.04 | Setup wizard (first run) | DEP §7 | T11.03, T7.02 | DEP-U-001…DEP-U-020 | [#123](https://github.com/Moshizza/Watchpoint/issues/123) | — | todo |
 | T11.05 | Signed updates (node, clients, packages), backups and restore, `wpctl` commands | DEP §8–§10 | T11.03 | DEP-U-021…DEP-U-050, DEP-I-016…DEP-I-025 | [#124](https://github.com/Moshizza/Watchpoint/issues/124) | — | todo |
-| T11.06 | Security hardening checklist, SBOM and third-party notices generation, penetration test preparation | tests/security-tests | T11.05 | S-001…S-030 | [#125](https://github.com/Moshizza/Watchpoint/issues/125) | — | todo |
+| T11.06 | Security hardening checklist, SBOM and third-party notices generation, penetration test preparation | tests/security-tests | T11.05 | S-001…S-031 | [#125](https://github.com/Moshizza/Watchpoint/issues/125) | — | todo |
 | T11.07 | E2E scenarios E-100…E-105 | tests/e2e-scenarios | T11.02, T11.05 | E-100…E-105 | [#126](https://github.com/Moshizza/Watchpoint/issues/126) | — | todo |
 
 ### M12 — Vendor integrations (specs completed when vendor documentation is available)

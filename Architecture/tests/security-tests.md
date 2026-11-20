@@ -1,4 +1,4 @@
-# Security Tests and Hardening Checklist (S-001…S-030)
+# Security Tests and Hardening Checklist (S-001…S-031)
 
 Task T11.06. Source of requirements: [Security](../../docs/operations/security.md). Each item
 is an automated test unless marked **(review)** (a documented manual check with evidence stored
@@ -51,6 +51,7 @@ in `docs/security/evidence/<release>/`). All tools listed are free.
 | S-028 | Client | Electron shell hardening: contextIsolation, sandbox, no nodeIntegration, navigation allow-list, permission handlers, certificate pinning per site profile (DSK tests) |
 | S-029 | (review) | Threat model updated (STRIDE per component: node, hosts, clients, portal, relay) and residual risks accepted by the product owner |
 | S-030 | (review) | Pre-penetration-test package: scope document, test accounts and environments, architecture diagrams, previous findings closed; external penetration test scheduled before the first customer release |
+| S-031 | Platform | Development switches refused on a production install: `Node:Environment=Development` with the service host or the default data path stops the node (HST §12); installers write `Production`; Development-only POSTs answer loopback only (IRT §10) |
 
 ## 3. Hardening checklist (installation guide content generated from S-tests)
 
