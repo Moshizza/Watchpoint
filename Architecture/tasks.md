@@ -117,7 +117,7 @@ spec that must exist and pass.
 | T0.12 | Fix intermittent INT-U-020 and HST-I-005 | INT §10, HST §7 | — | (fix) INT-U-020, HST-I-005 | — | claude-rigel/flaky-int-u-020-hst-i-005 | done |
 | T0.13 | Make wall-clock timing tests CI-safe | TST §4.7, STO §12, REG §14 | — | (fix) STO-I-011, REG-I-009, TST-I-003, INT-C-012 (Modbus); TST-U-014 (new, TST §11) | — | claude-deneb/T0.13-ci-safe-timing-tests | done |
 | T0.14 | EXP-U-040: assert the evaluator hot path is allocation-free instead of a fake-clock timing that cannot fail | EXP §5, §10; TST §4.7 | — | (fix) EXP-U-040 | — | claude-altair/T0.14-exp-allocation-free-hot-path | done |
-| T0.16a | Apply architecture review: tasks sheet | reviews/2026-11-architecture-review §1 | — | — (documentation) | — | claude-hermes/T0.16a-tasks-sheet | in progress |
+| T0.16a | Apply architecture review: tasks sheet | reviews/2026-11-architecture-review §1 | — | — (documentation) | — | claude-hermes/T0.16a-tasks-sheet | done |
 | T0.17 | Architecture test, per module: every error code emitted (`Error.Create`/`Errors.*` literals) and every event id logged appears in the module spec's errors and observability sections | TST §6; README §12 | T0.05 | ARCH-9 (error codes), ARCH-10 (event ids) | — | — | todo |
 
 ### M1 — First device on screen
