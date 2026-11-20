@@ -157,6 +157,9 @@ them change live in the desktop client.
 
 **Exit criteria**: e2e scenarios E-001…E-004 pass (see [tests/e2e-scenarios.md](tests/e2e-scenarios.md)).
 
+**Critical path (2026-11 review)**: T1.07c (registry code aligned to REG §5–§6, §9) → T1.11 →
+**T1.16 next** (integration runtime: T1.17b, T1.19 → T1.23 → T1.24 → T1.25 all wait on it).
+
 ### M2 — Act and react
 
 **Goal**: commands with results, events, alarms with lifecycle, history of what happened.
@@ -238,6 +241,9 @@ restarted automatically, devices stale then back.
 plan pulses, camera live in the alarm details, same in a browser.
 
 **Exit criteria**: E-050…E-056.
+
+**Prerequisite**: spike T0.10 (go2rtc in Electron), listed in M0 but `blocked` until M6 opens;
+T6.05 depends on it.
 
 ### M7 — Licensing
 
