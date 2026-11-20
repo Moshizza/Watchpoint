@@ -122,7 +122,9 @@ spec that must exist and pass.
 | T0.16b | Apply architecture review: module specs (PIP, REG, IRT, HST, IDN, MOD) | reviews/2026-11-architecture-review §2 | — | — (documentation) | — | claude-hermes/T0.16b-module-specs | done |
 | T0.16c | Apply architecture review: cross-cutting specs (event ids, subscriber orders, README, LIC, DSK, API, HST, CLU) | reviews/2026-11-architecture-review §3 | — | — (documentation) | — | claude-hermes/T0.16c-cross-cutting | done |
 | T0.16d | Apply architecture review: approved tier-2 decisions D2–D3, D5–D14 | reviews/2026-11-architecture-review §4 | — | — (documentation) | — | claude-hermes/T0.16d-tier2-decisions | done |
+| T0.16e | Apply architecture review: task row for the next-task.py fix (T0.18) | reviews/2026-11-architecture-review (Applied, open point) | — | — (documentation) | — | claude-hermes/T0.16e-next-task-row | done |
 | T0.17 | Architecture test, per module: every error code emitted (`Error.Create`/`Errors.*` literals) and every event id logged appears in the module spec's errors and observability sections; every `Permission("…")` literal is a known code (RGT §4, D6) | TST §6; README §12; RGT §4 | T0.05 | ARCH-9 (error codes), ARCH-10 (event ids), ARCH-11 (permission codes, D6) | — | — | todo |
+| T0.18 | `tools/next-task.py`: read task ids with a letter suffix (`T1.07c`, `T0.16a`) in the ID and Deps columns (today the row regex skips them and `T1.07c` in Deps reads as T1.07); a started branch `*/T1.07c-*` counts for T1.07c only; after merge set T1.11 back to `todo` (its T1.07c dependency is then enforced). Code only in `tools/`; no CI change | CLAUDE.md §1 | — | `tests/tools`: `--list` on the current tasks.md lists every row id once (lettered ids included, no duplicates); `T1.07c` in Deps resolves to T1.07c; T1.11 not available while T1.07c is not `done`; branch `x/T1.07c-y` marks T1.07c started, not T1.07 | — | — | todo |
 
 ### M1 — First device on screen
 
