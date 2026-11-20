@@ -94,3 +94,46 @@ plan: options and a recommendation are given instead of an exact fix.
 | 4.9 | L | PIP §4 (64 partitions, one worker each), STA §6.1 | 64 workers on the thread pool, each "one call at a time", with subscribers that must stay < 1 ms: ALM composite rules and AUT triggers (EXP evaluator) run on these threads. A single slow expression stalls 1/64 of the devices; nothing budgets the per-record subscriber time (metric exists: `subscriber.duration`). | Add to PIP §7.3 a soft budget (`Ingest:SubscriberBudget` 5 ms, log 1646 once per minute per subscriber when exceeded) so M2 modules are measured against it from the start. | PIP §7.3; EXP §7 | 2 |
 | 4.10 | L | IRT §5 (ADR-003), HST §7 | In-process connectors can terminate the node (ADR-003); isolation comes only in M4 (T4.01). Between M1 and M4 every third-party or dev package runs in-process in production builds. | Document in IRT §4.5 that until T4.01 only packages signed by a release key (none yet) or builtin ones may be `Active` outside Development — i.e. user packages are effectively disabled until M4; make it explicit so nobody plans an M2 pilot with a vendor package. | IRT §4.4, §5 | 2 |
 | 4.11 | L | C-MODBUS/C-MQTT/C-SIM vs IRT (T1.16 `todo`) | Three connectors and the conformance suite are `done` while the runtime that hosts them (T1.16) is not; their integration tests run against the SDK fakes only. The first real contact happens in T1.16 + T1.17b with four `todo` tasks between. | Plan: pull T1.16 forward (it is the critical path of M1: T1.19 → T1.23 → T1.24 → T1.25 all wait on it); mark it "next" in build-order.md. | tasks.md M1 | 2 (plan) |
+
+## Applied (2026-11-20, `claude-hermes`)
+
+Applied in four pull requests: T0.16a #180 (§1), T0.16b #181 (§2), T0.16c #183 (§3), T0.16d #184
+(approved tier-2 decisions D1–D15). Each finding was checked against the code first.
+
+| # | Outcome |
+|---|---|
+| 1.1–1.8, 1.10 | Applied (#180) |
+| 1.9 | Applied (D15): T0.10 marked M6 prerequisite, `blocked` |
+| 1.11 | Applied; corrected in #183 (MOD-I-003/004 test `ITypeResources`, T1.19 extends them to HTTP) |
+| 1.12 | No change needed |
+| 2.1, 2.5, 2.8, 2.11, 2.14 | Applied (#181) |
+| 2.2, 2.3, 2.13 | Deferred to **T1.07c** (D1); "known divergence" notes in REG §5, §6, §9 |
+| 2.4 | Applied as spec (D3, #184); code in **T1.09c** |
+| 2.6 | Partly applied: events 1805–1816 and T1.16 markers; the five "missing" codes were already in §12 |
+| 2.7 | Applied; `Debounce`/`ProductVersion` are not configuration, documented as fixed values |
+| 2.9 | Skipped: code chore (split host module files), not documentation |
+| 2.10 | Partly applied: `identity.user.login_invalid` added; the other codes and events already existed; the two MFA enrolment endpoints are two flows |
+| 2.12 | Applied as spec (D5, #184); code in **T1.10b** |
+| 2.15 | Applied (MOD §13 corrected in #183) |
+| 2.16 | No change needed (names match) |
+| 3.1 | Applied without the order-conflict refusal (the code runs equal orders in registration order) |
+| 3.2, 3.4, 3.5, 3.9, 3.10, 3.11, 3.13–3.16 | Applied (#183) |
+| 3.3 | Applied by subdividing the existing README §8 blocks (the ranges the review proposed clashed with ids already in use) |
+| 3.6 | Applied as spec (D6, #184); ARCH-11 in **T0.17** |
+| 3.7, 3.8 | Deferred to **T1.07c** (D1) |
+| 3.12 | Skipped: `docs/operations/security.md` exists |
+| 4.1 | Decided (D1): new task **T1.07c** |
+| 4.2 | Applied as spec (D2, #184); new task **T0.17** |
+| 4.3 | Applied as spec (D7, #184): Kernel `ILeaseGate`; code in **T1.09c** (M1) and **T9.01** (CLU) |
+| 4.4 | Applied as spec (D8, #184); measurement in **T9.01** |
+| 4.5 | Applied as spec (D9, #184); code in **T9.05** |
+| 4.6 | Applied as spec (D10, #184); code in **T1.16**, **T1.19**, **T11.03**, test S-031 in **T11.06**; (d) was wrong (the file exists) |
+| 4.7 | Applied as spec (D11, #184); `Log:Retention` cap in **T1.10b**; crypto-shredding left to an M5 decision record |
+| 4.8 | Applied as spec (D12, #184); code in **T1.07c** (REG-U-053) and **T9.01** (CLU-U-081) |
+| 4.9 | Applied as spec (D13, #184); code in **T1.10b** |
+| 4.10 | Applied (D14, #184) |
+| 4.11 | Applied (D15, #180): build-order M1 critical path, T1.16 next after T1.07c and T1.11 |
+
+Open point: `tools/next-task.py` reads only `T<m>.<nn>` ids, so lettered tasks (T1.07c, T1.09c,
+T1.10b, T0.16x) are not offered and `T1.07c` in a Deps cell reads as T1.07. T1.11 is `blocked`
+until T1.07c merges; fixing the script is a code task.
