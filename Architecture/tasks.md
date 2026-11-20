@@ -89,6 +89,7 @@ Every AI agent working on the project has a unique name, used as its branch pref
 | `jules-4` | Mohcine (Moshizza) | 2026-11-12 |
 | `claude-hermes` | Mohcine (Moshizza) | 2026-11-20 |
 | `claude-castor` | Mohcine (Moshizza) | 2026-11-20 |
+| `claude-tarazed` | Mohcine (Moshizza) | 2026-11-20 |
 
 Owners of merged tasks keep the branch name actually used. Early Jules sessions pushed
 branches without an agent prefix (`jules-<session>-<hash>`: T1.08, T1.14, T1.17, T1.18, T2.08,
@@ -131,6 +132,7 @@ spec that must exist and pass.
 | ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
 |---|---|---|---|---|---|---|---|
 | T1.01 | Host: generic host, node settings, module registration, Windows service / systemd hosting, health endpoints | HST §4–§6 | T0.04 | HST-U-001…HST-U-015, HST-U-026, HST-U-027, HST-I-001…HST-I-004 | [#12](https://github.com/Moshizza/Watchpoint/issues/12) | claude-orion/T1.01-host-finish | done |
+| T1.01b | Host: configured list settings (`Http:Urls`, `Management:Urls`, `Node:Roles`) replace the code defaults instead of being appended to them | HST §4 | T1.01 | HST-U-049 | — | claude-tarazed/T1.01b-list-settings-replace-defaults | in progress |
 | T1.02 | Host: process supervisor, bundled NATS start/stop, dev compose stack | HST §7–§9 | T1.01 | HST-U-016…HST-U-025, HST-U-028…HST-U-045, HST-I-005…HST-I-007, HST-I-009, HST-I-010 (HST-I-008 written, enabled by T1.16) | [#13](https://github.com/Moshizza/Watchpoint/issues/13) | claude-lyra/T1.02-process-supervisor-nats | done |
 | T1.03 | Storage: store contracts, provider model, connection manager, migration runner, PostgreSQL provider skeleton | STO §4–§6 | T0.05 | STO-U-001…STO-U-015, STO-I-001…STO-I-006 | [#14](https://github.com/Moshizza/Watchpoint/issues/14) | claude-atlas/T1.03-storage-contracts | done |
 | T1.04 | Storage: configuration store base (EF context per module, versioning column), state store (snapshot upserts) | STO §7–§8 | T1.03 | STO-U-016…STO-U-025, STO-I-007…STO-I-015 | [#15](https://github.com/Moshizza/Watchpoint/issues/15) | claude-atlas/T1.04-storage-state-store | done |
