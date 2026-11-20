@@ -32,6 +32,8 @@ dependencies.
 
 ## 3. Layout
 
+Log event ids: 5100–5199 ([README §8](../README.md#8-observability-conventions)).
+
 ```
 Watchpoint.Integration.Ping/
 ├── manifest.json

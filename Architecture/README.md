@@ -251,18 +251,20 @@ SignalR hub at `/hub/v1`, MessagePack protocol. Message envelope and subscriptio
 | Module | EventId range | Module | EventId range |
 |---|---|---|---|
 | Kernel | 1000–1099 | Commands | 2400–2499 |
-| Host | 1100–1199 | Events/Alarms | 2500–2699 |
-| Storage | 1200–1299 | Identity | 2700–2799 |
-| Configuration | 1300–1399 | Rights/Audit | 2800–2899 |
+| Host | 1100–1199 | Events / Alarms | 2500–2549 / 2550–2699 |
+| Storage / SQL Server provider | 1200–1249 / 1250–1299 | Identity | 2700–2799 |
+| Configuration | 1300–1399 | Rights / Audit | 2800–2849 / 2850–2899 |
 | Model | 1400–1499 | Automations | 2900–2999 |
 | Registry | 1500–1599 | Scripting | 3000–3099 |
 | Pipeline | 1600–1699 | Notifications | 3100–3199 |
-| State | 1700–1799 | History/Reports | 3200–3299 |
-| Integrations runtime | 1800–1999 | Video | 3300–3399 |
+| State | 1700–1799 | History / Reports | 3200–3249 / 3250–3299 |
+| Integrations runtime / Integration host | 1800–1949 / 1950–1999 | Video / Synoptics | 3300–3359 / 3360–3399 |
 | API | 2000–2199 | Licensing | 3400–3499 |
-| Secrets | 2200–2299 | Cluster/Federation | 3500–3699 |
-| Files/Scheduling | 2300–2399 | Health/Maintenance | 3700–3799 |
+| Secrets | 2200–2299 | Cluster / Federation | 3500–3599 / 3600–3699 |
+| Files / Scheduling | 2300–2349 / 2350–2399 | Health / Maintenance | 3700–3749 / 3750–3799 |
 | Connectors | 5000–5999 (100 per package, assigned in each connector spec) | Licensing portal / push relay (separate products) | 6000–6099 / 6100–6199 |
+
+Each spec states its range in §3; a module never logs outside it.
 
 ## 9. Testing conventions
 

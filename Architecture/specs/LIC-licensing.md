@@ -29,6 +29,8 @@ Not in scope: the company's portal and issuance (LPT).
 
 ## 3. Layout
 
+Log event ids: 3400–3499 ([README §8](../README.md#8-observability-conventions)).
+
 ```
 Watchpoint.Licensing.Format/            (no dependencies beyond Kernel; referenced by the portal)
 ├── LicenceDocument.cs, LicenceRequestDocument.cs, Footprint.cs, FootprintComponent.cs
@@ -144,7 +146,7 @@ disabled/deleted in the draft + units of devices created/enabled → `CheckQuota
 
 ## 7. Validation (T7.01)
 
-At start (phase `Ready`, before connections start) and every 10 min, plus on licence import:
+At start (phase `Edge`, before connections start in phase `Connections`, HST §5.1) and every 10 min, plus on licence import:
 
 1. Load the current licence (DB `licences` current row; replicated in M9).
 2. Signature, format, key validity at `issuedAt`.

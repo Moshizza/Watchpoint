@@ -32,6 +32,8 @@ Not in scope: multi-site links (FED).
 
 ## 3. Layout
 
+Log event ids: 3500–3599 ([README §8](../README.md#8-observability-conventions)).
+
 ```
 Watchpoint.Cluster/
 ├── Contracts/

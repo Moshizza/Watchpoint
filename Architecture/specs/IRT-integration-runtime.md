@@ -50,7 +50,7 @@ Watchpoint.Integrations/
 │   │           SecureHttp.cs, InboundEndpoints.cs, ConnectorMetrics.cs                 (T1.16)
 │   └── Storage/IntegrationsDbContext.cs (+ Postgres subclass, migrations)
 ├── Contracts/PackageEndpoints.cs  the package endpoints (§10), mapped by the host module
-└── IntegrationLog.cs              event ids 1800–1999
+└── IntegrationLog.cs              event ids 1800–1949 (IHO: 1950–1999)
 
 The host module (`Watchpoint.Host/Modules/IntegrationRuntimeModule.cs`) registers the services, the
 start-up task (phase `Catalogue`, order 10) and maps the endpoints. Test helpers that build packages

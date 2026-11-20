@@ -32,6 +32,8 @@ Rule from the design: a document can never crash a client, run code, or show com
 
 ## 3. Layout
 
+Log event ids: 3360–3399 ([README §8](../README.md#8-observability-conventions)).
+
 ```
 Watchpoint.Synoptics/
 ├── Contracts/SynopticDocument.cs (mirror of schema for server validation), ISynopticService.cs, SynopticErrors.cs

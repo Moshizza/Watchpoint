@@ -25,6 +25,8 @@ rendering (RPT).
 
 ## 3. Layout
 
+Log event ids: 3200–3249 ([README §8](../README.md#8-observability-conventions)).
+
 ```
 Watchpoint.History/
 ├── Contracts/IHistoryQueries.cs, HistoryQueries.cs (query records), SeriesPoint.cs, HistorySettings.cs

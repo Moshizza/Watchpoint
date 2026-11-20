@@ -33,6 +33,8 @@ transport (PSH, M10 — NOT has the channel slot).
 
 ## 3. Layout
 
+Log event ids: 3100–3199 ([README §8](../README.md#8-observability-conventions)).
+
 ```
 Watchpoint.Notifications/
 ├── Contracts/
@@ -255,7 +257,7 @@ public sealed record RosterEntry(string? Calendar /* SCH key */, IReadOnlyList<W
 - **Escalation within a roster** (optional per request, used by ALM escalation steps): notify the
   first recipient; if the alarm is not acknowledged after `step` (default 5 min), the next, then
   fallback — implemented as scheduled follow-up requests cancelled on acknowledgement (NOT
-  listens to `alarm.acknowledged` records on WP_LOG via a lightweight subscriber, Order 450).
+  listens to `alarm.acknowledged` records on WP_LOG via a lightweight subscriber, Order 500).
 - API `GET /api/v1/rosters/{id}/on-duty?at=` for UI.
 
 ## 11. Flood summariser and quotas (T5.05)

@@ -34,6 +34,8 @@ unpacked cache, but uploaded `.wpkg` files go through FIL first).
 
 ## 3. Layout
 
+Log event ids: 2300–2349 ([README §8](../README.md#8-observability-conventions)).
+
 ```
 Watchpoint.Files/
 ├── Contracts/

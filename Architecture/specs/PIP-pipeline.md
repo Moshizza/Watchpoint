@@ -493,12 +493,14 @@ Notes (T1.10):
 - Worker loop: read up to `Ingest:MaxBatch` (500) items or wait `Ingest:Linger` (2 ms) after
   the first; process change detection; build envelopes; `AppendAsync` (awaits ack); then
   call subscribers for each record **in order**; then complete the ingest callers' awaits.
-- **Subscribers** (`IPartitionSubscriber`), registered by modules with an `Order`:
+- **Subscribers** (`IPartitionSubscriber`), registered by modules with an `Order`. Each module has its own
+  order (list in the comment below; a new subscriber takes a free value); subscribers with an equal order would
+  run in registration order, so specs never share one:
 
 ```csharp
 public interface IPartitionSubscriber
 {
-    int Order { get; }                                            // STA = 100, CMD = 200, ALM = 300, AUT = 400…
+    int Order { get; }                                            // STA 100, EVT 150, CMD 200, ALM 300, AUT 400, SCR 450, NOT 500
     string Name { get; }
     // Called on the partition worker thread; must not do I/O; must be fast (< 1 ms typical).
     void OnRecords(PartitionContext context, IReadOnlyList<LogRecord> records);

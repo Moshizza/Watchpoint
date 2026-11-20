@@ -34,6 +34,8 @@ and PullPoint events) and `mediamtx` container (MIT) as RTSP source.
 
 ## 3. Layout
 
+Log event ids: 5500–5599 ([README §8](../README.md#8-observability-conventions)).
+
 ```
 Watchpoint.Integration.Cameras/
 ├── manifest.json, settings/cameras.settings.json

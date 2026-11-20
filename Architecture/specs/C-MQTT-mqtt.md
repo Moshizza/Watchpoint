@@ -34,6 +34,8 @@ distributed).
 
 ## 3. Layout
 
+Log event ids: 5300–5399 ([README §8](../README.md#8-observability-conventions)).
+
 ```
 Watchpoint.Integration.Mqtt/
 ├── manifest.json, settings/mqtt.settings.json

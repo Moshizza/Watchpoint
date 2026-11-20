@@ -28,6 +28,8 @@ Not in scope: recording, video analytics, video walls (later).
 
 ## 3. Layout
 
+Log event ids: 3300–3359 ([README §8](../README.md#8-observability-conventions)).
+
 ```
 Watchpoint.Video/
 ├── Contracts/IVideoService.cs, StreamRequest.cs, StreamTicket.cs, PlaybackRequest.cs, PtzArbiter contracts, VideoErrors.cs
