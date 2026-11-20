@@ -24,10 +24,7 @@
         "eventCatchUp",
         "diagnostics"
       ],
-      "settingsSchema": {
-        "type": "object",
-        "properties": {}
-      },
+      "settingsSchema": "settings/simulator.settings.json",
       "secretsSchema": {
         "fields": [
           {

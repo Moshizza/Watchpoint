@@ -11,6 +11,7 @@ using Xunit;
 
 namespace Watchpoint.IntegrationTests.Host;
 
+[Collection(HostProcesses.Name)]
 [Trait("layer", "I")]
 [Trait("spec", "HST")]
 public sealed class HostIntegrationTests(PostgresContainerFixture postgres)

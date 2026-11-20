@@ -9,12 +9,14 @@ using Shouldly;
 using Watchpoint.Host.Dev;
 using Watchpoint.Hosting;
 using Watchpoint.Identity.Contracts;
+using Watchpoint.Integrations.Testing;
 using Watchpoint.Kernel.Ids;
 using Watchpoint.Kernel.Paging;
 using Watchpoint.Registry;
 using Watchpoint.Registry.Contracts;
 using Watchpoint.Storage.Contracts;
 using Watchpoint.Storage.Postgres;
+using Watchpoint.Testing;
 using Watchpoint.Testing.Async;
 using Watchpoint.Testing.Containers;
 using Xunit;
@@ -22,6 +24,7 @@ using Xunit;
 namespace Watchpoint.IntegrationTests.Host;
 
 /// <summary>The development stack and seed (spec HST §8, §9).</summary>
+[Collection(HostProcesses.Name)]
 [Trait("layer", "I")]
 [Trait("spec", "HST")]
 public sealed partial class DevStackTests(PostgresContainerFixture postgres)
@@ -29,20 +32,66 @@ public sealed partial class DevStackTests(PostgresContainerFixture postgres)
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     /// <summary>
-    /// Written in T1.02, enabled when its dependencies are merged (spec HST §14). Today the host applies the
-    /// <c>users</c> section only: the site, locations and connections sections need the Registry module in the
-    /// host's module catalogue and the integration runtime's connection manager (T1.16) with its seed steps.
+    /// Written in T1.02, enabled by T1.16 (spec HST §14): the seed's site, locations, users and simulator connection are
+    /// created through the modules' contracts, and the connection imports its devices on its first connect. The host
+    /// runs with its own NATS server and the simulator staged as a builtin package signed with a development key.
     /// </summary>
-    [Fact(Skip = "Enabled when T1.16 (connection manager and seed steps for site, locations, connections) is merged.")]
+    [Fact]
     [Trait("requires", "T1.16,T1.17,T1.18")]
     public async Task HST_I_008_Dev_seed_creates_site_users_simulator_connection()
     {
         await using var db = await postgres.CreateDatabaseAsync(nameof(DevStackTests), Ct);
-        await using var host = HostProcess.Start("i008", new Dictionary<string, JsonNode>
+        var data = HostProcess.NewDataDirectory("i008");
+        try
         {
-            ["Database"] = HostProcess.DatabaseSection(db.ConnectionString),
-            ["Dev"] = new JsonObject { ["SeedFile"] = Path.Combine(RepositoryRoot(), "deploy", "dev", "seed", "sample-site.json") },
-        });
+            using (var key = new TestKey("dev-i008"))
+            {
+                key.WriteDevelopmentKey(Path.Combine(data, "integrations", "dev-keys"));
+                SimulatorPackage.Stage(AppContext.BaseDirectory, Path.Combine(data, "builtin", "simulator"), key);
+            }
+
+            await using var host = await HostProcess.StartWithNatsAsync("i008", new Dictionary<string, JsonNode>
+            {
+                ["Database"] = HostProcess.DatabaseSection(db.ConnectionString),
+                ["Dev"] = new JsonObject { ["SeedFile"] = Path.Combine(RepositoryRoot(), "deploy", "dev", "seed", "sample-site.json") },
+                ["Integrations"] = new JsonObject { ["BuiltinPath"] = Path.Combine(data, "builtin") },
+            }, Ct, dataDirectory: data);
+            try
+            {
+                await SeededAsync(host, db.ConnectionString);
+            }
+            catch (Exception ex) when (ex is TestAssertionException or ShouldAssertException)
+            {
+                throw new TestAssertionException(ex.Message + Environment.NewLine + "Host output (tail):" + Environment.NewLine + host.Output + Environment.NewLine + "Host log (tail):" + Environment.NewLine + LogTail(data), ex);
+            }
+        }
+        finally
+        {
+            try
+            {
+                Directory.Delete(data, recursive: true);
+            }
+            catch (IOException)
+            {
+                // Best effort: the host may still hold a file on Windows.
+            }
+        }
+    }
+
+    private static string LogTail(string data)
+    {
+        var logs = Path.Combine(data, "logs");
+        var files = Directory.Exists(logs) ? Directory.GetFiles(logs, "*", SearchOption.AllDirectories) : [];
+        return string.Join(Environment.NewLine, files.SelectMany(f =>
+        {
+            using var stream = new FileStream(f, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var reader = new StreamReader(stream);
+            return reader.ReadToEnd().Split('\n').TakeLast(80);
+        }));
+    }
+
+    private static async Task SeededAsync(HostProcess host, string db)
+    {
         using var http = new HttpClient();
         await Eventually.UntilAsync(
             () =>
@@ -63,8 +112,23 @@ public sealed partial class DevStackTests(PostgresContainerFixture postgres)
             TimeSpan.FromMilliseconds(200),
             Ct);
 
+        // The simulator connection connects, describes its inventory and imports it (autoImport): bounded wait.
+        await Eventually.UntilAsync(
+            () =>
+            {
+                host.HasExited.ShouldBeFalse();
+                using var connection = new NpgsqlConnection(db);
+                connection.Open();
+                using var command = new NpgsqlCommand("SELECT count(*) FROM wp_registry.devices", connection);
+                return (long)command.ExecuteScalar()! > 0;
+            },
+            TimeSpan.FromSeconds(60),
+            "the simulator's devices are imported",
+            TimeSpan.FromMilliseconds(250),
+            Ct);
+
         // The seeded node's data, read through the modules' public contracts on the same database.
-        var cs = new NpgsqlConnectionStringBuilder(db.ConnectionString);
+        var cs = new NpgsqlConnectionStringBuilder(db);
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Database:Databases:default:Host"] = cs.Host,
@@ -86,19 +150,29 @@ public sealed partial class DevStackTests(PostgresContainerFixture postgres)
         services.AddWatchpointRegistry(SiteId.New());
         await using var provider = services.BuildServiceProvider();
 
+        // Watchpoint opens database connections asynchronously only: open the pool's first connection that way
+        // (the modules' first reads below load their snapshots synchronously from a pooled connection).
+        await provider.GetRequiredService<IStorageStartup>().MigrateAsync(Ct);
+
         // The administrator of the seed can sign in.
         var seed = DevSeedReader.Read(await File.ReadAllBytesAsync(Path.Combine(RepositoryRoot(), "deploy", "dev", "seed", "sample-site.json"), Ct)).Value;
         var admin = seed.Users.Single(u => u.Administrator);
         var signIn = await provider.GetRequiredService<IAuthenticationService>().SignInLocalAsync(
             new SignInRequest(admin.Login, admin.Password, new ClientContext(ClientKind.Desktop, "hst-i-008")), Ct);
         signIn.IsSuccess.ShouldBeTrue();
-        signIn.Value.ShouldBeOfType<SignInOutcome.Signed>().User.Administrator.ShouldBeTrue();
+
+        // The credentials are accepted; an administrator then enrols a second factor first (IDN, T1.18).
+        signIn.Value.ShouldBeOfType<SignInOutcome.MfaEnrolmentRequired>();
+        provider.GetRequiredService<IUserDirectory>().FindByLogin(admin.Login).Value.Administrator.ShouldBeTrue();
 
         // Site and locations exist; the simulator's devices were discovered and imported.
         var registry = provider.GetRequiredService<IRegistryReader>();
         registry.Site.Name.Default.ShouldBe(seed.Site.Name);
         registry.Site.DefaultTimezone.ShouldBe(seed.Site.TimeZone);
-        registry.QueryDevices(new DeviceQuery(), new PageRequest(1)).Items.ShouldNotBeEmpty();
+        registry.GetLocationTree().Select(l => l.Name.Default).ShouldBe(seed.Locations.Select(l => l.Name), ignoreOrder: true);
+        var floor = DevSeed.FindLocation(seed, "a0", registry).ShouldNotBeNull();
+        var device = registry.QueryDevices(new DeviceQuery(), new PageRequest(1)).Items.ShouldHaveSingleItem();
+        registry.GetServer(device.ServerId).Value.LocationId.ShouldBe(floor);
     }
 
     [Fact]
