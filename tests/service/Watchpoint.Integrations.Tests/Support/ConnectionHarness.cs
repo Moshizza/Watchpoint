@@ -374,6 +374,9 @@ internal sealed class FakeIngest : IObservationIngest
 
     public TaskCompletionSource? Gate { get; set; }
 
+    /// <summary>Holds call number n (1-based) until the returned task completes.</summary>
+    public Func<int, Task>? Hold { get; set; }
+
     public Func<IReadOnlyList<Observation>, IngestResult>? Result { get; set; }
 
     public int Calls;
@@ -393,7 +396,7 @@ internal sealed class FakeIngest : IObservationIngest
 
     public async ValueTask<IngestResult> IngestAsync(IReadOnlyList<Observation> batch, CancellationToken ct)
     {
-        Interlocked.Increment(ref Calls);
+        var call = Interlocked.Increment(ref Calls);
         lock (_batches)
         {
             _batches.Add([.. batch]);
@@ -402,6 +405,11 @@ internal sealed class FakeIngest : IObservationIngest
         if (Gate is { } gate)
         {
             await gate.Task.WaitAsync(ct);
+        }
+
+        if (Hold?.Invoke(call) is { } hold)
+        {
+            await hold.WaitAsync(ct);
         }
 
         return Result?.Invoke(batch) ?? new IngestResult(batch.Count, 0, 0, []);

@@ -2,7 +2,6 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Watchpoint.Integration.Abstractions.Context;
 using Watchpoint.Integration.Abstractions.Model;
-using Watchpoint.Integration.Sdk.Scheduling;
 using Watchpoint.Integrations.Contracts;
 using Watchpoint.Integrations.Internal.Hosting;
 using Watchpoint.Model.Documents;
