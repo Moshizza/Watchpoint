@@ -67,7 +67,7 @@ public static class PackageEndpoints
         }
 
         // Until the API's permission filter (T1.19): Development only, and only from a loopback address (IRT §10).
-        var changes = endpoints.MapGroup("/api/v1/packages").AddEndpointFilter(EndpointResults.LoopbackOnly);
+        var changes = endpoints.MapGroup("/api/v1/packages").AddEndpointFilter(EndpointResults.LoopbackOnlyAsync);
         changes.MapPost(string.Empty, InstallAsync);
         changes.MapPost("{id}/versions/{version}/enable", (string id, string version, IPackageCatalog catalog, CancellationToken ct) => SetEnabledAsync(catalog, id, version, true, ct));
         changes.MapPost("{id}/versions/{version}/disable", (string id, string version, IPackageCatalog catalog, CancellationToken ct) => SetEnabledAsync(catalog, id, version, false, ct));

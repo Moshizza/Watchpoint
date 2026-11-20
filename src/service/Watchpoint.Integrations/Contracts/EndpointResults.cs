@@ -13,7 +13,7 @@ internal static class EndpointResults
     /// Endpoint filter of the endpoints that change the node before the API's permission filter exists (spec IRT §10):
     /// a request from a non-loopback address gets 404, as if the endpoint did not exist.
     /// </summary>
-    public static async ValueTask<object?> LoopbackOnly(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
+    public static async ValueTask<object?> LoopbackOnlyAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
         var remote = context.HttpContext.Connection.RemoteIpAddress;
         if (remote is null || !IPAddress.IsLoopback(remote.IsIPv4MappedToIPv6 ? remote.MapToIPv4() : remote))

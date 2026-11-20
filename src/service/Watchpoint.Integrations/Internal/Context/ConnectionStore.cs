@@ -61,7 +61,7 @@ internal sealed class ConnectionStore(ConnectionId connection, IConnectionStoreR
             }
 
             var copy = value.ToArray();
-            await Persist(() => repository.SetAsync(connection, key, copy, ct)).ConfigureAwait(false);
+            await PersistAsync(() => repository.SetAsync(connection, key, copy, ct)).ConfigureAwait(false);
             lock (cache)
             {
                 cache[key] = copy;
@@ -80,7 +80,7 @@ internal sealed class ConnectionStore(ConnectionId connection, IConnectionStoreR
         try
         {
             var cache = await LoadLockedAsync(ct).ConfigureAwait(false);
-            await Persist(() => repository.DeleteAsync(connection, key, ct)).ConfigureAwait(false);
+            await PersistAsync(() => repository.DeleteAsync(connection, key, ct)).ConfigureAwait(false);
             lock (cache)
             {
                 cache.Remove(key);
@@ -129,13 +129,13 @@ internal sealed class ConnectionStore(ConnectionId connection, IConnectionStoreR
         }
 
         IReadOnlyDictionary<string, byte[]> rows = new Dictionary<string, byte[]>();
-        await Persist(async () => rows = await repository.LoadAsync(connection, ct).ConfigureAwait(false)).ConfigureAwait(false);
+        await PersistAsync(async () => rows = await repository.LoadAsync(connection, ct).ConfigureAwait(false)).ConfigureAwait(false);
         cache = new Dictionary<string, byte[]>(rows, StringComparer.Ordinal);
         Volatile.Write(ref _cache, cache);
         return cache;
     }
 
-    private async Task Persist(Func<Task> operation)
+    private async Task PersistAsync(Func<Task> operation)
     {
         try
         {

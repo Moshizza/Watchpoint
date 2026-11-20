@@ -86,7 +86,7 @@ public static class ConnectionEndpoints
             return endpoints;
         }
 
-        var changes = endpoints.MapGroup("/api/v1/connections").AddEndpointFilter(EndpointResults.LoopbackOnly);
+        var changes = endpoints.MapGroup("/api/v1/connections").AddEndpointFilter(EndpointResults.LoopbackOnlyAsync);
         changes.MapPost(string.Empty, CreateAsync);
         changes.MapPatch("{id:guid}", UpdateAsync);
         changes.MapDelete("{id:guid}", async (Guid id, bool? deleteDevices, IConnectionManager manager, CancellationToken ct) =>
@@ -168,7 +168,8 @@ public static class ConnectionEndpoints
         }
 
         var created = await manager.CreateAsync(new NewConnection(name!, package, version, serverType, Settings(root), Secrets(root), location,
-            Bool(root, "autoImport") ?? false, Bool(root, "startNow") ?? true) { HostMode = hostMode }, Context(), ct).ConfigureAwait(false);
+            Bool(root, "autoImport") ?? false, Bool(root, "startNow") ?? true)
+        { HostMode = hostMode }, Context(), ct).ConfigureAwait(false);
         if (!created.TryGetValue(out var id, out var error))
         {
             return EndpointResults.Problem(error);

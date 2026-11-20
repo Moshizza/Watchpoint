@@ -144,10 +144,10 @@ internal sealed class ConnectionStateRecorder
         }
 
         IntegrationLog.ConnectionStateChanged(_logger, connection.Id.Value, connection.Name.Default, previous, status.State, reason ?? "-");
-        await Step(status, () => _repository.AppendEventAsync(new ConnectionEvent(connection.Id, status.Since, status.State, status.Reason), CancellationToken.None)).ConfigureAwait(false);
+        await StepAsync(status, () => _repository.AppendEventAsync(new ConnectionEvent(connection.Id, status.Since, status.State, status.Reason), CancellationToken.None)).ConfigureAwait(false);
         if (_log is not null && _kinds is not null)
         {
-            await Step(status, async () =>
+            await StepAsync(status, async () =>
             {
                 var body = _kinds.SerializeBody(ConnectionStateRecordBody.Kind, new ConnectionStateRecordBody(connection.Id.Value, ConnectionColumns.StateText(status.State), reason));
                 var envelope = new LogEnvelope(Guid.CreateVersion7(status.Since), ConnectionStateRecordBody.Kind, status.Since, null, 0, null, null,
@@ -158,7 +158,7 @@ internal sealed class ConnectionStateRecorder
 
         if (status.State is ConnectionState.Faulted or ConnectionState.Stopping or ConnectionState.Disabled)
         {
-            await Step(status, () => MarkRootServersUnknownAsync(connection.Id, reason ?? "irt.connection." + ConnectionColumns.StateText(status.State))).ConfigureAwait(false);
+            await StepAsync(status, () => MarkRootServersUnknownAsync(connection.Id, reason ?? "irt.connection." + ConnectionColumns.StateText(status.State))).ConfigureAwait(false);
         }
     }
 
@@ -186,7 +186,7 @@ internal sealed class ConnectionStateRecorder
     private Task MarkRootServersUnknownAsync(ConnectionId connection, string reason) =>
         ReportRootHealthAsync(connection, _ => Connectivity.Unknown, [], reason);
 
-    private async Task Step(ConnectionStatus status, Func<Task> step)
+    private async Task StepAsync(ConnectionStatus status, Func<Task> step)
     {
         try
         {
