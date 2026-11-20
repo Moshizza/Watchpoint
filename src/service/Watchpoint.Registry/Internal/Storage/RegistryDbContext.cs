@@ -100,12 +100,9 @@ internal class RegistryDbContext(DbContextOptions options, StorageContextInfo in
         modelBuilder.Entity<DeviceLinkRecord>(b =>
         {
             b.ToTable("device_links");
-            b.HasKey(e => new { e.SourceDeviceId, e.Role, e.TargetDeviceId });
-            if (Database.ProviderName?.Contains("Npgsql", StringComparison.Ordinal) == true)
-            {
-                b.Property(e => e.Metadata).HasColumnType("jsonb");
-            }
-            b.HasIndex(e => e.TargetDeviceId);
+            b.HasKey(e => e.Id);
+            b.HasIndex(e => new { e.Kind, e.FromId, e.ToId }).IsUnique();
+            b.HasIndex(e => e.ToId);
         });
 
         modelBuilder.Entity<CustomFieldRecord>(b =>

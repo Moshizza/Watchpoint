@@ -3,7 +3,7 @@ using Watchpoint.Kernel.Results;
 namespace Watchpoint.Registry.Contracts;
 
 /// <summary>
-/// Transactional write interface for mutating registry configuration.
+/// Transactional write interface for mutating registry configuration (REG §6).
 /// </summary>
 public interface IRegistryWriter
 {
@@ -17,7 +17,8 @@ public interface IRegistryWriter
     Task<Result> ApplyAsync(RegistryChangeBatch batch, ChangeContext context, CancellationToken ct = default);
 
     /// <summary>
-    /// Event fired after a change batch has been committed and in-memory snapshot updated.
+    /// Event fired after a change batch has been committed and in-memory snapshot updated (in-process, after the
+    /// snapshot swap). The same event is also exposed on <see cref="IRegistryReader"/>.
     /// </summary>
     event EventHandler<RegistryChangedEventArgs>? Changed;
 }

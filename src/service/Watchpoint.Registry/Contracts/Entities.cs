@@ -136,13 +136,43 @@ public sealed record Device(
     long Version);
 
 /// <summary>
-/// Directed semantic link between two devices.
+/// Kind of semantic link between two devices (REG §4).
+/// </summary>
+public enum LinkKind
+{
+    /// <summary>A camera device views the target device.</summary>
+    CameraViews,
+    /// <summary>The source is a member of the target (e.g. a reader of a door).</summary>
+    MemberOf,
+    /// <summary>The source controls the target.</summary>
+    Controls,
+    /// <summary>The source powers the target.</summary>
+    Powers,
+    /// <summary>The source is part of the target.</summary>
+    PartOf
+}
+
+/// <summary>
+/// Direction filter for <see cref="IRegistryReader.GetLinks"/>.
+/// </summary>
+public enum LinkDirection
+{
+    /// <summary>Links where the device is the source and the target.</summary>
+    Both,
+    /// <summary>Links where the device is the source (<see cref="DeviceLink.From"/>).</summary>
+    Outgoing,
+    /// <summary>Links where the device is the target (<see cref="DeviceLink.To"/>).</summary>
+    Incoming
+}
+
+/// <summary>
+/// Directed semantic link between two devices (REG §4).
 /// </summary>
 public sealed record DeviceLink(
-    DeviceId SourceDeviceId,
-    string Role,
-    DeviceId TargetDeviceId,
-    IReadOnlyDictionary<string, WpValue> Metadata,
+    LinkId Id,
+    LinkKind Kind,
+    DeviceId From,
+    DeviceId To,
     long Version);
 
 /// <summary>
@@ -202,22 +232,6 @@ public sealed record DeviceQuery(
     string? SearchText = null);
 
 /// <summary>
-/// Paging request specifying page size and keyset cursor.
-/// </summary>
-/// <param name="PageSize">Max items per page.</param>
-/// <param name="Cursor">Opaque keyset cursor for forward pagination.</param>
-public sealed record PageRequest(int PageSize = 50, string? Cursor = null);
-
-/// <summary>
-/// Paged collection result with next cursor.
-/// </summary>
-/// <typeparam name="T">The item type.</typeparam>
-/// <param name="Items">Items in the page.</param>
-/// <param name="NextCursor">Opaque cursor for the next page if more items exist.</param>
-/// <param name="TotalCount">Total count matching the filter.</param>
-public sealed record Page<T>(IReadOnlyList<T> Items, string? NextCursor, int TotalCount);
-
-/// <summary>
 /// Device patch representation where omitted fields are not updated.
 /// </summary>
 public sealed record DevicePatch(
@@ -232,7 +246,36 @@ public sealed record DevicePatch(
     Optional<bool> Maintenance = default);
 
 /// <summary>
-/// Discriminated union of atomic mutations in the registry.
+/// Enrichment of a device for streaming pipelines (REG §5, §7.2): the slowly-changing fields a consumer needs per
+/// observation without querying the registry on every record. Cached by <see cref="IRegistryReader.GetEnrichment"/>
+/// and invalidated per affected device when the location, tags or links of its subtree change.
+/// </summary>
+/// <param name="Id">The device id.</param>
+/// <param name="DisplayNameDefault">The device's display name in the default culture (user override or vendor name).</param>
+/// <param name="ServerId">The device's server.</param>
+/// <param name="LocationId">The device's location.</param>
+/// <param name="LocationPath">The location's path.</param>
+/// <param name="LocationNames">The names of the location and its ancestors, default culture, root first.</param>
+/// <param name="TagKeys">The keys of the device's tags.</param>
+/// <param name="Type">The device's type.</param>
+/// <param name="LinkedCameras">Devices linked to this one with <see cref="LinkKind.CameraViews"/> (the cameras viewing it).</param>
+/// <param name="Enabled">Whether the device is enabled.</param>
+/// <param name="Maintenance">Whether the device is in maintenance.</param>
+public sealed record DeviceEnrichment(
+    DeviceId Id,
+    string DisplayNameDefault,
+    ServerId ServerId,
+    LocationId LocationId,
+    string LocationPath,
+    IReadOnlyList<string> LocationNames,
+    IReadOnlyList<string> TagKeys,
+    TypeRef Type,
+    IReadOnlyList<DeviceId> LinkedCameras,
+    bool Enabled,
+    bool Maintenance);
+
+/// <summary>
+/// Discriminated union of atomic mutations in the registry (REG §6).
 /// </summary>
 public abstract record RegistryChange
 {
@@ -241,41 +284,55 @@ public abstract record RegistryChange
     /// <summary>Update site configuration.</summary>
     public sealed record UpdateSite(Site Site, long? ExpectedVersion = null) : RegistryChange;
 
-    /// <summary>Upsert a location node.</summary>
+    /// <summary>Upsert a location node (Path/Depth are computed by the writer).</summary>
     public sealed record UpsertLocation(Location Location, long? ExpectedVersion = null) : RegistryChange;
-    /// <summary>Delete a location node.</summary>
-    public sealed record DeleteLocation(LocationId Id, long? ExpectedVersion = null) : RegistryChange;
 
-    /// <summary>Upsert a tag family.</summary>
-    public sealed record UpsertTagFamily(TagFamily Family, long? ExpectedVersion = null) : RegistryChange;
-    /// <summary>Delete a tag family.</summary>
-    public sealed record DeleteTagFamily(TagFamilyId Id, long? ExpectedVersion = null) : RegistryChange;
+    /// <summary>
+    /// Delete a location node. A location with children or objects requires <paramref name="ReassignTo"/>
+    /// (children and objects move there), else <c>registry.location.not_empty</c>; the root location cannot be
+    /// deleted (<c>registry.location.root_immutable</c>).
+    /// </summary>
+    public sealed record DeleteLocation(LocationId Id, LocationId? ReassignTo = null, long? ExpectedVersion = null) : RegistryChange;
 
     /// <summary>Upsert a tag.</summary>
     public sealed record UpsertTag(Tag Tag, long? ExpectedVersion = null) : RegistryChange;
     /// <summary>Delete a tag.</summary>
-    public sealed record DeleteTag(TagId Id, long? ExpectedVersion = null) : RegistryChange;
+    public sealed record DeleteTag(TagId Id) : RegistryChange;
+
+    /// <summary>Upsert a tag family.</summary>
+    public sealed record UpsertTagFamily(TagFamily Family, long? ExpectedVersion = null) : RegistryChange;
+    /// <summary>Delete a tag family (additive to the spec sketch: no code references it yet).</summary>
+    public sealed record DeleteTagFamily(TagFamilyId Id, long? ExpectedVersion = null) : RegistryChange;
 
     /// <summary>Upsert a server instance.</summary>
     public sealed record UpsertServer(Server Server, long? ExpectedVersion = null) : RegistryChange;
-    /// <summary>Delete a server instance.</summary>
-    public sealed record DeleteServer(ServerId Id, long? ExpectedVersion = null) : RegistryChange;
+
+    /// <summary>
+    /// Delete a server instance. <paramref name="DeleteDevices"/> <see langword="false"/> with devices still on the
+    /// server fails with <c>registry.server.not_empty</c>; <see langword="true"/> cascades to its devices and their links.
+    /// </summary>
+    public sealed record DeleteServer(ServerId Id, bool DeleteDevices) : RegistryChange;
 
     /// <summary>Upsert a device instance.</summary>
     public sealed record UpsertDevice(Device Device, long? ExpectedVersion = null) : RegistryChange;
-    /// <summary>Patch device properties.</summary>
+    /// <summary>Patch device properties (bulk edits).</summary>
     public sealed record PatchDevice(DeviceId Id, DevicePatch Patch, long? ExpectedVersion = null) : RegistryChange;
-    /// <summary>Delete a device instance.</summary>
-    public sealed record DeleteDevice(DeviceId Id, long? ExpectedVersion = null) : RegistryChange;
+
+    /// <summary>
+    /// Delete a device instance. <paramref name="DeleteChildren"/> <see langword="false"/> with child devices fails
+    /// with <c>registry.device.has_children</c>; <see langword="true"/> cascades to the subtree. Links of deleted
+    /// devices are deleted.
+    /// </summary>
+    public sealed record DeleteDevice(DeviceId Id, bool DeleteChildren) : RegistryChange;
 
     /// <summary>Upsert a device link.</summary>
-    public sealed record UpsertDeviceLink(DeviceLink Link, long? ExpectedVersion = null) : RegistryChange;
+    public sealed record UpsertLink(DeviceLink Link) : RegistryChange;
     /// <summary>Delete a device link.</summary>
-    public sealed record DeleteDeviceLink(DeviceId SourceDeviceId, string Role, DeviceId TargetDeviceId, long? ExpectedVersion = null) : RegistryChange;
+    public sealed record DeleteLink(LinkId Id) : RegistryChange;
 
     /// <summary>Upsert a custom field definition.</summary>
-    public sealed record UpsertCustomField(CustomFieldDefinition CustomField, long? ExpectedVersion = null) : RegistryChange;
-    /// <summary>Delete a custom field definition.</summary>
+    public sealed record UpsertCustomField(CustomFieldDefinition Definition, long? ExpectedVersion = null) : RegistryChange;
+    /// <summary>Delete a custom field definition (additive to the spec sketch: no code references it yet).</summary>
     public sealed record DeleteCustomField(CustomFieldId Id, long? ExpectedVersion = null) : RegistryChange;
 }
 
@@ -286,12 +343,16 @@ public abstract record RegistryChange
 public sealed record RegistryChangeBatch(IReadOnlyList<RegistryChange> Changes);
 
 /// <summary>
-/// Context metadata for a change batch execution.
+/// Context metadata for a change batch execution (REG §6).
 /// </summary>
-/// <param name="UserId">The user who initiated the change, or null for system.</param>
-/// <param name="Reason">Optional audit reason.</param>
-/// <param name="CorrelationId">Correlation ID for tracing.</param>
-public sealed record ChangeContext(string? UserId = null, string? Reason = null, string? CorrelationId = null);
+/// <param name="Actor">The user who initiated the change, or <see langword="null"/> for a system-initiated change.</param>
+/// <param name="Origin">
+/// Where the change came from: <c>"api"</c>, <c>"integration:&lt;connectionId&gt;"</c>, <c>"seed"</c> or
+/// <c>"publish:&lt;changeSetId&gt;"</c> (CFG §7, AUD §4 key on these values).
+/// </param>
+/// <param name="ChangeSet">The configuration change set this batch came from (CFG), when <paramref name="Origin"/> is a <c>publish:…</c> batch.</param>
+/// <param name="Comment">Optional free-text audit comment.</param>
+public sealed record ChangeContext(UserId? Actor, string Origin, ChangeSetId? ChangeSet = null, string? Comment = null);
 
 /// <summary>
 /// Event arguments for registry changed notification.

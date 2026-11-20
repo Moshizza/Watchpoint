@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Watchpoint.Kernel.Ids;
+using Watchpoint.Kernel.Paging;
 using Watchpoint.Kernel.Results;
 using Watchpoint.Kernel.Values;
 using Watchpoint.Model.Contracts;
@@ -386,12 +387,12 @@ internal sealed class InventoryReconciler(
             {
                 if (deviceIdByNativeId.TryGetValue(linkReport.ToNativeId, out var toDeviceId))
                 {
-                    changes.Add(new RegistryChange.UpsertDeviceLink(new DeviceLink(
-                        fromDeviceId,
-                        linkReport.Kind,
-                        toDeviceId,
-                        new Dictionary<string, WpValue>(),
-                        Version: 0)));
+                    var kind = Enum.Parse<LinkKind>(linkReport.Kind, ignoreCase: true);
+                    var alreadyLinked = reader.GetLinks(fromDeviceId, kind, LinkDirection.Outgoing).Any(l => l.To == toDeviceId);
+                    if (!alreadyLinked)
+                    {
+                        changes.Add(new RegistryChange.UpsertLink(new DeviceLink(LinkId.New(), kind, fromDeviceId, toDeviceId, Version: 0)));
+                    }
                 }
                 else
                 {
@@ -412,7 +413,7 @@ internal sealed class InventoryReconciler(
         // 5. Persist changes
         if (changes.Count > 0)
         {
-            var batchContext = new ChangeContext(UserId: null, Reason: $"integration:{connection.Value}");
+            var batchContext = new ChangeContext(Actor: null, Origin: $"integration:{connection.Value}");
             var applyResult = await writer.ApplyAsync(new RegistryChangeBatch(changes), batchContext, ct);
             if (!applyResult.IsSuccess)
             {
@@ -546,7 +547,7 @@ internal sealed class InventoryReconciler(
                 }
                 else
                 {
-                    var existingParent = reader.GetDeviceByNativeId(server.Id, r.ParentNativeId);
+                    var existingParent = reader.FindDeviceByNativeId(server.Id, r.ParentNativeId);
                     if (existingParent.TryGetValue(out var ep, out _))
                     {
                         parentId = ep.Id;
