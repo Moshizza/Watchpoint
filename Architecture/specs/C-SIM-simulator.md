@@ -30,6 +30,8 @@ simulation engine library `Watchpoint.Integration.Simulator.Engine` shared by bo
 
 ## 3. Project layout
 
+Log event ids: 5000–5099 ([README §8](../README.md#8-observability-conventions)).
+
 ```
 Watchpoint.Integration.Simulator/
 ├── manifest.json, i18n/{en,fr,ar}.json, types/sim.server.json, settings/simulator.settings.json, docs/en.md

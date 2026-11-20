@@ -108,7 +108,7 @@ spec that must exist and pass.
 | T0.02 | CI workflow `ci.yml`, issue and pull-request templates, Dependabot config, Semgrep and secret-scan jobs | README §10–§11 | T0.01 | CI-003 (workflow runs on PR), CI-004 (failing test fails CI) | [#2](https://github.com/Moshizza/Watchpoint/issues/2) | claude-atlas/T0.02-ci-workflow | done |
 | T0.03 | Kernel: typed ids, `Result`/`Error`/`ErrorKind`, `TimeProvider` helpers, paging and sorting | K §4–§7 | T0.01 | K-U-001…K-U-030 | [#3](https://github.com/Moshizza/Watchpoint/issues/3) | claude-atlas/T0.03-kernel-part1 | done |
 | T0.04 | Kernel: cursors, JSON options and converters, translatable texts, validation helpers, `WpValue`, `Watchpoint.Kernel.Testing` | K §7–§11 | T0.03 | K-U-031…K-U-062 | [#4](https://github.com/Moshizza/Watchpoint/issues/4) | claude-atlas/T0.04-kernel-part2 | done |
-| T0.05 | Test infrastructure: `Watchpoint.Testing`, Testcontainers fixtures (PostgreSQL + TimescaleDB, NATS), architecture tests, test naming analyzer | TST | T0.03 | TST-U-001…TST-I-010 | [#5](https://github.com/Moshizza/Watchpoint/issues/5) | claude-orion/T0.05-test-infrastructure | done |
+| T0.05 | Test infrastructure: `Watchpoint.Testing`, Testcontainers fixtures (PostgreSQL + TimescaleDB, NATS), architecture tests, test naming analyzer | TST | T0.03 | TST-U-001…TST-U-013, TST-I-001…TST-I-010 | [#5](https://github.com/Moshizza/Watchpoint/issues/5) | claude-orion/T0.05-test-infrastructure | done |
 | T0.06 | JSON Schemas: capability, device type, integration manifest; schema versioning | SCM §3–§5 | T0.01 | SCM-U-001…SCM-U-020 | [#6](https://github.com/Moshizza/Watchpoint/issues/6) | jules-1/T0.06-json-schemas-14734361605283558806 | done |
 | T0.07 | Standard type library v0 + `wptypes` validator CLI | SCM §6–§8 | T0.06 | SCM-U-021…SCM-U-040 | [#7](https://github.com/Moshizza/Watchpoint/issues/7) | claude-atlas/T0.07-type-library-wptypes | done |
 | T0.08 | UI workspace skeleton: package scaffolds, TypeScript strict, ESLint, Prettier, Vitest, Tailwind preset | README §7, UIC §3 | T0.01 | UIC-U-001…UIC-U-003 | [#8](https://github.com/Moshizza/Watchpoint/issues/8) | claude-atlas/T0.08-ui-workspace-skeleton | done |
@@ -120,6 +120,7 @@ spec that must exist and pass.
 | T0.14 | EXP-U-040: assert the evaluator hot path is allocation-free instead of a fake-clock timing that cannot fail | EXP §5, §10; TST §4.7 | — | (fix) EXP-U-040 | — | claude-altair/T0.14-exp-allocation-free-hot-path | done |
 | T0.16a | Apply architecture review: tasks sheet | reviews/2026-11-architecture-review §1 | — | — (documentation) | — | claude-hermes/T0.16a-tasks-sheet | done |
 | T0.16b | Apply architecture review: module specs (PIP, REG, IRT, HST, IDN, MOD) | reviews/2026-11-architecture-review §2 | — | — (documentation) | — | claude-hermes/T0.16b-module-specs | done |
+| T0.16c | Apply architecture review: cross-cutting specs (event ids, subscriber orders, README, LIC, DSK, API, HST, CLU) | reviews/2026-11-architecture-review §3 | — | — (documentation) | — | claude-hermes/T0.16c-cross-cutting | done |
 | T0.17 | Architecture test, per module: every error code emitted (`Error.Create`/`Errors.*` literals) and every event id logged appears in the module spec's errors and observability sections | TST §6; README §12 | T0.05 | ARCH-9 (error codes), ARCH-10 (event ids) | — | — | todo |
 
 ### M1 — First device on screen
@@ -152,7 +153,7 @@ spec that must exist and pass.
 | T1.18 | Identity minimal: local users, Argon2id, sign-in, access/refresh tokens, bootstrap admin, session registry | IDN §4–§7 | T1.04 | IDN-U-001…IDN-U-030, IDN-I-001…IDN-I-006 | [#29](https://github.com/Moshizza/Watchpoint/issues/29) | jules-14674020379193774426-43566f4b | done |
 | T1.18r | Identity security review and fixes (T1.18 code) | IDN §4–§7 | T1.18 | IDN-U-*, IDN-I-*, new tests (IDN-U-101…IDN-U-124) | — | claude-sirius/T1.18r-identity-security-review | done |
 | T1.18s | Identity settings binding (§7.1) and per-site token issuer | IDN §6–§7 | T1.18r | IDN-U-125…IDN-U-129, HST-U-046, HST-U-047 | — | claude-polaris/T3.08-identity-mfa-lockout (with T3.08, #172) | done |
-| T1.19 | API: REST framework (problem details, paging, ETag, idempotency, permission filter, OpenAPI) + endpoints for registry, state, connections, types, dev seed | API §4–§7 | T1.11, T1.16, T1.18 | API-U-001…API-U-030, API-I-001…API-I-015, REG-I-008, REG-I-010 | [#30](https://github.com/Moshizza/Watchpoint/issues/30) | — | todo |
+| T1.19 | API: REST framework (problem details, paging, ETag, idempotency, permission filter, OpenAPI) + endpoints for registry, state, connections, types, dev seed | API §4–§7 | T1.11, T1.16, T1.18 | API-U-001…API-U-030, API-I-001…API-I-015, REG-I-008, REG-I-010, MOD-I-003, MOD-I-004 (extend to HTTP) | [#30](https://github.com/Moshizza/Watchpoint/issues/30) | — | todo |
 | T1.20 | API: live hub (subscriptions, snapshots + deltas, sequences, resume, coalescing, limits) | API §8–§10 | T1.19 | API-U-031…API-U-055, API-I-016…API-I-025 | [#31](https://github.com/Moshizza/Watchpoint/issues/31) | — | todo |
 | T1.21 | UI core: generated API client, live connection client, model package | UIC §4–§6 | T1.20, T0.08 | UIC-U-004…UIC-U-030 | [#32](https://github.com/Moshizza/Watchpoint/issues/32) | — | todo |
 | T1.22 | UI core: i18n (en/fr/ar, RTL, ICU), design system base (theme, layout, DataGrid, tree, state badges) | UIC §8–§10 | T0.08 | UIC-U-031…UIC-U-060 | [#33](https://github.com/Moshizza/Watchpoint/issues/33) | jules-1/T1.22-ui-core-12272030307080811265 | done |
@@ -200,7 +201,7 @@ spec that must exist and pass.
 | T3.12 | UI configuration: devices, locations, tags, links, bulk edit | UIF §8 | T3.10 | UIF-U-051…UIF-U-070 | [#65](https://github.com/Moshizza/Watchpoint/issues/65) | — | todo |
 | T3.13 | UI configuration: alarm rules (with CEL editor), procedures editor | UIF §9 | T3.10, T2.11, T2.07 | UIF-U-071…UIF-U-090 | [#66](https://github.com/Moshizza/Watchpoint/issues/66) | — | todo |
 | T3.14 | UI configuration: users, groups, rights editor, rights-copy wizard, sessions, maintenance dialog | UIF §10–§11 | T3.10, T3.05, T3.09, T3.06 | UIF-U-091…UIF-U-120 | [#67](https://github.com/Moshizza/Watchpoint/issues/67) | — | todo |
-| T3.16 | Desktop shell part 3: workstation enrolment and certificate sign-in, kiosk mode | DSK §11–§12 | T2.17, T3.08 | DSK-U-030…DSK-U-034 | [#69](https://github.com/Moshizza/Watchpoint/issues/69) | — | todo |
+| T3.16 | Desktop shell part 3: workstation enrolment and certificate sign-in, kiosk mode | DSK §11–§12 | T2.17, T3.08 | DSK-U-030…DSK-U-034, DSK-U-035 (written, enabled by T9.03) | [#69](https://github.com/Moshizza/Watchpoint/issues/69) | — | todo |
 | T3.15 | E2E scenarios E-020…E-028 | tests/e2e-scenarios | T3.11…T3.14 | E-020…E-028 | [#68](https://github.com/Moshizza/Watchpoint/issues/68) | — | todo |
 
 ### M4 — Real protocols
@@ -273,7 +274,7 @@ spec that must exist and pass.
 |---|---|---|---|---|---|---|---|
 | T9.01 | Cluster membership, node roles, lease manager with fencing tokens | CLU §4–§6 | T0.09, T1.09 | CLU-U-001…CLU-U-035, CLU-I-001…CLU-I-006 | [#108](https://github.com/Moshizza/Watchpoint/issues/108) | — | todo |
 | T9.02 | Failover of connections, pipeline partitions, command queues, timers | CLU §7–§8 | T9.01, T2.03 | CLU-U-036…CLU-U-060, CLU-I-007…CLU-I-015 | [#109](https://github.com/Moshizza/Watchpoint/issues/109) | — | todo |
-| T9.03 | Placement engine, drain, rolling upgrade support, client node lists | CLU §9–§10 | T9.02 | CLU-U-061…CLU-U-080 | [#110](https://github.com/Moshizza/Watchpoint/issues/110) | — | todo |
+| T9.03 | Placement engine, drain, rolling upgrade support, client node lists | CLU §9–§10 | T9.02 | CLU-U-061…CLU-U-080, DSK-U-035 (enable) | [#110](https://github.com/Moshizza/Watchpoint/issues/110) | — | todo |
 | T9.04 | Spike + integration: PostgreSQL HA (Patroni vs pg_auto_failover), witness packaging | CLU §11 | T9.01 | Spike report, CLU-I-016…CLU-I-020 | [#111](https://github.com/Moshizza/Watchpoint/issues/111) | — | todo |
 | T9.05 | System health dashboard: collectors, thresholds, capacity advisor, diagnostic bundle | HLT | T9.01 | HLT-U-001…HLT-U-030 | [#112](https://github.com/Moshizza/Watchpoint/issues/112) | — | todo |
 | T9.06 | Federation links: mTLS gRPC, filters, resume cursors, federation identity | FED §4–§7 | T9.02, T3.04 | FED-U-001…FED-U-040, FED-I-001…FED-I-004 | [#113](https://github.com/Moshizza/Watchpoint/issues/113) | — | todo |

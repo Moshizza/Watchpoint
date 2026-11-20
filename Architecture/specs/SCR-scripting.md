@@ -27,6 +27,8 @@ simulated events and dry-run commands, and an inspector bridge for debugging.
 
 ## 3. Layout
 
+Log event ids: 3000–3099 ([README §8](../README.md#8-observability-conventions)).
+
 ```
 schemas/proto/script_host.proto              package watchpoint.scripthost.v1
 types/script-api/watchpoint.d.ts             public API declarations (versioned with the API, docs comments en/fr/ar via @i18n tags)

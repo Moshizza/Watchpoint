@@ -50,7 +50,7 @@ Watchpoint.Integrations/
 │   │           SecureHttp.cs, InboundEndpoints.cs, ConnectorMetrics.cs                 (T1.16)
 │   └── Storage/IntegrationsDbContext.cs (+ Postgres subclass, migrations)
 ├── Contracts/PackageEndpoints.cs  the package endpoints (§10), mapped by the host module
-└── IntegrationLog.cs              event ids 1800–1999
+└── IntegrationLog.cs              event ids 1800–1949 (IHO: 1950–1999)
 
 The host module (`Watchpoint.Host/Modules/IntegrationRuntimeModule.cs`) registers the services, the
 start-up task (phase `Catalogue`, order 10) and maps the endpoints. Test helpers that build packages
@@ -311,6 +311,16 @@ Checks every 10 s per running connection:
   with `AutoImportNew = connection.AutoImport`, default location = connection location.
 - Triggers: first connect, every `DescribeInterval` (default 1 h) while connected, connector
   `ReportInventoryChanged`, manual "rediscover".
+- Mapping INT → REG (owned by IRT, `InventoryCoordinator`; REG §8 keeps `InventoryReport`):
+
+  | INT (`InventorySnapshot`) | REG (`InventoryReport`) | Rule |
+  |---|---|---|
+  | `Servers` / `Devices` / `IsComplete` | `Servers` / `Devices` / `IsComplete` | Copied; `IsComplete = false` never orphans missing items (REG §8) |
+  | `*Item.NativeId`, `ParentNativeId`, `ServerNativeId` | same names | Copied |
+  | `TypeId` + `TypeVersion` (strings) | `Type` (`TypeRef`) | Resolved with MOD; unknown → `irt.inventory.type_unknown`, item skipped |
+  | `VendorName`, `VendorAttributes` | same names | Copied |
+  | `UnsupportedOptionalCapabilities` (strings) | same name (`IReadOnlySet<CapabilityId>`) | Parsed; an invalid id → item skipped with the same warning |
+  | `InventoryLinkItem(Kind, ToNativeId, ToServerNativeId)` | `InventoryLink(Kind, ToNativeId, ToServerNativeId)` | Copied; `Kind` is the link kind string (`cameraViews`, `memberOf`, `controls`, `powers`, `partOf`) |
 - Device map (`IDeviceMap`) for the connector is rebuilt from REG on `Changed` events concerning
   the connection's servers/devices and pushed to the instance (event `Changed`).
 

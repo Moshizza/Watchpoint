@@ -37,6 +37,8 @@ dispatcher** (§6.3).
 
 ## 3. Layout
 
+Log event ids: 5400–5499 ([README §8](../README.md#8-observability-conventions)).
+
 ```
 Watchpoint.Integration.Snmp/
 ├── manifest.json, settings/snmp.settings.json

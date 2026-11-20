@@ -34,6 +34,8 @@ question). Tests use the package's own `ModbusTestServer` (in the test project).
 
 ## 3. Layout
 
+Log event ids: 5200–5299 ([README §8](../README.md#8-observability-conventions)).
+
 ```
 Watchpoint.Integration.Modbus/
 ├── manifest.json, settings/modbus.settings.json

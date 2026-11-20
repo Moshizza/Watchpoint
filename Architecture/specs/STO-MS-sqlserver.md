@@ -31,6 +31,8 @@ images (Developer edition for tests only).
 
 ## 3. Layout
 
+Log event ids: 1250–1299 ([README §8](../README.md#8-observability-conventions)).
+
 ```
 Watchpoint.Storage.SqlServer/
 ├── SqlServerStorageProvider.cs (IStorageProvider), SqlServerNaming.cs, SqlServerMigrationLock.cs (sp_getapplock)

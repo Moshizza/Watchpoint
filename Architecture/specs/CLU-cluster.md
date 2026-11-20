@@ -32,6 +32,8 @@ Not in scope: multi-site links (FED).
 
 ## 3. Layout
 
+Log event ids: 3500–3599 ([README §8](../README.md#8-observability-conventions)).
+
 ```
 Watchpoint.Cluster/
 ├── Contracts/
@@ -250,6 +252,7 @@ public sealed record PlacementConstraint(LeaseKey Key, IReadOnlySet<NodeId>? Pin
 | `Cluster:QuorumLossTimeout` | 10 s (ADR-001: leader failover blocks KV writes up to 7.5 s) |
 | `Cluster:Rebalance:Interval` / `Threshold` / `MaxMovesPerMinute` | 5 min / 25 % / 2 |
 | `Cluster:MaxClockSkew` | 2 s |
+| `Nats:ServerName` / `ClusterPort` / `Routes` (HST §4) | `Node:Id` / 6222 / written at join |
 
 Errors: `cluster.no_quorum`, `cluster.join.token_invalid`, `cluster.node.not_found`,
 `cluster.node.not_drained`, `cluster.lease.lost`, `cluster.fence.stale_token`,

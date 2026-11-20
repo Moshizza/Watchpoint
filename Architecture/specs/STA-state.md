@@ -241,6 +241,9 @@ public sealed record SnapshotContribution(IReadOnlyList<StateItem> Upserts, IRea
 
 ### 8.2 Recovery (startup phase `Recovery`)
 
+Start-up task `StateRestore` (phase `Recovery`, order 50, before `PipelineRecovery` at order 100, PIP §13);
+other snapshot participants (`ISnapshotParticipant`: CMD, ALM) restore inside it.
+
 1. Read checkpoints (`consumer = state`) and all `device` items for owned partitions →
    rebuild `PartitionStateStore`s (entities no longer in REG are discarded; entities in REG
    without a snapshot are initialised as new).

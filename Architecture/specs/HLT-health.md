@@ -28,6 +28,8 @@ Not in scope: the metrics/telemetry pipeline itself (HST OpenTelemetry), node li
 
 ## 3. Layout
 
+Log event ids: 3700–3749 ([README §8](../README.md#8-observability-conventions)).
+
 ```
 Watchpoint.Health/
 ├── Contracts/HealthSnapshot.cs, HealthItem.cs, HealthStatus.cs, ThresholdRule.cs, IHealthService.cs, Recommendation.cs

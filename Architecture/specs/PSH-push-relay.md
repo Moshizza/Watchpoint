@@ -30,6 +30,8 @@ This spec covers the relay service and the node's `Push` notification channel (N
 
 ## 3. Relay service
 
+Log event ids: 6100–6199 ([README §8](../README.md#8-observability-conventions)).
+
 ASP.NET Core minimal API, PostgreSQL, deployed in two regions (active/active behind DNS),
 containers.
 

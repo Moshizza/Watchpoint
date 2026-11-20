@@ -184,14 +184,17 @@ cancelled`, progress (0–100 + message key), result (JSON or file id), errors; 
 
 ## 7. M1 endpoint inventory (implemented by their modules with this framework)
 
-| Module | Endpoints |
-|---|---|
-| IDN | auth (sign-in, refresh, sign-out, change-password, me), users, sessions |
-| MOD | types, capabilities, i18n bundles, symbols |
-| REG | site, locations, tags, tag families, servers, devices, children, links, discovered items, registry batch, device patch |
-| STA | device state, state batch, states query, aggregates |
-| IRT | packages, connections and their actions |
-| API | system, jobs |
+| Module | Endpoints | Mapped before T1.19 |
+|---|---|---|
+| IDN | auth (sign-in, refresh, sign-out, change-password, me), users, sessions | No |
+| MOD | types, capabilities, i18n bundles, symbols | No (MOD-I-003/004 test `ITypeResources` until T1.19) |
+| REG | site, locations, tags, tag families, servers, devices, children, links, discovered items, registry batch, device patch | No |
+| STA | device state, state batch, states query, aggregates | No |
+| IRT | packages, connections and their actions | Packages only (T1.15, `PackageEndpoints`, without the permission filter; the POSTs in Development only, IRT §10); connections with T1.16 |
+| API | system, jobs | No (host health endpoints `/health/*`, `/metrics` are HST §6) |
+
+Until T1.19, endpoints mapped early write their own JSON responses; T1.19 moves them onto the permission filter
+and problem details.
 
 ## 8. Live hub (T1.20)
 

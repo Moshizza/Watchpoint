@@ -59,16 +59,22 @@ a documented reason), **may** (optional).
 │   ├── service/                    the node (.NET)
 │   │   ├── Watchpoint.slnx         solution (XML solution format)
 │   │   ├── Watchpoint.Kernel/      shared primitives (ids, results, errors, clock, paging)
-│   │   ├── Watchpoint.<Module>/    one project per module (e.g. Watchpoint.Registry)
+│   │   ├── Watchpoint.Kernel.Testing/  test helpers for Kernel types (result assertions, test ids, time)
+│   │   ├── Watchpoint.<Module>/    one project per module (e.g. Watchpoint.Registry, Watchpoint.Pipeline)
 │   │   ├── Watchpoint.<Module>.Abstractions/  public contract when other processes need it
-│   │   ├── Watchpoint.Host/        the service executable
-│   │   ├── Watchpoint.IntegrationHost/  isolated integration host executable
-│   │   ├── Watchpoint.ScriptHost/  script sandbox executable
-│   │   └── Watchpoint.Ctl/         wpctl command-line tool
+│   │   ├── Watchpoint.Model.Documents/  type, capability and manifest documents and their reader (MOD, wptypes)
+│   │   ├── Watchpoint.Storage.Postgres/ PostgreSQL storage provider
+│   │   ├── Watchpoint.Hosting/     host infrastructure (module contract, start-up/shutdown tasks, node settings, process supervision)
+│   │   ├── Watchpoint.Host/        the service executable (module catalogue)
+│   │   ├── Watchpoint.Analyzers/, Watchpoint.Analyzers.CodeFixes/  Roslyn analyzers WP0001… (TST §7)
+│   │   ├── Watchpoint.IntegrationHost/  isolated integration host executable (M4, T4.01)
+│   │   ├── Watchpoint.ScriptHost/  script sandbox executable (M8, T8.03)
+│   │   └── Watchpoint.Ctl/         wpctl command-line tool (M11, T11.02/T11.05)
 │   ├── integrations/
 │   │   ├── Watchpoint.Integration.Abstractions/  connector contract (published)
 │   │   ├── Watchpoint.Integration.Sdk/           helpers for connectors
 │   │   ├── Watchpoint.Integration.Testing/       conformance suite + simulator base
+│   │   ├── Watchpoint.Integration.Simulator.Engine/  simulation engine shared by the simulator connector and wpsim
 │   │   └── Watchpoint.Integration.<Name>/        one project per integration package
 │   ├── ui/                         TypeScript monorepo (pnpm workspace)
 │   │   ├── packages/<name>/        @watchpoint/<name> libraries
@@ -79,11 +85,15 @@ a documented reason), **may** (optional).
 ├── schemas/                        JSON Schemas (device types, capabilities, manifest, synoptic, automation…)
 ├── types/                          standard device type and capability library (JSON documents)
 ├── tests/
-│   ├── service/                    Watchpoint.<Module>.Tests (unit) and Watchpoint.IntegrationTests
+│   ├── service/                    Watchpoint.<Module>.Tests (unit), Watchpoint.IntegrationTests, Watchpoint.ArchitectureTests,
+│   │                               helpers Watchpoint.Testing, Watchpoint.Testing.Containers, Watchpoint.Integrations.Testing,
+│   │                               Watchpoint.Storage.Certification (provider certification suite)
 │   ├── integrations/               connector tests
-│   ├── e2e/                        end-to-end scenarios (Playwright + test harness)
-│   └── perf/                       k6 scripts, load scenarios and perf orchestrator
-├── tools/                          wppack (package builder), dev scripts, code generators
+│   ├── tools/                      tests of tools/
+│   ├── e2e/                        end-to-end scenarios (Playwright + test harness; M1, T1.25)
+│   └── perf/                       k6 scripts, load scenarios and perf orchestrator (M9, T9.08)
+├── tools/                          wptypes (type validator), wpsim (simulator CLI), next-task.py, semgrep rules, spikes;
+│                                   wppack (package builder) and code generators later
 ├── deploy/                         docker compose, Helm chart, installer definitions
 └── .github/                        workflows, issue and pull-request templates
 ```
@@ -251,18 +261,20 @@ SignalR hub at `/hub/v1`, MessagePack protocol. Message envelope and subscriptio
 | Module | EventId range | Module | EventId range |
 |---|---|---|---|
 | Kernel | 1000–1099 | Commands | 2400–2499 |
-| Host | 1100–1199 | Events/Alarms | 2500–2699 |
-| Storage | 1200–1299 | Identity | 2700–2799 |
-| Configuration | 1300–1399 | Rights/Audit | 2800–2899 |
+| Host | 1100–1199 | Events / Alarms | 2500–2549 / 2550–2699 |
+| Storage / SQL Server provider | 1200–1249 / 1250–1299 | Identity | 2700–2799 |
+| Configuration | 1300–1399 | Rights / Audit | 2800–2849 / 2850–2899 |
 | Model | 1400–1499 | Automations | 2900–2999 |
 | Registry | 1500–1599 | Scripting | 3000–3099 |
 | Pipeline | 1600–1699 | Notifications | 3100–3199 |
-| State | 1700–1799 | History/Reports | 3200–3299 |
-| Integrations runtime | 1800–1999 | Video | 3300–3399 |
+| State | 1700–1799 | History / Reports | 3200–3249 / 3250–3299 |
+| Integrations runtime / Integration host | 1800–1949 / 1950–1999 | Video / Synoptics | 3300–3359 / 3360–3399 |
 | API | 2000–2199 | Licensing | 3400–3499 |
-| Secrets | 2200–2299 | Cluster/Federation | 3500–3699 |
-| Files/Scheduling | 2300–2399 | Health/Maintenance | 3700–3799 |
+| Secrets | 2200–2299 | Cluster / Federation | 3500–3599 / 3600–3699 |
+| Files / Scheduling | 2300–2349 / 2350–2399 | Health / Maintenance | 3700–3749 / 3750–3799 |
 | Connectors | 5000–5999 (100 per package, assigned in each connector spec) | Licensing portal / push relay (separate products) | 6000–6099 / 6100–6199 |
+
+Each spec states its range in §3; a module never logs outside it.
 
 ## 9. Testing conventions
 
@@ -318,9 +330,8 @@ Workflows in `.github/workflows/`:
 | `perf.yml` | Nightly (self-hosted reference runner when available) | k6 scenarios, publish results |
 | `release.yml` | Tags `v*` | Build installers and images, SBOM, sign, publish |
 
-GitHub Free includes 2,000 Actions minutes per month for private repositories; Linux jobs
-are preferred (Windows jobs count double, macOS ten times). Windows/macOS builds of the
-desktop client run on release and nightly only.
+The repository is public: standard GitHub-hosted runners are free. Windows/macOS builds of
+the desktop client still run on release and nightly only, for duration, not cost.
 
 ## 11. Git workflow
 
@@ -343,7 +354,8 @@ desktop client run on release and nightly only.
 ## 12. Definition of done (every task)
 
 1. Code implements the spec sections listed in the task.
-2. All test cases listed in the task exist, pass, and carry their ids.
+2. All test cases listed in the task exist, pass, and carry their ids. A range of test ids (`REG-U-001…REG-U-030`)
+   never crosses the kind letter (U, I, C, E): write one range per kind.
 3. CI green; no new warnings; no `TODO` without an issue reference.
 4. Public contract documented (XML docs / TSDoc).
 5. Logs, metrics and health checks from the spec's observability section exist.

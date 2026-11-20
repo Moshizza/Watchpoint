@@ -26,6 +26,8 @@ handover schedule, fallback). Multi-level federation (country → region → sit
 
 ## 3. Layout
 
+Log event ids: 3600–3699 ([README §8](../README.md#8-observability-conventions)).
+
 ```
 Watchpoint.Federation/
 ├── Contracts/FederationLink.cs (direction, peer, filters, identity, ownership mode), FederatedSite.cs, IFederationService.cs, FedErrors.cs

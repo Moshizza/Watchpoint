@@ -34,6 +34,8 @@ Not in scope: SQL Server provider and store migration (STO-MS, M11).
 
 ## 3. Project layout
 
+Log event ids: 1200–1249 ([README §8](../README.md#8-observability-conventions)).
+
 ```
 Watchpoint.Storage/
 ├── Contracts/
