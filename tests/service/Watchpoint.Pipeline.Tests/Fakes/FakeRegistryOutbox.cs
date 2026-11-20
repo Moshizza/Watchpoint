@@ -52,7 +52,7 @@ internal sealed class FakeRegistryOutbox : IRegistryOutbox
         var record = new RegistryOutboxRecord(
             revision,
             _time.GetUtcNow(),
-            new ChangeContext(user, "unit-test", "corr-" + revision),
+            new ChangeContext(user != null ? Watchpoint.Kernel.Ids.UserId.From(Guid.Parse(user)) : null, "api", null, "unit-test"),
             [.. Enumerable.Range(0, changes).Select(i => new EntityChange("device", Kernel.Testing.TestIds.Uuid(revision * 100_000 + i), ChangeKind.Updated))]);
         lock (_lock)
         {

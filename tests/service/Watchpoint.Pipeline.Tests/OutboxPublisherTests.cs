@@ -58,9 +58,9 @@ public sealed class OutboxPublisherTests : IDisposable
         records.Select(r => r.Envelope.Id).ShouldBe(new[] { r1, r2, r3 }.Select(r => RegistryOutboxPublisher.RecordId(r.Revision)));
         var body = records[0].BodyAs<RegistryChangedBody>(_harness.Registry);
         body.Revision.ShouldBe(1);
-        body.Context.ShouldBe(new RegistryChangedContext(r1.Context.UserId, "unit-test", "corr-1"));
+        body.Context.ShouldBe(new RegistryChangedContext(r1.Context.Actor!.Value.Value.ToString(), r1.Context.Origin, null));
         body.Changes.ShouldBe([new RegistryChangedEntity("device", r1.Changes[0].Id, "updated")]);
-        records[0].Envelope.Origin.ShouldBe(new RecordOrigin(RecordOriginType.User, Guid.Parse(r1.Context.UserId!)));
+        records[0].Envelope.Origin.ShouldBe(new RecordOrigin(RecordOriginType.User, r1.Context.Actor!.Value.Value));
         records[0].Envelope.Ts.ShouldBe(r1.CreatedAt);
         records[1].Envelope.Origin.ShouldBe(RecordOrigin.System);
 

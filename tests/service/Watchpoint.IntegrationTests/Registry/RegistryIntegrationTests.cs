@@ -8,6 +8,7 @@ using Npgsql;
 using Shouldly;
 using Watchpoint.IntegrationTests.Pipeline;
 using Watchpoint.Kernel.Ids;
+using Watchpoint.Kernel.Paging;
 using Watchpoint.Kernel.Text;
 using Watchpoint.Kernel.Values;
 using Watchpoint.Model;
@@ -33,7 +34,7 @@ public sealed class RegistryIntegrationTests(PostgresContainerFixture postgres, 
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
     private readonly List<IAsyncDisposable> _owned = [];
-    private readonly ChangeContext _context = new("test-user", "integration-test");
+    private readonly ChangeContext _context = new(UserId.New(), "api", null, "integration-test");
 
     public async ValueTask DisposeAsync()
     {
@@ -92,7 +93,7 @@ public sealed class RegistryIntegrationTests(PostgresContainerFixture postgres, 
         var db = await DatabaseAsync(nameof(REG_I_002_Transaction_rollback));
         await using var node = await NodeAsync(db);
 
-        var initialLocCount = node.Reader.QueryLocations(new LocationQuery(), new PageRequest(100)).TotalCount;
+        var initialLocCount = node.Reader.GetLocationTree().Count;
 
         // Batch with valid site update followed by invalid location referencing non-existent parent
         var badBatch = new RegistryChangeBatch([
@@ -104,7 +105,7 @@ public sealed class RegistryIntegrationTests(PostgresContainerFixture postgres, 
 
         // Ensure database table row count unchanged
         var count = await ScalarAsync<long>(db.ConnectionString, "SELECT COUNT(*) FROM wp_registry.locations;");
-        count.ShouldBe(initialLocCount);
+        count.ShouldBe((long)initialLocCount);
     }
 
     [Fact]
@@ -231,7 +232,8 @@ public sealed class RegistryIntegrationTests(PostgresContainerFixture postgres, 
         var rootId = LocationId.New();
         var site = new Site(siteId, new LocalizedName("Main Site", new Dictionary<string, string>()), "UTC", 0);
         var root = new Location(rootId, null, new LocalizedName("Root", new Dictionary<string, string>()), LocationKind.Site, "", 0, null, null, null, 0, 0);
-        var context = new ChangeContext("test-user", "integration-test", "corr-1");
+        var actor = UserId.New();
+        var context = new ChangeContext(actor, "api", null, "integration-test");
         (await node.Writer.ApplyAsync(
             new RegistryChangeBatch([new RegistryChange.UpdateSite(site), new RegistryChange.UpsertLocation(root)]), context, Ct)).IsSuccess.ShouldBeTrue();
         (await node.Writer.ApplyAsync(
@@ -253,7 +255,7 @@ public sealed class RegistryIntegrationTests(PostgresContainerFixture postgres, 
         records.ShouldAllBe(r => r.Envelope.Kind == RecordKinds.RegistryChanged && r.Envelope.P == 0 && r.Envelope.Dev == null);
         var first = records[0].BodyAs<RegistryChangedBody>(registry);
         first.Revision.ShouldBe(1);
-        first.Context.ShouldBe(new RegistryChangedContext("test-user", "integration-test", "corr-1"));
+        first.Context.ShouldBe(new RegistryChangedContext(actor.Value.ToString(), "api", null));
         first.Changes.ShouldBe([new RegistryChangedEntity("site", siteId.Value, "updated"), new RegistryChangedEntity("location", rootId.Value, "created")]);
         var second = records[1].BodyAs<RegistryChangedBody>(registry);
         second.Revision.ShouldBe(2);
@@ -360,7 +362,7 @@ public sealed class RegistryIntegrationTests(PostgresContainerFixture postgres, 
         // Verify device now exists in registry reader
         var servers = node.Reader.QueryServers(new ServerQuery(ConnectionId: connId), new PageRequest()).Items;
         servers.Count.ShouldBe(1);
-        var devResult = node.Reader.GetDeviceByNativeId(servers[0].Id, "door-101");
+        var devResult = node.Reader.FindDeviceByNativeId(servers[0].Id, "door-101");
         devResult.IsSuccess.ShouldBeTrue();
         devResult.Value.VendorName.ShouldBe("Front Door");
     }

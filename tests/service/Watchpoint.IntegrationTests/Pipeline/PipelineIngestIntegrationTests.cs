@@ -30,7 +30,7 @@ namespace Watchpoint.IntegrationTests.Pipeline;
 [Trait("spec", "PIP")]
 public sealed class PipelineIngestIntegrationTests(PostgresContainerFixture postgres, NatsContainerFixture nats)
 {
-    private static readonly ChangeContext _context = new("test-user", "integration-test", "corr-1");
+    private static readonly ChangeContext _context = new(UserId.New(), "api", null, "integration-test");
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
