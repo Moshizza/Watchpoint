@@ -427,7 +427,7 @@ User JSON never contains password hashes, TOTP secrets or recovery codes.
 
 | Table | Key columns |
 |---|---|
-| `users` | id, login, login_norm (lower, unique where deleted_at is null), display_name, email, phone, language, time_zone, kind, enabled, administrator, auth_source, external_id, external_provider, valid_from, valid_until, allowed_clients text[], allowed_workstations text[], session_policy jsonb, mfa_policy, password_hash null, password_changed_at, must_change_password, last_sign_in_at, notes, deleted_at null, row_version, created_at, updated_at |
+| `users` | id, login, login_norm (lower, unique where deleted_at is null), display_name, email, phone, language, time_zone, kind, enabled, administrator, auth_source, external_id, external_provider, valid_from, valid_until, allowed_clients text (JSON array), allowed_workstations text (JSON array), session_policy jsonb, mfa_policy varchar(32), password_hash null, password_changed_at, must_change_password, last_sign_in_at, notes, deleted_at null, row_version, created_at, updated_at |
 | `password_history` | user_id, hash, created_at (keep last N) |
 | `sessions` | id, user_id, client_kind, client_instance_id, workstation_id, remote_ip, user_agent, app_version, created_at, last_activity_at, expires_at, revoked_at, revoked_reason, workstation_verified (T3.08) |
 | `refresh_tokens` | token_hash (PK), session_id, created_at, expires_at, rotated_at null, replaced_by_hash null |
@@ -609,6 +609,7 @@ public interface ISessionAdmission
 | `identity.refresh.invalid` / `reused` | Unauthenticated | `reused` revokes the session |
 | `identity.user.not_found` | NotFound | |
 | `identity.user.login_taken` | Validation | |
+| `identity.user.login_invalid` | Validation | U1: login not 2–64 characters of `[A-Za-z0-9._@-]` (field `/login`) |
 | `identity.user.last_administrator` | Conflict | |
 | `identity.user.self_change_forbidden` | Forbidden | U4 |
 | `identity.user.admin_required` | Forbidden | U5 |

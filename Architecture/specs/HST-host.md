@@ -170,6 +170,9 @@ public static readonly IWatchpointModule[] All =
 ];
 ```
 
+Target list. Today (`src/service/Watchpoint.Host/ModuleCatalog.cs`) the catalogue holds `Storage`, `Model`,
+`Registry`, `Pipeline`, `Identity` and `IntegrationRuntime`; each task adds its module in this order.
+
 ### 5.3 Startup orchestration
 
 `StartupOrchestrator` is an `IHostedLifecycleService` whose startup execution runs after
@@ -466,7 +469,8 @@ Each section is applied by an `IDevSeedStep` (one per section, registered by the
 composes), in the order above. "Store empty" means no step reports existing data (`HasDataAsync`; the users step:
 none of the seed's logins exists); otherwise nothing is applied (event 1142). A section without a step is skipped
 with a warning (event 1141). T1.02 delivers the `users` step (IDN); the steps for site, locations and tags (REG)
-and for connections and import (IRT) come with the tasks that compose those modules into the host (T1.16).
+and for connections and import (IRT) come with T1.16. The Registry module is already in the host's module
+catalogue (T1.09/T1.10); only its seed steps are missing.
 
 ## 10. Errors
 
@@ -617,6 +621,6 @@ above also covers the watchdog end to end.
 
 Note: HST-I-008 needs IRT, C-SIM and IDN; it is implemented in T1.02 but enabled when those
 tasks are merged (marked `[Trait("requires","T1.16,T1.17,T1.18")]`). T1.17 and T1.18 are merged; what is
-missing is T1.16 (connection manager) together with the seed steps for site, locations and connections and the
-Registry module in the host's module catalogue. Until then the test is skipped; **T1.16 enables it** (removes the
+missing is T1.16 (connection manager) together with the seed steps for site, locations and tags (REG) and for
+connections and import (IRT); the Registry module is already in the catalogue. Until then the test is skipped; **T1.16 enables it** (removes the
 `Skip`, adds the missing seed steps) and lists it among its tests.
