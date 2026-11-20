@@ -545,6 +545,30 @@ public sealed class HostUnitTests
         logs.Entries.ShouldBeEmpty();
     }
 
+    [Fact]
+    public void HST_U_049_Configured_lists_replace_the_defaults()
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Http:Urls:0"] = "http://127.0.0.1:5000",
+            ["Management:Urls:0"] = "http://127.0.0.1:5001",
+            ["Management:Urls:1"] = "http://[::1]:5001",
+            ["Node:Roles:0"] = "front",
+        }).Build();
+
+        var settings = NodeSettings.Bind(configuration);
+
+        settings.Http.Urls.ShouldBe(["http://127.0.0.1:5000"]);
+        settings.Management.Urls.ShouldBe(["http://127.0.0.1:5001", "http://[::1]:5001"]);
+        settings.Node.Roles.ShouldBe(["front"]);
+
+        // Lists the configuration does not set keep their defaults.
+        var defaults = NodeSettings.Bind(new ConfigurationBuilder().Build());
+        defaults.Http.Urls.ShouldBe(["https://0.0.0.0:8443"]);
+        defaults.Management.Urls.ShouldBe(["http://127.0.0.1:9464"]);
+        defaults.Node.Roles.ShouldBe(["front", "integration", "pipeline", "history", "media"]);
+    }
+
     private sealed class PropertyFactory : ILogEventPropertyFactory
     {
         public LogEventProperty CreateProperty(string name, object? value, bool destructureObjects = false) =>

@@ -95,6 +95,8 @@ Sources, later overriding earlier: `appsettings.json` (shipped defaults) →
 | `Dev:SeedFile` | path | empty | only honoured when `Node:Environment = Development` |
 | `Shutdown:Timeout` | duration | `PT30S` | PT5S–PT5M |
 
+A list set in configuration (`Node:Roles`, `Http:Urls`, `Management:Urls`) replaces its default; it is never merged with it (`NodeSettings.Bind`: the configuration binder alone would append the configured items to the default list, T1.01b).
+
 Settings are bound to `NodeSettings` (options pattern) and validated at start with
 `ValidateOnStart()`. Invalid settings → the process logs `HST1101` with all problems and
 exits with code **78** (`EX_CONFIG`), so service managers do not restart-loop silently.
@@ -620,6 +622,7 @@ Added by T1.02 (state machine and platform behaviour in detail):
 | HST-U-046 | U | Site id generated once, persisted and validated | First start: `Site:Id` generated (v7) and written back next to `Node:Id`; second start reads it; a non-v7 id fails validation |
 | HST-U-047 | U | Module with invalid settings stops the start | `IdentityModule.BindSettings` with a valid context → settings; an invalid or unknown `Identity:*` key, or no `Site:Id` → `InvalidSettingsException` naming the key and code, never the value |
 | HST-U-048 | U | Development refused on a production install | `Node:Environment=Development` + service host (Windows service / `NOTIFY_SOCKET`) → exit 78; + `Paths:Data` = OS default → exit 78; console run with a custom data path → starts, 1102 at Warning |
+| HST-U-049 | U | Configured lists replace the defaults | `Http:Urls`, `Management:Urls`, `Node:Roles` set in configuration → exactly the configured items (no default URL or role kept); not set → the defaults |
 | HST-U-045 | U | Ready line printed at once is not missed | Child whose stdout already holds the `StdoutLine` text when it starts → Running (the probe is registered before the output is read), 50 rounds |
 | HST-I-009 | I | Real child process (Linux) | Own process group; 20,000 lines drained; environment, working directory, stderr; child ignoring SIGTERM with a descendant → both killed after the grace period; exit code reported |
 | HST-I-010 | I | Development stack pinned and consistent | Compose images pinned by digest and equal to the test fixtures and `deploy/versions.env`; loopback ports; dev settings valid; sample seed valid |
