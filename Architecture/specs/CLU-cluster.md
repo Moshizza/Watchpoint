@@ -105,6 +105,10 @@ public interface ILeaseManager
 }
 ```
 
+- Modules that need "one per cluster" work (PIP registry outbox publisher, later HIS consumers, NOT
+  delivery, SCH timers) depend only on the Kernel `ILeaseGate` (K §6.1); CLU registers its
+  implementation backed by this lease manager (`WaitUntilHeldAsync` returns while the lease is held,
+  its token is cancelled when the lease is lost). Single-node and M1 installs use the always-held gate.
 - Store: JetStream KV bucket `wp_leases` (R3, history 1). Value `{ owner, expiresAt, acquiredAt }`.
   **Acquire**: `Create` (key absent) or `Update(expectedRevision)` when the current value's
   `expiresAt` < now − clock skew allowance (2 s); the new KV revision is the **fencing token**
@@ -290,6 +294,8 @@ Metrics: `watchpoint.cluster.members` (gauge by state), `watchpoint.cluster.quor
 | CLU-U-069…074 | Drain handover zero-gap order; undrain; remove node |
 | CLU-U-075…078 | Version compatibility gates and mixed-version window |
 | CLU-U-079…080 | Object Store file replicator store/fetch, lazy large files |
+| CLU-U-081 | Node with a foreign `Site:Id` (REG §4 R1 mismatch) stays not ready (reason `siteId`) and does not join |
+| CLU-U-082 | R3 lane throughput measured (PIP §5.4): records/s per partition and over 64 partitions written to the test output; below 2,000/s per partition the atomic-batch path is required before T9.02 |
 | CLU-I-001 | 3-node cluster (2 nodes + witness containers) forms; streams R3 |
 | CLU-I-002 | Leases distributed; partitions split across nodes |
 | CLU-I-003 | Join a node with a token; certificate and secrets work |
@@ -311,7 +317,7 @@ Metrics: `watchpoint.cluster.members` (gauge by state), `watchpoint.cluster.quor
 
 | Task | Sections | Tests |
 |---|---|---|
-| T9.01 | §4–§6, §12 | CLU-U-001…CLU-U-035, CLU-I-001…CLU-I-006 |
+| T9.01 | §4–§6, §12 (`ILeaseGate` implementation, NATS cluster keys) | CLU-U-001…CLU-U-035, CLU-U-081, CLU-U-082, CLU-I-001…CLU-I-006 |
 | T9.02 | §7–§8 | CLU-U-036…CLU-U-060, CLU-I-007…CLU-I-015 |
 | T9.03 | §9–§10 | CLU-U-061…CLU-U-080 |
 | T9.04 | §11 | Spike report, CLU-I-016…CLU-I-020 |
