@@ -32,8 +32,9 @@ Watchpoint.Integrations/
 ├── Contracts/
 │   ├── PackageInfo.cs, PackageState.cs, PackageJson.cs, IPackageCatalog.cs, IPackageWatcher.cs
 │   ├── IntegrationsOptions.cs, IntegrationsServiceCollectionExtensions.cs
-│   ├── Connection.cs, ConnectionState.cs, IConnectionManager.cs          (T1.16)
-│   ├── IConnectionCommandChannel.cs                                       (T1.16)
+│   ├── Connection.cs (model, state, status, requests), IConnectionManager.cs (+ IConnectionCommandChannel,
+│   │   IConnectionAdmission, IConnectionsLifecycle), ConnectionsOptions.cs, ConnectionEndpoints.cs,
+│   │   EndpointResults.cs (problem details, loopback-only filter)                       (T1.16)
 │   ├── ConnectionSettingsSchema.cs
 │   └── IntegrationErrors.cs
 ├── Internal/
@@ -42,13 +43,13 @@ Watchpoint.Integrations/
 │   │            PackageLoadContext.cs, PackageLoadContextPool.cs, SharedAssemblies.cs,
 │   │            PackageProblems.cs, PackageSeams.cs
 │   ├── IntegrationsMetrics.cs, PackageScanHealthCheck.cs
-│   ├── Connections/ConnectionManager.cs, ConnectionRuntime.cs (state machine per connection),
-│   │               ConnectionWatchdog.cs, InventoryCoordinator.cs                      (T1.16)
-│   ├── Hosting/IConnectionHost.cs, InProcessHost.cs                                    (T1.16)
-│   ├── Context/ConnectorContext.cs, ObservationSink.cs, DeviceMap.cs, ConnectionStore.cs,
-│   │           Scheduler.cs, RequestGate.cs, SecretAccessor.cs, ConnectionHealthReporter.cs,
-│   │           SecureHttp.cs, InboundEndpoints.cs, ConnectorMetrics.cs                 (T1.16)
-│   └── Storage/IntegrationsDbContext.cs (+ Postgres subclass, migrations)
+│   ├── Connections/ConnectionManager.cs (also the watchdog timer), ConnectionRuntime.cs (state machine
+│   │               per connection), InventoryCoordinator.cs, ConnectionStateRecorder.cs, LazyServices.cs (T1.16)
+│   ├── Hosting/ConnectionHost.cs (IConnectionHost, InProcessHost)                      (T1.16)
+│   ├── Context/ConnectorContext.cs, ConnectorContextFactory.cs, ObservationSink.cs, DeviceMap.cs,
+│   │           ConnectionStore.cs, RequestGate.cs, ConnectorServices.cs (secrets, scheduler, HTTP, metrics,
+│   │           logging), InboundEndpoints.cs (+ the inbound HTTP router)               (T1.16)
+│   └── Storage/IntegrationsDbContext.cs, ConnectionStorage.cs (+ Postgres subclass, migrations)
 ├── Contracts/PackageEndpoints.cs  the package endpoints (§10), mapped by the host module
 └── IntegrationLog.cs              event ids 1800–1949 (IHO: 1950–1999)
 
@@ -213,7 +214,7 @@ package code (they root the load context and prevent unloading).
 | `packages` | id text, version text, state text, source text, file_path text null, problems jsonb, signed_by_dev bool, enabled bool, discovered_at, updated_at | PK (id, version) |
 | `connections` | id uuid, name jsonb (LocalizedName), package_id text, package_version text, server_type text, settings jsonb, secrets jsonb (`{ fieldId: secretId }`), location_id uuid, host_mode text (`inProcess` \| `isolated` \| `remote`), host_id uuid null, enabled bool, auto_import bool, describe_interval interval, protocol_trace_until timestamptz null, row_version bigint, created_at, updated_at | PK id; index (package_id, package_version) |
 | `connection_store` | connection_id uuid, key text, value bytea, updated_at | PK (connection_id, key); FK connection_id ON DELETE CASCADE |
-| `connection_events` | connection_id uuid, at timestamptz, state text, reason jsonb | PK (connection_id, at); retained 30 days (purged daily) — used by the connection *Health* timeline |
+| `connection_events` | id bigint identity, connection_id uuid, at timestamptz, state text, reason jsonb (`{ key, args }`) | PK id, index (connection_id, at) — two transitions can share a millisecond; retained 30 days (purged daily by the watchdog) — used by the connection *Health* timeline |
 
 ## 7. Connections (T1.16)
 
@@ -228,7 +229,10 @@ public enum HostMode { InProcess, Isolated, Remote }
 
 public enum ConnectionState { Configured, Disabled, Starting, Connected, Degraded, Reconnecting, Faulted, Stopping }
 
-public sealed record ConnectionStatus(ConnectionId Id, ConnectionState State, ConnectorMessage? Reason,
+// Reason: a Kernel Message — a connector's reason is qualified (ConnectorMessage.ToMessage → "packages.<packageId>.<key>"),
+// the runtime's own reasons are "irt.connection.<reason>" (faulted, initializeRefused, reconnectTimeout, flooding, restart,
+// settingsChanged, packageDisabled, packageUnavailable, hungCommand, deleted, shutdown).
+public sealed record ConnectionStatus(ConnectionId Id, ConnectionState State, Message? Reason,
     DateTimeOffset Since, int RestartCount, DateTimeOffset? LastConnectedAt, ConnectionCounters Counters);
 public sealed record ConnectionCounters(long ObservationsAccepted, long ObservationsRejected,
     long UnknownDevices, long CommandsSucceeded, long CommandsFailed, double CommandLatencyP95Ms);
@@ -248,12 +252,28 @@ public interface IConnectionManager
     Task<Result<InventorySnapshot>> DiscoverAsync(ConnectionId id, IProgress<DiscoveryProgress>? progress, CancellationToken ct);
     Task<Result<ReconciliationResult>> DescribeAndReconcileAsync(ConnectionId id, CancellationToken ct);
     Task<Result> SetProtocolTraceAsync(ConnectionId id, TimeSpan duration, CancellationToken ct);  // max 1 h
-    event EventHandler<ConnectionStatusChangedEventArgs>? StatusChanged;
+    Task<IReadOnlyList<ConnectionEvent>> GetEventsAsync(ConnectionId id, DateTimeOffset from, DateTimeOffset until, CancellationToken ct);
+    Task<Result<IReadOnlyList<DiagnosticItem>>> GetDiagnosticsAsync(ConnectionId id, CancellationToken ct);
+    event EventHandler<ConnectionStatusChangedEventArgs>? StatusChanged;   // in order per connection
+}
+public sealed record ConnectionUpdate(LocalizedName? Name = null, JsonElement? Settings = null,
+    IReadOnlyDictionary<string, string>? SecretValues = null /* "" clears an optional field */, LocationId? LocationId = null,
+    bool? Enabled = null, bool? AutoImport = null, HostMode? HostMode = null, TimeSpan? DescribeInterval = null);
+    // Settings, SecretValues or HostMode → a running connector restarts with them
+public sealed record TestConnectionRequest(PackageId PackageId, SemVersion? PackageVersion, string ServerType, JsonElement Settings,
+    IReadOnlyDictionary<string, string> SecretValues, ConnectionId? ExistingConnection = null /* its stored secrets fill the rest */);
+public sealed record ConnectionEvent(ConnectionId ConnectionId, DateTimeOffset At, ConnectionState State, Message? Reason);
+
+public interface IConnectionsLifecycle   // the host's start-up and shutdown tasks
+{
+    Task LoadAsync(CancellationToken ct);      // phase Catalogue, order 20 (after the package scan, before the dev seed)
+    Task ActivateAsync(CancellationToken ct);  // phase Connections: staggered starts, watchdog
+    Task StopAllAsync(CancellationToken ct);   // shutdown, phase Connections (before the pipeline drains)
 }
 
 public sealed record NewConnection(LocalizedName Name, PackageId PackageId, SemVersion? PackageVersion /* null = latest active */,
     string ServerType, JsonElement Settings, IReadOnlyDictionary<string, string> SecretValues /* plain, stored to vault */,
-    LocationId LocationId, bool AutoImport, bool StartNow);
+    LocationId LocationId, bool AutoImport, bool StartNow) { public HostMode HostMode { get; init; } = HostMode.InProcess; }
 
 public interface IConnectionCommandChannel     // used by CMD
 {
@@ -263,14 +283,19 @@ public interface IConnectionCommandChannel     // used by CMD
 }
 ```
 
-Validation on create/update: name (NameRules); package version `Active`; server type
-declared; settings valid against the settings schema (SCM §4.4) → field errors with paths
-`/settings/...`; secrets: required fields present (on create) — values stored with
-`ISecretVault.CreateAsync(owner = ("Integrations", connectionId))`; location exists; host mode
+Validation on create/update (all field errors in one `common.validation.failed`): name (NameRules, `/name`);
+package version `Active` (`irt.package.not_active`); server type declared (`/serverType`,
+`irt.connection.server_type_unknown`); settings valid against the settings schema (SCM §4.4) → field errors with paths
+`/settings/...`; secrets: declared fields only (`/secrets/<id>`, `irt.connection.secret_unknown`), required fields present
+on create (`irt.connection.secret_required`) — values stored with
+`ISecretVault.CreateAsync(owner = ("Integrations", connectionId))`, never in the row (it holds `{ fieldId: secretId }`);
+a replaced secret is stored first and the old one deleted once the new row is committed; location exists
+(`/locationId`, `irt.connection.location_unknown`); host mode
 allowed by the package (`isolatedRequired` → `InProcess` refused with
 `irt.connection.isolation_required`; in M1, `Isolated`/`Remote` refused with
 `irt.host.unavailable` until IHO). Licence feature check is added by LIC (M7) through an
-`IConnectionAdmission` hook (M1 implementation allows all).
+`IConnectionAdmission` hook (M1 implementation allows all). Updates take the version read (`expectedVersion`; else
+`common.version.conflict`) and are serialised per connection; the row is written with an optimistic concurrency check.
 
 ### 7.2 State machine (`ConnectionRuntime`)
 
@@ -289,24 +314,48 @@ allowed by the package (`isolatedRequired` → `InProcess` refused with
 | any running | stop / settings update / package disabled / delete | Stopping | `StopAsync` with 15 s token, then `DisposeAsync`; abandoned if hung (log 1851; in-process: instance dropped, isolation recommended in UI) |
 | Stopping | done | Configured or Disabled | |
 
+Implementation rules (T1.16):
+
+- Every operation, connector report and timer of a connection is a message of its **mailbox**, processed one at a time;
+  the mailbox never awaits connector code. Connector calls run on their own tasks (`Task.Run`, so a connector blocking
+  before its first `await` is bounded too), each bounded with the node's `TimeProvider`: `InitializeAsync` 30 s,
+  `StartAsync` 5 s (the "hung start" of §7.3: log 1861, `Faulted`, restart with back-off), `StopAsync` 15 s then
+  `DisposeAsync` 15 s. A connection never has two live instances: a new instance starts once the previous one is
+  stopped or abandoned.
+- `Starting` + connector reports `Connecting` stays `Starting`; `Starting` + `Disconnected` → `Reconnecting` (the
+  `FaultAfter` timer runs). `Degraded` is reached from `Starting`/`Reconnecting` like `Connected`.
+- A host refusal (package not active, server type gone) is like an `InitializeAsync` failure: `Faulted`, no automatic
+  restart; start, restart or a settings update clears it.
+- The back-off attempt resets when the connector reports `Connected`; `RestartCount` counts the restarts after faults.
+  `Faulted` reached through `FaultAfter` keeps the instance (display only); its next `Connected` report clears it.
+- "First connect of this runtime instance": the first connect after the node started or after a settings change.
+- A stop (or restart, delete, package disable, shutdown) completes when the teardown it caused completes, even if a
+  later start runs the connection again. Operations that arrive meanwhile are applied in order (desired state
+  `Enabled`, restart requested, package available) once the teardown is done: nothing is lost or applied twice.
+
 Every transition: update in-memory status, append a `connection.state` record to `WP_SYS`
 (`{ connectionId, state, reason }`), insert into `connection_events`, raise `StatusChanged`.
 The root server's health is reported by the connector; in addition, when the runtime moves a
 connection to `Faulted`/`Stopping`/`Disabled`, it ingests `Health(Unknown, reason)` for the
-connection's root servers so devices become stale (STA §6.1).
+connection's root servers so devices become stale (STA §6.1). These side effects run on the connection's ordered
+recording queue (each step's failure is logged, 1822), never on the mailbox. `connection.state` is registered with the
+log (`ILogRecordTypeRegistry`, schema 1, body `{ connectionId, state, reason }`, origin `connection`).
 
 Settings update while running → Stopping → Starting with the new settings. Commands queued in
 CMD wait (or expire) during the restart.
 
 ### 7.3 Watchdog
 
-Checks every 10 s per running connection:
+A timer of the manager (every 10 s, the node's `TimeProvider`) posts a check to each connection's mailbox, so a hung
+connector never delays the others:
 
 | Check | Condition | Action |
 |---|---|---|
-| Hung command | A command call exceeded its deadline + 30 s | Log 1860; restart connection |
-| Hung start | `StartAsync` not returned after 5 s | Log 1861; Faulted |
-| Silent connector | Connected, no health report, no observation and no completed request for `Connections:SilenceTimeout` (default 30 min; per connector type override in manifest `limits.silenceTimeout`) | Log 1862 (warning) only |
+| Hung command | A command call exceeded its deadline + 30 s (the caller already got `Timeout` at the deadline; the call stays tracked until it really ends) | Log 1860; restart connection |
+| Hung start | `StartAsync` not returned after 5 s (detected by the start's own timer, §7.2) | Log 1861; Faulted, restart with back-off |
+| Silent connector | Connected, no health report and no observation for `Connections:SilenceTimeout` (default 30 min; the per connector type override `limits.silenceTimeout` needs the manifest schema to declare it, SCM) | Log 1862 (warning) once per silence |
+| Describe interval | Connected or Degraded and `DescribeInterval` elapsed since the last describe | Describe and reconcile |
+| Timeline retention | Once a day | `connection_events` older than 30 days deleted |
 | Flooding | PIP flooding signal (PIP §8, `IIngestFloodingListener`) | Report fault `flooding` on root server health; status reason |
 
 ### 7.4 Inventory coordination
@@ -327,14 +376,22 @@ Checks every 10 s per running connection:
   | `VendorName`, `VendorAttributes` | same names | Copied |
   | `UnsupportedOptionalCapabilities` (strings) | same name (`IReadOnlySet<CapabilityId>`) | Parsed; an invalid id → item skipped with the same warning |
   | `InventoryLinkItem(Kind, ToNativeId, ToServerNativeId)` | `InventoryLink(Kind, ToNativeId, ToServerNativeId)` | Copied; `Kind` is the link kind string (`cameraViews`, `memberOf`, `controls`, `powers`, `partOf`) |
+- Mapping rules (T1.16): `TypeVersion` may be loose (`"1.0"`, `"1"`): an exact version is used when MOD has it,
+  otherwise the latest version of that major. **An item skipped for any reason makes the report partial**
+  (`IsComplete = false`), so the registry never orphans an existing server or device because the runtime could not
+  map it. A snapshot that fails `InventorySnapshot.Validate` is not reconciled (`irt.inventory.invalid`, log 1831). Describes
+  and reconciliations of a connection run one at a time; a reconcile failure is logged (1831), not a connector fault; an
+  exception or a hang of `DescribeAsync` is.
 - Device map (`IDeviceMap`) for the connector is rebuilt from REG on `Changed` events concerning
-  the connection's servers/devices and pushed to the instance (event `Changed`).
+  servers/devices and after each reconciliation, off the registry's thread (requests coalesce), and pushed to the
+  instance (event `Changed`).
 
 ### 7.5 Command execution (`IConnectionCommandChannel`)
 
 - Resolves the device handle; rejects if the connection is not `Connected`/`Degraded`
   (`FailureCategory.ConnectionDown`) or the connector lacks `ICommandExecutor`
-  (`NotSupported`).
+  (`NotSupported`); a device not in the device map → `Failed(InvalidState)`. A batch goes to `IBatchCommandExecutor` (deadline =
+  earliest of the batch) when the connector has it and every target resolves, one by one otherwise.
 - Calls the connector through `RequestGate.RunAsync(priority from command)` with a
   cancellation token cancelled at `Deadline`; maps exceptions: `OperationCanceledException` at
   deadline → `Failed(Timeout)`; other exceptions → `Failed(InternalError)` + connector fault
@@ -347,16 +404,16 @@ Checks every 10 s per running connection:
 |---|---|
 | Settings | Validated JSON with defaults (`ParameterSchema.ApplyDefaults`); `GetSettings<T>` uses the package's source-generated type info |
 | Secrets | `ISecretVault.ReadAsync(secretId, owner=("Integrations", connId), purpose="connector")`; returns `ConnectorSecret` |
-| Sink | Bounded buffer (`Connections:SinkBuffer`, default 50,000 items); background flusher every 50 ms or 500 items calls `IObservationIngest.IngestAsync`; maps `DeviceKey` → ids via device map (unknown → counted, dropped); `FlushAsync` awaits completion of all items enqueued before the call; when the buffer is full `Report*` still accepts (spills into an overflow list bounded at 2× buffer, after which property reports are coalesced latest-per-path and events kept) and `FlushAsync` waits — mirrors PIP §8 so connectors never block on `Report*` |
+| Sink | Bounded buffer (`Connections:SinkBuffer`, default 50,000 items); background flusher every 50 ms (age of the oldest item) or 500 items calls `IObservationIngest.IngestAsync`, one batch at a time; maps `DeviceKey` → ids via device map (unknown → counted, dropped, log 1840 at most once a minute; an invalid path → rejected, log 1842); `FlushAsync` awaits completion of all items enqueued before the call and returns the counts since the previous flush; when the buffer is full `Report*` still accepts (spills into an overflow as large as the buffer — 2× buffer in all — after which property reports are coalesced latest-per-(target, path), keeping their place, and events and health are kept) and `FlushAsync` waits — mirrors PIP §8 so connectors never block on `Report*`. An ingest exception (only cancellation is expected, PIP §6) is logged (1841) and the batch retried after 1 s with the same ids. At stop the sink closes (L6), drains for at most 5 s, then drops the rest (1843) |
 | Device map | Immutable dictionary swapped on changes; `All` excludes disabled and orphaned devices |
-| Store | `connection_store` table with an in-memory write-through cache; size limits enforced (`irt.store.limit`) |
+| Store | `connection_store` table with an in-memory write-through cache (one per connection, kept across instances); writes of a connection are serialised and the cache changes only after the row is committed; limits: key ≤ 256 characters, value ≤ 64 KB, keys + values ≤ 1 MB — a write beyond throws `InvalidOperationException` carrying `irt.store.limit` (arg `limit`: `key`, `value`, `total`) |
 | Scheduler | `PollingLoop` from the SDK; registrations disposed at stop; paused when status not Connected unless `RunWhenDisconnected` |
-| Gate | Priority queue (Critical > High > Normal > Background) + `SemaphoreSlim(MaxConcurrency)`; `MaxConcurrency` = settings `maxConcurrency` if present, else manifest `limits.maxConcurrency`, else 4 |
+| Gate | The runtime's own gate (`Internal/Context/RequestGate.cs`): at most `MaxConcurrency` requests at once, waiting ones start Critical > High > Normal > Background, first come first served within a priority; `MaxConcurrency` = settings `maxConcurrency` if present, else 4 (manifest `limits.maxConcurrency` once the manifest schema declares it, SCM) |
 | Health | Feeds the state machine (§7.2) |
 | SecureHttp | `SocketsHttpHandler` with `SslOptions.RemoteCertificateValidationCallback` implementing pin/custom-CA/system policies; never returns true on errors other than accepted pin/CA; `AllowHttp` only if the connection settings field `allowInsecureHttp` is true (logged warning on start) |
-| Inbound | HTTP: routes mapped under `/integrations/{connectionId}/{**path}` on the main Kestrel endpoint, auth enforced before calling the handler, body limit 1 MB; TCP: listener on requested port only if the manifest declares `inboundTcp` permission and the connection settings enable it |
-| Logging | Logger category `Watchpoint.Connector.<packageId>`; scope properties `ConnectionId`, `Package`; redaction of declared secret field names; protocol trace level enabled only while `ProtocolTraceUntil > now` |
-| Metrics | Instruments under meter `Watchpoint.Connector` with tags `connection`, `package` |
+| Inbound | HTTP: routes mapped under `/integrations/{connectionId}/{**path}` on the main Kestrel endpoint (any method), auth enforced before calling the handler (shared secret header and HMAC-SHA256 — hex, optional `sha256=` prefix, or base64 — compared in constant time with the connection's secret field, which must be declared; client certificate SHA-256 pin; source CIDRs) → 401 and log 1846 otherwise, unknown path → 404, body limit 1 MB → 413, handler exception → 500 and log 1847; TCP: listener on requested port only if the manifest declares the `inboundTcp` permission and the connection settings field `inboundTcp` is true (the manifest schema has no permissions yet, SCM: until it does, no package is granted TCP); UDP arrives with M4 (C-SNMP). Registrations are released when the instance stops |
+| Logging | Logger category `Watchpoint.Connector.<packageId>`; scope properties `ConnectionId`, `Package`; only the formatted, masked text is passed on (never the structured state): declared secret field names (`name=…`, `"name": "…"`) and every secret value the connection read are replaced by `***`, an exception is logged as its type and masked message; protocol trace level enabled only while `ProtocolTraceUntil > now` |
+| Metrics | Instruments under meter `Watchpoint.Connector` with tags `connection`, `package`: `watchpoint.connector.requests` (+ `operation`, `success`), `watchpoint.connector.request.duration`, gauge `watchpoint.connector.gauge` (+ `name`) |
 
 ## 9. Settings
 
@@ -374,7 +431,7 @@ Checks every 10 s per running connection:
 (`Watchpoint.Host/Modules/IntegrationRuntimeModule.cs`). Not settings: the watcher debounce is fixed
 at 2 s (`IntegrationsOptions.Debounce`), and the product version compared with
 `minWatchpointVersion` is the host assembly version (`IntegrationsOptions.ProductVersion`). The
-`Connections:*` keys arrive with T1.16.
+`Connections:*` keys (durations in ISO 8601) are bound by the same module into `ConnectionsOptions` (T1.16).
 
 ## 10. API (owned by IRT)
 
@@ -388,9 +445,12 @@ at 2 s (`IntegrationsOptions.Debounce`), and the product version compared with
 | `POST /api/v1/packages/{id}/versions/{version}/enable` / `disable` | `config.integrations.install` | |
 
 Until the API framework and its permission filter exist (T1.19), the endpoints that change the node
-(`POST`) are mapped only when `Node:Environment = Development` and answer only requests from a loopback
-address (`127.0.0.0/8`, `::1`; others get 404), so a development node reachable on a network cannot be
-changed from it (T1.16, also for the connection POSTs); the `GET` endpoints are always mapped.
+(`POST`, `PATCH`, `DELETE`) are mapped only when `Node:Environment = Development` and answer only requests from a loopback
+address (`127.0.0.0/8`, `::1`; others get 404 and the endpoint does not run), so a development node reachable on a network
+cannot be changed from it (T1.16, package and connection endpoints); the `GET` endpoints are always mapped. Errors are
+problem details with `code`, `args` and, for validation, `errors: [{ path, code }]`. In M1, `discover` runs within the
+request and returns the inventory (200); the job with progress on the live topic and the diagnostics endpoints come with
+the API (T1.19). The connectors' inbound route `/integrations/{connectionId}/{**path}` is always mapped (§8).
 Package rows (§6) hold only verified packages; invalid ones are not persisted (the file is the source
 of truth and is verified again at the next scan).
 | `GET /api/v1/connections` | `config.integrations.view` (operators see status via HLT later) | List with status |
@@ -444,6 +504,11 @@ Live stream topic `connections` (API §8): status changes.
 | `irt.connection.not_running` | Unprocessable | (T1.16) Discover/diagnostics on a stopped connection |
 | `irt.store.limit` | Validation | (T1.16) Store size limits |
 | `irt.inventory.type_unknown` | (warning) | (T1.16) §7.4 |
+| `irt.inventory.invalid` | Validation | (T1.16) §7.4: the snapshot fails `InventorySnapshot.Validate` |
+| `irt.connection.server_type_unknown` | Validation (field `/serverType`) | (T1.16) §7.1 |
+| `irt.connection.secret_required` / `secret_unknown` | Validation (field `/secrets/<id>`) | (T1.16) §7.1 |
+| `irt.connection.location_unknown` | Validation (field `/locationId`) | (T1.16) §7.1 |
+| `irt.connection.not_supported` | Unprocessable | (T1.16) The connector lacks the feature (arg `feature`) |
 
 ## 13. Observability
 
@@ -466,11 +531,16 @@ Live stream topic `connections` (API §8): status changes.
 | 1815 | Information | Package {FileName} installed by {Actor} |
 | 1816 | Debug | Load context {Context} unloaded |
 | 1820 (T1.16) | Information | Connection {ConnectionId} ({Name}) state {From} → {To}: {Reason} |
+| 1821–1826 (T1.16) | Error/Warning | StatusChanged handler failed; state not recorded; runtime operation failed; connection created/updated/deleted by actor (Information); connection not loaded; plain HTTP allowed |
+| 1831–1833 (T1.16) | Warning | Reconciliation failed; inventory item skipped (type unknown); device map not rebuilt |
+| 1841–1847 (T1.16) | Warning | Ingest failed (retrying); observation rejected; buffered observations dropped at stop; store failed; secret unavailable (code only); inbound request refused; inbound handler failed |
+| 1852–1853 (T1.16) | Warning | Initialisation refused; restart scheduled (delay, attempt) |
 | 1830 (T1.16) | Information | Connection {ConnectionId} reconciled: {Summary} |
 | 1840 (T1.16) | Warning | Connection {ConnectionId} dropped {Count} reports for unknown devices in the last minute |
 | 1850 (T1.16) | Error | Connector {ConnectionId} faulted: {Exception} |
 | 1851 (T1.16) | Error | Connector {ConnectionId} did not stop within timeout; instance abandoned |
 | 1860–1862 (T1.16) | Warning/Error | Watchdog findings |
+| 1863–1864 (T1.16) | Warning/Error | Flooding changed; watchdog check failed |
 | 1880 (T4.09) | Warning | Upgrade of {ConnectionId} to {Version} rolled back: {Reason} |
 
 Metrics (`Watchpoint.Integrations`): `watchpoint.integrations.connections` (gauge by `state`),
@@ -562,11 +632,11 @@ Integration: `Watchpoint.IntegrationTests/Integrations` (real PostgreSQL, NATS, 
 | IRT-I-004 | I | Load context isolation with two real packages | Two test packages using different versions of a NuGet library work side by side |
 | IRT-I-005 | I | Connection create → start → connected → devices imported | Simulator connection with autoImport → registry devices created, states flowing |
 | IRT-I-006 | I | Secrets stored encrypted and readable by connector | |
-| IRT-I-007 | I | Restart node: connections restarted, cursors kept | Simulator event cursor in store → no duplicate or missing events after restart |
+| IRT-I-007 | I | Restart node: connections restarted, cursors kept | Test connector: events numbered from its stored cursor, flushed before the cursor is saved → after a node restart, events 1…10 each once in the log |
 | IRT-I-008 | I | Connection store survives restart | |
 | IRT-I-009 | I | Command through channel reaches simulator | |
-| IRT-I-010 | I | Stop connection → devices stale via API | |
-| IRT-I-011 | I | Inbound webhook end-to-end | Simulator configured for webhook mode → POST with secret header → event in log |
+| IRT-I-010 | I | Stop connection → devices stale | Stop through the API → `disabled`; root server health `unknown` in the log (STA marks the devices stale; the state API comes with T1.11/T1.19) |
+| IRT-I-011 | I | Inbound webhook end-to-end | Test connector registers a webhook authenticated by its secret → POST with the wrong header 401; with the secret header 204 → event in log (the simulator has no webhook mode) |
 | IRT-I-012 | I | Connection events timeline API | States with reasons over a fault/restart cycle |
 | IRT-U-061 | U | Upgrade migrates settings with JSON Patch | (T4.09) |
 | IRT-U-062 | U | Upgrade rolls back when not connected within window | (T4.09) |

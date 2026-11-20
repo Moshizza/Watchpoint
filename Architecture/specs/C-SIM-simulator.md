@@ -51,6 +51,10 @@ tools/wpsim/
 
 ## 4. Settings (`settings/simulator.settings.json`)
 
+The manifest references the file (`"settingsSchema": "settings/simulator.settings.json"`, SCM §4.4), which is a
+parameter schema (no `$schema`, no `additionalProperties`: unknown fields are refused by the schema rules). A parameter
+schema cannot describe objects inside an array, so `failures` is declared as an array and checked by the connector.
+
 | Field | Type | Default | Rules |
 |---|---|---|---|
 | `mode` | enum `embedded`, `remote` | `embedded` | |

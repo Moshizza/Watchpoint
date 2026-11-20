@@ -59,6 +59,13 @@ public sealed class ConnectionIntegrationTests(PostgresContainerFixture postgres
         var api = JsonNode.Parse(await http.GetStringAsync($"api/v1/connections/{id.Value:D}", Ct))!;
         api["status"]!["state"]!.GetValue<string>().ShouldBe("connected");
         api["status"]!["counters"]!["observationsAccepted"]!.GetValue<long>().ShouldBeGreaterThan(0);
+
+        // The endpoints that change the node answer loopback requests only (IRT §10): others get 404, the endpoint never runs.
+        var remote = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        remote.Connection.RemoteIpAddress = IPAddress.Parse("192.0.2.10");
+        var filtered = await EndpointResults.LoopbackOnly(new Microsoft.AspNetCore.Http.DefaultEndpointFilterInvocationContext(remote),
+            _ => throw new InvalidOperationException("the endpoint ran"));
+        filtered.ShouldBeOfType<Microsoft.AspNetCore.Http.HttpResults.NotFound>();
     }
 
     [Fact]
