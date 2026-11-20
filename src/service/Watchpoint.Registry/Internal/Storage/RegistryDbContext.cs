@@ -43,10 +43,6 @@ internal class RegistryDbContext(DbContextOptions options, StorageContextInfo in
             }
             b.HasIndex(e => e.ParentId);
             b.HasIndex(e => e.Path);
-
-            // The self-references the migration declares (fk_*_parent_id): with them EF inserts a parent before its
-            // children and deletes children first; without them it orders a batch by key and violates the FK.
-            b.HasOne<LocationRecord>().WithMany().HasForeignKey(e => e.ParentId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<TagFamilyRecord>(b =>
@@ -83,7 +79,6 @@ internal class RegistryDbContext(DbContextOptions options, StorageContextInfo in
             b.HasIndex(e => new { e.ConnectionId, e.NativeId }).IsUnique();
             b.HasIndex(e => e.LocationId);
             b.HasIndex(e => e.ParentId);
-            b.HasOne<ServerRecord>().WithMany().HasForeignKey(e => e.ParentId).OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<DeviceRecord>(b =>
@@ -100,7 +95,10 @@ internal class RegistryDbContext(DbContextOptions options, StorageContextInfo in
             }
             b.HasIndex(e => new { e.ServerId, e.NativeId }).IsUnique();
             b.HasIndex(e => e.LocationId);
-            b.HasOne<DeviceRecord>().WithMany().HasForeignKey(e => e.ParentId).OnDelete(DeleteBehavior.Restrict);
+
+            // The self-reference the migration declares (fk_devices_devices_parent_id): with it EF inserts a parent device
+            // before its children within a batch (an inventory import); without it EF orders the inserts by key.
+            b.HasOne<DeviceRecord>().WithMany().HasForeignKey(e => e.ParentId).OnDelete(DeleteBehavior.NoAction);
         });
 
         modelBuilder.Entity<DeviceLinkRecord>(b =>
