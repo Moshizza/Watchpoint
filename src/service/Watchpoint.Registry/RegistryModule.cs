@@ -16,6 +16,9 @@ namespace Watchpoint.Registry;
 /// </summary>
 public static class RegistryModule
 {
+    /// <summary>The health check name registered under the <c>ready</c> tag (REG §12).</summary>
+    public const string RegistrySiteHealthCheckName = "registry-site";
+
     /// <summary>
     /// Adds Watchpoint Registry services, including DbContext, in-memory reader, writer and the transactional outbox
     /// (<see cref="IRegistryOutbox"/>, published to the event log by the pipeline module).
@@ -37,6 +40,9 @@ public static class RegistryModule
         services.TryAddSingleton<RegistryOutbox>();
         services.TryAddSingleton<IRegistryOutbox>(sp => sp.GetRequiredService<RegistryOutbox>());
         services.TryAddSingleton<DeviceEnrichmentCache>();
+        services.TryAddSingleton<RegistryChangeFeed>();
+        services.TryAddSingleton(sp => new RegistrySiteHealthCheck(sp.GetRequiredService<IRegistryReader>(), siteId));
+        services.AddHealthChecks().AddCheck<RegistrySiteHealthCheck>(RegistrySiteHealthCheckName, tags: ["ready"]);
 
         // Snapshot holder
         RegistrySnapshot? currentSnapshot = null;

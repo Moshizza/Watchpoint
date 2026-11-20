@@ -10,6 +10,7 @@ using Watchpoint.Host.Dev;
 using Watchpoint.Hosting;
 using Watchpoint.Identity.Contracts;
 using Watchpoint.Kernel.Ids;
+using Watchpoint.Kernel.Paging;
 using Watchpoint.Registry;
 using Watchpoint.Registry.Contracts;
 using Watchpoint.Storage.Contracts;
@@ -95,9 +96,9 @@ public sealed partial class DevStackTests(PostgresContainerFixture postgres)
 
         // Site and locations exist; the simulator's devices were discovered and imported.
         var registry = provider.GetRequiredService<IRegistryReader>();
-        registry.GetSite().Name.Default.ShouldBe(seed.Site.Name);
-        registry.GetSite().DefaultTimezone.ShouldBe(seed.Site.TimeZone);
-        registry.QueryDevices(new DeviceQuery(), new PageRequest(PageSize: 50)).TotalCount.ShouldBeGreaterThan(0);
+        registry.Site.Name.Default.ShouldBe(seed.Site.Name);
+        registry.Site.DefaultTimezone.ShouldBe(seed.Site.TimeZone);
+        registry.QueryDevices(new DeviceQuery(), new PageRequest(1)).Items.ShouldNotBeEmpty();
     }
 
     [Fact]

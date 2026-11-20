@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Channels;
 using Microsoft.EntityFrameworkCore;
+using Watchpoint.Kernel.Ids;
 using Watchpoint.Registry.Contracts;
 using Watchpoint.Registry.Internal.Storage;
 
@@ -35,9 +36,10 @@ internal sealed class RegistryOutbox : IRegistryOutbox
         {
             Revision = revision,
             CreatedAt = createdAt,
-            Actor = context.UserId,
-            Reason = context.Reason,
-            CorrelationId = context.CorrelationId,
+            Actor = context.Actor?.Value,
+            Origin = context.Origin,
+            ChangeSet = context.ChangeSet?.Value,
+            Comment = context.Comment,
             Changes = JsonSerializer.Serialize(changes.Select(c => new StoredChange(c.Entity, c.Id, c.Kind)).ToList(), _json),
         });
     }
@@ -100,7 +102,7 @@ internal sealed class RegistryOutbox : IRegistryOutbox
         return new RegistryOutboxRecord(
             row.Revision,
             row.CreatedAt,
-            new ChangeContext(row.Actor, row.Reason, row.CorrelationId),
+            new ChangeContext(row.Actor.HasValue ? UserId.From(row.Actor.Value) : null, row.Origin, row.ChangeSet.HasValue ? ChangeSetId.From(row.ChangeSet.Value) : null, row.Comment),
             changes.Select(c => new EntityChange(c.Entity, c.Id, c.Kind)).ToList());
     }
 

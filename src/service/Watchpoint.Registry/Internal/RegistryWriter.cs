@@ -5,6 +5,7 @@ using Watchpoint.Kernel.Ids;
 using Watchpoint.Kernel.Results;
 using Watchpoint.Kernel.Time;
 using Watchpoint.Model.Contracts;
+using Watchpoint.Model.Documents;
 using Watchpoint.Registry.Contracts;
 using Watchpoint.Registry.Internal.Storage;
 
@@ -12,6 +13,9 @@ namespace Watchpoint.Registry.Internal;
 
 internal sealed class RegistryWriter : IRegistryWriter, IDisposable
 {
+    /// <summary>Maximum number of changes per batch (REG §6); the matching record byte-size check is T1.09c.</summary>
+    internal const int MaxBatchChanges = 10_000;
+
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly IDbContextFactory<RegistryDbContext> _dbFactory;
     private readonly ITypeCatalog _typeCatalog;
@@ -20,6 +24,8 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
     private readonly ILogger<RegistryWriter> _logger;
     private readonly Action<RegistrySnapshot> _snapshotUpdater;
     private readonly Func<RegistrySnapshot> _snapshotProvider;
+    private readonly DeviceEnrichmentCache? _enrichmentCache;
+    private readonly RegistryChangeFeed? _feed;
 
     public RegistryWriter(
         IDbContextFactory<RegistryDbContext> dbFactory,
@@ -28,7 +34,9 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
         TimeProvider clock,
         ILogger<RegistryWriter> logger,
         Action<RegistrySnapshot> snapshotUpdater,
-        Func<RegistrySnapshot> snapshotProvider)
+        Func<RegistrySnapshot> snapshotProvider,
+        DeviceEnrichmentCache? enrichmentCache = null,
+        RegistryChangeFeed? feed = null)
     {
         _dbFactory = dbFactory;
         _typeCatalog = typeCatalog;
@@ -37,6 +45,8 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
         _logger = logger;
         _snapshotUpdater = snapshotUpdater;
         _snapshotProvider = snapshotProvider;
+        _enrichmentCache = enrichmentCache;
+        _feed = feed;
     }
 
     public void Dispose()
@@ -44,7 +54,13 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
         _gate.Dispose();
     }
 
-    /// <summary>The entities named by a batch, with what happened to each compared with the snapshot before the batch.</summary>
+    public event EventHandler<RegistryChangedEventArgs>? Changed
+    {
+        add { if (_feed != null) _feed.Changed += value; }
+        remove { if (_feed != null) _feed.Changed -= value; }
+    }
+
+    /// <summary>The entities named by the batch itself (not cascaded side effects), spec REG §6.</summary>
     private static List<EntityChange> DescribeChanges(RegistryChangeBatch batch, RegistrySnapshot before)
     {
         static ChangeKind Upsert(bool existed) => existed ? ChangeKind.Updated : ChangeKind.Created;
@@ -66,12 +82,9 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
                 RegistryChange.UpsertDevice c => new EntityChange("device", c.Device.Id.Value, Upsert(before.Devices.ContainsKey(c.Device.Id))),
                 RegistryChange.PatchDevice c => new EntityChange("device", c.Id.Value, ChangeKind.Updated),
                 RegistryChange.DeleteDevice c => new EntityChange("device", c.Id.Value, ChangeKind.Deleted),
-                RegistryChange.UpsertDeviceLink c => new EntityChange(
-                    "link",
-                    c.Link.SourceDeviceId.Value,
-                    Upsert(before.Links.Any(l => l.SourceDeviceId == c.Link.SourceDeviceId && l.Role == c.Link.Role && l.TargetDeviceId == c.Link.TargetDeviceId))),
-                RegistryChange.DeleteDeviceLink c => new EntityChange("link", c.SourceDeviceId.Value, ChangeKind.Deleted),
-                RegistryChange.UpsertCustomField c => new EntityChange("customField", c.CustomField.Id.Value, Upsert(before.CustomFields.ContainsKey(c.CustomField.Id))),
+                RegistryChange.UpsertLink c => new EntityChange("link", c.Link.From.Value, Upsert(before.Links.Any(l => l.Id == c.Link.Id))),
+                RegistryChange.DeleteLink c => new EntityChange("link", (before.Links.FirstOrDefault(l => l.Id == c.Id)?.From ?? default).Value, ChangeKind.Deleted),
+                RegistryChange.UpsertCustomField c => new EntityChange("customField", c.Definition.Id.Value, Upsert(before.CustomFields.ContainsKey(c.Definition.Id))),
                 RegistryChange.DeleteCustomField c => new EntityChange("customField", c.Id.Value, ChangeKind.Deleted),
                 _ => throw new InvalidOperationException($"Unknown registry change {change.GetType().Name}."),
             });
@@ -80,10 +93,13 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
         return changes;
     }
 
-    public event EventHandler<RegistryChangedEventArgs>? Changed;
-
     public async Task<Result> ApplyAsync(RegistryChangeBatch batch, ChangeContext context, CancellationToken ct = default)
     {
+        if (batch.Changes.Count > MaxBatchChanges)
+        {
+            return RegistryErrors.BatchTooLarge(MaxBatchChanges);
+        }
+
         await _gate.WaitAsync(ct);
         var startTimestamp = _clock.GetTimestamp();
         try
@@ -101,6 +117,8 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
             var customFields = new Dictionary<CustomFieldId, CustomFieldDefinition>(currentSnapshot.CustomFields);
 
             var touchedLocationPaths = new Dictionary<LocationId, (string OldPath, string NewPath)>();
+            var touchedServers = new Dictionary<ServerId, Server>();
+            var touchedDevices = new Dictionary<DeviceId, Device>();
 
             // 2. Validate optimistic concurrency and apply to staged dictionaries
             foreach (var change in batch.Changes)
@@ -115,7 +133,9 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
                     devices,
                     links,
                     customFields,
-                    touchedLocationPaths);
+                    touchedLocationPaths,
+                    touchedServers,
+                    touchedDevices);
 
                 if (!stepResult.IsSuccess)
                 {
@@ -146,7 +166,7 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
             await using var db = await _dbFactory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-            await PersistChangesAsync(db, batch, site, locations, tagFamilies, tags, servers, devices, links, customFields, touchedLocationPaths, ct);
+            await PersistChangesAsync(db, batch, currentSnapshot, site, locations, tagFamilies, tags, servers, devices, links, customFields, touchedLocationPaths, touchedServers, touchedDevices, ct);
 
             // The revision and the registry.changed record are committed with the batch (transactional outbox, REG §6 step 4):
             // a node stop or a log outage after this point loses nothing, and the revision never restarts or repeats.
@@ -159,6 +179,7 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
 
             // 5. Build new immutable snapshot and atomic swap
             var newSnapshot = new RegistrySnapshot(
+                revision,
                 site,
                 locations,
                 tagFamilies,
@@ -173,23 +194,61 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
             var swapDuration = _clock.GetElapsedTime(swapStart);
             RegistryMetrics.SnapshotSwapDuration.Record(swapDuration.TotalSeconds);
 
+            // 5b. Invalidate the enrichment cache of every device the batch could have affected: the entities it
+            // named directly, plus every device located in the subtree of a touched location (REG §7.2).
+            InvalidateEnrichment(changes, touchedLocationPaths.Keys, newSnapshot);
+
             // 6. Metrics & Logging
             var duration = _clock.GetElapsedTime(startTimestamp);
             RegistryMetrics.BatchesCommitted.Add(1);
             RegistryMetrics.ChangesApplied.Add(batch.Changes.Count);
             RegistryMetrics.BatchApplyDuration.Record(duration.TotalSeconds);
             RegistryMetrics.RevisionCommitted(revision);
-            RegistryLog.BatchApplied(_logger, context.Reason ?? "unknown", batch.Changes.Count, duration.TotalMilliseconds, revision);
+            RegistryLog.BatchApplied(_logger, context.Origin, batch.Changes.Count, duration.TotalMilliseconds, revision);
 
-            // 7. Wake the outbox publisher and fire the in-process Changed event
+            // 7. Wake the outbox publisher and fire the in-process Changed event (reader and writer share it)
             _outbox.Signal();
-            Changed?.Invoke(this, new RegistryChangedEventArgs(batch, context));
+            _feed?.Raise(this, new RegistryChangedEventArgs(batch, context));
 
             return Result.Success();
         }
         finally
         {
             _gate.Release();
+        }
+    }
+
+    /// <summary>Removes the cached enrichment of every device the batch could have changed (REG §7.2, REG-U-029).</summary>
+    private void InvalidateEnrichment(IReadOnlyList<EntityChange> changes, IEnumerable<LocationId> touchedLocations, RegistrySnapshot newSnapshot)
+    {
+        if (_enrichmentCache == null)
+        {
+            return;
+        }
+
+        foreach (var change in changes.Where(c => c.Entity == "device"))
+        {
+            _enrichmentCache.Remove(DeviceId.From(change.Id));
+        }
+
+        var touchedPaths = touchedLocations
+            .Select(id => newSnapshot.Locations.GetValueOrDefault(id)?.Path)
+            .Where(p => p != null)
+            .Select(p => p!)
+            .ToList();
+
+        if (touchedPaths.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var device in newSnapshot.Devices.Values)
+        {
+            var loc = newSnapshot.Locations.GetValueOrDefault(device.LocationId);
+            if (loc != null && touchedPaths.Any(p => loc.Path == p || loc.Path.StartsWith(p + "/", StringComparison.Ordinal)))
+            {
+                _enrichmentCache.Remove(device.Id);
+            }
         }
     }
 
@@ -203,7 +262,9 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
         Dictionary<DeviceId, Device> devices,
         List<DeviceLink> links,
         Dictionary<CustomFieldId, CustomFieldDefinition> customFields,
-        Dictionary<LocationId, (string OldPath, string NewPath)> touchedLocationPaths)
+        Dictionary<LocationId, (string OldPath, string NewPath)> touchedLocationPaths,
+        Dictionary<ServerId, Server> touchedServers,
+        Dictionary<DeviceId, Device> touchedDevices)
     {
         switch (change)
         {
@@ -216,32 +277,22 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
             case RegistryChange.UpsertLocation ul:
                 var loc = ul.Location;
                 var currentLoc = locations.GetValueOrDefault(loc.Id);
+                var placement = ComputePlacement(loc.ParentId, loc.Name.Default, locations);
+                if (!placement.IsSuccess)
+                    return placement.Error;
+
                 if (currentLoc != null)
                 {
                     if (ul.ExpectedVersion.HasValue && currentLoc.Version != ul.ExpectedVersion.Value)
                         return RegistryErrors.VersionConflict("location", loc.Id.Value.ToString(), currentLoc.Version, ul.ExpectedVersion);
 
-                    // Compute path & depth
-                    string newPath;
-                    int newDepth;
-                    if (loc.ParentId != null)
-                    {
-                        var parent = locations.GetValueOrDefault(loc.ParentId.Value);
-                        if (parent == null)
-                            return RegistryErrors.InvariantViolation("R2", $"Parent location {loc.ParentId} not found.");
-                        newPath = LocationPaths.BuildPath(parent.Path, loc.Name.Default);
-                        newDepth = parent.Depth + 1;
-                    }
-                    else
-                    {
-                        newPath = "/" + loc.Name.Default;
-                        newDepth = 0;
-                    }
+                    if (currentLoc.ParentId == null && loc.ParentId != null)
+                        return RegistryErrors.LocationRootImmutable();
 
+                    var (newPath, newDepth) = placement.Value;
                     if (currentLoc.Path != newPath)
                     {
                         touchedLocationPaths[loc.Id] = (currentLoc.Path, newPath);
-                        // Cascade descendant location path updates
                         CascadePathUpdates(loc.Id, currentLoc.Path, newPath, locations, touchedLocationPaths);
                     }
 
@@ -249,21 +300,7 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
                 }
                 else
                 {
-                    string newPath;
-                    int newDepth;
-                    if (loc.ParentId != null)
-                    {
-                        var parent = locations.GetValueOrDefault(loc.ParentId.Value);
-                        if (parent == null)
-                            return RegistryErrors.InvariantViolation("R2", $"Parent location {loc.ParentId} not found.");
-                        newPath = LocationPaths.BuildPath(parent.Path, loc.Name.Default);
-                        newDepth = parent.Depth + 1;
-                    }
-                    else
-                    {
-                        newPath = "/" + loc.Name.Default;
-                        newDepth = 0;
-                    }
+                    var (newPath, newDepth) = placement.Value;
                     locations[loc.Id] = loc with { Path = newPath, Depth = newDepth, Version = 1 };
                 }
                 break;
@@ -271,9 +308,51 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
             case RegistryChange.DeleteLocation dl:
                 var existingLoc = locations.GetValueOrDefault(dl.Id);
                 if (existingLoc == null)
-                    return RegistryErrors.EntityNotFound("location", dl.Id.Value.ToString());
+                    return RegistryErrors.LocationNotFound(dl.Id.Value.ToString());
                 if (dl.ExpectedVersion.HasValue && existingLoc.Version != dl.ExpectedVersion.Value)
                     return RegistryErrors.VersionConflict("location", dl.Id.Value.ToString(), existingLoc.Version, dl.ExpectedVersion);
+                if (existingLoc.ParentId == null)
+                    return RegistryErrors.LocationRootImmutable();
+
+                var childLocations = locations.Values.Where(l => l.ParentId == dl.Id).ToList();
+                var childServers = servers.Values.Where(s => s.LocationId == dl.Id).ToList();
+                var childDevices = devices.Values.Where(d => d.LocationId == dl.Id).ToList();
+                var objectCount = childServers.Count + childDevices.Count;
+
+                if (childLocations.Count > 0 || objectCount > 0)
+                {
+                    if (dl.ReassignTo == null)
+                        return RegistryErrors.LocationNotEmpty(childLocations.Count, objectCount);
+                    if (!locations.TryGetValue(dl.ReassignTo.Value, out var reassignTarget))
+                        return RegistryErrors.LocationNotFound(dl.ReassignTo.Value.Value.ToString());
+
+                    foreach (var child in childLocations)
+                    {
+                        var childPlacement = ComputePlacement(dl.ReassignTo.Value, child.Name.Default, locations);
+                        if (!childPlacement.IsSuccess)
+                            return childPlacement.Error;
+
+                        var (childNewPath, childNewDepth) = childPlacement.Value;
+                        touchedLocationPaths[child.Id] = (child.Path, childNewPath);
+                        CascadePathUpdates(child.Id, child.Path, childNewPath, locations, touchedLocationPaths);
+                        locations[child.Id] = child with { ParentId = dl.ReassignTo.Value, Path = childNewPath, Depth = childNewDepth, Version = child.Version + 1 };
+                    }
+
+                    foreach (var srv in childServers)
+                    {
+                        var moved = srv with { LocationId = reassignTarget.Id, Version = srv.Version + 1 };
+                        servers[srv.Id] = moved;
+                        touchedServers[srv.Id] = moved;
+                    }
+
+                    foreach (var dev in childDevices)
+                    {
+                        var moved = dev with { LocationId = reassignTarget.Id, Version = dev.Version + 1 };
+                        devices[dev.Id] = moved;
+                        touchedDevices[dev.Id] = moved;
+                    }
+                }
+
                 locations.Remove(dl.Id);
                 break;
 
@@ -295,7 +374,7 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
             case RegistryChange.DeleteTagFamily dtf:
                 var existingTf = tagFamilies.GetValueOrDefault(dtf.Id);
                 if (existingTf == null)
-                    return RegistryErrors.EntityNotFound("tag_family", dtf.Id.Value.ToString());
+                    return RegistryErrors.TagFamilyNotFound(dtf.Id.Value.ToString());
                 if (dtf.ExpectedVersion.HasValue && existingTf.Version != dtf.ExpectedVersion.Value)
                     return RegistryErrors.VersionConflict("tag_family", dtf.Id.Value.ToString(), existingTf.Version, dtf.ExpectedVersion);
                 tagFamilies.Remove(dtf.Id);
@@ -317,57 +396,61 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
                 break;
 
             case RegistryChange.DeleteTag dt:
-                var existingTag = tags.GetValueOrDefault(dt.Id);
-                if (existingTag == null)
-                    return RegistryErrors.EntityNotFound("tag", dt.Id.Value.ToString());
-                if (dt.ExpectedVersion.HasValue && existingTag.Version != dt.ExpectedVersion.Value)
-                    return RegistryErrors.VersionConflict("tag", dt.Id.Value.ToString(), existingTag.Version, dt.ExpectedVersion);
-                tags.Remove(dt.Id);
+                if (!tags.Remove(dt.Id))
+                    return RegistryErrors.TagNotFound(dt.Id.Value.ToString());
                 break;
 
             case RegistryChange.UpsertServer usrv:
-                var srv = usrv.Server;
-                var currentSrv = servers.GetValueOrDefault(srv.Id);
+                var srv2 = usrv.Server;
+                var currentSrv = servers.GetValueOrDefault(srv2.Id);
                 if (currentSrv != null)
                 {
                     if (usrv.ExpectedVersion.HasValue && currentSrv.Version != usrv.ExpectedVersion.Value)
-                        return RegistryErrors.VersionConflict("server", srv.Id.Value.ToString(), currentSrv.Version, usrv.ExpectedVersion);
-                    servers[srv.Id] = srv with { Version = currentSrv.Version + 1 };
+                        return RegistryErrors.VersionConflict("server", srv2.Id.Value.ToString(), currentSrv.Version, usrv.ExpectedVersion);
+                    servers[srv2.Id] = srv2 with { Version = currentSrv.Version + 1 };
                 }
                 else
                 {
-                    servers[srv.Id] = srv with { Version = 1 };
+                    servers[srv2.Id] = srv2 with { Version = 1 };
                 }
                 break;
 
             case RegistryChange.DeleteServer dsrv:
-                var existingSrv = servers.GetValueOrDefault(dsrv.Id);
-                if (existingSrv == null)
-                    return RegistryErrors.EntityNotFound("server", dsrv.Id.Value.ToString());
-                if (dsrv.ExpectedVersion.HasValue && existingSrv.Version != dsrv.ExpectedVersion.Value)
-                    return RegistryErrors.VersionConflict("server", dsrv.Id.Value.ToString(), existingSrv.Version, dsrv.ExpectedVersion);
+                if (!servers.ContainsKey(dsrv.Id))
+                    return RegistryErrors.ServerNotFound(dsrv.Id.Value.ToString());
+
+                var serverDevices = devices.Values.Where(d => d.ServerId == dsrv.Id).ToList();
+                if (serverDevices.Count > 0 && !dsrv.DeleteDevices)
+                    return RegistryErrors.ServerNotEmpty(serverDevices.Count);
+
+                foreach (var dev in serverDevices)
+                {
+                    devices.Remove(dev.Id);
+                    links.RemoveAll(l => l.From == dev.Id || l.To == dev.Id);
+                }
+
                 servers.Remove(dsrv.Id);
                 break;
 
             case RegistryChange.UpsertDevice udev:
-                var dev = udev.Device;
-                var currentDev = devices.GetValueOrDefault(dev.Id);
+                var dev2 = udev.Device;
+                var currentDev = devices.GetValueOrDefault(dev2.Id);
                 if (currentDev != null)
                 {
                     if (udev.ExpectedVersion.HasValue && currentDev.Version != udev.ExpectedVersion.Value)
-                        return RegistryErrors.VersionConflict("device", dev.Id.Value.ToString(), currentDev.Version, udev.ExpectedVersion);
-                    devices[dev.Id] = dev with { Version = currentDev.Version + 1, CreatedAt = currentDev.CreatedAt };
+                        return RegistryErrors.VersionConflict("device", dev2.Id.Value.ToString(), currentDev.Version, udev.ExpectedVersion);
+                    devices[dev2.Id] = dev2 with { Version = currentDev.Version + 1, CreatedAt = currentDev.CreatedAt };
                 }
                 else
                 {
-                    devices[dev.Id] = dev with { Version = 1, CreatedAt = dev.CreatedAt == default ? _clock.GetUtcNow() : dev.CreatedAt };
+                    devices[dev2.Id] = dev2 with { Version = 1, CreatedAt = dev2.CreatedAt == default ? _clock.GetUtcNow() : dev2.CreatedAt };
                 }
                 break;
 
             case RegistryChange.PatchDevice pdev:
                 var targetDev = devices.GetValueOrDefault(pdev.Id);
                 if (targetDev == null)
-                    return RegistryErrors.EntityNotFound("device", pdev.Id.Value.ToString());
+                    return RegistryErrors.DeviceNotFound(pdev.Id.Value.ToString());
                 if (pdev.ExpectedVersion.HasValue && targetDev.Version != pdev.ExpectedVersion.Value)
                     return RegistryErrors.VersionConflict("device", pdev.Id.Value.ToString(), targetDev.Version, pdev.ExpectedVersion);
 
@@ -388,42 +471,51 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
                 break;
 
             case RegistryChange.DeleteDevice ddev:
-                var existingDev = devices.GetValueOrDefault(ddev.Id);
-                if (existingDev == null)
-                    return RegistryErrors.EntityNotFound("device", ddev.Id.Value.ToString());
-                if (ddev.ExpectedVersion.HasValue && existingDev.Version != ddev.ExpectedVersion.Value)
-                    return RegistryErrors.VersionConflict("device", ddev.Id.Value.ToString(), existingDev.Version, ddev.ExpectedVersion);
-                devices.Remove(ddev.Id);
+                if (!devices.TryGetValue(ddev.Id, out var existingDev))
+                    return RegistryErrors.DeviceNotFound(ddev.Id.Value.ToString());
+
+                var childDevs = devices.Values.Where(d => d.ParentId == ddev.Id).ToList();
+                if (childDevs.Count > 0 && !ddev.DeleteChildren)
+                    return RegistryErrors.DeviceHasChildren(childDevs.Count);
+
+                var subtree = new List<Device> { existingDev };
+                if (ddev.DeleteChildren)
+                {
+                    CollectSubtree(ddev.Id, devices, subtree);
+                }
+
+                foreach (var dev in subtree)
+                {
+                    devices.Remove(dev.Id);
+                    links.RemoveAll(l => l.From == dev.Id || l.To == dev.Id);
+                }
                 break;
 
-            case RegistryChange.UpsertDeviceLink udl:
-                var link = udl.Link;
-                var existingLinkIndex = links.FindIndex(l => l.SourceDeviceId == link.SourceDeviceId && l.Role == link.Role && l.TargetDeviceId == link.TargetDeviceId);
-                if (existingLinkIndex >= 0)
-                {
-                    var cur = links[existingLinkIndex];
-                    if (udl.ExpectedVersion.HasValue && cur.Version != udl.ExpectedVersion.Value)
-                        return RegistryErrors.VersionConflict("device_link", $"{link.SourceDeviceId}:{link.Role}:{link.TargetDeviceId}", cur.Version, udl.ExpectedVersion);
-                    links[existingLinkIndex] = link with { Version = cur.Version + 1 };
-                }
+            case RegistryChange.UpsertLink ulk:
+                var link = ulk.Link;
+                if (!devices.ContainsKey(link.From))
+                    return RegistryErrors.LinkInvalid("sourceNotFound");
+                if (!devices.ContainsKey(link.To))
+                    return RegistryErrors.LinkInvalid("targetNotFound");
+                if (link.From == link.To)
+                    return RegistryErrors.LinkInvalid("selfLink");
+
+                var linkIndex = links.FindIndex(l => l.Id == link.Id);
+                if (linkIndex >= 0)
+                    links[linkIndex] = link with { Version = links[linkIndex].Version + 1 };
                 else
-                {
                     links.Add(link with { Version = 1 });
-                }
                 break;
 
-            case RegistryChange.DeleteDeviceLink ddl:
-                var delIndex = links.FindIndex(l => l.SourceDeviceId == ddl.SourceDeviceId && l.Role == ddl.Role && l.TargetDeviceId == ddl.TargetDeviceId);
-                if (delIndex < 0)
-                    return RegistryErrors.EntityNotFound("device_link", $"{ddl.SourceDeviceId}:{ddl.Role}:{ddl.TargetDeviceId}");
-                var curDel = links[delIndex];
-                if (ddl.ExpectedVersion.HasValue && curDel.Version != ddl.ExpectedVersion.Value)
-                    return RegistryErrors.VersionConflict("device_link", $"{ddl.SourceDeviceId}:{ddl.Role}:{ddl.TargetDeviceId}", curDel.Version, ddl.ExpectedVersion);
-                links.RemoveAt(delIndex);
+            case RegistryChange.DeleteLink dlk:
+                var deleteIndex = links.FindIndex(l => l.Id == dlk.Id);
+                if (deleteIndex < 0)
+                    return RegistryErrors.LinkNotFound(dlk.Id.Value.ToString());
+                links.RemoveAt(deleteIndex);
                 break;
 
             case RegistryChange.UpsertCustomField ucf:
-                var cf = ucf.CustomField;
+                var cf = ucf.Definition;
                 var curCf = customFields.GetValueOrDefault(cf.Id);
                 if (curCf != null)
                 {
@@ -440,7 +532,7 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
             case RegistryChange.DeleteCustomField dcf:
                 var exCf = customFields.GetValueOrDefault(dcf.Id);
                 if (exCf == null)
-                    return RegistryErrors.EntityNotFound("custom_field", dcf.Id.Value.ToString());
+                    return RegistryErrors.CustomFieldNotFound(dcf.Id.Value.ToString());
                 if (dcf.ExpectedVersion.HasValue && exCf.Version != dcf.ExpectedVersion.Value)
                     return RegistryErrors.VersionConflict("custom_field", dcf.Id.Value.ToString(), exCf.Version, dcf.ExpectedVersion);
                 customFields.Remove(dcf.Id);
@@ -448,6 +540,31 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
         }
 
         return Result.Success();
+    }
+
+    private static void CollectSubtree(DeviceId parentId, Dictionary<DeviceId, Device> devices, List<Device> into)
+    {
+        foreach (var child in devices.Values.Where(d => d.ParentId == parentId).ToList())
+        {
+            into.Add(child);
+            CollectSubtree(child.Id, devices, into);
+        }
+    }
+
+    /// <summary>Computes the path and depth a location would have under <paramref name="parentId"/> (REG §7.3).</summary>
+    private static Result<(string Path, int Depth)> ComputePlacement(LocationId? parentId, string name, Dictionary<LocationId, Location> locations)
+    {
+        if (parentId == null)
+        {
+            return ("/" + name, 0);
+        }
+
+        if (!locations.TryGetValue(parentId.Value, out var parent))
+        {
+            return RegistryErrors.LocationNotFound(parentId.Value.Value.ToString());
+        }
+
+        return (LocationPaths.BuildPath(parent.Path, name), parent.Depth + 1);
     }
 
     private static void CascadePathUpdates(
@@ -480,38 +597,54 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
         List<DeviceLink> links,
         Dictionary<CustomFieldId, CustomFieldDefinition> customFields)
     {
-        // R1: Exactly one site, valid IANA tz
+        // R1: valid IANA time zone (site identity itself is enforced structurally: Site is a single field, not a
+        // collection, and the stored row's id is reconciled against Site:Id by the readiness check, REG §4).
         if (string.IsNullOrWhiteSpace(site.DefaultTimezone))
-            return RegistryErrors.InvariantViolation("R1", "DefaultTimezone must not be empty.");
+            return CommonErrors.InvalidFormat("IANA time zone identifier");
         try
         {
             _ = TimeZoneInfo.FindSystemTimeZoneById(site.DefaultTimezone);
         }
-        catch
+        catch (TimeZoneNotFoundException)
         {
-            return RegistryErrors.InvariantViolation("R1", $"Invalid IANA timezone '{site.DefaultTimezone}'.");
+            return CommonErrors.InvalidFormat("IANA time zone identifier");
+        }
+        catch (InvalidTimeZoneException)
+        {
+            return CommonErrors.InvalidFormat("IANA time zone identifier");
         }
 
-        // R2: Exactly one root location, no cycles, valid parents, max depth <= 16
+        // R2: exactly one root location, no cycles, valid parents, max depth, unique sibling names.
         var rootCount = locations.Values.Count(l => l.ParentId == null);
         if (rootCount != 1)
-            return RegistryErrors.InvariantViolation("R2", $"Expected exactly one root location, found {rootCount}.");
+            return RegistryErrors.LocationCycle();
+
+        foreach (var siblingGroup in locations.Values.GroupBy(l => l.ParentId))
+        {
+            var seen = new Dictionary<string, LocationId>();
+            foreach (var sibling in siblingGroup)
+            {
+                var normalized = TextSearchNormalizer.Normalize(sibling.Name.Default);
+                if (seen.TryGetValue(normalized, out var existingId) && existingId != sibling.Id)
+                    return RegistryErrors.LocationDuplicateName(sibling.Name.Default);
+                seen[normalized] = sibling.Id;
+            }
+        }
 
         foreach (var loc in locations.Values)
         {
             if (loc.ParentId != null && !locations.ContainsKey(loc.ParentId.Value))
-                return RegistryErrors.InvariantViolation("R2", $"Location {loc.Id} references non-existent parent {loc.ParentId}.");
+                return RegistryErrors.LocationNotFound(loc.ParentId.Value.Value.ToString());
 
             if (loc.Depth > 16)
-                return RegistryErrors.InvariantViolation("R2", $"Location {loc.Id} exceeds max depth 16.");
+                return RegistryErrors.LocationTooDeep(16);
 
-            // Cycle detection
             var curr = loc;
             var visited = new HashSet<LocationId> { curr.Id };
             while (curr.ParentId != null)
             {
                 if (visited.Contains(curr.ParentId.Value))
-                    return RegistryErrors.InvariantViolation("R2", $"Cycle detected at location {loc.Id}.");
+                    return RegistryErrors.LocationCycle();
                 visited.Add(curr.ParentId.Value);
                 if (!locations.TryGetValue(curr.ParentId.Value, out var parent))
                     break;
@@ -519,118 +652,134 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
             }
         }
 
-        // R3: Tag.Key unique; tag in an exclusive family holds at most one tag of that family
-        var zeroOrOneFamilies = tagFamilies.Values.Where(f => f.Cardinality == TagCardinality.ZeroOrOne).Select(f => f.Id).ToHashSet();
+        // R3: Tag.Key unique; tag in an exclusive family holds at most one tag of that family.
+        foreach (var keyGroup in tags.Values.GroupBy(t => t.Key, StringComparer.Ordinal))
+        {
+            if (keyGroup.Count() > 1)
+                return RegistryErrors.TagDuplicateKey(keyGroup.Key);
+        }
+
+        var exclusiveFamilies = tagFamilies.Values.Where(f => f.Cardinality == TagCardinality.ZeroOrOne).ToDictionary(f => f.Id);
         foreach (var dev in devices.Values)
         {
             var familyCounts = new Dictionary<TagFamilyId, int>();
             foreach (var tid in dev.Tags)
             {
                 if (!tags.TryGetValue(tid, out var t))
-                    return RegistryErrors.InvariantViolation("R3", $"Device {dev.Id} references non-existent tag {tid}.");
+                    return RegistryErrors.TagNotFound(tid.Value.ToString());
 
-                if (zeroOrOneFamilies.Contains(t.FamilyId))
+                if (exclusiveFamilies.TryGetValue(t.FamilyId, out var family))
                 {
                     familyCounts[t.FamilyId] = familyCounts.GetValueOrDefault(t.FamilyId) + 1;
                     if (familyCounts[t.FamilyId] > 1)
-                        return RegistryErrors.InvariantViolation("R3", $"Tag family {t.FamilyId} allows at most one tag per device.");
+                        return RegistryErrors.TagFamilyExclusive(family.Key);
                 }
             }
         }
 
-        // R4: Server.Type and Device.Type resolve in MOD with role server / device
+        // R4: Server.Type and Device.Type resolve in MOD with the matching role.
         foreach (var srv in servers.Values)
         {
             var dtRes = _typeCatalog.Get(srv.Type);
             if (!dtRes.IsSuccess)
-                return RegistryErrors.InvariantViolation("R4", $"Server type '{srv.Type.Id}@{srv.Type.Version}' not found in catalog.");
+                return dtRes.Error;
+            if (dtRes.Value.Role != TypeRole.Server)
+                return RegistryErrors.TypeInvalidRole(srv.Type.Id.Value, "server");
         }
+
         foreach (var dev in devices.Values)
         {
             var dtRes = _typeCatalog.Get(dev.Type);
             if (!dtRes.IsSuccess)
-                return RegistryErrors.InvariantViolation("R4", $"Device type '{dev.Type.Id}@{dev.Type.Version}' not found in catalog.");
+                return dtRes.Error;
+            if (dtRes.Value.Role != TypeRole.Device)
+                return RegistryErrors.TypeInvalidRole(dev.Type.Id.Value, "device");
         }
 
-        // R5: (ServerId, NativeId) unique per device; (ConnectionId, NativeId) unique per server
+        // R5: (ServerId, NativeId) unique per device; (ConnectionId, NativeId) unique per server.
         var serverSeen = new HashSet<(ConnectionId, string)>();
         foreach (var srv in servers.Values)
         {
             if (!serverSeen.Add((srv.ConnectionId, srv.NativeId)))
-                return RegistryErrors.InvariantViolation("R5", $"Duplicate server native ID '{srv.NativeId}' for connection {srv.ConnectionId}.");
+                return RegistryErrors.ServerDuplicateNativeId(srv.NativeId);
         }
+
         var devSeen = new HashSet<(ServerId, string)>();
         foreach (var dev in devices.Values)
         {
             if (!devSeen.Add((dev.ServerId, dev.NativeId)))
-                return RegistryErrors.InvariantViolation("R5", $"Duplicate device native ID '{dev.NativeId}' for server {dev.ServerId}.");
+                return RegistryErrors.DeviceDuplicateNativeId(dev.NativeId);
         }
 
-        // R6: Device parent belongs to same server; parent AllowedChildTypes; no cycles; depth <= 4
+        // R6: Device parent belongs to same server; parent AllowedChildTypes; no cycles; depth <= 4.
         foreach (var dev in devices.Values)
         {
-            if (dev.ParentId != null)
+            if (dev.ParentId == null)
+                continue;
+
+            if (!devices.TryGetValue(dev.ParentId.Value, out var parentDev))
+                return RegistryErrors.DeviceNotFound(dev.ParentId.Value.Value.ToString());
+
+            if (parentDev.ServerId != dev.ServerId)
+                return RegistryErrors.DeviceParentInvalid("otherServer");
+
+            var parentTypeResult = _typeCatalog.Get(parentDev.Type);
+            if (parentTypeResult.IsSuccess && parentTypeResult.Value.AllowedChildTypes.Count > 0
+                && !parentTypeResult.Value.AllowedChildTypes.Contains(dev.Type.Id.Value, StringComparer.Ordinal))
+                return RegistryErrors.DeviceParentInvalid("typeNotAllowed");
+
+            var cur = dev;
+            var depth = 0;
+            var visited = new HashSet<DeviceId> { cur.Id };
+            while (cur.ParentId != null)
             {
-                if (!devices.TryGetValue(dev.ParentId.Value, out var parentDev))
-                    return RegistryErrors.InvariantViolation("R6", $"Parent device {dev.ParentId} not found.");
-
-                if (parentDev.ServerId != dev.ServerId)
-                    return RegistryErrors.InvariantViolation("R6", "Parent device belongs to a different server.");
-
-                // cycle check & depth
-                var cur = dev;
-                var depth = 0;
-                var visited = new HashSet<DeviceId> { cur.Id };
-                while (cur.ParentId != null)
-                {
-                    depth++;
-                    if (depth > 4)
-                        return RegistryErrors.InvariantViolation("R6", "Device nesting exceeds depth 4.");
-                    if (visited.Contains(cur.ParentId.Value))
-                        return RegistryErrors.InvariantViolation("R6", "Cycle detected in device parents.");
-                    visited.Add(cur.ParentId.Value);
-                    if (!devices.TryGetValue(cur.ParentId.Value, out var nextParent))
-                        break;
-                    cur = nextParent;
-                }
+                depth++;
+                if (depth > 4)
+                    return RegistryErrors.DeviceParentInvalid("tooDeep");
+                if (visited.Contains(cur.ParentId.Value))
+                    return RegistryErrors.DeviceParentInvalid("cycle");
+                visited.Add(cur.ParentId.Value);
+                if (!devices.TryGetValue(cur.ParentId.Value, out var nextParent))
+                    break;
+                cur = nextParent;
             }
         }
 
-        // R7: Server parent belongs to same connection; depth <= 3
+        // R7: Server parent belongs to same connection; depth <= 3.
         foreach (var srv in servers.Values)
         {
-            if (srv.ParentId != null)
+            if (srv.ParentId == null)
+                continue;
+
+            if (!servers.TryGetValue(srv.ParentId.Value, out var parentSrv))
+                return RegistryErrors.ServerNotFound(srv.ParentId.Value.Value.ToString());
+
+            if (parentSrv.ConnectionId != srv.ConnectionId)
+                return RegistryErrors.ServerParentInvalid("otherConnection");
+
+            var cur = srv;
+            var depth = 0;
+            var visited = new HashSet<ServerId> { cur.Id };
+            while (cur.ParentId != null)
             {
-                if (!servers.TryGetValue(srv.ParentId.Value, out var parentSrv))
-                    return RegistryErrors.InvariantViolation("R7", $"Parent server {srv.ParentId} not found.");
-
-                if (parentSrv.ConnectionId != srv.ConnectionId)
-                    return RegistryErrors.InvariantViolation("R7", "Parent server belongs to a different connection.");
-
-                var cur = srv;
-                var depth = 0;
-                var visited = new HashSet<ServerId> { cur.Id };
-                while (cur.ParentId != null)
-                {
-                    depth++;
-                    if (depth > 3)
-                        return RegistryErrors.InvariantViolation("R7", "Server nesting exceeds depth 3.");
-                    if (visited.Contains(cur.ParentId.Value))
-                        return RegistryErrors.InvariantViolation("R7", "Cycle detected in server parents.");
-                    visited.Add(cur.ParentId.Value);
-                    if (!servers.TryGetValue(cur.ParentId.Value, out var nextParent))
-                        break;
-                    cur = nextParent;
-                }
+                depth++;
+                if (depth > 3)
+                    return RegistryErrors.ServerParentInvalid("tooDeep");
+                if (visited.Contains(cur.ParentId.Value))
+                    return RegistryErrors.ServerParentInvalid("cycle");
+                visited.Add(cur.ParentId.Value);
+                if (!servers.TryGetValue(cur.ParentId.Value, out var nextParent))
+                    break;
+                cur = nextParent;
             }
         }
 
-        // R8: Custom field target, key unique per target, required custom fields
+        // R8: Custom field target+key unique; required custom fields present on devices.
         var cfSeen = new HashSet<(CustomFieldTarget, string)>();
         foreach (var cf in customFields.Values)
         {
             if (!cfSeen.Add((cf.Target, cf.Key)))
-                return RegistryErrors.InvariantViolation("R8", $"Duplicate custom field key '{cf.Key}' for target {cf.Target}.");
+                return Error.Create(ErrorKind.Validation, CommonErrorCodes.ValueDuplicate.Value, ("value", cf.Key));
         }
 
         var requiredDeviceCfs = customFields.Values.Where(cf => cf.Target == CustomFieldTarget.Device && cf.Required).ToList();
@@ -639,39 +788,31 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
             foreach (var reqCf in requiredDeviceCfs)
             {
                 if (!dev.CustomFields.ContainsKey(reqCf.Id))
-                    return RegistryErrors.InvariantViolation("R8", $"Device {dev.Id} missing required custom field '{reqCf.Key}'.");
+                    return Error.Create(ErrorKind.Validation, CommonErrorCodes.ValueRequired.Value, ("field", reqCf.Key));
             }
         }
 
-        // R9: Link endpoints exist; no duplicate (role, from, to)
-        var linkSeen = new HashSet<(DeviceId, string, DeviceId)>();
+        // R9: Link endpoints exist (checked when staged); no duplicate (kind, from, to).
+        var linkSeen = new HashSet<(LinkKind, DeviceId, DeviceId)>();
         foreach (var l in links)
         {
-            if (l.SourceDeviceId == l.TargetDeviceId)
-                return RegistryErrors.InvariantViolation("R9", $"Self-links are forbidden (source == target: {l.SourceDeviceId}).");
-
-            if (!devices.ContainsKey(l.SourceDeviceId))
-                return RegistryErrors.InvariantViolation("R9", $"Link source device {l.SourceDeviceId} does not exist.");
-
-            if (!devices.ContainsKey(l.TargetDeviceId))
-                return RegistryErrors.InvariantViolation("R9", $"Link target device {l.TargetDeviceId} does not exist.");
-
-            if (!linkSeen.Add((l.SourceDeviceId, l.Role, l.TargetDeviceId)))
-                return RegistryErrors.InvariantViolation("R9", $"Duplicate link ({l.SourceDeviceId}, {l.Role}, {l.TargetDeviceId}).");
+            if (!linkSeen.Add((l.Kind, l.From, l.To)))
+                return RegistryErrors.LinkInvalid("duplicate");
         }
 
-        // R10: Every device / server has a location
+        // R10: Every device / server has a location.
         foreach (var srv in servers.Values)
         {
             if (!locations.ContainsKey(srv.LocationId))
-                return RegistryErrors.InvariantViolation("R10", $"Server {srv.Id} references non-existent location {srv.LocationId}.");
+                return RegistryErrors.LocationNotFound(srv.LocationId.Value.ToString());
         }
+
         foreach (var dev in devices.Values)
         {
             if (!locations.ContainsKey(dev.LocationId))
-                return RegistryErrors.InvariantViolation("R10", $"Device {dev.Id} references non-existent location {dev.LocationId}.");
+                return RegistryErrors.LocationNotFound(dev.LocationId.Value.ToString());
             if (!servers.ContainsKey(dev.ServerId))
-                return RegistryErrors.InvariantViolation("R10", $"Device {dev.Id} references non-existent server {dev.ServerId}.");
+                return RegistryErrors.ServerNotFound(dev.ServerId.Value.ToString());
         }
 
         return Result.Success();
@@ -698,6 +839,7 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
     private async Task PersistChangesAsync(
         RegistryDbContext db,
         RegistryChangeBatch batch,
+        RegistrySnapshot before,
         Site site,
         Dictionary<LocationId, Location> locations,
         Dictionary<TagFamilyId, TagFamily> tagFamilies,
@@ -707,6 +849,8 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
         List<DeviceLink> links,
         Dictionary<CustomFieldId, CustomFieldDefinition> customFields,
         Dictionary<LocationId, (string OldPath, string NewPath)> touchedLocationPaths,
+        Dictionary<ServerId, Server> touchedServers,
+        Dictionary<DeviceId, Device> touchedDevices,
         CancellationToken ct)
     {
         var now = _clock.GetUtcNow();
@@ -740,69 +884,50 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
             }
         }
 
-        // 2. Locations
-        foreach (var (locId, paths) in touchedLocationPaths)
+        // 2. Locations: explicit upserts, plus every location whose path changed (moves, renames, reassignment cascades)
+        var upsertedLocationIds = batch.Changes.OfType<RegistryChange.UpsertLocation>().Select(c => c.Location.Id);
+        var locationIdsToSave = upsertedLocationIds.Concat(touchedLocationPaths.Keys).Distinct().OrderBy(id => locations[id].Depth);
+        foreach (var locId in locationIdsToSave)
         {
-            var lRecord = await db.Locations.AsTracking().FirstOrDefaultAsync(r => r.Id == locId.Value, ct);
-            if (lRecord != null)
+            var loc = locations[locId];
+            var el = await db.Locations.AsTracking().FirstOrDefaultAsync(r => r.Id == loc.Id.Value, ct);
+            if (el == null)
             {
-                var loc = locations[locId];
-                lRecord.Path = loc.Path;
-                lRecord.Depth = loc.Depth;
-                lRecord.RowVersion = loc.Version;
-                lRecord.UpdatedAt = now;
-                db.Locations.Update(lRecord);
+                db.Locations.Add(new LocationRecord
+                {
+                    Id = loc.Id.Value,
+                    ParentId = loc.ParentId?.Value,
+                    NameDefault = loc.Name.Default,
+                    NameTranslations = JsonSerializer.Serialize(loc.Name.Translations),
+                    Kind = loc.Kind.ToString(),
+                    Path = loc.Path,
+                    Depth = loc.Depth,
+                    Tz = loc.Tz,
+                    Address = loc.Address,
+                    Notes = loc.Notes,
+                    SortOrder = loc.SortOrder,
+                    RowVersion = loc.Version,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                });
             }
-        }
-
-        var locationGroups = batch.Changes
-            .OfType<RegistryChange.UpsertLocation>()
-            .Select(ul => locations[ul.Location.Id])
-            .GroupBy(l => l.Depth)
-            .OrderBy(g => g.Key);
-
-        foreach (var group in locationGroups)
-        {
-            foreach (var loc in group)
+            else
             {
-                var el = await db.Locations.AsTracking().FirstOrDefaultAsync(r => r.Id == loc.Id.Value, ct);
-                if (el == null)
-                {
-                    db.Locations.Add(new LocationRecord
-                    {
-                        Id = loc.Id.Value,
-                        ParentId = loc.ParentId?.Value,
-                        NameDefault = loc.Name.Default,
-                        NameTranslations = JsonSerializer.Serialize(loc.Name.Translations),
-                        Kind = loc.Kind.ToString(),
-                        Path = loc.Path,
-                        Depth = loc.Depth,
-                        Tz = loc.Tz,
-                        Address = loc.Address,
-                        Notes = loc.Notes,
-                        SortOrder = loc.SortOrder,
-                        RowVersion = loc.Version,
-                        CreatedAt = now,
-                        UpdatedAt = now
-                    });
-                }
-                else
-                {
-                    el.ParentId = loc.ParentId?.Value;
-                    el.NameDefault = loc.Name.Default;
-                    el.NameTranslations = JsonSerializer.Serialize(loc.Name.Translations);
-                    el.Kind = loc.Kind.ToString();
-                    el.Path = loc.Path;
-                    el.Depth = loc.Depth;
-                    el.Tz = loc.Tz;
-                    el.Address = loc.Address;
-                    el.Notes = loc.Notes;
-                    el.SortOrder = loc.SortOrder;
-                    el.RowVersion = loc.Version;
-                    el.UpdatedAt = now;
-                    db.Locations.Update(el);
-                }
+                el.ParentId = loc.ParentId?.Value;
+                el.NameDefault = loc.Name.Default;
+                el.NameTranslations = JsonSerializer.Serialize(loc.Name.Translations);
+                el.Kind = loc.Kind.ToString();
+                el.Path = loc.Path;
+                el.Depth = loc.Depth;
+                el.Tz = loc.Tz;
+                el.Address = loc.Address;
+                el.Notes = loc.Notes;
+                el.SortOrder = loc.SortOrder;
+                el.RowVersion = loc.Version;
+                el.UpdatedAt = now;
+                db.Locations.Update(el);
             }
+
             await db.SaveChangesAsync(ct);
         }
 
@@ -873,10 +998,11 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
         }
         await db.SaveChangesAsync(ct);
 
-        // 4. Servers
-        foreach (var usrv in batch.Changes.OfType<RegistryChange.UpsertServer>())
+        // 4. Servers: explicit upserts plus servers reassigned to another location by a location delete.
+        var serverIdsToSave = batch.Changes.OfType<RegistryChange.UpsertServer>().Select(c => c.Server.Id).Concat(touchedServers.Keys).Distinct();
+        foreach (var srvId in serverIdsToSave)
         {
-            var srv = servers[usrv.Server.Id];
+            var srv = servers[srvId];
             var es = await db.Servers.AsTracking().FirstOrDefaultAsync(r => r.Id == srv.Id.Value, ct);
             if (es == null)
             {
@@ -921,10 +1047,14 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
         }
         await db.SaveChangesAsync(ct);
 
-        // 5. Devices
-        foreach (var udev in batch.Changes.OfType<RegistryChange.UpsertDevice>())
+        // 5. Devices: explicit upserts/patches plus devices reassigned to another location by a location delete.
+        var deviceIdsToSave = batch.Changes.OfType<RegistryChange.UpsertDevice>().Select(c => c.Device.Id)
+            .Concat(batch.Changes.OfType<RegistryChange.PatchDevice>().Select(c => c.Id))
+            .Concat(touchedDevices.Keys)
+            .Distinct();
+        foreach (var devId in deviceIdsToSave)
         {
-            var dev = devices[udev.Device.Id];
+            var dev = devices[devId];
             var ed = await db.Devices.AsTracking().FirstOrDefaultAsync(r => r.Id == dev.Id.Value, ct);
             if (ed == null)
             {
@@ -975,45 +1105,21 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
                 db.Devices.Update(ed);
             }
         }
-
-        foreach (var pdev in batch.Changes.OfType<RegistryChange.PatchDevice>())
-        {
-            var pDev = devices[pdev.Id];
-            var epd = await db.Devices.AsTracking().FirstOrDefaultAsync(r => r.Id == pDev.Id.Value, ct);
-            if (epd != null)
-            {
-                epd.DisplayName = pDev.DisplayName != null ? JsonSerializer.Serialize(pDev.DisplayName) : null;
-                epd.LocationId = pDev.LocationId.Value;
-                epd.Tags = pDev.Tags.Select(t => t.Value).ToArray();
-                epd.Attributes = JsonSerializer.Serialize(pDev.Attributes);
-                epd.CustomFields = JsonSerializer.Serialize(pDev.CustomFields);
-                epd.UnsupportedCaps = pDev.UnsupportedCaps.Select(c => c.ToString()).ToArray();
-                epd.Geometry = pDev.Geometry != null ? JsonSerializer.Serialize(pDev.Geometry) : null;
-                epd.Enabled = pDev.Enabled;
-                epd.Maintenance = pDev.Maintenance;
-                epd.RowVersion = pDev.Version;
-                epd.UpdatedAt = now;
-                db.Devices.Update(epd);
-            }
-        }
         await db.SaveChangesAsync(ct);
 
-        // 6. Device Links
-        foreach (var udl in batch.Changes.OfType<RegistryChange.UpsertDeviceLink>())
+        // 6. Device Links: explicit upserts.
+        foreach (var ulk in batch.Changes.OfType<RegistryChange.UpsertLink>())
         {
-            var link = udl.Link;
-            var elink = await db.DeviceLinks.AsTracking().FirstOrDefaultAsync(r =>
-                r.SourceDeviceId == link.SourceDeviceId.Value &&
-                r.Role == link.Role &&
-                r.TargetDeviceId == link.TargetDeviceId.Value, ct);
+            var link = links.First(l => l.Id == ulk.Link.Id);
+            var elink = await db.DeviceLinks.AsTracking().FirstOrDefaultAsync(r => r.Id == link.Id.Value, ct);
             if (elink == null)
             {
                 db.DeviceLinks.Add(new DeviceLinkRecord
                 {
-                    SourceDeviceId = link.SourceDeviceId.Value,
-                    Role = link.Role,
-                    TargetDeviceId = link.TargetDeviceId.Value,
-                    Metadata = JsonSerializer.Serialize(link.Metadata),
+                    Id = link.Id.Value,
+                    Kind = link.Kind.ToString(),
+                    FromId = link.From.Value,
+                    ToId = link.To.Value,
                     RowVersion = link.Version,
                     CreatedAt = now,
                     UpdatedAt = now
@@ -1021,7 +1127,9 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
             }
             else
             {
-                elink.Metadata = JsonSerializer.Serialize(link.Metadata);
+                elink.Kind = link.Kind.ToString();
+                elink.FromId = link.From.Value;
+                elink.ToId = link.To.Value;
                 elink.RowVersion = link.Version;
                 elink.UpdatedAt = now;
                 db.DeviceLinks.Update(elink);
@@ -1031,7 +1139,7 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
         // 7. Custom Fields
         foreach (var ucf in batch.Changes.OfType<RegistryChange.UpsertCustomField>())
         {
-            var cf = customFields[ucf.CustomField.Id];
+            var cf = customFields[ucf.Definition.Id];
             var ecf = await db.CustomFields.AsTracking().FirstOrDefaultAsync(r => r.Id == cf.Id.Value, ct);
             if (ecf == null)
             {
@@ -1063,44 +1171,49 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
             }
         }
 
-        // 8. Deletions (reverse dependency order: links, devices, servers, tags, tag families, custom fields, locations)
-        foreach (var ddl in batch.Changes.OfType<RegistryChange.DeleteDeviceLink>())
+        // 8. Deletions, derived from the before/after diff so that cascades (DeleteServer DeleteDevices,
+        // DeleteDevice DeleteChildren, device/location deletion dropping their links) are persisted correctly,
+        // in dependency order: links, devices, servers, tags, tag families, custom fields, locations.
+        var deletedLinkIds = before.Links.Select(l => l.Id).Except(links.Select(l => l.Id)).Select(id => id.Value).ToList();
+        if (deletedLinkIds.Count > 0)
         {
-            var delLink = await db.DeviceLinks.AsTracking().FirstOrDefaultAsync(r =>
-                r.SourceDeviceId == ddl.SourceDeviceId.Value &&
-                r.Role == ddl.Role &&
-                r.TargetDeviceId == ddl.TargetDeviceId.Value, ct);
-            if (delLink != null) db.DeviceLinks.Remove(delLink);
+            await db.DeviceLinks.Where(r => deletedLinkIds.Contains(r.Id)).ExecuteDeleteAsync(ct);
         }
-        foreach (var ddev in batch.Changes.OfType<RegistryChange.DeleteDevice>())
+
+        var deletedDeviceIds = before.Devices.Keys.Except(devices.Keys).Select(id => id.Value).ToList();
+        if (deletedDeviceIds.Count > 0)
         {
-            var delDev = await db.Devices.AsTracking().FirstOrDefaultAsync(r => r.Id == ddev.Id.Value, ct);
-            if (delDev != null) db.Devices.Remove(delDev);
+            await db.Devices.Where(r => deletedDeviceIds.Contains(r.Id)).ExecuteDeleteAsync(ct);
         }
-        foreach (var dsrv in batch.Changes.OfType<RegistryChange.DeleteServer>())
+
+        var deletedServerIds = before.Servers.Keys.Except(servers.Keys).Select(id => id.Value).ToList();
+        if (deletedServerIds.Count > 0)
         {
-            var delSrv = await db.Servers.AsTracking().FirstOrDefaultAsync(r => r.Id == dsrv.Id.Value, ct);
-            if (delSrv != null) db.Servers.Remove(delSrv);
+            await db.Servers.Where(r => deletedServerIds.Contains(r.Id)).ExecuteDeleteAsync(ct);
         }
-        foreach (var dt in batch.Changes.OfType<RegistryChange.DeleteTag>())
+
+        var deletedTagIds = before.Tags.Keys.Except(tags.Keys).Select(id => id.Value).ToList();
+        if (deletedTagIds.Count > 0)
         {
-            var delTag = await db.Tags.AsTracking().FirstOrDefaultAsync(r => r.Id == dt.Id.Value, ct);
-            if (delTag != null) db.Tags.Remove(delTag);
+            await db.Tags.Where(r => deletedTagIds.Contains(r.Id)).ExecuteDeleteAsync(ct);
         }
-        foreach (var dtf in batch.Changes.OfType<RegistryChange.DeleteTagFamily>())
+
+        var deletedTagFamilyIds = before.TagFamilies.Keys.Except(tagFamilies.Keys).Select(id => id.Value).ToList();
+        if (deletedTagFamilyIds.Count > 0)
         {
-            var delTf = await db.TagFamilies.AsTracking().FirstOrDefaultAsync(r => r.Id == dtf.Id.Value, ct);
-            if (delTf != null) db.TagFamilies.Remove(delTf);
+            await db.TagFamilies.Where(r => deletedTagFamilyIds.Contains(r.Id)).ExecuteDeleteAsync(ct);
         }
-        foreach (var dcf in batch.Changes.OfType<RegistryChange.DeleteCustomField>())
+
+        var deletedCustomFieldIds = before.CustomFields.Keys.Except(customFields.Keys).Select(id => id.Value).ToList();
+        if (deletedCustomFieldIds.Count > 0)
         {
-            var delCf = await db.CustomFields.AsTracking().FirstOrDefaultAsync(r => r.Id == dcf.Id.Value, ct);
-            if (delCf != null) db.CustomFields.Remove(delCf);
+            await db.CustomFields.Where(r => deletedCustomFieldIds.Contains(r.Id)).ExecuteDeleteAsync(ct);
         }
-        foreach (var dl in batch.Changes.OfType<RegistryChange.DeleteLocation>())
+
+        var deletedLocationIds = before.Locations.Keys.Except(locations.Keys).Select(id => id.Value).ToList();
+        if (deletedLocationIds.Count > 0)
         {
-            var delLoc = await db.Locations.AsTracking().FirstOrDefaultAsync(r => r.Id == dl.Id.Value, ct);
-            if (delLoc != null) db.Locations.Remove(delLoc);
+            await db.Locations.Where(r => deletedLocationIds.Contains(r.Id)).ExecuteDeleteAsync(ct);
         }
     }
 }

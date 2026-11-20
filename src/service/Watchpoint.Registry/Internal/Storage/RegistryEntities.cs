@@ -127,10 +127,10 @@ internal sealed class DeviceRecord
 [Table("device_links", Schema = "wp_registry")]
 internal sealed class DeviceLinkRecord
 {
-    public Guid SourceDeviceId { get; set; }
-    public string Role { get; set; } = null!;
-    public Guid TargetDeviceId { get; set; }
-    public string Metadata { get; set; } = "{}";
+    public Guid Id { get; set; }
+    public string Kind { get; set; } = null!;
+    public Guid FromId { get; set; }
+    public Guid ToId { get; set; }
     public long RowVersion { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
@@ -168,9 +168,10 @@ internal sealed class OutboxRecord
 {
     public long Revision { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
-    public string? Actor { get; set; }
-    public string? Reason { get; set; }
-    public string? CorrelationId { get; set; }
+    public Guid? Actor { get; set; }
+    public string Origin { get; set; } = null!;
+    public Guid? ChangeSet { get; set; }
+    public string? Comment { get; set; }
     public string Changes { get; set; } = "[]";
     public DateTimeOffset? SentAt { get; set; }
 }

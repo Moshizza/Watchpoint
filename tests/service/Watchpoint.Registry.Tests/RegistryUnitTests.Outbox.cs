@@ -32,7 +32,7 @@ public sealed partial class RegistryUnitTests
     {
         (await _writer.ApplyAsync(SiteBatch("Europe/Paris"), _context, Ct)).IsSuccess.ShouldBeTrue();
 
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var stale = new RegistryChangeBatch([new RegistryChange.UpsertLocation(root with { Notes = "stale" }, ExpectedVersion: 99)]);
         (await _writer.ApplyAsync(stale, _context, Ct)).IsSuccess.ShouldBeFalse();
 
@@ -86,5 +86,5 @@ public sealed partial class RegistryUnitTests
     }
 
     private RegistryChangeBatch SiteBatch(string timeZone) =>
-        new([new RegistryChange.UpdateSite(_reader.GetSite() with { DefaultTimezone = timeZone })]);
+        new([new RegistryChange.UpdateSite(_reader.Site with { DefaultTimezone = timeZone })]);
 }

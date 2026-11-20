@@ -150,15 +150,12 @@ internal static class RegistrySnapshotLoader
             });
 
         var links = db.DeviceLinks.AsNoTracking().ToList().Select(r =>
-        {
-            var meta = JsonSerializer.Deserialize<Dictionary<string, WpValue>>(r.Metadata) ?? new();
-            return new DeviceLink(
-                DeviceId.From(r.SourceDeviceId),
-                r.Role,
-                DeviceId.From(r.TargetDeviceId),
-                meta,
-                r.RowVersion);
-        }).ToList();
+            new DeviceLink(
+                LinkId.From(r.Id),
+                Enum.Parse<LinkKind>(r.Kind),
+                DeviceId.From(r.FromId),
+                DeviceId.From(r.ToId),
+                r.RowVersion)).ToList();
 
         var customFields = db.CustomFields.AsNoTracking().ToList().ToDictionary(
             r => CustomFieldId.From(r.Id),
@@ -177,7 +174,10 @@ internal static class RegistrySnapshotLoader
                     r.RowVersion);
             });
 
+        var revision = db.Revision.AsNoTracking().FirstOrDefault()?.Value ?? 0;
+
         return new RegistrySnapshot(
+            revision,
             site,
             locations,
             tagFamilies,

@@ -1,4 +1,5 @@
 using Watchpoint.Kernel.Ids;
+using Watchpoint.Kernel.Paging;
 using Watchpoint.Kernel.Results;
 using Watchpoint.Registry.Contracts;
 
@@ -7,74 +8,86 @@ namespace Watchpoint.Registry.Internal;
 internal sealed class RegistryReader : IRegistryReader
 {
     private readonly Func<RegistrySnapshot> _snapshotProvider;
+    private readonly DeviceEnrichmentCache? _enrichmentCache;
+    private readonly RegistryChangeFeed? _feed;
 
-    public RegistryReader(Func<RegistrySnapshot> snapshotProvider)
+    public RegistryReader(Func<RegistrySnapshot> snapshotProvider, DeviceEnrichmentCache? enrichmentCache = null, RegistryChangeFeed? feed = null)
     {
         _snapshotProvider = snapshotProvider;
+        _enrichmentCache = enrichmentCache;
+        _feed = feed;
     }
 
     private RegistrySnapshot Snapshot => _snapshotProvider();
 
-    public Site GetSite() => Snapshot.Site;
+    public long Revision => Snapshot.Revision;
 
-    public Result<Location> GetLocation(LocationId id) =>
-        Snapshot.Locations.TryGetValue(id, out var loc) ? loc : RegistryErrors.EntityNotFound("location", id.Value.ToString());
+    public Site Site => Snapshot.Site;
 
-    public Result<Location> GetRootLocation() =>
-        Snapshot.RootLocation != null ? Snapshot.RootLocation : RegistryErrors.EntityNotFound("location", "root");
-
-    public IReadOnlyList<Location> GetLocationChildren(LocationId parentId) =>
-        Snapshot.LocationsByParent.TryGetValue(parentId, out var children) ? children : [];
-
-    public Page<Location> QueryLocations(LocationQuery query, PageRequest page)
+    public event EventHandler<RegistryChangedEventArgs>? Changed
     {
-        var items = Snapshot.Locations.Values.AsEnumerable();
-
-        if (query.ParentId != null)
-            items = items.Where(l => l.ParentId == query.ParentId);
-
-        if (!string.IsNullOrEmpty(query.PathPrefix))
-            items = items.Where(l => l.Path.StartsWith(query.PathPrefix, StringComparison.Ordinal));
-
-        if (!string.IsNullOrWhiteSpace(query.SearchText))
-        {
-            var norm = TextSearchNormalizer.Normalize(query.SearchText);
-            items = items.Where(l => TextSearchNormalizer.Normalize(l.Name.Default).Contains(norm, StringComparison.Ordinal)
-                || l.Name.Translations.Values.Any(v => TextSearchNormalizer.Normalize(v).Contains(norm, StringComparison.Ordinal)));
-        }
-
-        var ordered = items.OrderBy(l => l.SortOrder).ThenBy(l => l.Name.Default, StringComparer.OrdinalIgnoreCase).ThenBy(l => l.Id).ToList();
-        return Paginate(ordered, page, l => l.Id.Value.ToString());
+        add { if (_feed != null) _feed.Changed += value; }
+        remove { if (_feed != null) _feed.Changed -= value; }
     }
 
-    public Result<TagFamily> GetTagFamily(TagFamilyId id) =>
-        Snapshot.TagFamilies.TryGetValue(id, out var tf) ? tf : RegistryErrors.EntityNotFound("tag_family", id.Value.ToString());
+    public Result<Location> GetLocation(LocationId id) =>
+        Snapshot.Locations.TryGetValue(id, out var loc) ? loc : RegistryErrors.LocationNotFound(id.Value.ToString());
 
-    public Result<TagFamily> GetTagFamilyByKey(string key) =>
-        Snapshot.TagFamiliesByKey.TryGetValue(key, out var tf) ? tf : RegistryErrors.EntityNotFound("tag_family", key);
+    public IReadOnlyList<Location> GetLocationTree() => Snapshot.LocationTree;
 
-    public IReadOnlyList<TagFamily> ListTagFamilies() =>
-        Snapshot.TagFamilies.Values.OrderBy(f => f.Key, StringComparer.OrdinalIgnoreCase).ToList();
-
-    public Result<Tag> GetTag(TagId id) =>
-        Snapshot.Tags.TryGetValue(id, out var t) ? t : RegistryErrors.EntityNotFound("tag", id.Value.ToString());
-
-    public Result<Tag> GetTagByKey(TagFamilyId familyId, string key) =>
-        Snapshot.TagsByFamilyAndKey.TryGetValue((familyId, key), out var t) ? t : RegistryErrors.EntityNotFound("tag", key);
-
-    public IReadOnlyList<Tag> ListTags(TagFamilyId? familyId = null)
+    public IReadOnlyList<Location> GetAncestors(LocationId id)
     {
-        if (familyId != null)
-            return Snapshot.TagsByFamily.TryGetValue(familyId.Value, out var list) ? list : [];
+        var snapshot = Snapshot;
+        if (!snapshot.Locations.TryGetValue(id, out var location))
+        {
+            return [];
+        }
 
-        return Snapshot.Tags.Values.OrderBy(t => t.Key, StringComparer.OrdinalIgnoreCase).ToList();
+        var ancestors = new List<Location>();
+        var current = location;
+        while (current.ParentId != null && snapshot.Locations.TryGetValue(current.ParentId.Value, out var parent))
+        {
+            ancestors.Add(parent);
+            current = parent;
+        }
+
+        ancestors.Reverse();
+        return ancestors;
     }
 
     public Result<Server> GetServer(ServerId id) =>
-        Snapshot.Servers.TryGetValue(id, out var s) ? s : RegistryErrors.EntityNotFound("server", id.Value.ToString());
+        Snapshot.Servers.TryGetValue(id, out var s) ? s : RegistryErrors.ServerNotFound(id.Value.ToString());
 
-    public Result<Server> GetServerByNativeId(ConnectionId connectionId, string nativeId) =>
-        Snapshot.ServersByConnectionAndNative.TryGetValue((connectionId, nativeId), out var s) ? s : RegistryErrors.EntityNotFound("server", nativeId);
+    public Result<Device> GetDevice(DeviceId id) =>
+        Snapshot.Devices.TryGetValue(id, out var d) ? d : RegistryErrors.DeviceNotFound(id.Value.ToString());
+
+    public Result<Device> FindDeviceByNativeId(ServerId server, string nativeId) =>
+        Snapshot.DevicesByServerAndNative.TryGetValue((server, nativeId), out var d) ? d : RegistryErrors.DeviceNotFound(nativeId);
+
+    public IReadOnlyList<Server> GetServersOfConnection(ConnectionId connection) =>
+        Snapshot.ServersByConnection.TryGetValue(connection, out var list) ? list : [];
+
+    public IReadOnlyList<Device> GetChildren(DeviceId parent) =>
+        Snapshot.DevicesByParent.TryGetValue(parent, out var list) ? list : [];
+
+    public IReadOnlyList<DeviceLink> GetLinks(DeviceId device, LinkKind? kind = null, LinkDirection direction = LinkDirection.Both)
+    {
+        var snapshot = Snapshot;
+        IEnumerable<DeviceLink> links = direction switch
+        {
+            LinkDirection.Outgoing => snapshot.LinksOutgoing.TryGetValue(device, out var outList) ? outList : [],
+            LinkDirection.Incoming => snapshot.LinksIncoming.TryGetValue(device, out var inList) ? inList : [],
+            _ => (snapshot.LinksOutgoing.TryGetValue(device, out var o) ? o : [])
+                .Concat(snapshot.LinksIncoming.TryGetValue(device, out var i) ? i : []),
+        };
+
+        if (kind != null)
+        {
+            links = links.Where(l => l.Kind == kind.Value);
+        }
+
+        return links.ToList();
+    }
 
     public Page<Server> QueryServers(ServerQuery query, PageRequest page)
     {
@@ -102,12 +115,6 @@ internal sealed class RegistryReader : IRegistryReader
         var ordered = items.OrderBy(s => s.DisplayName?.Default ?? s.VendorName, StringComparer.OrdinalIgnoreCase).ThenBy(s => s.Id).ToList();
         return Paginate(ordered, page, s => s.Id.Value.ToString());
     }
-
-    public Result<Device> GetDevice(DeviceId id) =>
-        Snapshot.Devices.TryGetValue(id, out var d) ? d : RegistryErrors.EntityNotFound("device", id.Value.ToString());
-
-    public Result<Device> GetDeviceByNativeId(ServerId serverId, string nativeId) =>
-        Snapshot.DevicesByServerAndNative.TryGetValue((serverId, nativeId), out var d) ? d : RegistryErrors.EntityNotFound("device", nativeId);
 
     public Page<Device> QueryDevices(DeviceQuery query, PageRequest page)
     {
@@ -163,42 +170,70 @@ internal sealed class RegistryReader : IRegistryReader
         return Paginate(ordered, page, d => d.Id.Value.ToString());
     }
 
-    public IReadOnlyList<DeviceLink> GetOutgoingLinks(DeviceId sourceId) =>
-        Snapshot.LinksOutgoing.TryGetValue(sourceId, out var links) ? links : [];
+    public IReadOnlyList<Tag> GetTags() =>
+        Snapshot.Tags.Values.OrderBy(t => t.Key, StringComparer.OrdinalIgnoreCase).ToList();
 
-    public IReadOnlyList<DeviceLink> GetIncomingLinks(DeviceId targetId) =>
-        Snapshot.LinksIncoming.TryGetValue(targetId, out var links) ? links : [];
+    public IReadOnlyList<TagFamily> GetTagFamilies() =>
+        Snapshot.TagFamilies.Values.OrderBy(f => f.Key, StringComparer.OrdinalIgnoreCase).ToList();
 
-    public IReadOnlyList<DeviceLink> GetLinks(DeviceId? sourceId = null, string? role = null, DeviceId? targetId = null)
+    public IReadOnlyList<CustomFieldDefinition> GetCustomFields(CustomFieldTarget target) =>
+        Snapshot.CustomFieldsByTarget.TryGetValue(target, out var list) ? list : [];
+
+    public DeviceEnrichment GetEnrichment(DeviceId id)
     {
-        var links = Snapshot.Links.AsEnumerable();
+        var cached = _enrichmentCache?.Get(id);
+        if (cached != null)
+        {
+            return cached;
+        }
 
-        if (sourceId != null)
-            links = links.Where(l => l.SourceDeviceId == sourceId);
-
-        if (!string.IsNullOrEmpty(role))
-            links = links.Where(l => string.Equals(l.Role, role, StringComparison.OrdinalIgnoreCase));
-
-        if (targetId != null)
-            links = links.Where(l => l.TargetDeviceId == targetId);
-
-        return links.ToList();
+        var enrichment = Compute(id);
+        _enrichmentCache?.Put(enrichment);
+        return enrichment;
     }
 
-    public Result<CustomFieldDefinition> GetCustomField(CustomFieldId id) =>
-        Snapshot.CustomFields.TryGetValue(id, out var cf) ? cf : RegistryErrors.EntityNotFound("custom_field", id.Value.ToString());
-
-    public IReadOnlyList<CustomFieldDefinition> ListCustomFields(CustomFieldTarget? target = null)
+    /// <summary>Computes the enrichment of a device from the current snapshot (REG §7.2).</summary>
+    internal DeviceEnrichment Compute(DeviceId id)
     {
-        if (target != null)
-            return Snapshot.CustomFieldsByTarget.TryGetValue(target.Value, out var list) ? list : [];
+        var snapshot = Snapshot;
+        if (!snapshot.Devices.TryGetValue(id, out var device))
+        {
+            throw new InvalidOperationException($"Device {id} does not exist; callers must resolve it with GetDevice first.");
+        }
 
-        return Snapshot.CustomFields.Values.OrderBy(cf => cf.Key, StringComparer.OrdinalIgnoreCase).ToList();
+        var locationNames = new List<string>();
+        var locationPath = string.Empty;
+        if (snapshot.Locations.TryGetValue(device.LocationId, out var location))
+        {
+            locationPath = location.Path;
+            locationNames.AddRange(GetAncestors(device.LocationId).Select(l => l.Name.Default));
+            locationNames.Add(location.Name.Default);
+        }
+
+        var tagKeys = device.Tags
+            .Select(t => snapshot.Tags.TryGetValue(t, out var tag) ? tag.Key : null)
+            .Where(k => k != null)
+            .Select(k => k!)
+            .ToList();
+
+        var linkedCameras = GetLinks(id, LinkKind.CameraViews, LinkDirection.Incoming).Select(l => l.From).ToList();
+
+        return new DeviceEnrichment(
+            device.Id,
+            device.DisplayName?.Default ?? device.VendorName,
+            device.ServerId,
+            device.LocationId,
+            locationPath,
+            locationNames,
+            tagKeys,
+            device.Type,
+            linkedCameras,
+            device.Enabled,
+            device.Maintenance);
     }
 
     private static Page<T> Paginate<T>(List<T> allItems, PageRequest page, Func<T, string> idSelector)
     {
-        var totalCount = allItems.Count;
         var filtered = allItems.AsEnumerable();
 
         if (!string.IsNullOrEmpty(page.Cursor))
@@ -208,11 +243,11 @@ internal sealed class RegistryReader : IRegistryReader
                 filtered = allItems.Skip(skipIndex + 1);
         }
 
-        var pageSize = Math.Max(1, page.PageSize);
-        var pageItems = filtered.Take(pageSize).ToList();
+        var limit = Math.Max(1, page.Limit);
+        var pageItems = filtered.Take(limit).ToList();
         string? nextCursor = null;
 
-        if (pageItems.Count == pageSize)
+        if (pageItems.Count == limit)
         {
             var lastItem = pageItems[^1];
             var lastIndex = allItems.FindIndex(item => idSelector(item) == idSelector(lastItem));
@@ -222,6 +257,6 @@ internal sealed class RegistryReader : IRegistryReader
             }
         }
 
-        return new Page<T>(pageItems, nextCursor, totalCount);
+        return new Page<T>(pageItems, nextCursor);
     }
 }

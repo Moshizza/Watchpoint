@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using Shouldly;
 using Watchpoint.Kernel.Ids;
+using Watchpoint.Kernel.Paging;
 using Watchpoint.Kernel.Results;
 using Watchpoint.Kernel.Testing;
 using Watchpoint.Kernel.Text;
@@ -31,10 +32,11 @@ public sealed partial class RegistryUnitTests : IDisposable
     private RegistrySnapshot _snapshot;
     private readonly TestDbContextFactory _factory;
     private readonly RegistryOutbox _outbox;
+    private readonly DeviceEnrichmentCache _enrichmentCache = new();
+    private readonly RegistryChangeFeed _feed = new();
     private readonly RegistryWriter _writer;
     private readonly RegistryReader _reader;
-    private readonly DeviceEnrichmentCache _cache = new();
-    private readonly ChangeContext _context = new("test-user", "unit-test");
+    private readonly ChangeContext _context = new(UserId.New(), "api", null, "unit-test");
 
     public RegistryUnitTests()
     {
@@ -56,6 +58,7 @@ public sealed partial class RegistryUnitTests : IDisposable
         var root = new Location(rootId, null, new LocalizedName("Campus", new Dictionary<string, string>()), LocationKind.Site, "/Campus", 0, null, null, null, 0, 1);
 
         _snapshot = new RegistrySnapshot(
+            0,
             site,
             new Dictionary<LocationId, Location> { [rootId] = root },
             new Dictionary<TagFamilyId, TagFamily>(),
@@ -67,8 +70,8 @@ public sealed partial class RegistryUnitTests : IDisposable
 
         _factory = new TestDbContextFactory(_options, _info);
         _outbox = new RegistryOutbox(_factory, _clock);
-        _writer = new RegistryWriter(_factory, _types, _outbox, _clock, NullLogger<RegistryWriter>.Instance, s => _snapshot = s, () => _snapshot);
-        _reader = new RegistryReader(() => _snapshot);
+        _writer = new RegistryWriter(_factory, _types, _outbox, _clock, NullLogger<RegistryWriter>.Instance, s => _snapshot = s, () => _snapshot, _enrichmentCache, _feed);
+        _reader = new RegistryReader(() => _snapshot, _enrichmentCache, _feed);
     }
 
     public void Dispose()
@@ -77,24 +80,27 @@ public sealed partial class RegistryUnitTests : IDisposable
         _connection.Dispose();
     }
 
+    /// <summary>The single root location of the freshly-created snapshot.</summary>
+    private Location Root => _reader.GetLocationTree().Single(l => l.ParentId == null);
+
     [Fact]
     public async Task REG_U_001_Site_configuration_read_and_update()
     {
-        var current = _reader.GetSite();
+        var current = _reader.Site;
         current.DefaultTimezone.ShouldBe("UTC");
 
         var updated = current with { DefaultTimezone = "Europe/Paris" };
         var res = await _writer.ApplyAsync(new RegistryChangeBatch([new RegistryChange.UpdateSite(updated, ExpectedVersion: current.Version)]), _context, TestContext.Current.CancellationToken);
 
         res.IsSuccess.ShouldBeTrue();
-        _reader.GetSite().DefaultTimezone.ShouldBe("Europe/Paris");
-        _reader.GetSite().Version.ShouldBe(current.Version + 1);
+        _reader.Site.DefaultTimezone.ShouldBe("Europe/Paris");
+        _reader.Site.Version.ShouldBe(current.Version + 1);
     }
 
     [Fact]
     public async Task REG_U_002_Location_tree_creation_and_traversal()
     {
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var bId = LocationId.New();
         var fId = LocationId.New();
 
@@ -112,15 +118,17 @@ public sealed partial class RegistryUnitTests : IDisposable
         locF.Path.ShouldBe("/Campus/Building 1/Floor 1");
         locF.Depth.ShouldBe(2);
 
-        var children = _reader.GetLocationChildren(root.Id);
-        children.Count.ShouldBe(1);
-        children[0].Id.ShouldBe(bId);
+        var ancestorsOfF = _reader.GetAncestors(fId);
+        ancestorsOfF.Select(l => l.Id).ShouldBe([root.Id, bId]);
+
+        var tree = _reader.GetLocationTree();
+        tree.Select(l => l.Id).ShouldBe([root.Id, bId, fId]);
     }
 
     [Fact]
     public async Task REG_U_003_Location_path_and_depth_computation()
     {
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var locId = LocationId.New();
         var loc = new Location(locId, root.Id, new LocalizedName("North Wing", new Dictionary<string, string>()), LocationKind.Zone, "", 0, null, null, null, 0, 0);
 
@@ -134,7 +142,7 @@ public sealed partial class RegistryUnitTests : IDisposable
     [Fact]
     public async Task REG_U_004_Location_move_rewrites_descendant_paths()
     {
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var b1Id = LocationId.New();
         var b2Id = LocationId.New();
         var rId = LocationId.New();
@@ -162,7 +170,7 @@ public sealed partial class RegistryUnitTests : IDisposable
     [Fact]
     public async Task REG_U_005_Location_deletion_checks()
     {
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var locId = LocationId.New();
         var srvId = ServerId.New();
 
@@ -174,10 +182,16 @@ public sealed partial class RegistryUnitTests : IDisposable
             new RegistryChange.UpsertServer(srv)
         ]), _context, TestContext.Current.CancellationToken);
 
-        // Attempt deleting loc while server resides on it
+        // Deleting the location without ReassignTo while a server resides on it fails.
         var delRes = await _writer.ApplyAsync(new RegistryChangeBatch([new RegistryChange.DeleteLocation(locId)]), _context, TestContext.Current.CancellationToken);
         delRes.IsSuccess.ShouldBeFalse();
-        delRes.Error.Code.Value.ShouldBe("registry.invariant.r10");
+        delRes.Error.Code.Value.ShouldBe("registry.location.not_empty");
+
+        // With ReassignTo, the server moves to the new location and the delete succeeds.
+        var reassignRes = await _writer.ApplyAsync(new RegistryChangeBatch([new RegistryChange.DeleteLocation(locId, ReassignTo: root.Id)]), _context, TestContext.Current.CancellationToken);
+        reassignRes.IsSuccess.ShouldBeTrue();
+        _reader.GetLocation(locId).IsSuccess.ShouldBeFalse();
+        _reader.GetServer(srvId).Value.LocationId.ShouldBe(root.Id);
     }
 
     [Fact]
@@ -196,15 +210,14 @@ public sealed partial class RegistryUnitTests : IDisposable
 
         res.IsSuccess.ShouldBeTrue();
 
-        _reader.GetTagFamily(famId).IsSuccess.ShouldBeTrue();
-        _reader.GetTag(tagId).Value.Key.ShouldBe("high");
-        _reader.ListTags(famId).Count.ShouldBe(1);
+        _reader.GetTagFamilies().ShouldContain(f => f.Id == famId);
+        _reader.GetTags().Single(t => t.Id == tagId).Key.ShouldBe("high");
     }
 
     [Fact]
     public async Task REG_U_007_Tag_cardinality_validation()
     {
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var famId = TagFamilyId.New();
         var t1Id = TagId.New();
         var t2Id = TagId.New();
@@ -226,13 +239,13 @@ public sealed partial class RegistryUnitTests : IDisposable
         ]), _context, TestContext.Current.CancellationToken);
 
         res.IsSuccess.ShouldBeFalse();
-        res.Error.Code.Value.ShouldBe("registry.invariant.r3");
+        res.Error.Code.Value.ShouldBe("registry.tag.family_exclusive");
     }
 
     [Fact]
     public async Task REG_U_008_Server_registration_and_lookup()
     {
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var srvId = ServerId.New();
         var connId = ConnectionId.New();
         var srv = new Server(srvId, new TypeRef(TypeId.FromTrusted("generic.server"), SemVersion.Parse("1.0.0").Value), connId, null, "srv-100", null, "VendorMain", root.Id, [], new Dictionary<string, WpValue>(), true, false, 0);
@@ -240,15 +253,15 @@ public sealed partial class RegistryUnitTests : IDisposable
         var res = await _writer.ApplyAsync(new RegistryChangeBatch([new RegistryChange.UpsertServer(srv)]), _context, TestContext.Current.CancellationToken);
         res.IsSuccess.ShouldBeTrue();
 
-        var found = _reader.GetServerByNativeId(connId, "srv-100");
-        found.IsSuccess.ShouldBeTrue();
-        found.Value.Id.ShouldBe(srvId);
+        var found = _reader.GetServersOfConnection(connId).SingleOrDefault(s => s.NativeId == "srv-100");
+        found.ShouldNotBeNull();
+        found.Id.ShouldBe(srvId);
     }
 
     [Fact]
     public async Task REG_U_009_Server_parent_hierarchy_and_depth()
     {
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var connId = ConnectionId.New();
         var s1Id = ServerId.New();
         var s2Id = ServerId.New();
@@ -263,12 +276,20 @@ public sealed partial class RegistryUnitTests : IDisposable
 
         res.IsSuccess.ShouldBeTrue();
         _reader.GetServer(s2Id).Value.ParentId.ShouldBe(s1Id);
+
+        // Parent on another connection is rejected with the parent_invalid reason.
+        var otherConn = ConnectionId.New();
+        var s3 = new Server(ServerId.New(), new TypeRef(TypeId.FromTrusted("generic.server"), SemVersion.Parse("1.0.0").Value), otherConn, s1Id, "s3", null, "V", root.Id, [], new Dictionary<string, WpValue>(), true, false, 0);
+        var badRes = await _writer.ApplyAsync(new RegistryChangeBatch([new RegistryChange.UpsertServer(s3)]), _context, TestContext.Current.CancellationToken);
+        badRes.IsSuccess.ShouldBeFalse();
+        badRes.Error.Code.Value.ShouldBe("registry.server.parent_invalid");
+        badRes.Error.Args["reason"].ShouldBe("otherConnection");
     }
 
     [Fact]
     public async Task REG_U_010_Device_registration_and_lookup()
     {
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var srvId = ServerId.New();
         var devId = DeviceId.New();
 
@@ -280,7 +301,7 @@ public sealed partial class RegistryUnitTests : IDisposable
             new RegistryChange.UpsertDevice(dev)
         ]), _context, TestContext.Current.CancellationToken);
 
-        var found = _reader.GetDeviceByNativeId(srvId, "door-nat");
+        var found = _reader.FindDeviceByNativeId(srvId, "door-nat");
         found.IsSuccess.ShouldBeTrue();
         found.Value.Id.ShouldBe(devId);
     }
@@ -288,7 +309,7 @@ public sealed partial class RegistryUnitTests : IDisposable
     [Fact]
     public async Task REG_U_011_Device_parent_hierarchy_and_allowed_types()
     {
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var srvId = ServerId.New();
         var d1Id = DeviceId.New();
         var d2Id = DeviceId.New();
@@ -305,12 +326,22 @@ public sealed partial class RegistryUnitTests : IDisposable
 
         res.IsSuccess.ShouldBeTrue();
         _reader.GetDevice(d2Id).Value.ParentId.ShouldBe(d1Id);
+        _reader.GetChildren(d1Id).Select(d => d.Id).ShouldBe([d2Id]);
+
+        // Parent on another server is rejected.
+        var otherSrvId = ServerId.New();
+        var otherSrv = new Server(otherSrvId, new TypeRef(TypeId.FromTrusted("generic.server"), SemVersion.Parse("1.0.0").Value), ConnectionId.New(), null, "srv2", null, "V", root.Id, [], new Dictionary<string, WpValue>(), true, false, 0);
+        var d3 = new Device(DeviceId.New(), new TypeRef(TypeId.FromTrusted("ac.door"), SemVersion.Parse("1.0.0").Value), otherSrvId, d1Id, "d3", null, "D3", root.Id, [], new Dictionary<string, WpValue>(), new Dictionary<CustomFieldId, WpValue>(), new HashSet<CapabilityId>(), null, true, false, false, default, 0);
+        var badRes = await _writer.ApplyAsync(new RegistryChangeBatch([new RegistryChange.UpsertServer(otherSrv), new RegistryChange.UpsertDevice(d3)]), _context, TestContext.Current.CancellationToken);
+        badRes.IsSuccess.ShouldBeFalse();
+        badRes.Error.Code.Value.ShouldBe("registry.device.parent_invalid");
+        badRes.Error.Args["reason"].ShouldBe("otherServer");
     }
 
     [Fact]
     public async Task REG_U_012_Device_patching_semantics()
     {
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var srvId = ServerId.New();
         var devId = DeviceId.New();
 
@@ -336,7 +367,7 @@ public sealed partial class RegistryUnitTests : IDisposable
     [Fact]
     public async Task REG_U_013_Device_deletion_and_unlinking()
     {
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var srvId = ServerId.New();
         var d1Id = DeviceId.New();
         var d2Id = DeviceId.New();
@@ -344,30 +375,30 @@ public sealed partial class RegistryUnitTests : IDisposable
         var srv = new Server(srvId, new TypeRef(TypeId.FromTrusted("generic.server"), SemVersion.Parse("1.0.0").Value), ConnectionId.New(), null, "srv", null, "V", root.Id, [], new Dictionary<string, WpValue>(), true, false, 0);
         var d1 = new Device(d1Id, new TypeRef(TypeId.FromTrusted("ac.door"), SemVersion.Parse("1.0.0").Value), srvId, null, "d1", null, "Door1", root.Id, [], new Dictionary<string, WpValue>(), new Dictionary<CustomFieldId, WpValue>(), new HashSet<CapabilityId>(), null, true, false, false, default, 0);
         var d2 = new Device(d2Id, new TypeRef(TypeId.FromTrusted("ac.door"), SemVersion.Parse("1.0.0").Value), srvId, null, "d2", null, "Door2", root.Id, [], new Dictionary<string, WpValue>(), new Dictionary<CustomFieldId, WpValue>(), new HashSet<CapabilityId>(), null, true, false, false, default, 0);
-        var link = new DeviceLink(d1Id, "controls", d2Id, new Dictionary<string, WpValue>(), 0);
+        var linkId = LinkId.New();
+        var link = new DeviceLink(linkId, LinkKind.Controls, d1Id, d2Id, 0);
 
         await _writer.ApplyAsync(new RegistryChangeBatch([
             new RegistryChange.UpsertServer(srv),
             new RegistryChange.UpsertDevice(d1),
             new RegistryChange.UpsertDevice(d2),
-            new RegistryChange.UpsertDeviceLink(link)
+            new RegistryChange.UpsertLink(link)
         ]), _context, TestContext.Current.CancellationToken);
 
-        // Delete d1 along with the link
+        // Delete d1: its link is deleted along with it (no explicit DeleteLink needed).
         var res = await _writer.ApplyAsync(new RegistryChangeBatch([
-            new RegistryChange.DeleteDeviceLink(d1Id, "controls", d2Id),
-            new RegistryChange.DeleteDevice(d1Id)
+            new RegistryChange.DeleteDevice(d1Id, DeleteChildren: false)
         ]), _context, TestContext.Current.CancellationToken);
 
         res.IsSuccess.ShouldBeTrue();
         _reader.GetDevice(d1Id).IsSuccess.ShouldBeFalse();
-        _reader.GetOutgoingLinks(d1Id).Count.ShouldBe(0);
+        _reader.GetLinks(d2Id, direction: LinkDirection.Incoming).ShouldBeEmpty();
     }
 
     [Fact]
     public async Task REG_U_014_Device_links_CRUD_and_queries()
     {
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var srvId = ServerId.New();
         var d1Id = DeviceId.New();
         var d2Id = DeviceId.New();
@@ -375,22 +406,32 @@ public sealed partial class RegistryUnitTests : IDisposable
         var srv = new Server(srvId, new TypeRef(TypeId.FromTrusted("generic.server"), SemVersion.Parse("1.0.0").Value), ConnectionId.New(), null, "srv", null, "V", root.Id, [], new Dictionary<string, WpValue>(), true, false, 0);
         var d1 = new Device(d1Id, new TypeRef(TypeId.FromTrusted("ac.door"), SemVersion.Parse("1.0.0").Value), srvId, null, "d1", null, "Door1", root.Id, [], new Dictionary<string, WpValue>(), new Dictionary<CustomFieldId, WpValue>(), new HashSet<CapabilityId>(), null, true, false, false, default, 0);
         var d2 = new Device(d2Id, new TypeRef(TypeId.FromTrusted("ac.door"), SemVersion.Parse("1.0.0").Value), srvId, null, "d2", null, "Door2", root.Id, [], new Dictionary<string, WpValue>(), new Dictionary<CustomFieldId, WpValue>(), new HashSet<CapabilityId>(), null, true, false, false, default, 0);
-        var link = new DeviceLink(d1Id, "monitors", d2Id, new Dictionary<string, WpValue>(), 0);
+        var linkId = LinkId.New();
+        var link = new DeviceLink(linkId, LinkKind.MemberOf, d1Id, d2Id, 0);
 
         await _writer.ApplyAsync(new RegistryChangeBatch([
             new RegistryChange.UpsertServer(srv),
             new RegistryChange.UpsertDevice(d1),
             new RegistryChange.UpsertDevice(d2),
-            new RegistryChange.UpsertDeviceLink(link)
+            new RegistryChange.UpsertLink(link)
         ]), _context, TestContext.Current.CancellationToken);
 
-        var outgoing = _reader.GetOutgoingLinks(d1Id);
+        var outgoing = _reader.GetLinks(d1Id, direction: LinkDirection.Outgoing);
         outgoing.Count.ShouldBe(1);
-        outgoing[0].Role.ShouldBe("monitors");
+        outgoing[0].Kind.ShouldBe(LinkKind.MemberOf);
 
-        var incoming = _reader.GetIncomingLinks(d2Id);
+        var incoming = _reader.GetLinks(d2Id, direction: LinkDirection.Incoming);
         incoming.Count.ShouldBe(1);
-        incoming[0].SourceDeviceId.ShouldBe(d1Id);
+        incoming[0].From.ShouldBe(d1Id);
+
+        var byKind = _reader.GetLinks(d1Id, LinkKind.MemberOf);
+        byKind.Count.ShouldBe(1);
+        var byOtherKind = _reader.GetLinks(d1Id, LinkKind.Controls);
+        byOtherKind.ShouldBeEmpty();
+
+        var delRes = await _writer.ApplyAsync(new RegistryChangeBatch([new RegistryChange.DeleteLink(linkId)]), _context, TestContext.Current.CancellationToken);
+        delRes.IsSuccess.ShouldBeTrue();
+        _reader.GetLinks(d1Id, direction: LinkDirection.Outgoing).ShouldBeEmpty();
     }
 
     [Fact]
@@ -402,14 +443,13 @@ public sealed partial class RegistryUnitTests : IDisposable
         var res = await _writer.ApplyAsync(new RegistryChangeBatch([new RegistryChange.UpsertCustomField(cf)]), _context, TestContext.Current.CancellationToken);
         res.IsSuccess.ShouldBeTrue();
 
-        _reader.GetCustomField(cfId).IsSuccess.ShouldBeTrue();
-        _reader.ListCustomFields(CustomFieldTarget.Device).Count.ShouldBe(1);
+        _reader.GetCustomFields(CustomFieldTarget.Device).ShouldContain(c => c.Id == cfId);
     }
 
     [Fact]
     public async Task REG_U_016_Keyset_paging_for_devices()
     {
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var srvId = ServerId.New();
         var srv = new Server(srvId, new TypeRef(TypeId.FromTrusted("generic.server"), SemVersion.Parse("1.0.0").Value), ConnectionId.New(), null, "srv", null, "V", root.Id, [], new Dictionary<string, WpValue>(), true, false, 0);
 
@@ -455,7 +495,7 @@ public sealed partial class RegistryUnitTests : IDisposable
     [Fact]
     public async Task REG_U_017_Text_search_normalization_accents_and_arabic()
     {
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var srvId = ServerId.New();
         var srv = new Server(srvId, new TypeRef(TypeId.FromTrusted("generic.server"), SemVersion.Parse("1.0.0").Value), ConnectionId.New(), null, "srv", null, "V", root.Id, [], new Dictionary<string, WpValue>(), true, false, 0);
 
@@ -485,7 +525,7 @@ public sealed partial class RegistryUnitTests : IDisposable
     [Fact]
     public async Task REG_U_018_Query_filter_by_location_subtree()
     {
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var b1Id = LocationId.New();
         var b2Id = LocationId.New();
 
@@ -513,7 +553,7 @@ public sealed partial class RegistryUnitTests : IDisposable
     [Fact]
     public async Task REG_U_019_Query_filter_by_tags_and_status()
     {
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var famId = TagFamilyId.New();
         var tagId = TagId.New();
         var srvId = ServerId.New();
@@ -541,7 +581,7 @@ public sealed partial class RegistryUnitTests : IDisposable
     [Fact]
     public async Task REG_U_020_Optimistic_concurrency_conflict_handling()
     {
-        var site = _reader.GetSite();
+        var site = _reader.Site;
         var conflictBatch = new RegistryChangeBatch([
             new RegistryChange.UpdateSite(site with { DefaultTimezone = "Asia/Tokyo" }, ExpectedVersion: 999)
         ]);
@@ -552,33 +592,33 @@ public sealed partial class RegistryUnitTests : IDisposable
     }
 
     [Fact]
-    public async Task REG_U_021_Invariant_R1_exactly_one_site()
+    public async Task REG_U_021_Invariant_R1_valid_time_zone()
     {
-        var site = _reader.GetSite();
+        var site = _reader.Site;
         var invalidSiteBatch = new RegistryChangeBatch([
             new RegistryChange.UpdateSite(site with { DefaultTimezone = "Invalid/NonExistent/TZ" })
         ]);
 
         var res = await _writer.ApplyAsync(invalidSiteBatch, _context, TestContext.Current.CancellationToken);
         res.IsSuccess.ShouldBeFalse();
-        res.Error.Code.Value.ShouldBe("registry.invariant.r1");
+        res.Error.Code.Value.ShouldBe("common.value.invalid_format");
     }
 
     [Fact]
     public async Task REG_U_022_Invariant_R2_location_tree_validation()
     {
-        // Try creating a location with non-existent parent
+        // Creating a location with a non-existent parent fails with the specific not-found code.
         var badLoc = new Location(LocationId.New(), LocationId.New(), new LocalizedName("Ghost", new Dictionary<string, string>()), LocationKind.Room, "", 0, null, null, null, 0, 0);
         var res = await _writer.ApplyAsync(new RegistryChangeBatch([new RegistryChange.UpsertLocation(badLoc)]), _context, TestContext.Current.CancellationToken);
 
         res.IsSuccess.ShouldBeFalse();
-        res.Error.Code.Value.ShouldBe("registry.invariant.r2");
+        res.Error.Code.Value.ShouldBe("registry.location.not_found");
     }
 
     [Fact]
-    public async Task REG_U_023_Invariant_R3_server_native_id_uniqueness()
+    public async Task REG_U_023_Invariant_R5_server_native_id_uniqueness()
     {
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var connId = ConnectionId.New();
         var s1 = new Server(ServerId.New(), new TypeRef(TypeId.FromTrusted("generic.server"), SemVersion.Parse("1.0.0").Value), connId, null, "srv-dup", null, "V1", root.Id, [], new Dictionary<string, WpValue>(), true, false, 0);
         var s2 = new Server(ServerId.New(), new TypeRef(TypeId.FromTrusted("generic.server"), SemVersion.Parse("1.0.0").Value), connId, null, "srv-dup", null, "V2", root.Id, [], new Dictionary<string, WpValue>(), true, false, 0);
@@ -589,13 +629,13 @@ public sealed partial class RegistryUnitTests : IDisposable
         ]), _context, TestContext.Current.CancellationToken);
 
         res.IsSuccess.ShouldBeFalse();
-        res.Error.Code.Value.ShouldBe("registry.invariant.r5");
+        res.Error.Code.Value.ShouldBe("registry.server.duplicate_native_id");
     }
 
     [Fact]
-    public async Task REG_U_024_Invariant_R4_device_native_id_uniqueness()
+    public async Task REG_U_024_Invariant_R5_device_native_id_uniqueness()
     {
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var srvId = ServerId.New();
         var srv = new Server(srvId, new TypeRef(TypeId.FromTrusted("generic.server"), SemVersion.Parse("1.0.0").Value), ConnectionId.New(), null, "srv", null, "V", root.Id, [], new Dictionary<string, WpValue>(), true, false, 0);
         var d1 = new Device(DeviceId.New(), new TypeRef(TypeId.FromTrusted("ac.door"), SemVersion.Parse("1.0.0").Value), srvId, null, "door-dup", null, "D1", root.Id, [], new Dictionary<string, WpValue>(), new Dictionary<CustomFieldId, WpValue>(), new HashSet<CapabilityId>(), null, true, false, false, default, 0);
@@ -608,13 +648,13 @@ public sealed partial class RegistryUnitTests : IDisposable
         ]), _context, TestContext.Current.CancellationToken);
 
         res.IsSuccess.ShouldBeFalse();
-        res.Error.Code.Value.ShouldBe("registry.invariant.r5");
+        res.Error.Code.Value.ShouldBe("registry.device.duplicate_native_id");
     }
 
     [Fact]
-    public async Task REG_U_025_Invariant_R5_type_catalog_resolution()
+    public async Task REG_U_025_Invariant_R4_type_catalog_resolution()
     {
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var srvId = ServerId.New();
         var srv = new Server(srvId, new TypeRef(TypeId.FromTrusted("generic.server"), SemVersion.Parse("1.0.0").Value), ConnectionId.New(), null, "srv", null, "V", root.Id, [], new Dictionary<string, WpValue>(), true, false, 0);
         var dev = new Device(DeviceId.New(), new TypeRef(TypeId.FromTrusted("unknown.type"), SemVersion.Parse("1.0.0").Value), srvId, null, "u1", null, "Unknown", root.Id, [], new Dictionary<string, WpValue>(), new Dictionary<CustomFieldId, WpValue>(), new HashSet<CapabilityId>(), null, true, false, false, default, 0);
@@ -625,11 +665,11 @@ public sealed partial class RegistryUnitTests : IDisposable
         ]), _context, TestContext.Current.CancellationToken);
 
         res.IsSuccess.ShouldBeFalse();
-        res.Error.Code.Value.ShouldBe("registry.invariant.r4");
+        res.Error.Code.Value.ShouldBe("model.type.not_found");
     }
 
     [Fact]
-    public async Task REG_U_026_Invariant_R6_tag_cardinality_enforcement()
+    public async Task REG_U_026_Invariant_R3_tag_family_exclusivity_enforcement()
     {
         var famId = TagFamilyId.New();
         var t1Id = TagId.New();
@@ -638,7 +678,7 @@ public sealed partial class RegistryUnitTests : IDisposable
         var t1 = new Tag(t1Id, famId, "t1", new LocalizedName("T1", new Dictionary<string, string>()), null, 0);
         var t2 = new Tag(t2Id, famId, "t2", new LocalizedName("T2", new Dictionary<string, string>()), null, 0);
 
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var srvId = ServerId.New();
         var srv = new Server(srvId, new TypeRef(TypeId.FromTrusted("generic.server"), SemVersion.Parse("1.0.0").Value), ConnectionId.New(), null, "srv", null, "V", root.Id, [], new Dictionary<string, WpValue>(), true, false, 0);
         var dev = new Device(DeviceId.New(), new TypeRef(TypeId.FromTrusted("ac.door"), SemVersion.Parse("1.0.0").Value), srvId, null, "d", null, "D", root.Id, [t1Id, t2Id], new Dictionary<string, WpValue>(), new Dictionary<CustomFieldId, WpValue>(), new HashSet<CapabilityId>(), null, true, false, false, default, 0);
@@ -652,29 +692,30 @@ public sealed partial class RegistryUnitTests : IDisposable
         ]), _context, TestContext.Current.CancellationToken);
 
         res.IsSuccess.ShouldBeFalse();
-        res.Error.Code.Value.ShouldBe("registry.invariant.r3");
+        res.Error.Code.Value.ShouldBe("registry.tag.family_exclusive");
     }
 
     [Fact]
-    public async Task REG_U_027_Invariant_R7_link_endpoints_and_acyclic_checks()
+    public async Task REG_U_027_Invariant_R9_link_endpoints_and_self_link_checks()
     {
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var srvId = ServerId.New();
         var srv = new Server(srvId, new TypeRef(TypeId.FromTrusted("generic.server"), SemVersion.Parse("1.0.0").Value), ConnectionId.New(), null, "srv", null, "V", root.Id, [], new Dictionary<string, WpValue>(), true, false, 0);
         var d1Id = DeviceId.New();
         var d1 = new Device(d1Id, new TypeRef(TypeId.FromTrusted("ac.door"), SemVersion.Parse("1.0.0").Value), srvId, null, "d1", null, "D1", root.Id, [], new Dictionary<string, WpValue>(), new Dictionary<CustomFieldId, WpValue>(), new HashSet<CapabilityId>(), null, true, false, false, default, 0);
 
         // Self-link attempt
-        var selfLink = new DeviceLink(d1Id, "self", d1Id, new Dictionary<string, WpValue>(), 0);
+        var selfLink = new DeviceLink(LinkId.New(), LinkKind.Controls, d1Id, d1Id, 0);
 
         var res = await _writer.ApplyAsync(new RegistryChangeBatch([
             new RegistryChange.UpsertServer(srv),
             new RegistryChange.UpsertDevice(d1),
-            new RegistryChange.UpsertDeviceLink(selfLink)
+            new RegistryChange.UpsertLink(selfLink)
         ]), _context, TestContext.Current.CancellationToken);
 
         res.IsSuccess.ShouldBeFalse();
-        res.Error.Code.Value.ShouldBe("registry.invariant.r9");
+        res.Error.Code.Value.ShouldBe("registry.link.invalid");
+        res.Error.Args["reason"].ShouldBe("selfLink");
     }
 
     [Fact]
@@ -689,38 +730,28 @@ public sealed partial class RegistryUnitTests : IDisposable
         ]), _context, TestContext.Current.CancellationToken);
 
         res.IsSuccess.ShouldBeFalse();
-        res.Error.Code.Value.ShouldBe("registry.invariant.r8");
+        res.Error.Code.Value.ShouldBe("common.value.duplicate");
     }
 
     [Fact]
-    public async Task REG_U_029_Device_enrichment_cache_updates()
+    public void REG_U_029_Device_enrichment_cache_updates()
     {
         var devId = DeviceId.New();
-        var srvId = ServerId.New();
-        var locId = LocationId.New();
+        var enrichment = new DeviceEnrichment(devId, "Door", ServerId.New(), LocationId.New(), "/Campus/Building 1", ["Campus", "Building 1"], [], new TypeRef(TypeId.FromTrusted("ac.door"), SemVersion.Parse("1.0.0").Value), [], true, false);
 
-        var rec = new DeviceEnrichmentRecord(
-            devId,
-            srvId,
-            locId,
-            "/Campus/Building 1",
-            [],
-            new Dictionary<string, WpValue>(),
-            new Dictionary<CustomFieldId, WpValue>());
-
-        _cache.Put(rec);
-        var cached = _cache.Get(devId);
+        _enrichmentCache.Put(enrichment);
+        var cached = _enrichmentCache.Get(devId);
         cached.ShouldNotBeNull();
         cached.LocationPath.ShouldBe("/Campus/Building 1");
 
-        _cache.Remove(devId);
-        _cache.Get(devId).ShouldBeNull();
+        _enrichmentCache.Remove(devId);
+        _enrichmentCache.Get(devId).ShouldBeNull();
     }
 
     [Fact]
     public async Task REG_U_030_Registry_change_recorded_in_the_outbox()
     {
-        var site = _reader.GetSite();
+        var site = _reader.Site;
         var batch = new RegistryChangeBatch([new RegistryChange.UpdateSite(site with { DefaultTimezone = "UTC" })]);
 
         var res = await _writer.ApplyAsync(batch, _context, TestContext.Current.CancellationToken);

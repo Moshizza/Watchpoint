@@ -34,7 +34,7 @@ namespace Watchpoint.IntegrationTests.Registry;
 [Trait("layer", "I")]
 public sealed class RegistryOutboxIntegrationTests(PostgresContainerFixture postgres, NatsContainerFixture nats) : IAsyncDisposable
 {
-    private static readonly ChangeContext _context = new("test-user", "integration-test", "corr-outbox");
+    private static readonly ChangeContext _context = new(UserId.New(), "api", null, "integration-test");
     private readonly List<IAsyncDisposable> _owned = [];
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;

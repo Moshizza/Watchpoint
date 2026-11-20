@@ -1,62 +1,66 @@
 using Watchpoint.Kernel.Ids;
+using Watchpoint.Kernel.Paging;
 using Watchpoint.Kernel.Results;
 
 namespace Watchpoint.Registry.Contracts;
 
 /// <summary>
-/// Read-only in-memory query interface for registry data.
+/// Read-only in-memory query interface for registry data (REG §5).
 /// </summary>
 public interface IRegistryReader
 {
+    /// <summary>Gets the registry revision: increments with every applied batch.</summary>
+    long Revision { get; }
+
     /// <summary>Gets the current site configuration.</summary>
-    Site GetSite();
+    Site Site { get; }
 
-    /// <summary>Gets a location by ID.</summary>
+    /// <summary>Gets a location by id.</summary>
     Result<Location> GetLocation(LocationId id);
-    /// <summary>Queries locations with paging.</summary>
-    Page<Location> QueryLocations(LocationQuery query, PageRequest page);
-    /// <summary>Gets the root location node.</summary>
-    Result<Location> GetRootLocation();
-    /// <summary>Gets immediate children of a location.</summary>
-    IReadOnlyList<Location> GetLocationChildren(LocationId parentId);
 
-    /// <summary>Gets a tag family by ID.</summary>
-    Result<TagFamily> GetTagFamily(TagFamilyId id);
-    /// <summary>Gets a tag family by natural key.</summary>
-    Result<TagFamily> GetTagFamilyByKey(string key);
-    /// <summary>Lists all tag families.</summary>
-    IReadOnlyList<TagFamily> ListTagFamilies();
+    /// <summary>Gets every location, ordered by path then sort order.</summary>
+    IReadOnlyList<Location> GetLocationTree();
 
-    /// <summary>Gets a tag by ID.</summary>
-    Result<Tag> GetTag(TagId id);
-    /// <summary>Gets a tag by family ID and key.</summary>
-    Result<Tag> GetTagByKey(TagFamilyId familyId, string key);
-    /// <summary>Lists tags in a family.</summary>
-    IReadOnlyList<Tag> ListTags(TagFamilyId? familyId = null);
+    /// <summary>Gets the ancestors of a location, root first; empty when the location is the root or unknown.</summary>
+    IReadOnlyList<Location> GetAncestors(LocationId id);
 
-    /// <summary>Gets a server by ID.</summary>
+    /// <summary>Gets a server by id.</summary>
     Result<Server> GetServer(ServerId id);
-    /// <summary>Gets a server by connection ID and native ID.</summary>
-    Result<Server> GetServerByNativeId(ConnectionId connectionId, string nativeId);
-    /// <summary>Queries servers with paging.</summary>
-    Page<Server> QueryServers(ServerQuery query, PageRequest page);
 
-    /// <summary>Gets a device by ID.</summary>
+    /// <summary>Gets a device by id.</summary>
     Result<Device> GetDevice(DeviceId id);
-    /// <summary>Gets a device by server ID and native ID.</summary>
-    Result<Device> GetDeviceByNativeId(ServerId serverId, string nativeId);
+
+    /// <summary>Gets a device by server id and native id.</summary>
+    Result<Device> FindDeviceByNativeId(ServerId server, string nativeId);
+
+    /// <summary>Gets every server of a connection.</summary>
+    IReadOnlyList<Server> GetServersOfConnection(ConnectionId connection);
+
+    /// <summary>Gets the direct children of a device.</summary>
+    IReadOnlyList<Device> GetChildren(DeviceId parent);
+
+    /// <summary>Gets the links of a device, optionally filtered by kind, in the given direction.</summary>
+    IReadOnlyList<DeviceLink> GetLinks(DeviceId device, LinkKind? kind = null, LinkDirection direction = LinkDirection.Both);
+
     /// <summary>Queries devices with paging.</summary>
     Page<Device> QueryDevices(DeviceQuery query, PageRequest page);
 
-    /// <summary>Gets outgoing links from a device.</summary>
-    IReadOnlyList<DeviceLink> GetOutgoingLinks(DeviceId sourceId);
-    /// <summary>Gets incoming links to a device.</summary>
-    IReadOnlyList<DeviceLink> GetIncomingLinks(DeviceId targetId);
-    /// <summary>Gets links matching source, role, and target.</summary>
-    IReadOnlyList<DeviceLink> GetLinks(DeviceId? sourceId = null, string? role = null, DeviceId? targetId = null);
+    /// <summary>Queries servers with paging.</summary>
+    Page<Server> QueryServers(ServerQuery query, PageRequest page);
 
-    /// <summary>Gets a custom field definition by ID.</summary>
-    Result<CustomFieldDefinition> GetCustomField(CustomFieldId id);
-    /// <summary>Lists custom field definitions.</summary>
-    IReadOnlyList<CustomFieldDefinition> ListCustomFields(CustomFieldTarget? target = null);
+    /// <summary>Gets every tag.</summary>
+    IReadOnlyList<Tag> GetTags();
+
+    /// <summary>Gets every tag family.</summary>
+    IReadOnlyList<TagFamily> GetTagFamilies();
+
+    /// <summary>Gets the custom field definitions of a target kind.</summary>
+    IReadOnlyList<CustomFieldDefinition> GetCustomFields(CustomFieldTarget target);
+
+    /// <summary>Gets the cached enrichment of a device (used by PIP on every observation, REG §7.2).</summary>
+    /// <param name="id">The device id. The device must exist (callers resolve it first with <see cref="GetDevice"/>).</param>
+    DeviceEnrichment GetEnrichment(DeviceId id);
+
+    /// <summary>Raised after a change batch has been committed and the in-memory snapshot updated.</summary>
+    event EventHandler<RegistryChangedEventArgs>? Changed;
 }

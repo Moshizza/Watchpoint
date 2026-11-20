@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
 using Shouldly;
 using Watchpoint.Kernel.Ids;
+using Watchpoint.Kernel.Paging;
 using Watchpoint.Kernel.Results;
 using Watchpoint.Kernel.Text;
 using Watchpoint.Kernel.Values;
@@ -30,7 +31,7 @@ public partial class RegistryUnitTests
     public async Task REG_U_031_Reconcile_new_server_auto_created()
     {
         var connId = ConnectionId.New();
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var reconciler = CreateReconciler();
 
         var serverType = new TypeRef(TypeId.FromTrusted("generic.server"), SemVersion.Parse("1.0.0").Value);
@@ -55,7 +56,7 @@ public partial class RegistryUnitTests
     public async Task REG_U_032_Reconcile_existing_device_vendor_name_updated_user_name_untouched()
     {
         var connId = ConnectionId.New();
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var srvId = ServerId.New();
         var devId = DeviceId.New();
         var serverType = new TypeRef(TypeId.FromTrusted("generic.server"), SemVersion.Parse("1.0.0").Value);
@@ -88,7 +89,7 @@ public partial class RegistryUnitTests
     public async Task REG_U_033_Reconcile_vendor_attributes_updated_user_attributes_untouched()
     {
         var connId = ConnectionId.New();
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var srvId = ServerId.New();
         var devId = DeviceId.New();
         var serverType = new TypeRef(TypeId.FromTrusted("generic.server"), SemVersion.Parse("1.0.0").Value);
@@ -131,7 +132,7 @@ public partial class RegistryUnitTests
     public async Task REG_U_034_Reconcile_missing_device_orphaned_on_complete_report()
     {
         var connId = ConnectionId.New();
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var srvId = ServerId.New();
         var devId = DeviceId.New();
         var serverType = new TypeRef(TypeId.FromTrusted("generic.server"), SemVersion.Parse("1.0.0").Value);
@@ -161,7 +162,7 @@ public partial class RegistryUnitTests
     public async Task REG_U_035_Reconcile_partial_report_never_orphans()
     {
         var connId = ConnectionId.New();
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var srvId = ServerId.New();
         var devId = DeviceId.New();
         var serverType = new TypeRef(TypeId.FromTrusted("generic.server"), SemVersion.Parse("1.0.0").Value);
@@ -191,7 +192,7 @@ public partial class RegistryUnitTests
     public async Task REG_U_036_Reconcile_orphan_restored_when_back()
     {
         var connId = ConnectionId.New();
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var srvId = ServerId.New();
         var devId = DeviceId.New();
         var serverType = new TypeRef(TypeId.FromTrusted("generic.server"), SemVersion.Parse("1.0.0").Value);
@@ -220,7 +221,7 @@ public partial class RegistryUnitTests
     public async Task REG_U_037_Reconcile_new_devices_go_to_discovered_list_when_not_auto_importing()
     {
         var connId = ConnectionId.New();
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var srvId = ServerId.New();
         var serverType = new TypeRef(TypeId.FromTrusted("generic.server"), SemVersion.Parse("1.0.0").Value);
         var devType = new TypeRef(TypeId.FromTrusted("ac.door"), SemVersion.Parse("1.0.0").Value);
@@ -250,7 +251,7 @@ public partial class RegistryUnitTests
     public async Task REG_U_038_Reconcile_ignored_items_stay_ignored()
     {
         var connId = ConnectionId.New();
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var srvId = ServerId.New();
         var serverType = new TypeRef(TypeId.FromTrusted("generic.server"), SemVersion.Parse("1.0.0").Value);
         var devType = new TypeRef(TypeId.FromTrusted("ac.door"), SemVersion.Parse("1.0.0").Value);
@@ -288,7 +289,7 @@ public partial class RegistryUnitTests
     public async Task REG_U_039_Reconcile_auto_import_places_devices_at_parents_location()
     {
         var connId = ConnectionId.New();
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var parentLocationId = LocationId.New();
         var parentLocation = new Location(parentLocationId, root.Id, new LocalizedName("SubLocation", new Dictionary<string, string>()), LocationKind.Room, "", 0, null, null, null, 1, 0);
         await _writer.ApplyAsync(new RegistryChangeBatch([new RegistryChange.UpsertLocation(parentLocation)]), _context, TestContext.Current.CancellationToken);
@@ -317,7 +318,7 @@ public partial class RegistryUnitTests
         var res = await reconciler.ReconcileAsync(connId, report, new ReconcileOptions(AutoImportNew: true, DefaultLocation: root.Id), TestContext.Current.CancellationToken);
         res.IsSuccess.ShouldBeTrue();
 
-        var childDev = _reader.GetDeviceByNativeId(srvId, "reader-child").Value;
+        var childDev = _reader.FindDeviceByNativeId(srvId, "reader-child").Value;
         childDev.LocationId.ShouldBe(parentLocationId);
     }
 
@@ -325,7 +326,7 @@ public partial class RegistryUnitTests
     public async Task REG_U_040_Reconcile_minor_type_upgrade_applied_major_change_warned()
     {
         var connId = ConnectionId.New();
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var srvId = ServerId.New();
         var dev1Id = DeviceId.New();
         var dev2Id = DeviceId.New();
@@ -364,7 +365,7 @@ public partial class RegistryUnitTests
     public async Task REG_U_041_Reconcile_links_by_native_id_created_unresolved_warning()
     {
         var connId = ConnectionId.New();
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var srvId = ServerId.New();
         var serverType = new TypeRef(TypeId.FromTrusted("generic.server"), SemVersion.Parse("1.0.0").Value);
         var devType = new TypeRef(TypeId.FromTrusted("ac.door"), SemVersion.Parse("1.0.0").Value);
@@ -388,12 +389,12 @@ public partial class RegistryUnitTests
         var res = await reconciler.ReconcileAsync(connId, report, new ReconcileOptions(AutoImportNew: true, DefaultLocation: root.Id), TestContext.Current.CancellationToken);
         res.IsSuccess.ShouldBeTrue();
 
-        var d1 = _reader.GetDeviceByNativeId(srvId, "door-1").Value;
-        var d2 = _reader.GetDeviceByNativeId(srvId, "door-2").Value;
+        var d1 = _reader.FindDeviceByNativeId(srvId, "door-1").Value;
+        var d2 = _reader.FindDeviceByNativeId(srvId, "door-2").Value;
 
-        var links = _reader.GetOutgoingLinks(d1.Id);
+        var links = _reader.GetLinks(d1.Id);
         links.Count.ShouldBe(1);
-        links[0].TargetDeviceId.ShouldBe(d2.Id);
+        links[0].To.ShouldBe(d2.Id);
 
         res.Value.Warnings.ShouldContain(w => w.Code == RegistryErrors.ReconcileLinkUnresolved && w.NativeId == "door-1");
     }
@@ -402,7 +403,7 @@ public partial class RegistryUnitTests
     public async Task REG_U_042_Reconcile_unsupported_optional_capabilities_recorded()
     {
         var connId = ConnectionId.New();
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var srvId = ServerId.New();
         var devId = DeviceId.New();
         var serverType = new TypeRef(TypeId.FromTrusted("generic.server"), SemVersion.Parse("1.0.0").Value);
@@ -431,7 +432,7 @@ public partial class RegistryUnitTests
     public async Task REG_U_043_Import_selected_discovered_items_with_overrides()
     {
         var connId = ConnectionId.New();
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var customLocId = LocationId.New();
         var customLoc = new Location(customLocId, root.Id, new LocalizedName("CustomLoc", new Dictionary<string, string>()), LocationKind.Room, "", 0, null, null, null, 1, 0);
         await _writer.ApplyAsync(new RegistryChangeBatch([new RegistryChange.UpsertLocation(customLoc)]), _context, TestContext.Current.CancellationToken);
@@ -467,13 +468,13 @@ public partial class RegistryUnitTests
         var importRes = await reconciler.ImportAsync(connId, importRequest, _context, TestContext.Current.CancellationToken);
         importRes.IsSuccess.ShouldBeTrue();
 
-        var importedParent = _reader.GetDeviceByNativeId(srvId, "parent-door").Value;
+        var importedParent = _reader.FindDeviceByNativeId(srvId, "parent-door").Value;
         importedParent.DisplayName.ShouldNotBeNull();
         importedParent.DisplayName!.Default.ShouldBe("User Override Parent");
         importedParent.LocationId.ShouldBe(customLocId);
 
         // Child follows parent's location
-        var importedChild = _reader.GetDeviceByNativeId(srvId, "child-reader").Value;
+        var importedChild = _reader.FindDeviceByNativeId(srvId, "child-reader").Value;
         importedChild.LocationId.ShouldBe(customLocId);
     }
 
@@ -481,7 +482,7 @@ public partial class RegistryUnitTests
     public async Task REG_U_044_Reconcile_is_idempotent()
     {
         var connId = ConnectionId.New();
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var serverType = new TypeRef(TypeId.FromTrusted("generic.server"), SemVersion.Parse("1.0.0").Value);
         var devType = new TypeRef(TypeId.FromTrusted("ac.door"), SemVersion.Parse("1.0.0").Value);
 
@@ -513,7 +514,7 @@ public partial class RegistryUnitTests
     public async Task REG_U_045_Reconcile_publishes_one_batch_with_origin_integration_id()
     {
         var connId = ConnectionId.New();
-        var root = _reader.GetRootLocation().Value;
+        var root = Root;
         var serverType = new TypeRef(TypeId.FromTrusted("generic.server"), SemVersion.Parse("1.0.0").Value);
         var devType = new TypeRef(TypeId.FromTrusted("ac.door"), SemVersion.Parse("1.0.0").Value);
 
@@ -529,7 +530,7 @@ public partial class RegistryUnitTests
 
         var records = await _outbox.ReadUnsentAsync(100, TestContext.Current.CancellationToken);
         records.Count.ShouldBe(before + 1);
-        records[^1].Context.Reason.ShouldBe($"integration:{connId.Value}");
+        records[^1].Context.Origin.ShouldBe($"integration:{connId.Value}");
     }
 
     private sealed class TestTypeCatalogWithVendorSchema : ITypeCatalog

@@ -56,9 +56,9 @@ internal sealed class RegistryOutboxPublisher(
         ArgumentNullException.ThrowIfNull(record);
         var body = new RegistryChangedBody(
             record.Revision,
-            new RegistryChangedContext(record.Context.UserId, record.Context.Reason, record.Context.CorrelationId),
+            new RegistryChangedContext(record.Context.Actor?.Value.ToString(), record.Context.Origin, record.Context.ChangeSet?.Value.ToString()),
             [.. record.Changes.Select(c => new RegistryChangedEntity(c.Entity, c.Id, KindName(c.Kind)))]);
-        var origin = Guid.TryParse(record.Context.UserId, out var user) ? new RecordOrigin(RecordOriginType.User, user) : RecordOrigin.System;
+        var origin = record.Context.Actor.HasValue ? new RecordOrigin(RecordOriginType.User, record.Context.Actor.Value.Value) : RecordOrigin.System;
         return new LogEnvelope(
             RecordId(record.Revision),
             RecordKinds.RegistryChanged,
