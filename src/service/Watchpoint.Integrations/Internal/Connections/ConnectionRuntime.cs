@@ -927,8 +927,27 @@ internal sealed class ConnectionRuntime : IAsyncDisposable
     {
         _describedOnce = true;
         _lastDescribe = _time.GetUtcNow();
-        Track(ReconcileAsync(instance, snapshot, CancellationToken.None));
+        Track(ReconcileWithRetryAsync(instance, snapshot));
     }
+
+    /// <summary>An automatic describe and reconcile; when it fails, the watchdog tries again after <see cref="ReconcileRetry"/>.</summary>
+    private async Task ReconcileWithRetryAsync(Instance instance, InventorySnapshot? snapshot)
+    {
+        var result = await ReconcileAsync(instance, snapshot, CancellationToken.None).ConfigureAwait(false);
+        if (!result.IsSuccess)
+        {
+            Post("reconcile retry", () =>
+            {
+                if (ReferenceEquals(instance, _instance))
+                {
+                    _lastDescribe = _time.GetUtcNow() - _connection.DescribeInterval + ReconcileRetry;
+                }
+            });
+        }
+    }
+
+    /// <summary>The delay before a failed automatic reconciliation is tried again.</summary>
+    internal static readonly TimeSpan ReconcileRetry = TimeSpan.FromSeconds(30);
 
     /// <summary>Describes (unless a snapshot is given) and reconciles; one at a time per connection.</summary>
     private async Task<Result<ReconciliationResult>> ReconcileAsync(Instance instance, InventorySnapshot? snapshot, CancellationToken ct)

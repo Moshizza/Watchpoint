@@ -79,6 +79,10 @@ internal class RegistryDbContext(DbContextOptions options, StorageContextInfo in
             b.HasIndex(e => new { e.ConnectionId, e.NativeId }).IsUnique();
             b.HasIndex(e => e.LocationId);
             b.HasIndex(e => e.ParentId);
+
+            // The self-reference the migration declares (fk_servers_servers_parent_id): EF then inserts a parent server
+            // before its children within a batch (an inventory import with sub-servers).
+            b.HasOne<ServerRecord>().WithMany().HasForeignKey(e => e.ParentId).OnDelete(DeleteBehavior.NoAction);
         });
 
         modelBuilder.Entity<DeviceRecord>(b =>
@@ -97,7 +101,8 @@ internal class RegistryDbContext(DbContextOptions options, StorageContextInfo in
             b.HasIndex(e => e.LocationId);
 
             // The self-reference the migration declares (fk_devices_devices_parent_id): with it EF inserts a parent device
-            // before its children within a batch (an inventory import); without it EF orders the inserts by key.
+            // before its children within a batch (an inventory import); without it EF orders the inserts by key. NoAction:
+            // the model's delete rule only shapes schemas EF creates (tests); PostgreSQL keeps the migration's rule.
             b.HasOne<DeviceRecord>().WithMany().HasForeignKey(e => e.ParentId).OnDelete(DeleteBehavior.NoAction);
         });
 

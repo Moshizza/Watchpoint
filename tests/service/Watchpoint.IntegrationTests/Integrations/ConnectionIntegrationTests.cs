@@ -31,6 +31,11 @@ public sealed class ConnectionIntegrationTests(PostgresContainerFixture postgres
     public async Task IRT_I_005_Connection_create_start_connected_devices_imported()
     {
         await using var node = await ConnectionNode.StartAsync(postgres, "i005", Ct);
+        await Diagnosed(node, () => I005(node));
+    }
+
+    private static async Task I005(ConnectionNode node)
+    {
         using var http = node.Http();
 
         var created = await http.PostAsJsonAsync("api/v1/connections", new
@@ -149,6 +154,11 @@ public sealed class ConnectionIntegrationTests(PostgresContainerFixture postgres
     public async Task IRT_I_010_Stop_connection_makes_devices_stale()
     {
         await using var node = await ConnectionNode.StartAsync(postgres, "i010", Ct);
+        await Diagnosed(node, () => I010(node));
+    }
+
+    private static async Task I010(ConnectionNode node)
+    {
         var id = (await node.Connections.CreateAsync(Simulator(node), Context, Ct)).Value;
         await Eventually.UntilAsync(() => node.Registry.GetServersOfConnection(id).Any(s => s.ParentId is null), _wait, "imported", ct: Ct);
         await Eventually.UntilAsync(() => node.Connections.GetStatus(id).State == ConnectionState.Connected, _wait, "connected", ct: Ct);
@@ -208,6 +218,19 @@ public sealed class ConnectionIntegrationTests(PostgresContainerFixture postgres
     }
 
     private static ChangeContext Context { get; } = new(null, "test");
+
+    /// <summary>Runs the test body; a failed assertion carries the node's warnings and errors.</summary>
+    private static async Task Diagnosed(ConnectionNode node, Func<Task> body)
+    {
+        try
+        {
+            await body();
+        }
+        catch (Exception ex) when (ex is Watchpoint.Testing.TestAssertionException or ShouldAssertException)
+        {
+            throw new Watchpoint.Testing.TestAssertionException(ex.Message + Environment.NewLine + "Node problems:" + Environment.NewLine + node.Problems(), ex);
+        }
+    }
 
     private static NewConnection Relay(ConnectionNode node, string password, bool startNow = true) => new(
         Watchpoint.Kernel.Text.LocalizedName.Of("Relay"), PackageId.FromTrusted(RelayPackage.Id), null, RelayPackage.ServerType,

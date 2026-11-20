@@ -380,8 +380,8 @@ connector never delays the others:
   otherwise the latest version of that major. **An item skipped for any reason makes the report partial**
   (`IsComplete = false`), so the registry never orphans an existing server or device because the runtime could not
   map it. A snapshot that fails `InventorySnapshot.Validate` is not reconciled (`irt.inventory.invalid`, log 1831). Describes
-  and reconciliations of a connection run one at a time; a reconcile failure is logged (1831), not a connector fault; an
-  exception or a hang of `DescribeAsync` is.
+  and reconciliations of a connection run one at a time; a reconcile failure is logged (1831), not a connector fault — an
+  automatic one is tried again by the watchdog 30 s later; an exception or a hang of `DescribeAsync` is a connector fault.
 - Device map (`IDeviceMap`) for the connector is rebuilt from REG on `Changed` events concerning
   servers/devices and after each reconciliation, off the registry's thread (requests coalesce), and pushed to the
   instance (event `Changed`).

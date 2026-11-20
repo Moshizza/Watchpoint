@@ -87,6 +87,12 @@ internal sealed class ConnectionNode : IAsyncDisposable
 
     public HttpClient Http() => new() { BaseAddress = BaseAddress };
 
+    /// <summary>The node's warnings and errors so far (diagnostics for a failed wait).</summary>
+    public string Problems() => string.Join(Environment.NewLine, Logs.Entries
+        .Where(e => e.Level >= LogLevel.Warning)
+        .TakeLast(40)
+        .Select(e => $"{e.Level} {e.EventId} {e.Category}: {e.RenderedMessage} {e.Exception?.GetType().Name} {e.Exception?.GetBaseException().Message}"));
+
     /// <summary>Reads every record of the log (all partitions, to the end).</summary>
     public async Task<IReadOnlyList<LogRecord>> ReadLogAsync(CancellationToken ct)
     {
