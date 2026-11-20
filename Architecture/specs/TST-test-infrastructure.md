@@ -313,3 +313,4 @@ Not applicable (test-only), except `SecretLeakDetector` (§4.4).
 | Task | Sections | Tests |
 |---|---|---|
 | T0.05 | §3–§8 | TST-U-001…TST-U-013, TST-I-001…TST-I-010 |
+| T0.13 | §4.7 | TST-U-014 |
