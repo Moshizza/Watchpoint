@@ -308,6 +308,23 @@ public enum AmbiguityPolicy { EarlierOffset, LaterOffset, Reject }
   (ambiguous). Written with days, hours, minutes, seconds (`P1DT2H`, zero = `PT0S`). Converter:
   `Iso8601DurationConverter`. Date reading also truncates to milliseconds.
 
+### 6.1 Singleton work gate (`ILeaseGate`)
+
+Work that must run on one node of a cluster at a time (registry outbox publisher, PIP §5.5; later HIS
+consumers, NOT delivery, SCH timers) waits on a gate instead of referencing the cluster module:
+
+```csharp
+public interface ILeaseGate
+{
+    // Completes when this node holds the lease; the returned token is cancelled when it is lost.
+    ValueTask<CancellationToken> WaitUntilHeldAsync(string lease, CancellationToken ct);
+}
+public sealed class AlwaysHeldLeaseGate : ILeaseGate { }   // single node / M1: completes at once, never cancelled
+```
+
+CLU (T9.01) registers its lease-backed implementation (CLU §5); hosts without CLU register
+`AlwaysHeldLeaseGate`. Added in T1.09c (2026-11 review, D7).
+
 ## 7. Paging, sorting, cursors
 
 ```csharp
@@ -598,6 +615,7 @@ All tests are unit tests in `tests/service/Watchpoint.Kernel.Tests`.
 | K-U-060 | `WpValue` enum code validation | `Enum("Open")` → `ArgumentException` |
 | K-U-061 | `WpValue` size and depth limits | 17 KB string, 1,001 items, depth 9 → rejected when reading JSON |
 | K-U-062 | Compact JSON form accepted only with a target hint | `ReadCompact(json, WpValueKind.Decimal)` of `21.5` → `Decimal(21.5)`; without hint → error |
+| K-U-063 | `AlwaysHeldLeaseGate` completes at once with a token that is never cancelled | `WaitUntilHeldAsync("x", ct)` completes synchronously; returned token `CanBeCanceled == false` |
 
 ## 14. Tasks
 
@@ -605,3 +623,4 @@ All tests are unit tests in `tests/service/Watchpoint.Kernel.Tests`.
 |---|---|---|
 | T0.03 | §4, §5, §6, §7 (except cursors) | K-U-001…K-U-030 |
 | T0.04 | §7 cursors, §8, §9, §10, §11, `Watchpoint.Kernel.Testing` | K-U-031…K-U-062 |
+| T1.09c | §6.1 (`ILeaseGate`, `AlwaysHeldLeaseGate`) | K-U-063 |

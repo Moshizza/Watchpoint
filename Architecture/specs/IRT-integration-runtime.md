@@ -167,6 +167,12 @@ versions of the same package may be active at the same time (connections pin a v
 Disabling a package version stops its connections (state `Disabled` by package) and keeps
 types registered (devices keep working as definitions).
 
+**Until T4.01 (isolated host) only builtin packages run outside Development.** Connectors run in-process
+until M4 (ADR-003) and an in-process connector can stop the node. Outside Development a package becomes
+`Active` only if it is builtin or signed by a release key (§4.4); development keys are trusted only in
+Development and `TrustedKeys.EmbeddedReleaseKeys` is empty, so in production builds every user or vendor
+package is refused (`irt.package.untrusted_key`) until T4.01 ships release keys with isolation. Do not plan a pilot with a third-party package before M4 (2026-11 review, D14).
+
 ## 5. Load contexts
 
 ```csharp
@@ -382,7 +388,9 @@ at 2 s (`IntegrationsOptions.Debounce`), and the product version compared with
 | `POST /api/v1/packages/{id}/versions/{version}/enable` / `disable` | `config.integrations.install` | |
 
 Until the API framework and its permission filter exist (T1.19), the endpoints that change the node
-(`POST`) are mapped only when `Node:Environment = Development`; the `GET` endpoints are always mapped.
+(`POST`) are mapped only when `Node:Environment = Development` and answer only requests from a loopback
+address (`127.0.0.0/8`, `::1`; others get 404), so a development node reachable on a network cannot be
+changed from it (T1.16, also for the connection POSTs); the `GET` endpoints are always mapped.
 Package rows (§6) hold only verified packages; invalid ones are not persisted (the file is the source
 of truth and is verified again at the next scan).
 | `GET /api/v1/connections` | `config.integrations.view` (operators see status via HLT later) | List with status |

@@ -252,6 +252,12 @@ the bucket and group-by allow.
   counts and sample of events; `POST /api/v1/privacy/export { personRef }` → job exporting all
   matching events (JSON); `POST /api/v1/privacy/erase { personRef, reason }` → pseudonymise
   immediately for that subject. All audited.
+- **Event log window.** The purge and an erase act on the history tables. The same payloads also stay in
+  the event log (`WP_LOG`, `WP_SYS`: delete and purge denied, PIP §5.1) until it expires, and a recovery
+  replay re-reads them. `Log:Retention` is therefore capped at 30 days (PIP §10): a purge or an erase is
+  **complete only once the log window after it has passed**, and the export of a subject request says so.
+  Crypto-shredding (payload fields encrypted with a per-subject key that the erase destroys, SEC) is the
+  M5 decision record that would make it immediate (2026-11 review, D11).
 
 ## 13. Settings, errors, observability
 

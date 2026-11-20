@@ -110,7 +110,10 @@ site row therefore name the same id. When a row already exists with another id (
 `Site:Id` existed, or a node whose `watchpoint.json` was edited), **the stored row wins**: it is the id the
 installation's data and the other nodes of the site refer to, and a single node's settings file must not rewrite
 the shared database. The Registry keeps the row, logs event 1504 once at load naming both ids, and the operator
-sets `Site:Id` to the stored id (every node of the site carries the same `Site:Id`).
+sets `Site:Id` to the stored id (every node of the site carries the same `Site:Id`). Because the node would
+issue tokens for a site the other nodes do not recognise, the mismatch is **not** silent: the Registry's `ready`
+health check stays unhealthy with reason `siteId` (the node serves no traffic and, in a cluster, does not join,
+CLU-U-081) until `Site:Id` is corrected and the node restarted (2026-11 review, D12; implemented in T1.07c).
 
 ## 5. Public contract — reading
 
@@ -238,7 +241,10 @@ public sealed record RegistryOutboxRecord(long Revision, DateTimeOffset CreatedA
 8. Deleting a device with children: `DeleteChildren=false` → `registry.device.has_children`.
    Links of deleted devices are deleted.
 
-Size limit: 10,000 changes per batch (`registry.batch.too_large`).
+Size limits, checked before the transaction commits: 10,000 changes per batch, and the serialised
+`registry.changed` record of the batch (PIP §5.3) must fit the log's record limit (`Log` max message size
+minus the envelope headers, 1 MB by default). Either breach rejects the whole batch with
+`registry.batch.too_large` (args `max`, and `bytes` for the record size); nothing is written (T1.09c).
 
 Writes are serialised by a single async lock per node (writes are rare; correctness first).
 In a cluster (M9) the configuration publish path (CFG) is the only writer; REG relies on the
@@ -354,7 +360,7 @@ unless excluded).
 | `registry.device.has_children` | Conflict | `count` | §6 |
 | `registry.server.not_empty` | Conflict | `devices` | §6 |
 | `registry.link.invalid` | Validation | `reason` | R9 |
-| `registry.batch.too_large` | Validation | `max` | §6 |
+| `registry.batch.too_large` | Validation | `max`, `bytes` (record size, when that limit is the cause) | §6 |
 | `registry.reconcile.type_major_change` | (warning) | `nativeId`, `from`, `to` | §8 |
 | `registry.reconcile.link_unresolved` | (warning) | `nativeId`, `toNativeId` | §8 |
 
@@ -438,6 +444,9 @@ Metrics (`Watchpoint.Registry`): `watchpoint.registry.devices` (gauge, tags `cat
 `state` = enabled/disabled/orphaned), `watchpoint.registry.apply.duration` (ms),
 `watchpoint.registry.revision` (gauge).
 
+Health check (`ready`): snapshot loaded and the stored site id equals `Site:Id` (otherwise unhealthy, reason
+`siteId`, §4 R1).
+
 ## 13. Security
 
 - Write endpoints require configuration permissions; reads filtered by RGT scopes (M3).
@@ -502,6 +511,8 @@ persistence fake). Integration: `Watchpoint.IntegrationTests/Registry`.
 | REG-U-049 | U | Rejected batch takes no revision and writes no record | Batch, stale `ExpectedVersion` batch, batch → outbox revisions 1, 2 |
 | REG-U-050 | U | Outbox read in revision order, mark sent, bounded retention | 3 records; `ReadUnsentAsync(2)` → 1, 2; mark 1 and 2 sent (idempotent, unknown revision ignored) → unsent [3]; 25 h later `DeleteSentBeforeAsync(now − 24 h)` deletes 2, never the unsent one; a record sent just now is kept |
 | REG-U-051 | U | Commit signals a waiting publisher once | `WaitForRecordsAsync` pending until a batch commits; two commits before the next wait complete it once, nothing more pending |
+| REG-U-052 | U | Batch whose `registry.changed` record exceeds the log limit is refused before commit | Record limit set to 64 KB, batch of changes serialising to > 64 KB → `registry.batch.too_large` with `bytes`; no row, no revision, no outbox row |
+| REG-U-053 | U | Site id mismatch keeps the node not ready | Row with id A, `Site:Id` = B → `ready` unhealthy, reason `siteId`; with `Site:Id` = A → healthy |
 | REG-I-001 | I | Persist and reload | Apply batch; new registry instance loads same snapshot (deep equality) |
 | REG-I-002 | I | Transaction atomicity | Failure injected mid-persist → nothing persisted, snapshot unchanged |
 | REG-I-003 | I | Unique constraints back up validation | Direct duplicate insert (bypassing validation) → DB rejects |
@@ -522,3 +533,5 @@ persistence fake). Integration: `Watchpoint.IntegrationTests/Registry`.
 | T1.08 | §8 | REG-U-031…REG-U-045, REG-I-007 |
 | T1.07b | §4 R1 (site identity), §12 (event 1504) | REG-U-046, REG-U-047 |
 | T1.09b | §6 (steps 3–5, `IRegistryOutbox`), §10 (`revision`, `outbox`) | REG-U-048…REG-U-051, REG-I-011; REG-I-005 moved onto the outbox |
+| T1.07c | §5, §6, §9 (code aligned to the spec), §4 R1 (readiness `siteId`), §12 (health check) | REG-U-001…REG-U-051 adapted, REG-U-053 |
+| T1.09c | §6 (record size before commit), §9 (`bytes`) | REG-U-052 |
