@@ -66,9 +66,11 @@ public static class PackageEndpoints
             return endpoints;
         }
 
-        group.MapPost(string.Empty, InstallAsync);
-        group.MapPost("{id}/versions/{version}/enable", (string id, string version, IPackageCatalog catalog, CancellationToken ct) => SetEnabledAsync(catalog, id, version, true, ct));
-        group.MapPost("{id}/versions/{version}/disable", (string id, string version, IPackageCatalog catalog, CancellationToken ct) => SetEnabledAsync(catalog, id, version, false, ct));
+        // Until the API's permission filter (T1.19): Development only, and only from a loopback address (IRT §10).
+        var changes = endpoints.MapGroup("/api/v1/packages").AddEndpointFilter(EndpointResults.LoopbackOnly);
+        changes.MapPost(string.Empty, InstallAsync);
+        changes.MapPost("{id}/versions/{version}/enable", (string id, string version, IPackageCatalog catalog, CancellationToken ct) => SetEnabledAsync(catalog, id, version, true, ct));
+        changes.MapPost("{id}/versions/{version}/disable", (string id, string version, IPackageCatalog catalog, CancellationToken ct) => SetEnabledAsync(catalog, id, version, false, ct));
         return endpoints;
     }
 
@@ -170,67 +172,8 @@ public static class PackageEndpoints
         writer.WriteEndObject();
     }
 
-    private static IResult Problem(Error error)
-    {
-        var status = error.Kind switch
-        {
-            ErrorKind.Validation => StatusCodes.Status400BadRequest,
-            ErrorKind.Unauthenticated => StatusCodes.Status401Unauthorized,
-            ErrorKind.Forbidden => StatusCodes.Status403Forbidden,
-            ErrorKind.NotFound => StatusCodes.Status404NotFound,
-            ErrorKind.Conflict => StatusCodes.Status409Conflict,
-            ErrorKind.PreconditionFailed => StatusCodes.Status412PreconditionFailed,
-            ErrorKind.Unprocessable => StatusCodes.Status422UnprocessableEntity,
-            ErrorKind.TooManyRequests => StatusCodes.Status429TooManyRequests,
-            ErrorKind.Unavailable => StatusCodes.Status503ServiceUnavailable,
-            _ => StatusCodes.Status500InternalServerError,
-        };
+    private static IResult Problem(Error error) => EndpointResults.Problem(error);
 
-        // RFC 9457 problem details (Architecture README §6.2); the API framework (T1.19) replaces this local mapping.
-        return Json(status, writer =>
-        {
-            writer.WriteStartObject();
-            writer.WriteString("type", "https://watchpoint.dev/errors/" + error.Code.Value);
-            writer.WriteString("title", error.Code.Value);
-            writer.WriteNumber("status", status);
-            writer.WriteString("code", error.Code.Value);
-            writer.WriteString("messageKey", error.MessageKey);
-            writer.WriteStartObject("args");
-            if (error.Kind != ErrorKind.Internal)
-            {
-                foreach (var (key, value) in error.Args)
-                {
-                    writer.WriteString(key, Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture));
-                }
-            }
-
-            writer.WriteEndObject();
-            writer.WriteEndObject();
-        }, contentType: "application/problem+json");
-    }
-
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1859:Use concrete types when possible for improved performance", Justification = "Endpoint lambdas return IResult from several branches.")]
     private static IResult Json(int status, Action<Utf8JsonWriter> write, string? location = null, string contentType = "application/json") =>
-        new JsonResult(status, write, location, contentType);
-
-    private sealed class JsonResult(int status, Action<Utf8JsonWriter> write, string? location, string contentType) : IResult
-    {
-        public async Task ExecuteAsync(HttpContext httpContext)
-        {
-            using var buffer = new MemoryStream();
-            using (var writer = new Utf8JsonWriter(buffer))
-            {
-                write(writer);
-            }
-
-            httpContext.Response.StatusCode = status;
-            httpContext.Response.ContentType = contentType;
-            if (location is not null)
-            {
-                httpContext.Response.Headers.Location = location;
-            }
-
-            await httpContext.Response.Body.WriteAsync(buffer.GetBuffer().AsMemory(0, (int)buffer.Length), httpContext.RequestAborted).ConfigureAwait(false);
-        }
-    }
+        EndpointResults.Json(status, write, location, contentType);
 }

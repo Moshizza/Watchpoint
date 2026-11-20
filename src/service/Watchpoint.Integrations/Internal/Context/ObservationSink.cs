@@ -98,6 +98,7 @@ internal sealed class ObservationSink : IObservationSink, IAsyncDisposable
     private long _reportedUnknown;
     private long _unknownSinceLog;
     private long _lastUnknownLog;
+    private long _lastReport;
 
     public ObservationSink(ConnectionId connection, IObservationIngest ingest, DeviceMap map, ConnectionCounterSource counters,
         Action<InventorySnapshot> onInventory, int bufferSize, TimeProvider time, ILogger logger)
@@ -125,6 +126,9 @@ internal sealed class ObservationSink : IObservationSink, IAsyncDisposable
             }
         }
     }
+
+    /// <summary>Gets the timestamp (<see cref="TimeProvider.GetTimestamp"/>) of the last report, 0 before the first (silence watchdog).</summary>
+    public long LastReport => Interlocked.Read(ref _lastReport);
 
     /// <summary>Gets or sets a value indicating whether the ingest reports this connection as flooding: root server health then carries the fault <c>flooding</c>.</summary>
     public bool Flooding
@@ -443,6 +447,7 @@ internal sealed class ObservationSink : IObservationSink, IAsyncDisposable
             }
 
             var seq = ++_seq;
+            _lastReport = _time.GetTimestamp();
             if (_queue.Count + _inFlight.Count >= _capacity && coalesceKey is { } key)
             {
                 if (_coalescible.TryGetValue(key, out var existing))
