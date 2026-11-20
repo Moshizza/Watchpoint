@@ -117,11 +117,6 @@ CLU-U-081) until `Site:Id` is corrected and the node restarted (2026-11 review, 
 
 ## 5. Public contract — reading
 
-> **Known divergence, fixed by T1.07c.** The code merged in T1.07–T1.09b does not yet have this
-> shape (reader member names, `Revision`, `GetEnrichment`/`DeviceEnrichment`, `Changed` on the
-> reader, Kernel `Page<T>`/`PageRequest` instead of the REG-local records). This section is the
-> target; T1.07c aligns the code (2026-11 architecture review, D1).
-
 ```csharp
 public interface IRegistryReader
 {
@@ -145,6 +140,8 @@ public interface IRegistryReader
     event EventHandler<RegistryChangedEventArgs>? Changed;
 }
 
+public enum LinkDirection { Both, Outgoing, Incoming }         // Outgoing: device is From; Incoming: device is To
+
 public sealed record DeviceQuery(
     IReadOnlyList<ServerId>? Servers = null, IReadOnlyList<LocationId>? LocationsSubtree = null,
     IReadOnlyList<TypeId>? Types = null /* includes descendants via IsA */, IReadOnlyList<Category>? Categories = null,
@@ -153,6 +150,12 @@ public sealed record DeviceQuery(
     bool? Enabled = null, bool? Maintenance = null, bool? Orphaned = null, DeviceId? Parent = null,
     bool RootsOnly = false, IReadOnlySet<DeviceId>? Within = null /* RGT visible set */, SortSpec? Sort = null);
 // Sort fields: name (display name in culture), type, location, createdAt. Default name asc.
+//
+// Known divergence, not in T1.07c's scope (2026-11 review finding 2.2 only cites the reader/writer method
+// signatures, not this filter shape): the code's DeviceQuery/ServerQuery/LocationQuery still have the single-value
+// filters of T1.07 (ServerId?/LocationId?/TypeId?/Tags?/SearchText?, one LocationId not a subtree list). Categories,
+// Capabilities and Within need MOD/RGT integration RGT does not exist before M3; Sort needs Kernel SortSpec wiring.
+// A future task expands the filter shape when a consumer needs it (e.g. T1.19's API, T3.04+ for RGT's Within).
 
 public sealed record DeviceEnrichment(DeviceId Id, string DisplayNameDefault, ServerId ServerId,
     LocationId LocationId, string LocationPath, IReadOnlyList<string> LocationNames /* default culture, root first */,
@@ -160,11 +163,6 @@ public sealed record DeviceEnrichment(DeviceId Id, string DisplayNameDefault, Se
 ```
 
 ## 6. Public contract — writing
-
-> **Known divergence, fixed by T1.07c.** The code's `ChangeContext(UserId, Reason, CorrelationId)`,
-> `DeleteLocation/DeleteServer/DeleteDevice(Id, ExpectedVersion)` and link methods differ from the
-> text below. This section is the target: T1.07c brings `ChangeContext(Actor, Origin, ChangeSet,
-> Comment)` (with the matching outbox columns), `ReassignTo`, `DeleteDevices` and `DeleteChildren`.
 
 ```csharp
 public interface IRegistryWriter
@@ -200,6 +198,11 @@ public sealed record DevicePatch(Optional<LocalizedName?> Name, Optional<Locatio
     Optional<IReadOnlyList<TagId>> TagsSet, IReadOnlyList<TagId>? TagsAdd, IReadOnlyList<TagId>? TagsRemove,
     Optional<bool> Enabled, Optional<bool> Maintenance, Optional<IReadOnlyDictionary<string, WpValue>> AttributesMerge);
 // Optional<T> is a Kernel-style "set or not set" wrapper defined in this module (HasValue + Value).
+//
+// Known divergence, not in T1.07c's scope (same reason as DeviceQuery above): the code's DevicePatch keeps the
+// T1.07 shape (DisplayName/LocationId/Tags/Attributes/CustomFields/UnsupportedCaps/Geometry/Enabled/Maintenance,
+// full-replace semantics, no TagsAdd/TagsRemove). A future task aligns it when PATCH /api/v1/devices/{id} (REG §11)
+// is implemented, since that is what actually needs the incremental tag add/remove and attribute-merge semantics.
 
 public sealed record EntityChange(string Entity /* "device" … */, Guid Id, ChangeKind Kind /* Created, Updated, Deleted */);
 
@@ -337,13 +340,9 @@ unless excluded).
 
 ## 9. Errors
 
-> **Known divergence, fixed by T1.07c.** The code currently emits `registry.entity_not_found`,
-> `common.version.conflict` and one generic invariant error; T1.07c maps each violation to the
-> codes below (the catalogue is the API and UI contract).
-
 | Code | Kind | Args | Invariant |
 |---|---|---|---|
-| `registry.site.not_initialised` | Unavailable | — | R1 |
+| `registry.site.not_initialised` | Unavailable | — | R1 (reserved; not reachable through `IRegistryWriter`/`IRegistryReader`, which always expose the default site per R1's note — kept for a future caller that must distinguish an uninitialised installation) |
 | `registry.location.not_found` / `server.not_found` / `device.not_found` / `tag.not_found` / `link.not_found` / `custom_field.not_found` | NotFound | `id` | |
 | `registry.location.cycle` | Validation | | R2 |
 | `registry.location.too_deep` | Validation | `max` | R2 |
@@ -352,20 +351,24 @@ unless excluded).
 | `registry.location.root_immutable` | Validation | | Root cannot be moved or deleted |
 | `registry.tag.duplicate_key` | Validation | `key` | R3 |
 | `registry.tag.family_exclusive` | Validation | `family` | R3 |
-| `registry.type.invalid_role` | Validation | `typeId`, `expectedRole` | R4 |
+| `registry.type.invalid_role` | Validation | `typeId`, `expectedRole` | R4 (the type resolving is checked first; an unknown type returns MOD's own `model.type.not_found` instead, since R4 says the type "resolves in MOD") |
 | `registry.device.duplicate_native_id` | Validation | `nativeId` | R5 |
 | `registry.server.duplicate_native_id` | Validation | `nativeId` | R5 |
 | `registry.device.parent_invalid` | Validation | `reason` (`otherServer`, `typeNotAllowed`, `cycle`, `tooDeep`) | R6 |
-| `registry.server.parent_invalid` | Validation | `reason` | R7 |
+| `registry.server.parent_invalid` | Validation | `reason` (`otherConnection`, `cycle`, `tooDeep`) | R7 |
 | `registry.device.has_children` | Conflict | `count` | §6 |
 | `registry.server.not_empty` | Conflict | `devices` | §6 |
-| `registry.link.invalid` | Validation | `reason` | R9 |
-| `registry.batch.too_large` | Validation | `max`, `bytes` (record size, when that limit is the cause) | §6 |
+| `registry.link.invalid` | Validation | `reason` (`sourceNotFound`, `targetNotFound`, `duplicate`, `selfLink`) | R9 |
+| `registry.batch.too_large` | Validation | `max` (change count, T1.07c) and `bytes` (record size, T1.09c) | §6 |
 | `registry.reconcile.type_major_change` | (warning) | `nativeId`, `from`, `to` | §8 |
 | `registry.reconcile.link_unresolved` | (warning) | `nativeId`, `toNativeId` | §8 |
 
-Attribute validation errors come from MOD (`model.value.*`) with paths
-`/changes/<i>/device/attributes/<key>`.
+R1's valid-timezone check and R8's duplicate-key/required-field checks have no dedicated code in this
+catalogue; they return the generic Kernel codes `common.value.invalid_format` and
+`common.value.duplicate`/`common.value.required`. Attribute validation errors come from MOD
+(`model.value.*`) with paths `/changes/<i>/device/attributes/<key>` (not implemented: no code path
+builds device attributes through `IValueValidator` yet — a future task when a client writes attributes
+through the registry's own batch API rather than through a device's already-validated type).
 
 The `registry.changed` record is stored with the batch (§6 step 3, table `outbox` in §10) and
 published by PIP (§5.5); a log outage or a node stop cannot lose it.
@@ -385,7 +388,7 @@ published by PIP (§5.5); a log outage or a node stop cannot lose it.
 | `custom_fields` | id, target text, key text, name jsonb, schema jsonb, row_version, … | PK id; unique (target, key) |
 | `discovered_items` | connection_id uuid, native_id text, kind text (`device`), server_native_id text, parent_native_id text null, type_id, type_version, vendor_name, vendor_attributes jsonb, status text, first_seen, last_seen | PK (connection_id, native_id) |
 | `revision` | id int (always 1), value bigint | PK id; `value` is a concurrency token; one row inserted by the migration (value 0; created on first use where the migration did not run) |
-| `outbox` | revision bigint, created_at timestamptz, actor text null, reason text null, correlation_id text null, changes jsonb (`[{ "entity", "id", "kind" }]`, the `changes` of the log record), sent_at timestamptz null | PK revision; index sent_at. Written in the batch transaction (§6 step 3); `sent_at` set by the pipeline's publisher after the log acknowledged the record (PIP §5.5); sent rows deleted after 24 h (PIP §5.5), unsent rows never |
+| `outbox` | revision bigint, created_at timestamptz, actor uuid null, origin text, change_set uuid null, comment text null, changes jsonb (`[{ "entity", "id", "kind" }]`, the `changes` of the log record), sent_at timestamptz null | PK revision; index sent_at. Written in the batch transaction (§6 step 3); `sent_at` set by the pipeline's publisher after the log acknowledged the record (PIP §5.5); sent rows deleted after 24 h (PIP §5.5), unsent rows never |
 
 `connection_id` is a plain uuid (owned by IRT, no cross-schema FK).
 
@@ -533,5 +536,5 @@ persistence fake). Integration: `Watchpoint.IntegrationTests/Registry`.
 | T1.08 | §8 | REG-U-031…REG-U-045, REG-I-007 |
 | T1.07b | §4 R1 (site identity), §12 (event 1504) | REG-U-046, REG-U-047 |
 | T1.09b | §6 (steps 3–5, `IRegistryOutbox`), §10 (`revision`, `outbox`) | REG-U-048…REG-U-051, REG-I-011; REG-I-005 moved onto the outbox |
-| T1.07c | §5, §6, §9 (code aligned to the spec), §4 R1 (readiness `siteId`), §12 (health check) | REG-U-001…REG-U-051 adapted, REG-U-053 |
+| T1.07c | §5, §6, §9 (code aligned to the spec), §4 R1 (readiness `siteId`), §12 (health check) | REG-U-001…REG-U-051 adapted, REG-U-053, REG-U-054…REG-U-067 (new members and error codes) |
 | T1.09c | §6 (record size before commit), §9 (`bytes`) | REG-U-052 |
