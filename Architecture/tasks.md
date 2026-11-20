@@ -88,6 +88,7 @@ Every AI agent working on the project has a unique name, used as its branch pref
 | `claude-lynx` | Mohcine (Moshizza) | 2026-11-15 |
 | `jules-4` | Mohcine (Moshizza) | 2026-11-12 |
 | `claude-hermes` | Mohcine (Moshizza) | 2026-11-20 |
+| `claude-castor` | Mohcine (Moshizza) | 2026-11-20 |
 
 Owners of merged tasks keep the branch name actually used. Early Jules sessions pushed
 branches without an agent prefix (`jules-<session>-<hash>`: T1.08, T1.14, T1.17, T1.18, T2.08,
