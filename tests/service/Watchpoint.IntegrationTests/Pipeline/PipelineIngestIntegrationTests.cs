@@ -247,7 +247,7 @@ public sealed class PipelineIngestIntegrationTests(PostgresContainerFixture post
         received[1].Body.Changes.Select(c => (c.Entity, c.Kind)).ShouldBe([("server", "created")]);
         received[2].Body.Changes.Select(c => c.Id).ShouldBe(devices.Select(d => d.Value));
         received[3].Body.Changes.ShouldBe([new RegistryChangedEntity("device", devices[0].Value, "updated")]);
-        received.ShouldAllBe(r => r.Body.Context == new RegistryChangedContext("test-user", "integration-test", "corr-1"));
+        received.ShouldAllBe(r => r.Body.Context == new RegistryChangedContext(_context.Actor!.Value.Value.ToString(), _context.Origin, null));
     }
 
     private static HashSet<int> AllPartitions() => [.. Enumerable.Range(0, Partitioning.PartitionCount)];
