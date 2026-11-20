@@ -76,7 +76,7 @@ Sources, later overriding earlier: `appsettings.json` (shipped defaults) →
 | `Paths:Logs` | path | `<Data>/logs` (Linux: `/var/log/watchpoint`) | writable |
 | `Paths:Packages` | path | `<Data>/integrations` | |
 | `Paths:Binaries` | path | folder of the executable + `/bin` | contains helper binaries in production |
-| `Http:Urls` | list | Production `https://0.0.0.0:8443`; Development `http://localhost:5080` | valid URLs |
+| `Http:Urls` | list | `https://0.0.0.0:8443` (the Development value `http://localhost:5080` comes from `deploy/dev/watchpoint.dev.json`, not from code) | valid URLs |
 | `Http:Certificate:Path` / `:Password` | path / secret ref | generated site certificate (SEC, from T1.05; self-signed placeholder before) | file exists |
 | `Management:Urls` | list | `http://127.0.0.1:9464` (metrics, health) | loopback by default |
 | `Database:*` | section | see STO §8 | |
@@ -84,6 +84,9 @@ Sources, later overriding earlier: `appsettings.json` (shipped defaults) →
 | `Nats:Url` | url | `nats://127.0.0.1:4222` | |
 | `Nats:Port` | int | 4222 | 1–65535 |
 | `Nats:StorePath` | path | `<Data>/nats` | |
+| `Nats:ServerName` (M9, T9.01) | string | `Node:Id` | Bundled mode; unique in the cluster |
+| `Nats:ClusterPort` (M9, T9.01) | int | 6222 | 1–65535; bundled mode, cluster routes (CLU §4) |
+| `Nats:Routes` (M9, T9.01) | url[] | empty | `nats-route://<host>:<port>` of the other members; empty = single node |
 | `Nats:Token` | secret | empty | External mode only (the bundled server generates its own); never logged; the development token `devtoken` is refused outside Development |
 | `Logging:MinimumLevel` | enum | `Information` | Serilog levels |
 | `Logging:Overrides` | map | `{ "Microsoft.AspNetCore": "Warning" }` | |

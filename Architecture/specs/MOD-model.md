@@ -381,4 +381,4 @@ Unit: `tests/service/Watchpoint.Model.Tests`. Fixtures: a small library folder i
 
 | Task | Sections | Tests |
 |---|---|---|
-| T1.06 | All (MOD-I-003, MOD-I-004 run in CI already; T1.19 maps the type endpoints in the API framework) | MOD-U-001…MOD-U-035, MOD-I-001…MOD-I-004 |
+| T1.06 | All (MOD-I-003, MOD-I-004 exist but check `ITypeResources` only: no MOD endpoint is mapped yet; T1.19 maps the endpoints and extends both tests to HTTP headers, CSP and 304) | MOD-U-001…MOD-U-035, MOD-I-001…MOD-I-004 |

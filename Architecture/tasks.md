@@ -120,6 +120,7 @@ spec that must exist and pass.
 | T0.14 | EXP-U-040: assert the evaluator hot path is allocation-free instead of a fake-clock timing that cannot fail | EXP §5, §10; TST §4.7 | — | (fix) EXP-U-040 | — | claude-altair/T0.14-exp-allocation-free-hot-path | done |
 | T0.16a | Apply architecture review: tasks sheet | reviews/2026-11-architecture-review §1 | — | — (documentation) | — | claude-hermes/T0.16a-tasks-sheet | done |
 | T0.16b | Apply architecture review: module specs (PIP, REG, IRT, HST, IDN, MOD) | reviews/2026-11-architecture-review §2 | — | — (documentation) | — | claude-hermes/T0.16b-module-specs | done |
+| T0.16c | Apply architecture review: cross-cutting specs (event ids, subscriber orders, README, LIC, DSK, API, HST, CLU) | reviews/2026-11-architecture-review §3 | — | — (documentation) | — | claude-hermes/T0.16c-cross-cutting | done |
 | T0.17 | Architecture test, per module: every error code emitted (`Error.Create`/`Errors.*` literals) and every event id logged appears in the module spec's errors and observability sections | TST §6; README §12 | T0.05 | ARCH-9 (error codes), ARCH-10 (event ids) | — | — | todo |
 
 ### M1 — First device on screen
@@ -152,7 +153,7 @@ spec that must exist and pass.
 | T1.18 | Identity minimal: local users, Argon2id, sign-in, access/refresh tokens, bootstrap admin, session registry | IDN §4–§7 | T1.04 | IDN-U-001…IDN-U-030, IDN-I-001…IDN-I-006 | [#29](https://github.com/Moshizza/Watchpoint/issues/29) | jules-14674020379193774426-43566f4b | done |
 | T1.18r | Identity security review and fixes (T1.18 code) | IDN §4–§7 | T1.18 | IDN-U-*, IDN-I-*, new tests (IDN-U-101…IDN-U-124) | — | claude-sirius/T1.18r-identity-security-review | done |
 | T1.18s | Identity settings binding (§7.1) and per-site token issuer | IDN §6–§7 | T1.18r | IDN-U-125…IDN-U-129, HST-U-046, HST-U-047 | — | claude-polaris/T3.08-identity-mfa-lockout (with T3.08, #172) | done |
-| T1.19 | API: REST framework (problem details, paging, ETag, idempotency, permission filter, OpenAPI) + endpoints for registry, state, connections, types, dev seed | API §4–§7 | T1.11, T1.16, T1.18 | API-U-001…API-U-030, API-I-001…API-I-015, REG-I-008, REG-I-010 | [#30](https://github.com/Moshizza/Watchpoint/issues/30) | — | todo |
+| T1.19 | API: REST framework (problem details, paging, ETag, idempotency, permission filter, OpenAPI) + endpoints for registry, state, connections, types, dev seed | API §4–§7 | T1.11, T1.16, T1.18 | API-U-001…API-U-030, API-I-001…API-I-015, REG-I-008, REG-I-010, MOD-I-003, MOD-I-004 (extend to HTTP) | [#30](https://github.com/Moshizza/Watchpoint/issues/30) | — | todo |
 | T1.20 | API: live hub (subscriptions, snapshots + deltas, sequences, resume, coalescing, limits) | API §8–§10 | T1.19 | API-U-031…API-U-055, API-I-016…API-I-025 | [#31](https://github.com/Moshizza/Watchpoint/issues/31) | — | todo |
 | T1.21 | UI core: generated API client, live connection client, model package | UIC §4–§6 | T1.20, T0.08 | UIC-U-004…UIC-U-030 | [#32](https://github.com/Moshizza/Watchpoint/issues/32) | — | todo |
 | T1.22 | UI core: i18n (en/fr/ar, RTL, ICU), design system base (theme, layout, DataGrid, tree, state badges) | UIC §8–§10 | T0.08 | UIC-U-031…UIC-U-060 | [#33](https://github.com/Moshizza/Watchpoint/issues/33) | jules-1/T1.22-ui-core-12272030307080811265 | done |
