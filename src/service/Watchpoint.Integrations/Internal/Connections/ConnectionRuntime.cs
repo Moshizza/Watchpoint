@@ -392,6 +392,13 @@ internal sealed class ConnectionRuntime : IAsyncDisposable
 
     public bool SupportsBatch => Running?.Hosted?.Connector is IBatchCommandExecutor;
 
+    /// <summary>Completes when the transitions so far are recorded (StatusChanged raised, timeline row, WP_SYS record).</summary>
+    internal async Task RecordedAsync()
+    {
+        await Invoke(() => { }).ConfigureAwait(false);
+        await _records.DrainAsync().ConfigureAwait(false);
+    }
+
     public async ValueTask DisposeAsync()
     {
         _mailbox.Writer.TryComplete();
@@ -543,6 +550,13 @@ internal sealed class ConnectionRuntime : IAsyncDisposable
         {
             _restartRequested = false;
             Transition(_connection.Enabled && !_deleting ? ConnectionState.Configured : ConnectionState.Disabled, _stopReason);
+        }
+
+        // A stop is done when the teardown it caused is done, even if a later start runs the connection again.
+        if (_tearingDown is null)
+        {
+            _stopWaiters.ForEach(w => w.TrySetResult());
+            _stopWaiters.Clear();
         }
 
         Converge();
