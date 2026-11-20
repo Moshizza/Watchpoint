@@ -173,7 +173,8 @@ public static readonly IWatchpointModule[] All =
 ];
 ```
 
-Target list. Today (`src/service/Watchpoint.Host/ModuleCatalog.cs`) the catalogue holds `Storage`, `Model`,
+Target list. Today (`src/service/Watchpoint.Host/ModuleCatalog.cs`) the catalogue holds `Secrets` (added by T1.16:
+connection credentials; its start-up task runs `ISecretsStartup` in phase `Infrastructure`, order 5), `Storage`, `Model`,
 `Registry`, `Pipeline`, `Identity` and `IntegrationRuntime`; each task adds its module in this order.
 
 ### 5.3 Startup orchestration
@@ -445,14 +446,14 @@ devices for connections flagged `"autoImport": true`.
     { "key": "a", "parent": "hq", "name": "Building A", "kind": "building" },
     { "key": "a0", "parent": "a", "name": "Floor 0", "kind": "floor" }
   ],
-  "users": [ { "login": "admin", "password": "Dev-Admin-1!", "administrator": true } ],
+  "users": [ { "login": "admin", "password": "Dev-Watchpoint-1!", "administrator": true } ],
   "connections": [
     {
       "package": "watchpoint.integration.simulator",
       "serverType": "sim.server",
       "name": "Simulator",
       "location": "a0",
-      "settings": { "profile": "office", "doors": 20, "zones": 10, "areas": 2, "seed": 42 },
+      "settings": { "profile": "office", "doors": 20, "zonesPerArea": 5, "areas": 2, "seed": 42 },
       "secrets": {},
       "autoImport": true
     }
@@ -471,9 +472,19 @@ error `host.seed.invalid` with the JSON paths. Logs name paths and codes, never 
 Each section is applied by an `IDevSeedStep` (one per section, registered by the host for the modules it
 composes), in the order above. "Store empty" means no step reports existing data (`HasDataAsync`; the users step:
 none of the seed's logins exists); otherwise nothing is applied (event 1142). A section without a step is skipped
-with a warning (event 1141). T1.02 delivers the `users` step (IDN); the steps for site, locations and tags (REG)
-and for connections and import (IRT) come with T1.16. The Registry module is already in the host's module
-catalogue (T1.09/T1.10); only its seed steps are missing.
+with a warning (event 1141). T1.02 delivers the `users` step (IDN); T1.16 the steps for site, locations and tags (REG,
+through `IRegistryWriter`) and for connections and import (IRT, through `IConnectionManager`):
+
+- `site`: never reports data (the default site always exists, REG R1). The registry accepts a batch only with exactly
+  one root location (REG R2), so on an empty registry the site update and the seed's locations go in one batch.
+- `locations`: data = any location; a seed location whose parent holds one with the same name (NameRules) is kept.
+- `tags`: data = a seed tag key exists; families are created by key (cardinality zero-or-more).
+- `connections`: data = a connection with a seed name exists; the location is found by the seed's chain of names
+  (a connection without `location` goes to the root). Connections are created enabled with their settings and
+  secrets (stored in the vault). The import happens at the `Connections` phase: on its first connect a connection
+  describes its inventory and, with `autoImport`, the registry imports everything new (IRT §7.4).
+
+Every step is idempotent: applying the seed again creates nothing twice.
 
 ## 10. Errors
 
@@ -634,5 +645,5 @@ above also covers the watchdog end to end.
 Note: HST-I-008 needs IRT, C-SIM and IDN; it is implemented in T1.02 but enabled when those
 tasks are merged (marked `[Trait("requires","T1.16,T1.17,T1.18")]`). T1.17 and T1.18 are merged; what is
 missing is T1.16 (connection manager) together with the seed steps for site, locations and tags (REG) and for
-connections and import (IRT); the Registry module is already in the catalogue. Until then the test is skipped; **T1.16 enables it** (removes the
-`Skip`, adds the missing seed steps) and lists it among its tests.
+connections and import (IRT); the Registry module is already in the catalogue. **T1.16 enabled it** (seed steps, the
+simulator staged as a builtin package signed with a development key, the host started with its own NATS server).

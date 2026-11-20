@@ -21,6 +21,7 @@ namespace Watchpoint.IntegrationTests.Host;
 /// The supervisor with real processes (spec HST §7.3, §7.4): the pinned nats-server binary and, on Linux, shell
 /// children. No container is needed. Waits are bounded polls or signals, never fixed sleeps.
 /// </summary>
+[Collection(HostProcesses.Name)]
 [Trait("layer", "I")]
 [Trait("spec", "HST")]
 public sealed class SupervisorIntegrationTests
