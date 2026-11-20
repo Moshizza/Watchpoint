@@ -336,6 +336,8 @@ the desktop client still run on release and nightly only, for duration, not cost
 ## 11. Git workflow
 
 - `main` is the reference branch; it must always build and pass `ci.yml`.
+- Branch protection on `main` (the repository is public): the `ci-ok` check is required before merging
+  and force pushes and branch deletion are blocked. Changes reach `main` only through pull requests.
 - **One branch per task**: `<owner>/<task-id>-<short-slug>`, where `<owner>` is the agent name
   (agent registry in [tasks.md](tasks.md#agent-registry)) or the GitHub username, e.g.
   `claude-atlas/T1.04-registry-core`. The task's **Owner** column holds that branch name.
@@ -358,7 +360,8 @@ the desktop client still run on release and nightly only, for duration, not cost
    never crosses the kind letter (U, I, C, E): write one range per kind.
 3. CI green; no new warnings; no `TODO` without an issue reference.
 4. Public contract documented (XML docs / TSDoc).
-5. Logs, metrics and health checks from the spec's observability section exist.
+5. Logs, metrics and health checks from the spec's observability section exist. Every error code and event id the code
+   emits is listed in the spec (ARCH-9, ARCH-10 check it).
 6. User-visible strings have translation keys in `en`, `fr`, `ar` (machine translation
    allowed for `fr`/`ar` until reviewed; marked `needs-review` in Weblate).
 7. Spec updated if anything changed; [tasks.md](tasks.md) status set to *done*.

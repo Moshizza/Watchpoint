@@ -70,7 +70,7 @@ Sources, later overriding earlier: `appsettings.json` (shipped defaults) →
 | `Node:Id` | uuid | generated at first start and written back to `watchpoint.json` | v7 uuid |
 | `Node:Name` | string | machine name | NameRules |
 | `Node:Roles` | list | `["front","integration","pipeline","history","media"]` | subset of CLU roles |
-| `Node:Environment` | enum | `Production` | `Production`, `Development` |
+| `Node:Environment` | enum | `Production` | `Production`, `Development` (refused when running as a service or with the production `Paths:Data`, §12) |
 | `Site:Id` | uuid | generated at first start and written back to `watchpoint.json` (T1.18s) | v7 uuid; names the installation as a whole: shared by every node of a site (copied by `wpctl cluster join`, M9), forms the access token issuer (IDN §6.2) |
 | `Paths:Data` | path | Windows `C:\ProgramData\Watchpoint`, Linux `/var/lib/watchpoint`, container `/var/lib/watchpoint` | writable at start |
 | `Paths:Logs` | path | `<Data>/logs` (Linux: `/var/log/watchpoint`) | writable |
@@ -492,7 +492,7 @@ catalogue (T1.09/T1.10); only its seed steps are missing.
 | EventId | Level | Message template |
 |---|---|---|
 | 1101 | Critical | Invalid node settings: {Problems} |
-| 1102 | Information | Node {NodeId} ({NodeName}) starting, version {Version}, environment {Environment} |
+| 1102 | Information (Warning in Development, §12) | Node {NodeId} ({NodeName}) starting, version {Version}, environment {Environment} |
 | 1103 | Critical | Refusing to start as a privileged process (root/Administrator) in Production without --allow-elevated |
 | 1104 | Warning | Running as a privileged process (root/Administrator) in Production (--allow-elevated) |
 | 1105 | Warning | Could not persist Node:Id to {Path} |
@@ -537,6 +537,13 @@ Metrics (`Watchpoint.Host`):
 - Management port bound to loopback by default; binding it elsewhere logs a warning.
 - NATS bound to loopback in Bundled mode; token never logged.
 - Development seed only in Development; refuses to run otherwise (`HST1140` + skip).
+- **Development is refused on a production install** (the repository is public, so every development
+  relaxation is known: unauthenticated POSTs, `devtoken`, `Log:AllowInsecureRemote`, development keys,
+  seed passwords). With `Node:Environment = Development` the host stops at settings validation (exit 78)
+  when it runs as a service (Windows service, or systemd: `NOTIFY_SOCKET` / `INVOCATION_ID` set) or when
+  `Paths:Data` is the production default of the OS (§4). Every start in Development logs event 1102 at
+  **Warning** instead of Information. Installers write `Node:Environment = Production` and the setup
+  wizard never offers Development (DEP §4, §7). Implemented in T1.19 (HST-U-048); security test S-031.
 
 ## 13. Tests
 
@@ -601,6 +608,7 @@ Added by T1.02 (state machine and platform behaviour in detail):
 | HST-U-044 | U | Development seed and credentials refused outside Development | Production: seed task applies nothing (1140), users step returns `host.seed.not_development`; `watchpoint.dev.json` with `Node:Environment=Production` → `Nats:Token` invalid, `PasswordDev` rejected by storage (exit 78) before any connection |
 | HST-U-046 | U | Site id generated once, persisted and validated | First start: `Site:Id` generated (v7) and written back next to `Node:Id`; second start reads it; a non-v7 id fails validation |
 | HST-U-047 | U | Module with invalid settings stops the start | `IdentityModule.BindSettings` with a valid context → settings; an invalid or unknown `Identity:*` key, or no `Site:Id` → `InvalidSettingsException` naming the key and code, never the value |
+| HST-U-048 | U | Development refused on a production install | `Node:Environment=Development` + service host (Windows service / `NOTIFY_SOCKET`) → exit 78; + `Paths:Data` = OS default → exit 78; console run with a custom data path → starts, 1102 at Warning |
 | HST-U-045 | U | Ready line printed at once is not missed | Child whose stdout already holds the `StdoutLine` text when it starts → Running (the probe is registered before the output is read), 50 rounds |
 | HST-I-009 | I | Real child process (Linux) | Own process group; 20,000 lines drained; environment, working directory, stderr; child ignoring SIGTERM with a descendant → both killed after the grace period; exit code reported |
 | HST-I-010 | I | Development stack pinned and consistent | Compose images pinned by digest and equal to the test fixtures and `deploy/versions.env`; loopback ports; dev settings valid; sample seed valid |
@@ -621,6 +629,7 @@ above also covers the watchdog end to end.
 |---|---|---|
 | T1.01 | §4, §5, §6, §10, §11 (host part), §12 | HST-U-001…HST-U-015, HST-U-026, HST-U-027, HST-I-001…HST-I-004 |
 | T1.02 | §7, §8, §9, §11 (supervisor part) | HST-U-016…HST-U-025, HST-U-028…HST-U-045, HST-I-005…HST-I-007, HST-I-009, HST-I-010; HST-I-008 written (enabled by T1.16) |
+| T1.19 | §12 (Development refused on a production install, 1102 level) | HST-U-048 |
 
 Note: HST-I-008 needs IRT, C-SIM and IDN; it is implemented in T1.02 but enabled when those
 tasks are merged (marked `[Trait("requires","T1.16,T1.17,T1.18")]`). T1.17 and T1.18 are merged; what is

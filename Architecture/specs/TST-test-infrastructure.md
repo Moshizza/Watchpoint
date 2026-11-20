@@ -241,6 +241,9 @@ every `src/service/Watchpoint.*` and `src/integrations/Watchpoint.*` project by 
 | ARCH-6 | `Watchpoint.Integration.Abstractions` depends only on `Watchpoint.Kernel`, `Microsoft.Extensions.Logging.Abstractions` (INT §2) and BCL |
 | ARCH-7 | Connector assemblies (`Watchpoint.Integration.<Name>`) do not reference `Watchpoint.*` service modules (only Abstractions, Sdk, Kernel) |
 | ARCH-8 | No type named `*Controller` (minimal APIs only) |
+| ARCH-9 | Every error code literal passed to `Error.*`/`Errors.*` in a module appears in that module spec's errors section (`Architecture/specs/<ID>-*.md`, codes in backticks; slash forms `a.b.c` / `d` expanded) (T0.17) |
+| ARCH-10 | Every `LoggerMessage` event id of a module lies in its README §8 range and appears in its spec's observability table (T0.17) |
+| ARCH-11 | Every `Permission("…")` literal is a code of RGT §4.1 or registered by its module (RGT §4) (T0.17) |
 
 The module list is discovered by assembly name pattern so new modules are covered
 automatically.
@@ -304,7 +307,7 @@ Not applicable (test-only), except `SecretLeakDetector` (§4.4).
 | TST-I-005 | I | NATS container has JetStream | Create stream with scope prefix → succeeds |
 | TST-I-006 | I | NATS scopes isolate subjects | Publish on scope A not received by consumer of scope B |
 | TST-I-007 | I | Missing Docker locally → skip; with `WATCHPOINT_REQUIRE_CONTAINERS=1` → fail | Simulated by fixture option |
-| TST-I-008 | I | ARCH-1…ARCH-8 pass on the solution | Architecture tests green |
+| TST-I-008 | I | ARCH-1…ARCH-8 pass on the solution (ARCH-9…ARCH-11 from T0.17) | Architecture tests green |
 | TST-I-009 | I | ARCH-3 detects a violation | A test-only fixture assembly referencing another module's `Internal` type → rule fails |
 | TST-I-010 | I | Parallel test classes do not interfere | 8 classes in parallel each create/drop DB and NATS scope → all pass |
 
@@ -314,3 +317,4 @@ Not applicable (test-only), except `SecretLeakDetector` (§4.4).
 |---|---|---|
 | T0.05 | §3–§8 | TST-U-001…TST-U-013, TST-I-001…TST-I-010 |
 | T0.13 | §4.7 | TST-U-014 |
+| T0.17 | §6 (ARCH-9, ARCH-10, ARCH-11) | ARCH-9…ARCH-11 |
