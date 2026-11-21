@@ -9,6 +9,7 @@ Usage (from the repository root, after `git fetch origin`):
     python3 tools/next-task.py            # next available task (exit 1 if none)
     python3 tools/next-task.py --list     # whole order with status and availability
     python3 tools/next-task.py --offline  # do not query remote branches
+    python3 tools/next-task.py --self-test  # run the built-in checks
 """
 from __future__ import annotations
 
@@ -18,6 +19,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+TID = r"T\d+\.\d\d[a-z]?"  # task id, optional letter suffix (T1.07c)
 ROOT = Path(__file__).resolve().parents[1]
 BUILD_ORDER = ROOT / "Architecture" / "build-order.md"
 
@@ -25,7 +27,7 @@ BUILD_ORDER = ROOT / "Architecture" / "build-order.md"
 def read_tasks(text: str) -> list[dict]:
     rows = []
     for line in text.splitlines():
-        if re.match(r"\| T\d+\.\d\d \|", line):
+        if re.match(rf"\| {TID} \|", line):
             c = [x.strip() for x in line.split("|")]
             issue = re.search(r"#(\d+)", c[6])
             rows.append({"id": c[1], "title": c[2], "spec": c[3], "deps": c[4], "tests": c[5],
@@ -35,7 +37,7 @@ def read_tasks(text: str) -> list[dict]:
 
 def dep_ids(deps: str, ids: list[str]) -> list[str]:
     out: list[str] = []
-    for a, b in re.findall(r"(T\d+\.\d\d)(?:…(T\d+\.\d\d))?", deps):
+    for a, b in re.findall(rf"({TID})(?:…({TID}))?", deps):
         if b and a in ids and b in ids:
             i, j = sorted((ids.index(a), ids.index(b)))
             out += ids[i: j + 1]
@@ -67,7 +69,7 @@ def started_task_ids(offline: bool) -> set[str]:
                              capture_output=True, text=True, timeout=60).stdout
     except (subprocess.SubprocessError, OSError) as e:
         sys.exit(f"Cannot list remote branches ({e}); retry or use --offline.")
-    return set(re.findall(r"refs/heads/(?:[^/\s]+/)?(T\d+\.\d\d)-", out))
+    return set(re.findall(rf"refs/heads/(?:[^/\s]+/)?({TID})-", out))
 
 
 def spec_file(spec: str) -> str:
@@ -81,12 +83,39 @@ def spec_file(spec: str) -> str:
     return "(see Architecture/build-order.md)"
 
 
+def self_test() -> None:
+    rows = read_tasks("\n".join([
+        "| T1.07 | a | S | — | t | — | — | done |",
+        "| T1.07c | b | S | T1.07 | t | — | — | todo |",
+        "| T1.11 | c | S | T1.10, T1.07c | t | — | — | todo |",
+        "| T1.10 | d | S | T1.07 | t | — | — | done |",
+        "| T0.16a | e | S | — | t | — | — | done |",
+        "| T1.12 | f | S | T1.07…T1.07c | t | — | — | todo |",
+    ]))
+    assert [r["id"] for r in rows] == ["T1.07", "T1.07c", "T1.11", "T1.10", "T0.16a", "T1.12"], rows
+    ids = [r["id"] for r in rows]
+    assert dep_ids("T1.10, T1.07c", ids) == ["T1.10", "T1.07c"]
+    assert dep_ids("T1.07", ids) == ["T1.07"]
+    assert dep_ids("T1.07…T1.07c", ids) == ["T1.07", "T1.07c"]
+    order = [r["id"] for r in dependency_order(rows)]
+    assert order.index("T1.07c") < order.index("T1.11"), order
+    out = "refs/heads/x/T1.07c-y\nrefs/heads/T0.16a-z\nrefs/heads/jules-1/T1.07-q"
+    assert set(re.findall(rf"refs/heads/(?:[^/\s]+/)?({TID})-", out)) == {"T1.07c", "T0.16a", "T1.07"}
+    only = "refs/heads/x/T1.07c-y"
+    assert set(re.findall(rf"refs/heads/(?:[^/\s]+/)?({TID})-", only)) == {"T1.07c"}
+    print("self-test OK")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
+    ap.add_argument("--self-test", action="store_true")
     ap.add_argument("--list", action="store_true")
     ap.add_argument("--offline", action="store_true")
     ap.add_argument("--tasks", default=None, help="tasks.md path (default: origin/main version, else working copy)")
     a = ap.parse_args()
+    if a.self_test:
+        self_test()
+        return
 
     if a.tasks:
         text = Path(a.tasks).read_text(encoding="utf-8")
@@ -108,7 +137,7 @@ def main() -> None:
     if a.list:
         for i, r in enumerate(rows, 1):
             flag = "AVAILABLE" if available(r) else ("started" if r["id"] in started and r["status"] == "todo" else "")
-            print(f"{i:3} {r['id']:7} {r['status']:24} {flag:9} {r['title']}")
+            print(f"{i:3} {r['id']:8} {r['status']:24} {flag:9} {r['title']}")
         return
 
     nxt = next((r for r in rows if available(r)), None)
