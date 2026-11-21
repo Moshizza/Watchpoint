@@ -12,7 +12,7 @@ namespace Watchpoint.State.Tests.Fakes;
 /// </summary>
 internal sealed class FakeStateSummaryEvaluator : IStateSummaryEvaluator
 {
-    private static readonly Dictionary<PropertyPath, Severity> EmptySeverities = [];
+    private static readonly Dictionary<PropertyPath, Severity> _emptySeverities = [];
 
     public StateSummary Evaluate(
         DeviceTypeDefinition type,
@@ -47,6 +47,6 @@ internal sealed class FakeStateSummaryEvaluator : IStateSummaryEvaluator
         }
 
         var state = flags.Disabled ? OverallState.Disabled : flags.Maintenance ? OverallState.Maintenance : underlying;
-        return new StateSummary(state, underlying, cause, EmptySeverities);
+        return new StateSummary(state, underlying, cause, _emptySeverities);
     }
 }

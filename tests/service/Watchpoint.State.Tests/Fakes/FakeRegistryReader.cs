@@ -15,7 +15,7 @@ internal sealed class FakeRegistryReader : IRegistryReader
 {
     // A real keyset-paged query seeks to the cursor in its index rather than rescanning every page from the start;
     // these two SortedSets of ids give QueryDevices/QueryServers the same O(log n) seek (GetViewBetween).
-    private static readonly Guid MaxGuid = Guid.Parse("ffffffff-ffff-ffff-ffff-ffffffffffff");
+    private static readonly Guid _maxGuid = Guid.Parse("ffffffff-ffff-ffff-ffff-ffffffffffff");
     private readonly Dictionary<Guid, Device> _devices = [];
     private readonly Dictionary<Guid, Server> _servers = [];
     private readonly SortedSet<Guid> _deviceIds = [];
@@ -172,7 +172,7 @@ internal sealed class FakeRegistryReader : IRegistryReader
         var after = page.Cursor is { } cursor ? Guid.Parse(cursor) : Guid.Empty;
         var items = new List<T>();
         var hasMore = false;
-        foreach (var id in ids.GetViewBetween(after, MaxGuid))
+        foreach (var id in ids.GetViewBetween(after, _maxGuid))
         {
             if (id == after)
             {

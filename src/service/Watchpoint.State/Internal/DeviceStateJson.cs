@@ -9,10 +9,10 @@ namespace Watchpoint.State.Internal;
 /// <summary>Maps a <see cref="DeviceState"/> to its JSON form (spec STA §7.1).</summary>
 internal static class DeviceStateJson
 {
-    private static readonly System.Text.Json.JsonSerializerOptions Options = WatchpointJson.Create(JsonProfile.Api, StateJsonContext.Default);
+    private static readonly System.Text.Json.JsonSerializerOptions _options = WatchpointJson.Create(JsonProfile.Api, StateJsonContext.Default);
 
     /// <summary>Serialises a state to the §7.1 JSON form, applying the effective-quality rule (spec STA §4).</summary>
-    public static string ToJson(DeviceState state) => System.Text.Json.JsonSerializer.Serialize(ToDto(state), Options);
+    public static string ToJson(DeviceState state) => System.Text.Json.JsonSerializer.Serialize(ToDto(state), _options);
 
     /// <summary>Builds the DTO of a state, applying the effective-quality rule (spec STA §4).</summary>
     public static DeviceStateDto ToDto(DeviceState state)

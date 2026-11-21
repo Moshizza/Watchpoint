@@ -12,7 +12,7 @@ namespace Watchpoint.State.Tests;
 
 public sealed class JsonTests
 {
-    private static readonly DateTimeOffset At = new(2026, 1, 5, 8, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset _at = new(2026, 1, 5, 8, 0, 0, TimeSpan.Zero);
 
     [Fact]
     public void STA_U_033_Json_form()
@@ -55,9 +55,9 @@ public sealed class JsonTests
 
     private static DeviceState BuildState(bool serverUnavailable)
     {
-        var property = new PropertyState(TestTypes.Position, WpValue.Enum("forced"), Quality.Good, At, At, At, 1234, null);
-        var lastEvent = new LastEvent(TestTypes.ForcedEvent, At, Severity.Alarm, 1234);
-        var health = new HealthState(Connectivity.Online, [], null, At, At);
+        var property = new PropertyState(TestTypes.Position, WpValue.Enum("forced"), Quality.Good, _at, _at, _at, 1234, null);
+        var lastEvent = new LastEvent(TestTypes.ForcedEvent, _at, Severity.Alarm, 1234);
+        var health = new HealthState(Connectivity.Online, [], null, _at, _at);
         var summary = new StateSummary(OverallState.Alarm, OverallState.Alarm, TestTypes.Position, new Dictionary<PropertyPath, Severity>());
         return new DeviceState(
             Guid.NewGuid(),
@@ -69,6 +69,6 @@ public sealed class JsonTests
             serverUnavailable,
             new Dictionary<EventPath, LastEvent> { [TestTypes.ForcedEvent] = lastEvent },
             1234,
-            At);
+            _at);
     }
 }

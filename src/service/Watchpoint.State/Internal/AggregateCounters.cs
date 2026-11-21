@@ -80,7 +80,7 @@ internal sealed class AggregateCounters : IAggregateReader
     {
         foreach (var (scope, counts) in a)
         {
-            var other = b.TryGetValue(scope, out var found) ? found : EmptyCounts;
+            var other = b.TryGetValue(scope, out var found) ? found : _emptyCounts;
             if (!counts.AsSpan().SequenceEqual(other))
             {
                 return true;
@@ -98,7 +98,7 @@ internal sealed class AggregateCounters : IAggregateReader
         return false;
     }
 
-    private static readonly int[] EmptyCounts = new int[_stateCount];
+    private static readonly int[] _emptyCounts = new int[_stateCount];
 
     private void Mutate(AggregateScope scope, OverallState state, int delta)
     {
@@ -110,7 +110,7 @@ internal sealed class AggregateCounters : IAggregateReader
     {
         if (!source.TryGetValue(scope, out var counts))
         {
-            return new AggregateCounts(0, EmptyByState);
+            return new AggregateCounts(0, _emptyByState);
         }
 
         var snapshot = (int[])counts.Clone();
@@ -128,5 +128,5 @@ internal sealed class AggregateCounters : IAggregateReader
         return new AggregateCounts(total, byState);
     }
 
-    private static readonly IReadOnlyDictionary<OverallState, int> EmptyByState = new Dictionary<OverallState, int>();
+    private static readonly IReadOnlyDictionary<OverallState, int> _emptyByState = new Dictionary<OverallState, int>();
 }

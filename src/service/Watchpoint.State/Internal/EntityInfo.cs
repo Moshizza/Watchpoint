@@ -56,7 +56,7 @@ internal sealed record EntityInfo(
         server.Tags,
         server.Enabled,
         server.Maintenance,
-        EmptyAttributes);
+        _emptyAttributes);
 
-    private static readonly IReadOnlyDictionary<string, WpValue> EmptyAttributes = new Dictionary<string, WpValue>();
+    private static readonly IReadOnlyDictionary<string, WpValue> _emptyAttributes = new Dictionary<string, WpValue>();
 }

@@ -18,9 +18,9 @@ namespace Watchpoint.State.Internal;
 /// </summary>
 internal sealed class StateStore : IStateReader, IAggregateReader
 {
-    private static readonly IReadOnlyDictionary<PropertyPath, PropertyState> EmptyProperties = new Dictionary<PropertyPath, PropertyState>();
-    private static readonly IReadOnlyDictionary<EventPath, LastEvent> EmptyLastEvents = new Dictionary<EventPath, LastEvent>();
-    private static readonly StateSummary UnknownSummary = new(OverallState.Unknown, OverallState.Unknown, null, new Dictionary<PropertyPath, Severity>());
+    private static readonly IReadOnlyDictionary<PropertyPath, PropertyState> _emptyProperties = new Dictionary<PropertyPath, PropertyState>();
+    private static readonly IReadOnlyDictionary<EventPath, LastEvent> _emptyLastEvents = new Dictionary<EventPath, LastEvent>();
+    private static readonly StateSummary _unknownSummary = new(OverallState.Unknown, OverallState.Unknown, null, new Dictionary<PropertyPath, Severity>());
 
     private readonly PartitionStateStore[] _partitions;
     private readonly ITypeCatalog _typeCatalog;
@@ -225,11 +225,11 @@ internal sealed class StateStore : IStateReader, IAggregateReader
         }
         else
         {
-            properties = EmptyProperties;
-            summary = UnknownSummary;
+            properties = _emptyProperties;
+            summary = _unknownSummary;
         }
 
-        var state = new DeviceState(info.Id, info.Kind, info.Type, properties, HealthState.Unknown, summary, false, EmptyLastEvents, 0, now);
+        var state = new DeviceState(info.Id, info.Kind, info.Type, properties, HealthState.Unknown, summary, false, _emptyLastEvents, 0, now);
         store.Set(info.Id, state);
         var scopes = MembershipScopes.Compute(_registry, info);
         store.SetMeta(info.Id, new EntityMeta(scopes, flags, info.Attributes));
@@ -463,43 +463,43 @@ internal sealed class StateStore : IStateReader, IAggregateReader
         switch (envelope.Kind)
         {
             case RecordKinds.Property:
-            {
-                var body = record.BodyAs<PropertyRecordBody>(_recordTypes);
-                var path = PropertyPath.FromTrusted(body.Path);
-                var property = new PropertyState(path, body.Value, body.Quality, envelope.Src, envelope.Ts, envelope.Ts, record.Sequence, envelope.Corr.Command);
-                properties = Clone(properties, path, property);
-                RescheduleStale(store, target, current.Type, path, envelope.Ts);
-                changedProperty = path;
-                break;
-            }
-
-            case RecordKinds.Event:
-            {
-                var body = record.BodyAs<EventRecordBody>(_recordTypes);
-                var path = EventPath.FromTrusted(body.Path);
-                var dict = new Dictionary<EventPath, LastEvent>(lastEvents) { [path] = new LastEvent(path, envelope.Ts, body.Severity, record.Sequence) };
-                lastEvents = dict;
-                break;
-            }
-
-            case RecordKinds.Health:
-            {
-                var body = record.BodyAs<HealthRecordBody>(_recordTypes);
-                var wasUnavailable = IsUnavailable(current.Health.Connectivity);
-                var since = body.Connectivity != current.Health.Connectivity ? envelope.Ts : current.Health.Since;
-                health = new HealthState(body.Connectivity, body.Faults, body.Reason, envelope.Ts, since);
-                healthChanged = true;
-                if (envelope.Srv is not null && envelope.Dev is null && !isRecovering)
                 {
-                    var isUnavailable = IsUnavailable(body.Connectivity);
-                    if (isUnavailable != wasUnavailable)
-                    {
-                        transition = (ServerId.From(target), isUnavailable);
-                    }
+                    var body = record.BodyAs<PropertyRecordBody>(_recordTypes);
+                    var path = PropertyPath.FromTrusted(body.Path);
+                    var property = new PropertyState(path, body.Value, body.Quality, envelope.Src, envelope.Ts, envelope.Ts, record.Sequence, envelope.Corr.Command);
+                    properties = Clone(properties, path, property);
+                    RescheduleStale(store, target, current.Type, path, envelope.Ts);
+                    changedProperty = path;
+                    break;
                 }
 
-                break;
-            }
+            case RecordKinds.Event:
+                {
+                    var body = record.BodyAs<EventRecordBody>(_recordTypes);
+                    var path = EventPath.FromTrusted(body.Path);
+                    var dict = new Dictionary<EventPath, LastEvent>(lastEvents) { [path] = new LastEvent(path, envelope.Ts, body.Severity, record.Sequence) };
+                    lastEvents = dict;
+                    break;
+                }
+
+            case RecordKinds.Health:
+                {
+                    var body = record.BodyAs<HealthRecordBody>(_recordTypes);
+                    var wasUnavailable = IsUnavailable(current.Health.Connectivity);
+                    var since = body.Connectivity != current.Health.Connectivity ? envelope.Ts : current.Health.Since;
+                    health = new HealthState(body.Connectivity, body.Faults, body.Reason, envelope.Ts, since);
+                    healthChanged = true;
+                    if (envelope.Srv is not null && envelope.Dev is null && !isRecovering)
+                    {
+                        var isUnavailable = IsUnavailable(body.Connectivity);
+                        if (isUnavailable != wasUnavailable)
+                        {
+                            transition = (ServerId.From(target), isUnavailable);
+                        }
+                    }
+
+                    break;
+                }
 
             default:
                 return null;
