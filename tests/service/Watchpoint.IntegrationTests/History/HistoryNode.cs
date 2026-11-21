@@ -42,6 +42,12 @@ internal sealed class HistoryNode : IAsyncDisposable
 
         // The service registers the kinds when it is built; a test appends before that.
         HistoryJson.RegisterKinds(pipeline.Registry);
+
+        // CMD registers its own bodies in the host; history reads the JSON, so a test appends it as it is.
+        foreach (var kind in CommandKinds)
+        {
+            pipeline.Registry.Register(kind, 1, (System.Text.Json.Serialization.Metadata.JsonTypeInfo<System.Text.Json.JsonElement>)System.Text.Json.JsonSerializerOptions.Default.GetTypeInfo(typeof(System.Text.Json.JsonElement)));
+        }
     }
 
     public PostgresDatabase Database { get; }
@@ -57,6 +63,13 @@ internal sealed class HistoryNode : IAsyncDisposable
     public LogCollector Logs { get; } = new();
 
     public Dictionary<DeviceId, HistorySource> Devices { get; } = [];
+
+    public static IReadOnlyList<string> CommandKinds { get; } =
+    [
+        "command.requested", "command.rejected", "command.awaitingApproval", "command.approved", "command.approvalRejected", "command.queued",
+        "command.dispatched", "command.succeeded", "command.failed", "command.timedOut", "command.expired", "command.cancelled", "command.verified",
+        "command.unverified",
+    ];
 
     public static HistorySettings FastSettings { get; } = new()
     {

@@ -43,11 +43,6 @@ internal static class HistoryJson
         {
             registry.Register(kind, 1, Info<AlarmTransitionBody>());
         }
-
-        foreach (var kind in HistoryRecordKinds.CommandKinds)
-        {
-            registry.Register(kind, 1, Info<CommandTransitionBody>());
-        }
     }
 
     public static string? CorrelationJson(RecordCorrelation correlation) =>

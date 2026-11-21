@@ -8,7 +8,6 @@ namespace Watchpoint.History.Internal;
 [JsonSerializable(typeof(SysEventBody))]
 [JsonSerializable(typeof(OperatorNoteBody))]
 [JsonSerializable(typeof(AlarmTransitionBody))]
-[JsonSerializable(typeof(CommandTransitionBody))]
 [JsonSerializable(typeof(Dictionary<string, WpValue>))]
 [JsonSerializable(typeof(WpValue))]
 [JsonSerializable(typeof(HistoryAlarmTimelineBody))]

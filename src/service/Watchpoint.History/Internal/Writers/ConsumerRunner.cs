@@ -76,7 +76,7 @@ internal sealed class ConsumerRunner(
         List<LogRecord> readable = new(batch.Records.Count);
         foreach (var record in batch.Records)
         {
-            if (registry.CanRead(record))
+            if (!definition.RequiresKnownKind || registry.CanRead(record))
             {
                 readable.Add(record);
             }

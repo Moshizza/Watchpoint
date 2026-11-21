@@ -112,6 +112,7 @@ CREATE TABLE IF NOT EXISTS wp_history.commands (
   UNIQUE (id, time)
 ) /*PARTITION*/;
 CREATE INDEX IF NOT EXISTS commands_time_id ON wp_history.commands (time DESC, id DESC);
+CREATE INDEX IF NOT EXISTS commands_id ON wp_history.commands (id);
 CREATE INDEX IF NOT EXISTS commands_device_time ON wp_history.commands (device_id, time DESC);
 CREATE INDEX IF NOT EXISTS commands_issuer_time ON wp_history.commands (issuer_user, time DESC);
 

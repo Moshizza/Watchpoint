@@ -135,7 +135,7 @@ public sealed class HistoryIntegrationTests(PostgresContainerFixture postgres, N
         await using (var admin = new NpgsqlConnection(postgres.AdminConnectionString))
         {
             await admin.OpenAsync(Ct);
-            await using var create = new NpgsqlCommand($"CREATE DATABASE \"{plain}\" TEMPLATE template1", admin);
+            await using var create = new NpgsqlCommand($"CREATE DATABASE \"{plain}\" TEMPLATE template0", admin);
             await create.ExecuteNonQueryAsync(Ct);
         }
 
@@ -196,7 +196,7 @@ public sealed class HistoryIntegrationTests(PostgresContainerFixture postgres, N
     [Fact]
     public async Task HIS_I_003_Events_are_written_end_to_end_and_stay_single_after_a_restart_and_a_lost_acknowledgement()
     {
-        var node = await StartAsync(nameof(HIS_I_003_Events_are_written_end_to_end_and_stay_single_after_a_restart_and_a_lost_acknowledgement));
+        var node = await StartAsync(nameof(HIS_I_003_Events_are_written_end_to_end_and_stay_single_after_a_restart_and_a_lost_acknowledgement), new HistorySettings { MaxWait = TimeSpan.FromMilliseconds(200), LagWarning = TimeSpan.FromHours(1) });
         var door = node.AddDevice(3);
         var writer = node.Pipeline.Writer;
         const string Count = "SELECT count(*) FROM wp_history.events";
@@ -316,22 +316,25 @@ public sealed class HistoryIntegrationTests(PostgresContainerFixture postgres, N
         var requested = Now();
         var id1 = Guid.CreateVersion7();
         var id2 = Guid.CreateVersion7();
-        var args = JsonDocument.Parse("""{"duration":"PT5S"}""").RootElement.Clone();
-        var issuer = JsonDocument.Parse($$"""{"type":"user","id":"{{user}}"}""").RootElement.Clone();
-        LogEnvelope Rec(string kind, CommandTransitionBody body, int ms) => Envelope(node, kind, body, door, requested.AddMilliseconds(ms));
+        string Stamp(DateTimeOffset t) => t.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture);
+        LogEnvelope Rec(string kind, string json, int ms) => Envelope(node, kind, JsonDocument.Parse(json).RootElement.Clone(), door, requested.AddMilliseconds(ms));
+        string Request(Guid id, DateTimeOffset at, string reason) => $$"""
+            {"id":"{{id}}","target":"{{door.Value}}","path":"openable.open","arguments":{"duration":"PT5S"},"issuer":{"type":"user","userId":"{{user}}"},
+             "reason":"{{reason}}","effectiveRisk":"sensitive","priority":"high","requestedAt":"{{Stamp(at)}}","state":"requested"}
+            """;
         await node.Pipeline.Writer.AppendAsync(
         [
-            Rec("command.requested", new CommandTransitionBody(id1, requested, Path: "openable.open", Arguments: args, Issuer: issuer, IssuerUser: user, Reason: "visitor", Risk: 2, Priority: 1), 0),
-            Rec("command.requested", new CommandTransitionBody(id2, requested.AddMilliseconds(5), Path: "openable.open", Arguments: args, Issuer: issuer, IssuerUser: user, Risk: 2, Priority: 1), 5),
-            Rec("command.queued", new CommandTransitionBody(id1, requested, Priority: 1), 10),
-            Rec("command.dispatched", new CommandTransitionBody(id1, requested, Attempt: 1), 20),
-            Rec("command.failed", new CommandTransitionBody(id2, requested.AddMilliseconds(5), Failure: JsonDocument.Parse("""{"code":"commands.device_offline"}""").RootElement.Clone()), 25),
-            Rec("command.succeeded", new CommandTransitionBody(id1, requested), 30),
-            Rec("command.verified", new CommandTransitionBody(id1, requested), 40),
+            Rec("command.requested", Request(id1, requested, "visitor"), 0),
+            Rec("command.requested", Request(id2, requested.AddMilliseconds(5), "late"), 5),
+            Rec("command.queued", $$"""{"id":"{{id1}}","priority":"high","attempt":1}""", 10),
+            Rec("command.dispatched", $$"""{"id":"{{id1}}","attempt":1}""", 20),
+            Rec("command.failed", $$$"""{"id":"{{{id2}}}","failure":{"category":"deviceOffline","messageKey":"commands.device_offline"}}""", 25),
+            Rec("command.succeeded", $$"""{"id":"{{id1}}","durationMs":10}""", 30),
+            Rec("command.verified", $$"""{"id":"{{id1}}","afterMs":10}""", 40),
         ], Ct);
 
         await node.StartServiceAsync(ct: Ct);
-        (await node.WaitForCountAsync("SELECT count(*) FROM wp_history.commands WHERE state IN (8, 12)", 2, Wait, Ct)).ShouldBe(2);
+        (await node.WaitForCountAsync("SELECT count(*) FROM wp_history.commands WHERE state IN (6, 10)", 2, Wait, Ct)).ShouldBe(2);
 
         var page = (await node.Queries.QueryCommandsAsync(new CommandHistoryQuery(requested.AddMinutes(-1), requested.AddMinutes(1)), new PageRequest(10), Ct)).ShouldBeSuccess();
         page.Items.Count.ShouldBe(2);
@@ -339,6 +342,8 @@ public sealed class HistoryIntegrationTests(PostgresContainerFixture postgres, N
         done.State.ShouldBe(CommandHistoryState.Verified);
         done.Path.ShouldBe("openable.open");
         done.Reason.ShouldBe("visitor");
+        done.Priority.ShouldBe((short)1);
+        done.Risk.ShouldBe((short)1);
         done.IssuerUser.ShouldBe(user);
         done.DeviceName.ShouldBe("Door");
         done.QueuedAt.ShouldBe(requested.AddMilliseconds(10));
@@ -349,7 +354,7 @@ public sealed class HistoryIntegrationTests(PostgresContainerFixture postgres, N
         done.Arguments.GetProperty("duration").GetString().ShouldBe("PT5S");
         var failed = page.Items.Single(c => c.Id == id2);
         failed.State.ShouldBe(CommandHistoryState.Failed);
-        failed.Failure.ShouldNotBeNull().GetProperty("code").GetString().ShouldBe("commands.device_offline");
+        failed.Failure.ShouldNotBeNull().GetProperty("messageKey").GetString().ShouldBe("commands.device_offline");
 
         // Filters: state, issuer, device scope.
         var onlyFailed = (await node.Queries.QueryCommandsAsync(new CommandHistoryQuery(requested.AddMinutes(-1), requested.AddMinutes(1), States: [CommandHistoryState.Failed]), new PageRequest(10), Ct)).ShouldBeSuccess();

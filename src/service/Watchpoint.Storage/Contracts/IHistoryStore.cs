@@ -40,6 +40,12 @@ public interface IHistoryStore
     /// <returns>The number of rows inserted.</returns>
     Task<int> WritePropertyChangesAsync(IReadOnlyList<HistoryPropertyRow> rows, CancellationToken ct);
 
+    /// <summary>Returns the request time (the row key) of the stored commands among <paramref name="ids"/>.</summary>
+    /// <param name="ids">The command ids.</param>
+    /// <param name="ct">Cancellation.</param>
+    /// <returns>The request time by command id; commands that are not stored are missing.</returns>
+    Task<IReadOnlyDictionary<Guid, DateTimeOffset>> GetCommandTimesAsync(IReadOnlyList<Guid> ids, CancellationToken ct);
+
     /// <summary>Returns the latest stored row of each (device, path) that has one.</summary>
     /// <param name="keys">The keys.</param>
     /// <param name="ct">Cancellation.</param>

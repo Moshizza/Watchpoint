@@ -228,31 +228,39 @@ public sealed class HistoryWriterTests : IDisposable
         again.ShouldBe(timeline);
     }
 
+    private static string Stamp(DateTimeOffset t) => t.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", System.Globalization.CultureInfo.InvariantCulture);
+
+    private static Task<IReadOnlyDictionary<Guid, DateTimeOffset>> NoStoredCommands(IReadOnlyList<Guid> ids, CancellationToken ct) =>
+        Task.FromResult<IReadOnlyDictionary<Guid, DateTimeOffset>>(new Dictionary<Guid, DateTimeOffset>());
+
     [Fact]
-    public void HIS_U_006_Command_lifecycle_folds_into_one_row()
+    public async Task HIS_U_006_Command_lifecycle_folds_into_one_row()
     {
         var requested = _raised;
         var id = Watchpoint.Testing.Ids.TestIds.Uuid(800);
         var user = Watchpoint.Testing.Ids.TestIds.Uuid(61);
-        var args = JsonDocument.Parse("""{"duration":"PT5S"}""").RootElement.Clone();
-        var issuer = JsonDocument.Parse("""{"type":"user"}""").RootElement.Clone();
         var corr = new RecordCorrelation(CommandId.From(id));
+        var ct = TestContext.Current.CancellationToken;
 
-        LogRecord Rec(long seq, string kind, CommandTransitionBody body, int seconds) =>
-            _h.Record(seq, kind, body, ts: requested.AddSeconds(seconds), correlation: corr);
-
+        LogRecord Rec(long seq, string kind, string body, int seconds) => _h.Raw(seq, kind, body, ts: requested.AddSeconds(seconds), correlation: corr);
+        var request = $$"""
+            {"id":"{{id}}","target":"{{HistoryHarness.Door.Value}}","path":"openable.open","arguments":{"duration":"PT5S"},
+             "issuer":{"type":"user","userId":"{{user}}","sessionId":"{{Watchpoint.Testing.Ids.TestIds.Uuid(71)}}"},"reason":"visitor",
+             "effectiveRisk":"sensitive","priority":"high","requestedAt":"{{Stamp(requested)}}","state":"requested"}
+            """;
         var records = new[]
         {
-            Rec(30, "command.requested", new CommandTransitionBody(id, requested, Path: "openable.open", Arguments: args, Issuer: issuer, IssuerUser: user, Reason: "visitor", Risk: 2, Priority: 1), 0),
-            Rec(31, "command.queued", new CommandTransitionBody(id, requested, Priority: 4), 1),
-            Rec(32, "command.dispatched", new CommandTransitionBody(id, requested, Attempt: 1), 2),
-            Rec(33, "command.failed", new CommandTransitionBody(id, requested, Failure: JsonDocument.Parse("""{"code":"timeout"}""").RootElement.Clone()), 3),
-            Rec(34, "command.dispatched", new CommandTransitionBody(id, requested, Attempt: 2), 4),
-            Rec(35, "command.succeeded", new CommandTransitionBody(id, requested), 5),
-            Rec(36, "command.verified", new CommandTransitionBody(id, requested), 7),
+            Rec(30, "command.requested", request, 0),
+            Rec(31, "command.queued", $$"""{"id":"{{id}}","priority":"normal","attempt":1}""", 1),
+            Rec(32, "command.dispatched", $$"""{"id":"{{id}}","attempt":1}""", 2),
+            Rec(33, "command.failed", $$$"""{"id":"{{{id}}}","failure":{"category":"timeout","messageKey":"x"}}""", 3),
+            Rec(34, "command.dispatched", $$"""{"id":"{{id}}","attempt":2}""", 4),
+            Rec(35, "command.succeeded", $$"""{"id":"{{id}}","durationMs":120}""", 5),
+            Rec(36, "command.verified", $$"""{"id":"{{id}}","afterMs":2000}""", 7),
         };
 
-        var row = _h.CommandFolder().Fold(records).ShouldHaveSingleItem();
+        // The request is in the batch: no lookup of the stored time is needed.
+        var row = (await _h.CommandFolder().FoldAsync(records, (_, _) => throw new InvalidOperationException("no lookup expected"), null, ct)).ShouldHaveSingleItem();
 
         row.Id.ShouldBe(id);
         row.Time.ShouldBe(requested);
@@ -262,8 +270,8 @@ public sealed class HistoryWriterTests : IDisposable
         row.ArgumentsJson.ShouldContain("PT5S");
         row.IssuerUser.ShouldBe(user);
         row.Reason.ShouldBe("visitor");
-        row.Risk.ShouldBe((short)2);
-        row.Priority.ShouldBe((short)4);
+        row.Risk.ShouldBe((short)1);
+        row.Priority.ShouldBe((short)2);
         row.State.ShouldBe((short)CommandHistoryState.Verified);
         row.QueuedAt.ShouldBe(requested.AddSeconds(1));
         row.DispatchedAt.ShouldBe(requested.AddSeconds(2));
@@ -274,21 +282,46 @@ public sealed class HistoryWriterTests : IDisposable
         row.Seq.ShouldBe(36);
         row.CorrelationJson.ShouldNotBeNull().ShouldContain(id.ToString("D"));
 
-        // The request arriving after the later records (a batch boundary or a redelivery) still ends in the same row.
-        var late = _h.CommandFolder().Fold(records[1..]).Single();
+        // Records without the request (a later batch): the request time comes from the stored row; the request arriving afterwards merges.
+        _h.Store.CommandTimes[id] = requested;
+        var late = (await _h.CommandFolder().FoldAsync(records[1..], _h.Store.GetCommandTimesAsync, null, ct)).Single();
+        _h.Store.CommandTimeLookups.ShouldHaveSingleItem().ShouldBe([id]);
+        late.Time.ShouldBe(requested);
         late.Path.ShouldBeEmpty();
         late.Risk.ShouldBe((short)-1);
-        var merged = CommandFolder.Merge(late, _h.CommandFolder().Fold(records[..1]).Single());
+        var first = (await _h.CommandFolder().FoldAsync(records[..1], NoStoredCommands, null, ct)).Single();
+        var merged = CommandFolder.Merge(late, first);
         merged.Path.ShouldBe("openable.open");
-        merged.Risk.ShouldBe((short)2);
+        merged.Risk.ShouldBe((short)1);
         merged.State.ShouldBe((short)CommandHistoryState.Verified);
-        merged.Priority.ShouldBe((short)4);
+        merged.Priority.ShouldBe((short)2);
         merged.ShouldBe(row);
 
-        // A record without a device or with an unknown kind is skipped, not folded.
+        // Approval and rejection: the decision is kept; a refused approval ends as rejected.
+        var approvalId = Watchpoint.Testing.Ids.TestIds.Uuid(801);
+        var approvalRequest = request.Replace(id.ToString("D"), approvalId.ToString("D"), StringComparison.Ordinal);
+        var approved = (await _h.CommandFolder().FoldAsync(
+        [
+            _h.Raw(40, "command.requested", approvalRequest),
+            _h.Raw(41, "command.awaitingApproval", $$"""{"id":"{{approvalId}}","requestExpiresAt":"{{Stamp(requested.AddMinutes(5))}}"}"""),
+            _h.Raw(42, "command.approvalRejected", $$"""{"id":"{{approvalId}}","by":"{{user}}","reason":"not now"}"""),
+        ], NoStoredCommands, null, ct)).Single();
+        approved.State.ShouldBe((short)CommandHistoryState.Rejected);
+        approved.ApprovalJson.ShouldNotBeNull().ShouldContain("not now");
+        approved.CompletedAt.ShouldNotBeNull();
+
+        // Unusable records are skipped with a reason: no device, no id, unknown kind, a request that history never saw.
         var skipped = new List<string>();
-        _h.CommandFolder().Fold([_h.Record(40, "command.requested", new CommandTransitionBody(id, requested), server: HistoryHarness.Server)], (_, why) => skipped.Add(why)).ShouldBeEmpty();
-        skipped.ShouldHaveSingleItem();
+        var none = await _h.CommandFolder().FoldAsync(
+        [
+            _h.Record(50, "alarm.raised", Alarm(AlarmHistoryState.Active, 1)) with { },
+            _h.Raw(51, "command.requested", "{}"),
+            _h.Raw(52, "command.mystery", $$"""{"id":"{{id}}"}"""),
+            _h.Raw(53, "command.queued", $$"""{"id":"{{Watchpoint.Testing.Ids.TestIds.Uuid(999)}}","priority":"normal"}"""),
+        ], NoStoredCommands, (_, why) => skipped.Add(why), ct);
+        none.ShouldBeEmpty();
+        skipped.Count.ShouldBe(4);
+        skipped.ShouldContain("the request of the command is not in history");
     }
 
     [Fact]

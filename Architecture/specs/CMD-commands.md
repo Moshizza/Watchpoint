@@ -228,7 +228,7 @@ ordered with the device's observations. Kinds and bodies:
 | `command.expired` / `command.cancelled` | `{ id, by? }` |
 | `command.verified` / `command.unverified` | `{ id, observed: WpValue?, afterMs }` |
 
-Every `command.*` record also carries `requestedAt` (HIS keys the command row by it; body types: `CommandTransitionBody`, HIS §5). `command.requested` and the first state record are appended in the same batch. The
+HIS reads these records as JSON without the commands module (HIS §5). `command.requested` and the first state record are appended in the same batch. The
 `CommandSubscriber` (Order 200) applies records to the in-memory `PendingCommandStore` of the
 partition (state machine below); terminal commands leave the store after 60 s (kept in a 24 h
 read cache for `Get`; history has the rest).

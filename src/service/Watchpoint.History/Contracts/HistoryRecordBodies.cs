@@ -6,8 +6,9 @@ namespace Watchpoint.History.Contracts;
 
 /// <summary>
 /// The record kinds history consumes (spec HIS §5). <c>event</c> and <c>property</c> belong to the pipeline
-/// (<c>RecordKinds</c>); the others are registered by history itself until their owning modules (EVT, ALM, CMD) exist
-/// and then shared with them: the body types below are the contract those modules write.
+/// (<c>RecordKinds</c>) and <c>command.*</c> to CMD, which registers them: history reads their JSON bodies itself and does not
+/// depend on that module. <c>sysevent</c>, <c>operator.note</c> and <c>alarm.*</c> are registered by history until their owning modules
+/// (EVT, ALM) exist and then shared with them: the body types below are the contract those modules write.
 /// </summary>
 public static class HistoryRecordKinds
 {
@@ -30,13 +31,6 @@ public static class HistoryRecordKinds
         "alarm.commented", "alarm.transferred", "alarm.procedureAnswered", "alarm.priorityChanged", "alarm.escalated", "alarm.actionExecuted",
     ];
 
-    /// <summary>The command record kinds (CMD §6), all carrying a <see cref="CommandTransitionBody"/>.</summary>
-    public static IReadOnlyList<string> CommandKinds { get; } =
-    [
-        "command.requested", "command.rejected", "command.awaitingApproval", "command.approved", "command.approvalRejected", "command.queued",
-        "command.dispatched", "command.succeeded", "command.failed", "command.timedOut", "command.expired", "command.cancelled", "command.verified",
-        "command.unverified",
-    ];
 }
 
 /// <summary>Body of a <see cref="HistoryRecordKinds.SysEvent"/> record (EVT §6).</summary>
@@ -140,80 +134,42 @@ public sealed record AlarmTransitionBody(
     AlarmActor? Actor = null,
     JsonElement? Detail = null);
 
-/// <summary>The state of a command in history (CMD §6); stored as the numbers shown.</summary>
+/// <summary>The state of a command in history (CMD §4 <c>CommandState</c>); stored as the numbers shown.</summary>
 public enum CommandHistoryState
 {
     /// <summary>Requested.</summary>
     Requested = 0,
 
-    /// <summary>Rejected by validation.</summary>
+    /// <summary>Rejected by validation, or the approval was refused.</summary>
     Rejected = 1,
 
-    /// <summary>Waiting for approval.</summary>
+    /// <summary>Waiting for approval (also after the approval, until the command is queued).</summary>
     AwaitingApproval = 2,
 
-    /// <summary>Approved.</summary>
-    Approved = 3,
-
-    /// <summary>Approval refused.</summary>
-    ApprovalRejected = 4,
-
     /// <summary>Queued for dispatch.</summary>
-    Queued = 5,
+    Queued = 3,
 
     /// <summary>Sent to the integration.</summary>
-    Dispatched = 6,
+    Dispatched = 4,
 
     /// <summary>Executed.</summary>
-    Succeeded = 7,
+    Succeeded = 5,
 
     /// <summary>Failed.</summary>
-    Failed = 8,
+    Failed = 6,
 
     /// <summary>No answer in time.</summary>
-    TimedOut = 9,
+    TimedOut = 7,
 
     /// <summary>Expired before dispatch.</summary>
-    Expired = 10,
+    Expired = 8,
 
     /// <summary>Cancelled.</summary>
-    Cancelled = 11,
+    Cancelled = 9,
 
     /// <summary>The expected effect was observed.</summary>
-    Verified = 12,
+    Verified = 10,
 
     /// <summary>The expected effect was not observed.</summary>
-    Unverified = 13,
+    Unverified = 11,
 }
-
-/// <summary>
-/// Body of every <c>command.*</c> record (CMD §6). Every record carries the command id and the time it was requested (the
-/// key of the history row); the request carries the rest of the command, the others only what changed.
-/// </summary>
-/// <param name="Id">The command id.</param>
-/// <param name="RequestedAt">When the command was requested (the same in every record of the command).</param>
-/// <param name="GroupId">The command group.</param>
-/// <param name="Path">The command path (request only).</param>
-/// <param name="Arguments">The arguments (request only).</param>
-/// <param name="Issuer">The issuer (request only), as JSON.</param>
-/// <param name="IssuerUser">The issuing user (request only).</param>
-/// <param name="Reason">The reason (request) or the approval reason (approved, approvalRejected).</param>
-/// <param name="Risk">The risk (request only).</param>
-/// <param name="Priority">The priority (request, queued).</param>
-/// <param name="Attempt">The attempt (dispatched).</param>
-/// <param name="By">Who approved, refused or cancelled.</param>
-/// <param name="Failure">The failure (rejected, failed), as JSON.</param>
-public sealed record CommandTransitionBody(
-    Guid Id,
-    DateTimeOffset RequestedAt,
-    Guid? GroupId = null,
-    string? Path = null,
-    JsonElement? Arguments = null,
-    JsonElement? Issuer = null,
-    Guid? IssuerUser = null,
-    string? Reason = null,
-    short? Risk = null,
-    short? Priority = null,
-    int? Attempt = null,
-    Guid? By = null,
-    JsonElement? Failure = null);

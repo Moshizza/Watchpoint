@@ -132,6 +132,7 @@ CREATE TABLE wp_history.commands (
   UNIQUE (id, time)
 );
 CREATE INDEX ON wp_history.commands (time DESC, id DESC);
+CREATE INDEX ON wp_history.commands (id);                 -- request time of a command (non-request records)
 CREATE INDEX ON wp_history.commands (device_id, time DESC);
 CREATE INDEX ON wp_history.commands (issuer_user, time DESC);
 
@@ -201,13 +202,19 @@ which is the same in the C# fold (a batch) and the SQL upsert (against the store
 | `count`, `escalation_level`, `attempt`, `last_occurrence_at`, `seq` | the greater |
 | request fields of a command (`path`, `arguments`, `issuer`, `issuer_user`, `reason`, `risk`) | the request record's value, whenever it arrives (a row made from another record has `path = ''`, `risk = -1`, `priority = -1` until then) |
 
-**Record bodies (seams).** `alarm.*`, `command.*`, `sysevent` and `operator.note` are written by ALM, CMD and EVT, which do not
-exist yet; their bodies are fixed here as `Watchpoint.History.Contracts` records (`AlarmTransitionBody`, `CommandTransitionBody`,
-`SysEventBody`, `OperatorNoteBody`, kinds in `HistoryRecordKinds`) and registered by the history service when it is built
-(`ILogRecordTypeRegistry.Register` accepts the same type again; the owning module must reuse these types or change them here).
-Rules those modules must satisfy: every `alarm.*` record carries the **whole alarm after the transition** (so that history can
-fold it) and `raisedAt` (the row key); every `command.*` record carries `id` and `requestedAt` (the row key), the request carries
-the rest; `sysevent` carries optional `severity` (catalogue) and `personalFields`.
+**Record bodies.** `command.*` are written and registered by CMD (T2.01): history does **not** register them and does not reference
+the commands module; it reads the JSON body (`CommandRecordReader`): `command.requested` is the whole `Command` (`id`, `path`,
+`arguments`, `issuer` with `userId` or `identityId`, `reason`, `effectiveRisk`, `priority`, `requestedAt`, `groupId`), the others carry
+`id` and what changed (`priority`, `attempt`, `failure`, `error`, `by`, `reason`). Their request time, the row key, is not in them: it comes
+from the request in the same batch, else from the stored row (`IHistoryStore.GetCommandTimesAsync`); a record whose request history
+never saw is skipped with a warning (3204). The consumer therefore accepts `command.*` kinds this node has not registered
+(`RequiresKnownKind = false`). `approved` keeps the command awaiting until `queued`; `approvalRejected` ends it as rejected.
+`alarm.*`, `sysevent` and `operator.note` are written by ALM and EVT, which do not exist yet; their bodies are fixed here as
+`Watchpoint.History.Contracts` records (`AlarmTransitionBody`, `SysEventBody`, `OperatorNoteBody`, kinds in `HistoryRecordKinds`)
+and registered by the history service when it is built (`ILogRecordTypeRegistry.Register` accepts the same type again; the owning
+module must reuse these types or change them here). Rules those modules must satisfy: every `alarm.*` record carries the **whole alarm
+after the transition** (so that history can fold it) and `raisedAt` (the row key); `sysevent` carries optional `severity` (catalogue) and
+`personalFields`.
 
 **Mapping.** Source columns (`source_name`, `location_ids` = ancestors incl. self root first, `location_names`, `tag_keys`,
 `type_id`) are the enrichment at the time of writing (REG `GetEnrichment` and ancestors; an unknown entity leaves them null).

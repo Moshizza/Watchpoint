@@ -16,7 +16,11 @@ internal sealed record HistoryConsumerDefinition(
     LogStream Stream,
     IReadOnlyList<string> Kinds,
     string Table,
-    Func<IReadOnlyList<LogRecord>, CancellationToken, Task<int>> Write);
+    Func<IReadOnlyList<LogRecord>, CancellationToken, Task<int>> Write)
+{
+    /// <summary>Gets a value indicating whether records of kinds this node has not registered are left out (false: the consumer reads the JSON body itself).</summary>
+    public bool RequiresKnownKind { get; init; } = true;
+}
 
 /// <summary>Creates the four consumers of history (spec HIS §5).</summary>
 internal sealed class HistoryWriters(
@@ -32,7 +36,7 @@ internal sealed class HistoryWriters(
     {
         var events = new EventRowMapper(registry, enrichment, catalog);
         var alarms = new AlarmFolder(registry, enrichment);
-        var commands = new CommandFolder(registry, enrichment);
+        var commands = new CommandFolder(enrichment);
         var logger = loggers.CreateLogger("Watchpoint.History");
 
         Task<int> WriteEvents(string consumer, LogStream stream, IReadOnlyList<LogRecord> records, CancellationToken ct)
@@ -73,7 +77,11 @@ internal sealed class HistoryWriters(
                     return store.WriteAlarmsAsync(rows, timeline, ct);
                 }),
             new("his-commands", LogStream.Log, [HistoryRecordKinds.CommandFilter], "commands",
-                (records, ct) => store.WriteCommandsAsync(commands.Fold(records, (r, why) => Skipped("his-commands", r, why)), ct)),
+                async (records, ct) => await store.WriteCommandsAsync(
+                    await commands.FoldAsync(records, store.GetCommandTimesAsync, (r, why) => Skipped("his-commands", r, why), ct).ConfigureAwait(false), ct).ConfigureAwait(false))
+            {
+                RequiresKnownKind = false,
+            },
             new("his-properties", LogStream.Log, [RecordKinds.Property], "property_changes", properties.WriteAsync),
         ];
     }

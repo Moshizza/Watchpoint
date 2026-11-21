@@ -37,11 +37,11 @@ public static class HistoryModule
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton(settings);
         services.AddSingleton<HistoryMetrics>();
-        services.AddSingleton<IHistoryStore>(sp =>
+        services.AddSingleton<IHistoryStore>(sp => new LazyHistoryStore(() =>
         {
             var connections = sp.GetRequiredService<IStoreConnectionFactory>();
             return connections.GetProvider(StoreKind.History).CreateHistoryStore(connections.GetDatabase(StoreKind.History));
-        });
+        }));
         services.AddSingleton<IHistoryEnrichment, RegistryHistoryEnrichment>();
         services.AddSingleton<IHistoryTagKeys, RegistryHistoryTagKeys>();
         services.AddSingleton(_ => new LastStoredCache(settings.LastStoredCacheSize));

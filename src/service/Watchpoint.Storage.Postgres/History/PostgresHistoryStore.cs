@@ -320,6 +320,26 @@ internal sealed partial class PostgresHistoryStore(NpgsqlDataSource source) : IH
             ct).ConfigureAwait(false);
     }
 
+    public async Task<IReadOnlyDictionary<Guid, DateTimeOffset>> GetCommandTimesAsync(IReadOnlyList<Guid> ids, CancellationToken ct)
+    {
+        var result = new Dictionary<Guid, DateTimeOffset>();
+        if (ids.Count == 0)
+        {
+            return result;
+        }
+
+        await using var connection = await source.OpenConnectionAsync(ct).ConfigureAwait(false);
+        await using var command = new NpgsqlCommand("SELECT id, min(time) FROM wp_history.commands WHERE id = ANY(@ids) GROUP BY id", connection);
+        command.Parameters.Add(new NpgsqlParameter<Guid[]>("ids", [.. ids]));
+        await using var reader = await command.ExecuteReaderAsync(ct).ConfigureAwait(false);
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        {
+            result[reader.GetGuid(0)] = new DateTimeOffset(DateTime.SpecifyKind(reader.GetDateTime(1), DateTimeKind.Utc), TimeSpan.Zero);
+        }
+
+        return result;
+    }
+
     public async Task<IReadOnlyList<HistoryPropertyRow>> GetLastPropertyRowsAsync(IReadOnlyList<(Guid DeviceId, string Path)> keys, CancellationToken ct)
     {
         if (keys.Count == 0)

@@ -95,7 +95,7 @@ internal sealed class HistoryHarness : IDisposable
 
     public AlarmFolder AlarmFolder() => new(Registry, Enrichment);
 
-    public CommandFolder CommandFolder() => new(Registry, Enrichment);
+    public CommandFolder CommandFolder() => new(Enrichment);
 
     public PropertyWriter PropertyWriter() => new(Registry, Enrichment, Policies, Cache, Store, _loggers.CreateLogger("test"), "his-properties");
 
@@ -115,6 +115,16 @@ internal sealed class HistoryHarness : IDisposable
             origin ?? RecordOrigin.System,
             correlation ?? RecordCorrelation.None,
             Registry.SerializeBody(kind, body));
+        return new LogRecord(sequence, envelope);
+    }
+
+    /// <summary>A record whose body is given as JSON (as CMD writes <c>command.*</c>, which history reads without a registered type).</summary>
+    public LogRecord Raw(long sequence, string kind, string json, DeviceId? device = null, DateTimeOffset? ts = null, RecordCorrelation? correlation = null)
+    {
+        var dev = device ?? Door;
+        var envelope = new LogEnvelope(
+            Watchpoint.Testing.Ids.TestIds.Uuid(1_000_000 + sequence), kind, ts ?? Time.GetUtcNow(), null, Partitioning.Of(dev), dev, null, RecordOrigin.System,
+            correlation ?? RecordCorrelation.None, JsonDocument.Parse(json).RootElement.Clone());
         return new LogRecord(sequence, envelope);
     }
 

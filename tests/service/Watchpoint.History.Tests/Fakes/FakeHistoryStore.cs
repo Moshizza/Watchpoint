@@ -16,6 +16,10 @@ internal sealed class FakeHistoryStore : IHistoryStore
 
     public List<IReadOnlyList<HistoryPropertyRow>> PropertyWrites { get; } = [];
 
+    public Dictionary<Guid, DateTimeOffset> CommandTimes { get; } = [];
+
+    public List<IReadOnlyList<Guid>> CommandTimeLookups { get; } = [];
+
     public List<IReadOnlyList<(Guid DeviceId, string Path)>> LastRowLookups { get; } = [];
 
     public List<HistoryPropertyRow> LastRows { get; } = [];
@@ -62,6 +66,12 @@ internal sealed class FakeHistoryStore : IHistoryStore
     public Task<int> WriteCommandsAsync(IReadOnlyList<HistoryCommandRow> rows, CancellationToken ct) => Write(() => CommandWrites.Add(rows), rows.Count);
 
     public Task<int> WritePropertyChangesAsync(IReadOnlyList<HistoryPropertyRow> rows, CancellationToken ct) => Write(() => PropertyWrites.Add(rows), rows.Count);
+
+    public Task<IReadOnlyDictionary<Guid, DateTimeOffset>> GetCommandTimesAsync(IReadOnlyList<Guid> ids, CancellationToken ct)
+    {
+        CommandTimeLookups.Add(ids);
+        return Task.FromResult<IReadOnlyDictionary<Guid, DateTimeOffset>>(CommandTimes.Where(p => ids.Contains(p.Key)).ToDictionary(p => p.Key, p => p.Value));
+    }
 
     public Task<IReadOnlyList<HistoryPropertyRow>> GetLastPropertyRowsAsync(IReadOnlyList<(Guid DeviceId, string Path)> keys, CancellationToken ct)
     {
