@@ -38,5 +38,39 @@
       "reserved_id": "معرّف الحزمة {package} محجوز لحزم Watchpoint.",
       "file_name_invalid": "اسم الملف {fileName} غير مسموح؛ استخدم name.wpkg."
     }
+  },
+  "commands": {
+    "target": {
+      "not_found": "لم يتم العثور على الجهاز {deviceId}.",
+      "disabled": "الجهاز {deviceId} معطّل.",
+      "orphaned": "لم يعد نظام الجهاز {deviceId} يُبلغ عنه."
+    },
+    "not_supported": "هذا الجهاز لا يدعم الأمر {path}.",
+    "outside_schedule": "لا يمكنك تنفيذ هذا الأمر في هذا الوقت.",
+    "client_kind_not_allowed": "لا يمكن تنفيذ هذا الأمر من هذا العميل ({clientKind}).",
+    "reason": {
+      "required": "يلزم ذكر سبب لهذا الأمر."
+    },
+    "connection": {
+      "missing": "لا يوجد اتصال للجهاز {deviceId} لتنفيذ الأوامر."
+    },
+    "not_before": {
+      "too_far": "يمكن جدولة الأمر قبل {maxHours} ساعة كحد أقصى."
+    },
+    "group": {
+      "too_large": "يمكن للأمر الجماعي أن يستهدف {max} جهازًا كحد أقصى (تم اختيار {count})."
+    },
+    "cancel": {
+      "too_late": "لم يعد بالإمكان إلغاء الأمر ({state})."
+    },
+    "approval": {
+      "self_forbidden": "لا يمكنك الموافقة على أمرك الخاص.",
+      "expired": "انتهت مهلة الموافقة.",
+      "not_pending": "الأمر لا ينتظر الموافقة ({state}).",
+      "rejected": "رفض الموافِق الأمر: {reason}"
+    },
+    "command": {
+      "not_found": "لم يتم العثور على الأمر {commandId}."
+    }
   }
 }

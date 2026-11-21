@@ -60,8 +60,17 @@ public sealed class FallbackAuthorizerTests
         // Approvals: administrators only.
         var command = new Command
         {
-            Id = CommandId.New(), Target = h.Door, Path = CommandsHarness.Open, Arguments = new Dictionary<string, WpValue>(), Issuer = h.User(operatorId),
-            EffectiveRisk = Risk.Normal, Priority = CommandPriority.High, Timeout = TimeSpan.FromSeconds(1), ExpiresAt = now, State = CommandState.AwaitingApproval, RequestedAt = now,
+            Id = CommandId.New(),
+            Target = h.Door,
+            Path = CommandsHarness.Open,
+            Arguments = new Dictionary<string, WpValue>(),
+            Issuer = h.User(operatorId),
+            EffectiveRisk = Risk.Normal,
+            Priority = CommandPriority.High,
+            Timeout = TimeSpan.FromSeconds(1),
+            ExpiresAt = now,
+            State = CommandState.AwaitingApproval,
+            RequestedAt = now,
         };
         authorizer.CanApprove(admin, command, now).ShouldBeTrue();
         authorizer.CanApprove(operatorId, command, now).ShouldBeFalse();

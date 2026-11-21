@@ -38,5 +38,39 @@
       "reserved_id": "L'identifiant de paquet {package} est réservé aux paquets Watchpoint.",
       "file_name_invalid": "Le nom de fichier {fileName} n'est pas autorisé ; utilisez nom.wpkg."
     }
+  },
+  "commands": {
+    "target": {
+      "not_found": "L'équipement {deviceId} est introuvable.",
+      "disabled": "L'équipement {deviceId} est désactivé.",
+      "orphaned": "L'équipement {deviceId} n'est plus signalé par son système."
+    },
+    "not_supported": "Cet équipement ne prend pas en charge la commande {path}.",
+    "outside_schedule": "Vous ne pouvez pas exécuter cette commande en ce moment.",
+    "client_kind_not_allowed": "Cette commande ne peut pas être exécutée depuis ce client ({clientKind}).",
+    "reason": {
+      "required": "Un motif est obligatoire pour cette commande."
+    },
+    "connection": {
+      "missing": "L'équipement {deviceId} n'a aucune connexion pour exécuter des commandes."
+    },
+    "not_before": {
+      "too_far": "Une commande peut être planifiée au plus {maxHours} heures à l'avance."
+    },
+    "group": {
+      "too_large": "Une commande groupée peut viser au plus {max} équipements ({count} sélectionnés)."
+    },
+    "cancel": {
+      "too_late": "La commande ne peut plus être annulée ({state})."
+    },
+    "approval": {
+      "self_forbidden": "Vous ne pouvez pas approuver votre propre commande.",
+      "expired": "Le délai d'approbation est dépassé.",
+      "not_pending": "La commande n'attend pas d'approbation ({state}).",
+      "rejected": "L'approbateur a refusé la commande : {reason}"
+    },
+    "command": {
+      "not_found": "La commande {commandId} est introuvable."
+    }
   }
 }
