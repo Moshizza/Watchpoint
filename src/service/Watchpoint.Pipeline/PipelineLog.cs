@@ -44,6 +44,9 @@ internal static partial class PipelineLog
     [LoggerMessage(EventId = 1614, Level = LogLevel.Warning, Message = "Registry outbox database call failed: {Reason}; retrying in {Delay}")]
     public static partial void OutboxDatabaseFailed(ILogger logger, Exception exception, string reason, TimeSpan delay);
 
+    [LoggerMessage(EventId = 1615, Level = LogLevel.Information, Message = "Registry outbox publisher lost the lease {Lease}; publishing stops until it is held again")]
+    public static partial void OutboxLeaseLost(ILogger logger, string lease);
+
     [LoggerMessage(EventId = 1610, Level = LogLevel.Information, Message = "Partition {Partition} recovered from sequence {From} to {To} ({Records} records) in {DurationMs} ms")]
     public static partial void PartitionRecovered(ILogger logger, int partition, long from, long to, long records, long durationMs);
 

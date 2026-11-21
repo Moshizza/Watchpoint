@@ -349,7 +349,9 @@ registry's transactional outbox (REG §6, §10, `IRegistryOutbox`) to `WP_CFG`:
   thousands of changes exceeds 1 MB; `pipeline.record.invalid`) is logged (1613), skipped and
   marked sent; consumers see the gap and resynchronise from the registry. Since T1.09c the registry
   refuses, before commit, a batch whose record would exceed the log's limit (`registry.batch.too_large`,
-  arg `bytes`, REG §6), so this path is defence in depth (a hand-built or legacy row).
+  arg `bytes`, REG §6), so this path is defence in depth (a hand-built or legacy row). The module registers
+  `RegistryRecordLimit`, the `IRegistryRecordLimit` (REG §6) the writer measures with: the envelope built by the
+  publisher, encoded by the log codec with a `traceparent` header, against `Log:MaxMessageSize`.
 - **Database down**: a failed outbox read or mark is logged (1614) and retried with the same
   back-off; a mark that fails after a successful publish leads to a repeated publish (above).
 - **Retention**: sent rows are deleted 24 h after they were sent, checked at most once an hour
@@ -359,7 +361,9 @@ registry's transactional outbox (REG §6, §10, `IRegistryOutbox`) to `WP_CFG`:
   `PipelineOptions`, not configurable in M1; tests shorten them.
 - **Several nodes (M9)**: one database must have one publisher. The publisher receives the Kernel
   `ILeaseGate` (K) and awaits `WaitUntilHeldAsync("registry-outbox", ct)` before each run of its loop,
-  stopping when the lease is lost. CLU (T9.01) implements the gate with its lease manager (CLU §5); the
+  stopping when the lease is lost (the returned token is cancelled: 1615, the run ends without marking more and
+  the publisher waits for the lease again; a record appended but not yet marked is published again by the next
+  holder, which the revision dedup id absorbs). The module registers `AlwaysHeldLeaseGate` unless one is registered. CLU (T9.01) implements the gate with its lease manager (CLU §5); the
   M1 implementation is always held. PIP never references CLU and CLU never reaches PIP internals.
   Until M9 the revision-derived ids make an accidental double publisher harmless within the duplicate
   window.
@@ -743,6 +747,7 @@ contracts return values, not `Result`.
 | 1612 | Information | Registry outbox published revisions {First} to {Last} ({Records} records) after {FailedAttempts} failed attempts |
 | 1613 | Error | registry.changed revision {Revision} was refused by the log ({Code}) and is skipped; log consumers must resynchronise |
 | 1614 | Warning | Registry outbox database call failed: {Reason}; retrying in {Delay} |
+| 1615 | Information | Registry outbox publisher lost the lease {Lease}; publishing stops until it is held again |
 | 1620 | Warning | Connection {ConnectionId} rejected {Count} observations with {Code} in the last minute; sample {Sample} |
 | 1630 | Warning | Connection {ConnectionId} over quota; coalescing active |
 | 1631 | Error | Connection {ConnectionId} flooding: {Pending} pending events |
@@ -861,6 +866,8 @@ with real NATS (Testcontainers, scoped prefixes).
 | PIP-U-056 | U | Outbox sent records pruned after retention once per interval; database faults retried | Idle publisher prunes at start then not before 1 h; a record sent 25 h ago is deleted; outbox throwing → 1614 with delays 1, 2 s, then publishes when the database is back |
 | PIP-U-057 | U | Deleted targets are purged from the last value cache | Device with cached property and health; registry `Changed` (`deleted`) → posted work removes both entries; the next observation for it is rejected `pipeline.target.unknown` |
 | PIP-U-058 | U | Slow subscriber logged against the budget | Subscriber that advances the test clock by 8 ms per call, budget 5 ms → one 1646 per minute, records still processed |
+| PIP-U-059 | U | Outbox publisher runs only while the lease is held and stops cleanly when it is lost | Gate not granted → no read, no publish after 3 poll intervals; granted → record 1 published; revoked → 1615, waits again, record 2 not read; granted again → record 2 published; node stop ends the run without error |
+| PIP-U-060 | U | Record limit measures the published message exactly | Under a W3C activity: `Log:MaxMessageSize` = `Measure(record)` − 1 → refused (1613 `pipeline.record.too_large`); = `Measure(record)` → stored with `traceparent` |
 | PIP-I-001 | I | Streams provisioned on real NATS | Start module → three streams with expected subjects/retention |
 | PIP-I-002 | I | Provisioning idempotent | Restart → no error, configs unchanged |
 | PIP-I-003 | I | Append and replay one or several partitions | 1,000 records over 4 partitions → replay of p returns its records in order; `ReadPartitionsAsync({p, q})` returns the records of p and q in global sequence order, nothing else |
@@ -888,5 +895,5 @@ with real NATS (Testcontainers, scoped prefixes).
 | T1.09 | §4, §5, §6 (contracts), §10 (log settings), §11, §12 (log part) | PIP-U-001…PIP-U-020, PIP-I-001…PIP-I-008 (REG-I-005 moved to T1.09b) |
 | T1.10 | §6 (rules), §7, §8, §9, §10 (ingest settings), §12 (ingest part), §13 | PIP-U-021…PIP-U-050, PIP-I-009…PIP-I-016 |
 | T1.09b | §5.3 (`registry.changed`), §5.5, §12 (outbox events and metrics) | PIP-U-051…PIP-U-056, PIP-I-017…PIP-I-019 |
-| T1.09c | §5.5 (refused record as defence in depth; `ILeaseGate` in the publisher, always held in M1) | PIP-U-055 (adjusted) |
+| T1.09c | §5.5 (refused record as defence in depth; `RegistryRecordLimit`; `ILeaseGate` in the publisher, always held in M1), §12 (1615) | PIP-U-055 (adjusted), PIP-U-059, PIP-U-060 |
 | T1.10b | §7.2 (purge of deleted targets), §7.3 (subscriber budget), §10 (`Log:Retention` ≤ P30D, `Ingest:SubscriberBudget`), §12 (1646) | PIP-U-057, PIP-U-058 |
