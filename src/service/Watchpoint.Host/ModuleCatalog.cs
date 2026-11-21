@@ -19,6 +19,7 @@ public static class ModuleCatalog
         new ModelModule(),
         new RegistryModule(),
         new PipelineModule(),
+        new HistoryModule(),
         new IdentityModule(),
         new IntegrationRuntimeModule(),
 

@@ -7,6 +7,7 @@
   </Folder>
   <Folder Name="/src/">
     <Project Path="Watchpoint.Expressions/Watchpoint.Expressions.csproj" />
+    <Project Path="Watchpoint.History/Watchpoint.History.csproj" />
     <Project Path="Watchpoint.Host/Watchpoint.Host.csproj" />
     <Project Path="Watchpoint.Hosting/Watchpoint.Hosting.csproj" />
     <Project Path="Watchpoint.Identity/Watchpoint.Identity.csproj" />

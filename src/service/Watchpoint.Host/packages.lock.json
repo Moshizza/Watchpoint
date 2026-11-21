@@ -376,6 +376,16 @@
         "resolved": "10.0.14",
         "contentHash": "riMCsgbGKGonluQzaRRrx5ney0QNkEmepNTrHD3QpqU/ICZpCJsyAWNi6JESTxqYkc+9kNQ55aZaH/n3xOjSlg=="
       },
+      "watchpoint.history": {
+        "type": "Project",
+        "dependencies": {
+          "Watchpoint.Kernel": "[1.0.0, )",
+          "Watchpoint.Model": "[1.0.0, )",
+          "Watchpoint.Pipeline": "[1.0.0, )",
+          "Watchpoint.Registry": "[1.0.0, )",
+          "Watchpoint.Storage": "[1.0.0, )"
+        }
+      },
       "watchpoint.hosting": {
         "type": "Project",
         "dependencies": {
