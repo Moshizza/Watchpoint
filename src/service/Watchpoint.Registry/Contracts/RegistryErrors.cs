@@ -91,8 +91,15 @@ public static class RegistryErrors
     /// </summary>
     public static Error LinkInvalid(string reason) => Error.Create(ErrorKind.Validation, "registry.link.invalid", ("reason", reason));
 
-    /// <summary><c>registry.batch.too_large</c> (REG §6): the batch exceeds the change-count limit. T1.09c adds the record byte-size cause (<c>bytes</c>).</summary>
+    /// <summary><c>registry.batch.too_large</c> (REG §6): the batch exceeds the change-count limit <paramref name="max"/>; the record byte-size cause is <see cref="BatchRecordTooLarge"/>.</summary>
     public static Error BatchTooLarge(int max) => Error.Create(ErrorKind.Validation, "registry.batch.too_large", ("max", max));
+
+    /// <summary>
+    /// Batch whose <c>registry.changed</c> record would exceed the log's record limit (<c>registry.batch.too_large</c>,
+    /// REG §6): <paramref name="max"/> is the limit and <paramref name="bytes"/> the record size, both in bytes.
+    /// </summary>
+    public static Error BatchRecordTooLarge(int max, int bytes) =>
+        Error.Create(ErrorKind.Validation, "registry.batch.too_large", ("max", max), ("bytes", bytes));
 
     /// <summary>Optimistic concurrency version conflict error (<c>common.version.conflict</c>).</summary>
     public static Error VersionConflict(string entityType, string id, long currentVersion, long? expectedVersion) =>

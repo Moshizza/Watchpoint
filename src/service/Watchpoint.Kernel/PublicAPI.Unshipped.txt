@@ -1,1 +1,6 @@
 #nullable enable
+Watchpoint.Kernel.Time.AlwaysHeldLeaseGate
+Watchpoint.Kernel.Time.AlwaysHeldLeaseGate.AlwaysHeldLeaseGate() -> void
+Watchpoint.Kernel.Time.AlwaysHeldLeaseGate.WaitUntilHeldAsync(string! lease, System.Threading.CancellationToken ct) -> System.Threading.Tasks.ValueTask<System.Threading.CancellationToken>
+Watchpoint.Kernel.Time.ILeaseGate
+Watchpoint.Kernel.Time.ILeaseGate.WaitUntilHeldAsync(string! lease, System.Threading.CancellationToken ct) -> System.Threading.Tasks.ValueTask<System.Threading.CancellationToken>

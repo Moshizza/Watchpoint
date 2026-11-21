@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Watchpoint.Kernel.Time;
 using Watchpoint.Pipeline.Contracts;
 using Watchpoint.Pipeline.Internal.Log;
 using Watchpoint.Registry.Contracts;
@@ -17,8 +18,9 @@ namespace Watchpoint.Pipeline.Internal;
 /// </summary>
 /// <remarks>
 /// Exactly one publisher runs per node. With several nodes sharing the database (CLU, M9) the loop must run on one node
-/// only: the seam is <see cref="RunAsync"/>, to be started by the holder of a <c>registry-outbox</c> lease; until then the
-/// revision-based dedup id keeps a double publish harmless within the duplicate window.
+/// only: before each run the publisher awaits the Kernel <see cref="ILeaseGate"/> for <see cref="LeaseName"/> and stops
+/// publishing when the lease is lost (1615), then waits for it again. The M1 gate is always held; the revision-based
+/// dedup id keeps an accidental double publish harmless within the duplicate window.
 /// </remarks>
 internal sealed class RegistryOutboxPublisher(
     IRegistryOutbox outbox,
@@ -27,8 +29,12 @@ internal sealed class RegistryOutboxPublisher(
     PipelineOptions options,
     TimeProvider timeProvider,
     PipelineMetrics metrics,
+    ILeaseGate leaseGate,
     ILogger<RegistryOutboxPublisher> logger) : BackgroundService
 {
+    /// <summary>The lease the publisher holds while it runs (spec PIP §5.5, K §6.1).</summary>
+    public const string LeaseName = "registry-outbox";
+
     // "REGCHG" marks the ids of registry.changed records; the revision is in the last eight bytes.
     private static readonly byte[] _idPrefix = [0x52, 0x45, 0x47, 0x43, 0x48, 0x47];
 
@@ -51,9 +57,16 @@ internal sealed class RegistryOutboxPublisher(
     }
 
     /// <summary>The envelope of a record (the body is PIP §5.3 <c>registry.changed</c>).</summary>
-    public LogEnvelope Envelope(RegistryOutboxRecord record)
+    public LogEnvelope Envelope(RegistryOutboxRecord record) => Envelope(record, registry);
+
+    /// <summary>
+    /// The envelope of a record built with <paramref name="registry"/>: the one the publisher appends, also measured by
+    /// <see cref="RegistryRecordLimit"/> before the registry commits the batch.
+    /// </summary>
+    public static LogEnvelope Envelope(RegistryOutboxRecord record, ILogRecordTypeRegistry registry)
     {
         ArgumentNullException.ThrowIfNull(record);
+        ArgumentNullException.ThrowIfNull(registry);
         var body = new RegistryChangedBody(
             record.Revision,
             new RegistryChangedContext(record.Context.Actor?.Value.ToString(), record.Context.Origin, record.Context.ChangeSet?.Value.ToString()),
@@ -74,8 +87,33 @@ internal sealed class RegistryOutboxPublisher(
 
     protected override Task ExecuteAsync(CancellationToken stoppingToken) => RunAsync(stoppingToken);
 
-    /// <summary>The publisher loop; returns when <paramref name="ct"/> is cancelled.</summary>
+    /// <summary>
+    /// Waits for the lease, publishes while it is held, and waits again when it is lost; returns when
+    /// <paramref name="ct"/> is cancelled.
+    /// </summary>
     internal async Task RunAsync(CancellationToken ct)
+    {
+        try
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                var held = await leaseGate.WaitUntilHeldAsync(LeaseName, ct).ConfigureAwait(false);
+                using var run = CancellationTokenSource.CreateLinkedTokenSource(ct, held);
+                await PublishWhileHeldAsync(run.Token).ConfigureAwait(false);
+                if (!ct.IsCancellationRequested)
+                {
+                    PipelineLog.OutboxLeaseLost(logger, LeaseName);
+                }
+            }
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // Stopping.
+        }
+    }
+
+    /// <summary>The publisher loop; returns when <paramref name="ct"/> (node stop or lease lost) is cancelled.</summary>
+    private async Task PublishWhileHeldAsync(CancellationToken ct)
     {
         var delay = options.OutboxRetryDelayMin;
         try

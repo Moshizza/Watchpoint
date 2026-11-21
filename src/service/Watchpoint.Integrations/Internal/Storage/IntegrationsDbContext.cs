@@ -37,14 +37,39 @@ internal class IntegrationsDbContext(DbContextOptions options, StorageContextInf
 
     public DbSet<PackageRecord> Packages => Set<PackageRecord>();
 
+    public DbSet<ConnectionRecord> Connections => Set<ConnectionRecord>();
+
+    public DbSet<ConnectionStoreRecord> ConnectionStore => Set<ConnectionStoreRecord>();
+
+    public DbSet<ConnectionEventRecord> ConnectionEvents => Set<ConnectionEventRecord>();
+
     protected override void OnModuleModelCreating(ModelBuilder modelBuilder)
     {
         var package = modelBuilder.Entity<PackageRecord>();
         package.ToTable("packages");
         package.HasKey(p => new { p.Id, p.Version });
+        var connection = modelBuilder.Entity<ConnectionRecord>();
+        connection.ToTable("connections");
+        connection.HasKey(c => c.Id);
+        connection.Property(c => c.Id).ValueGeneratedNever();
+        connection.HasIndex(c => new { c.PackageId, c.PackageVersion });
+
+        var store = modelBuilder.Entity<ConnectionStoreRecord>();
+        store.ToTable("connection_store");
+        store.HasKey(s => new { s.ConnectionId, s.Key });
+
+        var events = modelBuilder.Entity<ConnectionEventRecord>();
+        events.ToTable("connection_events");
+        events.HasKey(e => e.Id);
+        events.Property(e => e.Id).ValueGeneratedOnAdd();
+        events.HasIndex(e => new { e.ConnectionId, e.At });
+
         if (Database.ProviderName?.Contains("Npgsql", StringComparison.Ordinal) == true)
         {
             package.Property(p => p.Problems).HasColumnType("jsonb");
+            connection.Property(c => c.Settings).HasColumnType("jsonb");
+            connection.Property(c => c.Secrets).HasColumnType("jsonb");
+            events.Property(e => e.Reason).HasColumnType("jsonb");
         }
     }
 }

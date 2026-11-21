@@ -95,6 +95,8 @@ Sources, later overriding earlier: `appsettings.json` (shipped defaults) →
 | `Dev:SeedFile` | path | empty | only honoured when `Node:Environment = Development` |
 | `Shutdown:Timeout` | duration | `PT30S` | PT5S–PT5M |
 
+A list set in configuration (`Node:Roles`, `Http:Urls`, `Management:Urls`) replaces its default; it is never merged with it (`NodeSettings.Bind`: the configuration binder alone would append the configured items to the default list, T1.01b).
+
 Settings are bound to `NodeSettings` (options pattern) and validated at start with
 `ValidateOnStart()`. Invalid settings → the process logs `HST1101` with all problems and
 exits with code **78** (`EX_CONFIG`), so service managers do not restart-loop silently.
@@ -173,7 +175,8 @@ public static readonly IWatchpointModule[] All =
 ];
 ```
 
-Target list. Today (`src/service/Watchpoint.Host/ModuleCatalog.cs`) the catalogue holds `Storage`, `Model`,
+Target list. Today (`src/service/Watchpoint.Host/ModuleCatalog.cs`) the catalogue holds `Secrets` (added by T1.16:
+connection credentials; its start-up task runs `ISecretsStartup` in phase `Infrastructure`, order 5), `Storage`, `Model`,
 `Registry`, `Pipeline`, `Identity` and `IntegrationRuntime`; each task adds its module in this order.
 
 ### 5.3 Startup orchestration
@@ -445,14 +448,14 @@ devices for connections flagged `"autoImport": true`.
     { "key": "a", "parent": "hq", "name": "Building A", "kind": "building" },
     { "key": "a0", "parent": "a", "name": "Floor 0", "kind": "floor" }
   ],
-  "users": [ { "login": "admin", "password": "Dev-Admin-1!", "administrator": true } ],
+  "users": [ { "login": "admin", "password": "Dev-Watchpoint-1!", "administrator": true } ],
   "connections": [
     {
       "package": "watchpoint.integration.simulator",
       "serverType": "sim.server",
       "name": "Simulator",
       "location": "a0",
-      "settings": { "profile": "office", "doors": 20, "zones": 10, "areas": 2, "seed": 42 },
+      "settings": { "profile": "office", "doors": 20, "zonesPerArea": 5, "areas": 2, "seed": 42 },
       "secrets": {},
       "autoImport": true
     }
@@ -471,9 +474,19 @@ error `host.seed.invalid` with the JSON paths. Logs name paths and codes, never 
 Each section is applied by an `IDevSeedStep` (one per section, registered by the host for the modules it
 composes), in the order above. "Store empty" means no step reports existing data (`HasDataAsync`; the users step:
 none of the seed's logins exists); otherwise nothing is applied (event 1142). A section without a step is skipped
-with a warning (event 1141). T1.02 delivers the `users` step (IDN); the steps for site, locations and tags (REG)
-and for connections and import (IRT) come with T1.16. The Registry module is already in the host's module
-catalogue (T1.09/T1.10); only its seed steps are missing.
+with a warning (event 1141). T1.02 delivers the `users` step (IDN); T1.16 the steps for site, locations and tags (REG,
+through `IRegistryWriter`) and for connections and import (IRT, through `IConnectionManager`):
+
+- `site`: never reports data (the default site always exists, REG R1). The registry accepts a batch only with exactly
+  one root location (REG R2), so on an empty registry the site update and the seed's locations go in one batch.
+- `locations`: data = any location; a seed location whose parent holds one with the same name (NameRules) is kept.
+- `tags`: data = a seed tag key exists; families are created by key (cardinality zero-or-more).
+- `connections`: data = a connection with a seed name exists; the location is found by the seed's chain of names
+  (a connection without `location` goes to the root). Connections are created enabled with their settings and
+  secrets (stored in the vault). The import happens at the `Connections` phase: on its first connect a connection
+  describes its inventory and, with `autoImport`, the registry imports everything new (IRT §7.4).
+
+Every step is idempotent: applying the seed again creates nothing twice.
 
 ## 10. Errors
 
@@ -609,6 +622,7 @@ Added by T1.02 (state machine and platform behaviour in detail):
 | HST-U-046 | U | Site id generated once, persisted and validated | First start: `Site:Id` generated (v7) and written back next to `Node:Id`; second start reads it; a non-v7 id fails validation |
 | HST-U-047 | U | Module with invalid settings stops the start | `IdentityModule.BindSettings` with a valid context → settings; an invalid or unknown `Identity:*` key, or no `Site:Id` → `InvalidSettingsException` naming the key and code, never the value |
 | HST-U-048 | U | Development refused on a production install | `Node:Environment=Development` + service host (Windows service / `NOTIFY_SOCKET`) → exit 78; + `Paths:Data` = OS default → exit 78; console run with a custom data path → starts, 1102 at Warning |
+| HST-U-049 | U | Configured lists replace the defaults | `Http:Urls`, `Management:Urls`, `Node:Roles` set in configuration → exactly the configured items (no default URL or role kept); not set → the defaults |
 | HST-U-045 | U | Ready line printed at once is not missed | Child whose stdout already holds the `StdoutLine` text when it starts → Running (the probe is registered before the output is read), 50 rounds |
 | HST-I-009 | I | Real child process (Linux) | Own process group; 20,000 lines drained; environment, working directory, stderr; child ignoring SIGTERM with a descendant → both killed after the grace period; exit code reported |
 | HST-I-010 | I | Development stack pinned and consistent | Compose images pinned by digest and equal to the test fixtures and `deploy/versions.env`; loopback ports; dev settings valid; sample seed valid |
@@ -634,5 +648,5 @@ above also covers the watchdog end to end.
 Note: HST-I-008 needs IRT, C-SIM and IDN; it is implemented in T1.02 but enabled when those
 tasks are merged (marked `[Trait("requires","T1.16,T1.17,T1.18")]`). T1.17 and T1.18 are merged; what is
 missing is T1.16 (connection manager) together with the seed steps for site, locations and tags (REG) and for
-connections and import (IRT); the Registry module is already in the catalogue. Until then the test is skipped; **T1.16 enables it** (removes the
-`Skip`, adds the missing seed steps) and lists it among its tests.
+connections and import (IRT); the Registry module is already in the catalogue. **T1.16 enabled it** (seed steps, the
+simulator staged as a builtin package signed with a development key, the host started with its own NATS server).

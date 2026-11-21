@@ -82,8 +82,7 @@ public static class Program
         var watchpointJsonPath = ResolveWatchpointJsonPath(args);
 
         // Bind NodeSettings
-        var settings = new NodeSettings();
-        builder.Configuration.Bind(settings);
+        var settings = NodeSettings.Bind(builder.Configuration);
 
         // Until Serilog is configured, start-up problems are logged through a console bootstrap logger.
         using (var bootstrapLoggers = new Serilog.Extensions.Logging.SerilogLoggerFactory(
@@ -241,7 +240,11 @@ public static class Program
         // Development seed (spec HST §9): refused outside Development by the task itself (HST1140).
         if (!string.IsNullOrWhiteSpace(settings.Dev.SeedFile))
         {
+            builder.Services.AddSingleton<IDevSeedStep, SiteDevSeedStep>();
+            builder.Services.AddSingleton<IDevSeedStep, LocationsDevSeedStep>();
+            builder.Services.AddSingleton<IDevSeedStep, TagsDevSeedStep>();
             builder.Services.AddSingleton<IDevSeedStep, UsersDevSeedStep>();
+            builder.Services.AddSingleton<IDevSeedStep, ConnectionsDevSeedStep>();
             builder.Services.AddStartupTask<DevSeedStartupTask>();
         }
 

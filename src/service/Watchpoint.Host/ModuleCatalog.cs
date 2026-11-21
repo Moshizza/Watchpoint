@@ -14,6 +14,7 @@ public static class ModuleCatalog
     /// </summary>
     public static readonly IWatchpointModule[] All =
     [
+        new SecretsModule(),
         new StorageModule(),
         new ModelModule(),
         new RegistryModule(),
@@ -23,7 +24,7 @@ public static class ModuleCatalog
         new IntegrationRuntimeModule(),
 
         // Other modules are added by their tasks, in this order (HST §5.2):
-        // new KernelModule(), new SecretsModule(), [StorageModule], [ModelModule],
+        // new KernelModule(), [SecretsModule], [StorageModule], [ModelModule],
         // [RegistryModule], [PipelineModule], [StateModule], [IdentityModule],
         // [IntegrationRuntimeModule], new ApiModule(),
     ];
