@@ -33,7 +33,7 @@ internal sealed class StateFixture
         Records = new RecordBuilders(RecordTypes, Time);
         Aggregates = new AggregateCounters();
         Ring = new RecentChangesRing(ringCapacity);
-        Fanout = new ChangeFanout(Ring, NullLogger.Instance);
+        Fanout = new ChangeFanout(Ring, NullLogger<ChangeFanout>.Instance);
         Store = new StateStore(Types, Evaluator, Registry, RecordTypes, Aggregates, Ring, Fanout);
         Work = new SynchronousPartitionWork();
         Cascade = new ServerAvailabilityCascade(Registry, Work, Store, Time);

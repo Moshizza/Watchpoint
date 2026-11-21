@@ -11,7 +11,7 @@ namespace Watchpoint.State.Internal;
 /// instead of slowing down or dropping older changes for everyone else — the writer (a partition worker) never
 /// waits on a listener.
 /// </summary>
-internal sealed class ChangeFanout(RecentChangesRing ring, ILogger logger) : IStateChangeFeed
+internal sealed class ChangeFanout(RecentChangesRing ring, ILogger<ChangeFanout> logger) : IStateChangeFeed
 {
     private readonly ConcurrentDictionary<Listener, bool> _listeners = new();
 
