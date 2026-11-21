@@ -409,6 +409,16 @@
           "Watchpoint.Storage": "[1.0.0, )"
         }
       },
+      "watchpoint.history": {
+        "type": "Project",
+        "dependencies": {
+          "Watchpoint.Kernel": "[1.0.0, )",
+          "Watchpoint.Model": "[1.0.0, )",
+          "Watchpoint.Pipeline": "[1.0.0, )",
+          "Watchpoint.Registry": "[1.0.0, )",
+          "Watchpoint.Storage": "[1.0.0, )"
+        }
+      },
       "watchpoint.host": {
         "type": "Project",
         "dependencies": {
@@ -427,6 +437,7 @@
           "Serilog.Sinks.Console": "[6.1.1, )",
           "Serilog.Sinks.File": "[7.0.0, )",
           "Watchpoint.Commands": "[1.0.0, )",
+          "Watchpoint.History": "[1.0.0, )",
           "Watchpoint.Hosting": "[1.0.0, )",
           "Watchpoint.Identity": "[1.0.0, )",
           "Watchpoint.Integrations": "[1.0.0, )",

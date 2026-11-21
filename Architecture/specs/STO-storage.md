@@ -45,7 +45,7 @@ Watchpoint.Storage/
 │   ├── IStoreConnectionFactory.cs
 │   ├── IModuleStorageRegistration.cs
 │   ├── IStateStore.cs
-│   ├── IHistoryStore.cs             (declared; see HIS)
+│   ├── IHistoryStore.cs, HistoryRows.cs, HistoryFilters.cs   (history store contract; see HIS)
 │   ├── IAuditStore.cs               (declared; see AUD)
 │   ├── StorageErrors.cs             error codes + StorageStartupException (exit codes)
 │   ├── ConfigurationDbContextBase.cs, EntityConventions.cs (IVersioned, ITimestamped, StorageContextInfo)
@@ -131,7 +131,8 @@ public interface IStorageProvider
     PoolStatistics? GetPoolStatistics(DatabaseDefinition db);  // null when the driver publishes its own pool metrics
     string Sanitize(string connectionString);           // password removed, for logs
     IStateStore CreateStateStore(DatabaseDefinition db);
-    // History and audit store factories are added by HIS/AUD tasks (T2.13, T3.06).
+    IHistoryStore CreateHistoryStore(DatabaseDefinition db);   // T2.13 (HIS §4–§7)
+    // The audit store factory is added by the AUD task (T3.06).
 }
 
 public sealed record ProviderCapabilities(

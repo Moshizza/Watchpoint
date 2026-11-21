@@ -70,7 +70,12 @@ public interface IStorageProvider
     /// <returns>The sanitised connection string.</returns>
     string Sanitize(string connectionString);
 
-    // History and audit store factories are added by T2.13 (HIS) and T3.06 (AUD).
+    /// <summary>Creates the history store on <paramref name="db"/> (spec HIS §4–§7).</summary>
+    /// <param name="db">The database of the history store.</param>
+    /// <returns>The store.</returns>
+    IHistoryStore CreateHistoryStore(DatabaseDefinition db);
+
+    // The audit store factory is added by T3.06 (AUD).
 }
 
 /// <summary>Connection pool statistics.</summary>

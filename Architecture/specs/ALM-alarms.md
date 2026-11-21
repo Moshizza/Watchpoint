@@ -308,6 +308,8 @@ Rules:
   `alarms.already_acknowledged` (args `by`, `at`).
 - Every transition record carries actor (user/session/client kind or system), time, and the new
   state; HIS stores them as the alarm timeline.
+  Every `alarm.*` record carries the whole alarm after the transition and `raisedAt` (body type
+  `AlarmTransitionBody`, HIS §5): HIS folds the records into one row per alarm.
 
 ### 7.3 Operator service
 

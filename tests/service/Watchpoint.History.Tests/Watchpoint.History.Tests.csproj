@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Unit tests of history (spec HIS §14): mappers, folds, policies, the consumer runner and the queries, on fakes of the store and the log. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Watchpoint.History.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Shouldly" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../../src/service/Watchpoint.History/Watchpoint.History.csproj" />
+    <ProjectReference Include="../../../src/service/Watchpoint.Kernel.Testing/Watchpoint.Kernel.Testing.csproj" />
+    <ProjectReference Include="../Watchpoint.Testing/Watchpoint.Testing.csproj" />
+  </ItemGroup>
+
+</Project>
