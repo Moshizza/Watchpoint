@@ -14,8 +14,8 @@ using Watchpoint.Model.Contracts;
 using Watchpoint.Pipeline;
 using Watchpoint.Pipeline.Contracts;
 using Watchpoint.Registry.Contracts;
-using ChangeContext = Watchpoint.Identity.Contracts.ChangeContext;
 using Xunit;
+using ChangeContext = Watchpoint.Identity.Contracts.ChangeContext;
 
 namespace Watchpoint.Commands.Tests;
 
