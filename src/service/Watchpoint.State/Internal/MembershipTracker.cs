@@ -31,15 +31,21 @@ internal sealed class MembershipTracker : IHostedService
         _time = time;
     }
 
+    /// <summary>Subscribes to <see cref="IRegistryReader.Changed"/>; <see langword="internal"/> so tests can call it without an async wrapper.</summary>
+    public void Subscribe() => _registry.Changed += OnChanged;
+
+    /// <summary>Unsubscribes from <see cref="IRegistryReader.Changed"/>.</summary>
+    public void Unsubscribe() => _registry.Changed -= OnChanged;
+
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        _registry.Changed += OnChanged;
+        Subscribe();
         return Task.CompletedTask;
     }
 
     public Task StopAsync(CancellationToken cancellationToken)
     {
-        _registry.Changed -= OnChanged;
+        Unsubscribe();
         return Task.CompletedTask;
     }
 
