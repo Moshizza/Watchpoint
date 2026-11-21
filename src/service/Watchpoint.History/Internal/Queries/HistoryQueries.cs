@@ -7,13 +7,12 @@ using Watchpoint.Kernel.Results;
 using Watchpoint.Kernel.Values;
 using Watchpoint.Model.Contracts;
 using Watchpoint.Pipeline.Contracts;
-using Watchpoint.Registry.Contracts;
 using Watchpoint.Storage.Contracts;
 
 namespace Watchpoint.History.Internal.Queries;
 
 /// <summary>The queries of history (spec HIS §7): validates, restricts to the caller's scope, pages by keyset, maps rows.</summary>
-internal sealed class HistoryQueries(IHistoryStore store, IRegistryReader registry, HistorySettings settings) : IHistoryQueries
+internal sealed class HistoryQueries(IHistoryStore store, IHistoryTagKeys tagKeyLookup, HistorySettings settings) : IHistoryQueries
 {
     /// <summary>The longest range of an events query.</summary>
     public const int MaxEventDays = 31;
@@ -38,10 +37,10 @@ internal sealed class HistoryQueries(IHistoryStore store, IRegistryReader regist
             }
 
             var scope = ScopeSelector.Select(query.Scope, out var nothingVisible);
-            List<string>? tagKeys = null;
+            IReadOnlyList<string>? tagKeys = null;
             if (query.Tags is { Count: > 0 })
             {
-                var keys = registry.GetTags().Where(t => query.Tags.Contains(t.Id)).Select(t => t.Key).ToList();
+                var keys = tagKeyLookup.KeysOf([.. query.Tags]);
                 nothingVisible |= keys.Count == 0;
                 tagKeys = keys;
             }

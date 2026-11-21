@@ -43,6 +43,7 @@ public static class HistoryModule
             return connections.GetProvider(StoreKind.History).CreateHistoryStore(connections.GetDatabase(StoreKind.History));
         });
         services.AddSingleton<IHistoryEnrichment, RegistryHistoryEnrichment>();
+        services.AddSingleton<IHistoryTagKeys, RegistryHistoryTagKeys>();
         services.AddSingleton(_ => new LastStoredCache(settings.LastStoredCacheSize));
         services.AddSingleton<PolicyResolver>();
         services.AddSingleton<LagMonitor>();

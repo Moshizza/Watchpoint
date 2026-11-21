@@ -21,7 +21,7 @@ public sealed class HistoryQueryTests
     private static readonly DateTimeOffset _from = new(2026, 1, 5, 0, 0, 0, TimeSpan.Zero);
 
     private readonly FakeHistoryStore _store = new();
-    private readonly FakeRegistryReader _registry = new();
+    private readonly FakeTagKeys _registry = new();
     private readonly HistorySettings _settings = new();
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -68,7 +68,7 @@ public sealed class HistoryQueryTests
 
         // Tags are looked up by key; tags that do not exist select nothing.
         var tag = new Tag(Watchpoint.Testing.Ids.TestIds.Tag(1), Watchpoint.Testing.Ids.TestIds.TagFamily(1), "entrance", LocalizedName.Of("Entrance"), null, 1);
-        _registry.Tags.Add(tag);
+        _registry.Tags[tag.Id] = tag.Key;
         (await Queries().QueryEventsAsync(Events() with { Tags = [tag.Id] }, new PageRequest(10), Ct)).ShouldBeSuccess();
         _store.EventFilters.Last().TagKeys.ShouldBe(["entrance"]);
         var none = (await Queries().QueryEventsAsync(Events() with { Tags = [Watchpoint.Testing.Ids.TestIds.Tag(9)] }, new PageRequest(10), Ct)).ShouldBeSuccess();

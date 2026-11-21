@@ -74,3 +74,15 @@ internal sealed class RegistryHistoryEnrichment(IRegistryReader registry) : IHis
             server.Value, true, found.DisplayName?.Default ?? found.VendorName, server.Value, found.LocationId.Value, ids, names, tags, found.Type, found.Type.Id.Value);
     }
 }
+
+/// <summary>Resolves tag ids to the tag keys stored with the rows.</summary>
+internal interface IHistoryTagKeys
+{
+    IReadOnlyList<string> KeysOf(IReadOnlyCollection<TagId> tags);
+}
+
+/// <summary>Tag keys from the in-memory registry.</summary>
+internal sealed class RegistryHistoryTagKeys(IRegistryReader registry) : IHistoryTagKeys
+{
+    public IReadOnlyList<string> KeysOf(IReadOnlyCollection<TagId> tags) => [.. registry.GetTags().Where(t => tags.Contains(t.Id)).Select(t => t.Key)];
+}

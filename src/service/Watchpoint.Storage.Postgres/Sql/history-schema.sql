@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS wp_history.events (
   correlation    jsonb       NULL,
   UNIQUE (id, time)
 ) /*PARTITION*/;
+CREATE INDEX IF NOT EXISTS events_time_id ON wp_history.events (time DESC, id DESC);
 CREATE INDEX IF NOT EXISTS events_entity_time ON wp_history.events (entity_id, time DESC);
 CREATE INDEX IF NOT EXISTS events_kind_time ON wp_history.events (kind, time DESC);
 CREATE INDEX IF NOT EXISTS events_location_ids ON wp_history.events USING gin (location_ids);
@@ -66,6 +67,7 @@ CREATE TABLE IF NOT EXISTS wp_history.alarms (
   false_alarm        boolean     NULL,
   UNIQUE (id, time)
 ) /*PARTITION*/;
+CREATE INDEX IF NOT EXISTS alarms_time_id ON wp_history.alarms (time DESC, id DESC);
 CREATE INDEX IF NOT EXISTS alarms_rule_time ON wp_history.alarms (rule_id, time DESC);
 CREATE INDEX IF NOT EXISTS alarms_source_time ON wp_history.alarms (source_id, time DESC);
 CREATE INDEX IF NOT EXISTS alarms_location_ids ON wp_history.alarms USING gin (location_ids);
@@ -109,6 +111,7 @@ CREATE TABLE IF NOT EXISTS wp_history.commands (
   correlation   jsonb       NULL,
   UNIQUE (id, time)
 ) /*PARTITION*/;
+CREATE INDEX IF NOT EXISTS commands_time_id ON wp_history.commands (time DESC, id DESC);
 CREATE INDEX IF NOT EXISTS commands_device_time ON wp_history.commands (device_id, time DESC);
 CREATE INDEX IF NOT EXISTS commands_issuer_time ON wp_history.commands (issuer_user, time DESC);
 
