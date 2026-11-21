@@ -475,6 +475,15 @@
           "Watchpoint.Storage": "[1.0.0, )"
         }
       },
+      "watchpoint.state": {
+        "type": "Project",
+        "dependencies": {
+          "Watchpoint.Kernel": "[1.0.0, )",
+          "Watchpoint.Model": "[1.0.0, )",
+          "Watchpoint.Pipeline": "[1.0.0, )",
+          "Watchpoint.Registry": "[1.0.0, )"
+        }
+      },
       "watchpoint.storage": {
         "type": "Project",
         "dependencies": {

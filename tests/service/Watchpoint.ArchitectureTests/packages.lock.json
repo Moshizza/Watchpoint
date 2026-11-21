@@ -705,6 +705,7 @@
           "Watchpoint.Pipeline": "[1.0.0, )",
           "Watchpoint.Registry": "[1.0.0, )",
           "Watchpoint.Secrets": "[1.0.0, )",
+          "Watchpoint.State": "[1.0.0, )",
           "Watchpoint.Storage": "[1.0.0, )",
           "Watchpoint.Storage.Postgres": "[1.0.0, )"
         }
@@ -883,6 +884,19 @@
           "System.Security.Cryptography.ProtectedData": "[10.0.14, )",
           "Watchpoint.Kernel": "[1.0.0, )",
           "Watchpoint.Storage": "[1.0.0, )"
+        }
+      },
+      "watchpoint.state": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.Extensions.Configuration.Binder": "[10.0.14, )",
+          "Microsoft.Extensions.Diagnostics": "[10.0.14, )",
+          "Microsoft.Extensions.Hosting.Abstractions": "[10.0.14, )",
+          "Microsoft.Extensions.Logging.Abstractions": "[10.0.14, )",
+          "Watchpoint.Kernel": "[1.0.0, )",
+          "Watchpoint.Model": "[1.0.0, )",
+          "Watchpoint.Pipeline": "[1.0.0, )",
+          "Watchpoint.Registry": "[1.0.0, )"
         }
       },
       "watchpoint.storage": {
