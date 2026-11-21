@@ -21,6 +21,7 @@
     <Project Path="Watchpoint.Registry/Watchpoint.Registry.csproj" />
     <Project Path="Watchpoint.Scheduling/Watchpoint.Scheduling.csproj" />
     <Project Path="Watchpoint.Secrets/Watchpoint.Secrets.csproj" />
+    <Project Path="Watchpoint.State/Watchpoint.State.csproj" />
     <Project Path="Watchpoint.Storage.Postgres/Watchpoint.Storage.Postgres.csproj" />
     <Project Path="Watchpoint.Storage/Watchpoint.Storage.csproj" />
   </Folder>

@@ -83,7 +83,7 @@ public interface IStateReader
 {
     Result<DeviceState> Get(Guid entityId);
     IReadOnlyList<DeviceState> GetMany(IReadOnlyCollection<Guid> entityIds);   // missing ids omitted
-    Page<DeviceState> Query(StateQuery query, PageRequest page);
+    Result<Page<DeviceState>> Query(StateQuery query, PageRequest page);      // state.query.invalid_condition
     long CurrentSequence { get; }                                               // max applied over partitions
 }
 
@@ -182,6 +182,12 @@ public sealed record StateChange(Guid EntityId, long Sequence, IReadOnlyList<Pro
 - `Query` asks REG for device ids matching `Devices` (with `Within` for rights), then filters
   by state/condition in memory and pages. For `States`/`Where`-only queries over all devices,
   scanning 50,000 states takes < 20 ms (STA-U-031).
+- `Query` returns `Result<Page<DeviceState>>`, not a bare `Page` (fixed in T1.11: §5's sketch
+  returned a bare `Page<DeviceState>`, but `state.query.invalid_condition` — raised when `Where`
+  names a property no known type declares — has nowhere else to surface from an `IStateReader`
+  call; the REST endpoint (§7) maps the error the same way as every other module. T1.11 does not
+  validate `Where`'s value against the property's declared type, only that the path is known;
+  a future task may tighten this when the API layer needs it).
 
 ## 7. API (owned by STA)
 
@@ -289,7 +295,11 @@ Metrics: `watchpoint.state.entities` (gauge by `kind`), `watchpoint.state.apply.
 `watchpoint.state.snapshot.lag` (gauge: sequences between applied and snapshotted),
 `watchpoint.state.listener.overflows` (counter, tag `listener`).
 
-Health check `ready`: recovery completed.
+Note (T1.11): events 1701, 1710 and 1720 and the `snapshot.lag` metric are produced by the
+snapshotter (§8), implemented with T1.12; T1.11 implements 1730, 1740 and the other metrics.
+
+Health check `ready`: recovery completed. Registered with T1.12 (recovery); T1.11 has no
+recovery concept yet, so it registers none.
 
 ## 12. Security
 
