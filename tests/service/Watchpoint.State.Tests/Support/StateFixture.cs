@@ -30,7 +30,7 @@ internal sealed class StateFixture
         RecordTypes.Register<PropertyRecordBody>(RecordKinds.Property, 1, null!);
         RecordTypes.Register<EventRecordBody>(RecordKinds.Event, 1, null!);
         RecordTypes.Register<HealthRecordBody>(RecordKinds.Health, 1, null!);
-        Records = new RecordBuilders(RecordTypes);
+        Records = new RecordBuilders(RecordTypes, Time);
         Aggregates = new AggregateCounters();
         Ring = new RecentChangesRing(ringCapacity);
         Fanout = new ChangeFanout(Ring, NullLogger.Instance);

@@ -71,16 +71,25 @@ internal sealed class AggregateCounters : IAggregateReader
         return drifted;
     }
 
+    /// <summary>
+    /// Compares two counter maps treating a missing scope as all-zero: <see cref="Mutate"/> never removes a scope
+    /// once it reaches zero (decrementing stays lock-free), but a scope with nothing left in it (e.g. an emptied
+    /// location) is not a drift just because the live map still carries its now-all-zero entry.
+    /// </summary>
     private static bool Differs(ConcurrentDictionary<AggregateScope, int[]> a, ConcurrentDictionary<AggregateScope, int[]> b)
     {
-        if (a.Count != b.Count)
-        {
-            return true;
-        }
-
         foreach (var (scope, counts) in a)
         {
-            if (!b.TryGetValue(scope, out var other) || !counts.AsSpan().SequenceEqual(other))
+            var other = b.TryGetValue(scope, out var found) ? found : EmptyCounts;
+            if (!counts.AsSpan().SequenceEqual(other))
+            {
+                return true;
+            }
+        }
+
+        foreach (var scope in b.Keys)
+        {
+            if (!a.ContainsKey(scope))
             {
                 return true;
             }
@@ -88,6 +97,8 @@ internal sealed class AggregateCounters : IAggregateReader
 
         return false;
     }
+
+    private static readonly int[] EmptyCounts = new int[_stateCount];
 
     private void Mutate(AggregateScope scope, OverallState state, int delta)
     {
