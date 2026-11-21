@@ -41,7 +41,7 @@ internal sealed class CommandsHarness : IDisposable
     private static readonly Lazy<(IValueValidator Values, ILogRecordTypeRegistry Records)> _shared = new(Load);
     private readonly ILoggerFactory _loggerFactory;
 
-    public CommandsHarness(Action<CommandsOptions>? configure = null)
+    public CommandsHarness(Action<CommandsOptions>? configure = null, ICommandAuthorizer? authorizer = null)
     {
         configure?.Invoke(Options);
         _loggerFactory = LoggerFactory.Create(b => b.SetMinimumLevel(LogLevel.Trace).AddProvider(Logs));
@@ -60,8 +60,9 @@ internal sealed class CommandsHarness : IDisposable
         Processor = new CommandProcessor(Directory, Codec, new CommandWaiters(), Metrics, _loggerFactory.CreateLogger<CommandProcessor>());
         Partitions = new FakePartitions(Processor, Time);
         StepUpGuard = new StepUpGuard(StepUp);
-        Validator = new CommandValidator(Registry, Types, _shared.Value.Values, Authorizer, StepUpGuard, Connections, Options);
-        Service = new CommandService(Validator, Processor, Directory, Partitions, Codec, Registry, Types, _shared.Value.Values, Authorizer, StepUpGuard, Time, Metrics);
+        var rights = authorizer ?? Authorizer;
+        Validator = new CommandValidator(Registry, Types, _shared.Value.Values, rights, StepUpGuard, Connections, Options);
+        Service = new CommandService(Validator, Processor, Directory, Partitions, Codec, Registry, Types, _shared.Value.Values, rights, StepUpGuard, Time, Metrics);
     }
 
     public FakeTimeProvider Time { get; } = TestTime.CreateProvider();
