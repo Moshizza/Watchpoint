@@ -30,17 +30,22 @@ UI (UIO §10), connector execution (IRT channel).
 ```
 Watchpoint.Commands/
 ├── Contracts/
-│   ├── Command.cs, CommandState.cs, CommandIssuer.cs, CommandTarget.cs, CommandPriority.cs
+│   ├── Command.cs, CommandState.cs, CommandIssuer.cs, CommandPriority.cs
+│   ├── CommandRequest.cs              request, targets, CommandAccepted, AvailableCommand
 │   ├── ICommandService.cs             request, cancel, approve, reject, query
-│   ├── ICommandAuthorizer.cs          hook implemented by RGT
-│   ├── CommandRecords.cs              log record bodies
-│   ├── AvailableCommand.cs
+│   ├── ICommandAuthorizer.cs          hook implemented by RGT (+ CommandAuthorization, CommandConstraints)
+│   ├── CommandRecords.cs              record kinds and bodies
 │   └── CommandErrors.cs
 ├── Internal/
-│   ├── CommandValidator.cs
-│   ├── ApprovalService.cs
-│   ├── CommandSubscriber.cs           IPartitionSubscriber (Order 200): state machine + verification
-│   ├── PendingCommandStore.cs         per partition, snapshot kind "command"
+│   ├── CommandValidator.cs            §5 steps 2–10, priority rules
+│   ├── CommandService.cs              ICommandService: idempotency, records by posted work, approvals, groups (T2.01 part)
+│   ├── CommandProcessor.cs            state machine applied per partition, approval expiry, 60 s retention
+│   ├── CommandStateMachine.cs         allowed transitions
+│   ├── CommandSubscriber.cs           IPartitionSubscriber (Order 200), delegates to the processor (+ verification, T2.03)
+│   ├── PendingCommandStore.cs         per partition, snapshot kind "command"; PendingCommandSnapshot.cs
+│   ├── CommandDirectory.cs            node-wide view: active commands, 24 h read cache, idempotency keys
+│   ├── ICommandPartitions.cs          posted work on the target's partition, waiting for the records to be applied
+│   ├── FallbackCommandAuthorizer.cs   M2 rights before RGT; Seams.cs: step-up (IDN), connections (IRT)
 │   ├── Dispatch/ConnectionDispatcher.cs, PriorityCommandQueue.cs, DeviceLocks.cs
 │   ├── Groups/GroupCommandCoordinator.cs
 │   ├── Verification/Verifier.cs
@@ -65,7 +70,7 @@ public enum CommandState
 public abstract record CommandIssuer
 {
     public sealed record User(UserId UserId, SessionId SessionId, ClientKind ClientKind, string? WorkstationId) : CommandIssuer;
-    public sealed record Automation(AutomationId AutomationId, AutomationRunId RunId, UserId IdentityId) : CommandIssuer;
+    public sealed record Automation(AutomationId AutomationId, AutomationRunId RunId, UserId IdentityId, bool LifeSafety = false) : CommandIssuer;
     public sealed record Script(ScriptId ScriptId, UserId IdentityId) : CommandIssuer;
     public sealed record AlarmAction(AlarmId AlarmId, AlarmRuleId RuleId, UserId IdentityId) : CommandIssuer;
     public sealed record Federation(FederationLinkId LinkId, string RemoteUser, UserId IdentityId) : CommandIssuer;
@@ -100,14 +105,21 @@ public sealed record Command
 }
 
 public sealed record CommandApproval(UserId? ApprovedBy, DateTimeOffset? ApprovedAt, DateTimeOffset RequestExpiresAt);
-public sealed record CommandFailure(FailureCategory Category, string MessageKey, IReadOnlyDictionary<string, object?> Args,
-    string? VendorCode);   // MessageKey: "errors.<code>" or a package key "packages.<id>.<key>"
+public sealed record CommandFailure(FailureCategory Category, string MessageKey, IReadOnlyDictionary<string, string?> Args,
+    string? VendorCode);   // MessageKey: "errors.<code>" or a package key "packages.<id>.<key>"; Args as invariant-culture text
 ```
+
+Every issuer exposes `Identity` (the user, or the identity an automation, script, alarm action or federation
+link runs under): the authorizer evaluates it and idempotency keys belong to it. A rejected command (approval
+refused or expired) carries its reason as `Failure` with category `RefusedBySystem` and key
+`errors.commands.approval.rejected` (arg `reason`) or `errors.commands.approval.expired`.
 
 Priority defaults: user commands `High`; commands of effective risk `Critical` or issued by a
 fire/evacuation automation flagged `lifeSafety` → `Critical`; automations/scripts `Normal`;
 housekeeping `Background`. Issuers may lower but only `commands.priority.critical` permission
-holders and life-safety automations may raise to `Critical`.
+holders and life-safety automations may raise to `Critical`. Federation users default to `High` like local users.
+A raise that is not allowed (to `Critical` without the right, or any other raise above the default) is ignored:
+the default applies, the request is not refused.
 
 ## 5. Request and validation (T2.01)
 
@@ -118,9 +130,20 @@ public interface ICommandService
     Task<Result> CancelAsync(CommandId id, CommandIssuer actor, CancellationToken ct);
     Task<Result> ApproveAsync(CommandId id, UserId approver, SessionId session, CancellationToken ct);
     Task<Result> RejectAsync(CommandId id, UserId approver, string reason, CancellationToken ct);
-    Result<Command> Get(CommandId id);                                   // active (in memory) or recent (24 h cache)
-    IReadOnlyList<AvailableCommand> GetAvailable(DeviceId device, ICommandAuthorizationContext who);
+    Result<Command> Get(CommandId id);                                   // active (in memory) or recent (24 h cache); else commands.command.not_found
+    IReadOnlyList<AvailableCommand> GetAvailable(DeviceId device, CommandIssuer who);
 }
+
+// The rights hook (step 6), implemented by RGT (RGT §6.1); synchronous: RGT evaluates in memory.
+public interface ICommandAuthorizer
+{
+    CommandAuthorization Authorize(CommandIssuer issuer, Device device, CommandDefinition command, Risk effectiveRisk,
+        IReadOnlyDictionary<string, WpValue> arguments, DateTimeOffset now);
+    bool CanApprove(UserId approver, Command command, DateTimeOffset now);   // commands.approve on the command's scope
+}
+public sealed record CommandAuthorization { bool Allowed; Error? Denial; CommandConstraints Constraints; }   // Allow(c) / Deny(error)
+public sealed record CommandConstraints(bool ReasonRequired = false, bool StepUpRequired = false, bool ApprovalRequired = false,
+    IReadOnlySet<ClientKind>? AllowedClientKinds = null, bool MayRaiseToCritical = false);
 
 public sealed record CommandRequest(CommandTargetSpec Target, CommandPath Path, JsonElement Arguments,
     CommandIssuer Issuer, string? Reason, string? StepUpToken, string? ClientCommandId,
@@ -156,8 +179,32 @@ duplicates):
 | 9 | Connection exists for the device's server (state is checked at dispatch, not here) | `commands.connection.missing` |
 | 10 | Not expired; `NotBefore` ≤ now + 24 h | `commands.not_before.too_far` |
 
-**M2 fallback authorizer** (before RGT): administrators may run everything; other users may
-run `Normal` and `Sensitive` commands; nobody needs approval; constraints: reason for Critical.
+**M2 fallback authorizer** (before RGT): administrators may run everything (and raise to `Critical`);
+other users may run `Normal` and `Sensitive` commands (judged on the effective risk); unknown or disabled
+identities nothing; nobody needs approval; only administrators may approve; constraints: reason for Critical
+(required by step 7 itself).
+
+Notes on the checks (T2.01):
+
+- Step 1 runs before validation and again, atomically, when the records are written; only accepted commands hold
+  a key (a rejected request can be retried with the same key). `ClientCommandId` longer than 64 characters →
+  `common.validation.failed` (`/clientCommandId`).
+- Step 4: MOD drops members the schema does not declare, so only declared parameters reach the command and its
+  records (CMD-U-027: no definition declares personal data; event payloads are the only place MOD marks it). Field
+  paths are prefixed `/arguments`. JSON numbers are culture-invariant; MOD argument schemas carry no units.
+- Step 7 also limits a given reason to 500 characters (`common.validation.failed`, `/reason` `common.value.too_long`),
+  for requests and for `RejectAsync`, where a reason is required.
+- Step 8 applies to interactive users (`CommandIssuer.User`); a proof is checked by IDN (`ValidateStepUp`: bound to the
+  session, unexpired) and used once: CMD remembers used proofs for a day (`identity.stepup.invalid` on reuse).
+- `Timeout` ≤ 0 → `common.validation.failed` (`/timeout`); `ExpiresAt` = max(now, `NotBefore`) + `DefaultExpiry`
+  (+ `ApprovalWindow` with four-eyes); `Approval.RequestExpiresAt` = now + `ApprovalWindow`.
+- Approve/reject (in this order): `commands.command.not_found`, `commands.approval.not_pending`,
+  `commands.approval.self_forbidden` (approver = requester identity), `commands.approval.expired` (window passed),
+  `common.forbidden` (`ICommandAuthorizer.CanApprove`). `command.approved` queues the command.
+- Groups (T2.01 part of §10): targets deduplicated, more than 5,000 → `commands.group.too_large`; group risk and the
+  once-for-the-group reason and step-up are decided before any child exists (failure → the request is refused,
+  no record); children are then requested one by one with `GroupId` (reason and step-up not asked again). The
+  `commandGroup.*` records, the issuer's visible scope for selectors, batching and progress are T2.03.
 
 After validation: `RequiresApproval` → state `AwaitingApproval` (record `command.awaitingApproval`)
 else `Queued` (record `command.queued`).
@@ -170,7 +217,7 @@ ordered with the device's observations. Kinds and bodies:
 | Kind | Body (besides envelope `dev`, `corr.command`) |
 |---|---|
 | `command.requested` | full `Command` at request time (arguments included; personal data none) |
-| `command.rejected` | `{ id, error: { code, args } }` |
+| `command.rejected` | `{ id, error: { code, args, fields? }, path?, issuer?, reason?, groupId? }` — a request refused by validation has no `command.requested` record, so its rejection names what was requested; the rejection of a recorded command (approval expired) carries `id` and `error` only |
 | `command.awaitingApproval` | `{ id, requestExpiresAt }` |
 | `command.approved` / `command.approvalRejected` | `{ id, by, reason? }` |
 | `command.queued` | `{ id, priority }` |
@@ -185,6 +232,14 @@ Every `command.*` record also carries `requestedAt` (HIS keys the command row by
 `CommandSubscriber` (Order 200) applies records to the in-memory `PendingCommandStore` of the
 partition (state machine below); terminal commands leave the store after 60 s (kept in a 24 h
 read cache for `Get`; history has the rest).
+
+Every update of a command (request, cancel, approve, reject; dispatch outcomes in T2.02) runs as posted work on
+the target's partition (`IPartitionDispatcher`, PIP §7.3): it reads the pending store, emits the records, and the
+worker appends them and hands them to the subscribers before it runs anything else of the partition. Updates of one
+command are therefore serialised (two concurrent cancels: one succeeds, the other is `commands.cancel.too_late`), and
+`RequestAsync`/`CancelAsync`/`ApproveAsync`/`RejectAsync` complete once their records are in the log and applied.
+Approval expiry runs in `OnTick`: an `AwaitingApproval` command past `RequestExpiresAt` gets
+`command.rejected { id, error: commands.approval.expired }`.
 
 ```mermaid
 stateDiagram-v2
@@ -201,16 +256,22 @@ stateDiagram-v2
     Dispatched --> Succeeded
     Dispatched --> Failed
     Dispatched --> TimedOut
+    Queued --> Failed: fail fast when disconnected (§7)
+    Dispatched --> Queued: recovery requeue, attempt 2 (§8)
     Succeeded --> Verified
     Succeeded --> Unverified
 ```
 
-Invalid transitions (e.g. a late `succeeded` after `timedOut`) are ignored with log 2420 and
-counted — the first terminal outcome wins.
+Invalid transitions (e.g. a late `succeeded` after `timedOut`), and records of commands the partition does not
+know, are ignored with log 2420 and counted (`watchpoint.commands.transitions.ignored`) — the first terminal
+outcome wins.
 
 Snapshots: `PendingCommandStore` items persisted via `IStateStore` (consumer `commands`, kind
 `command`) by the same snapshot cadence as STA (CMD registers with STA's snapshotter
 infrastructure: `ISnapshotParticipant`), and recovered through the PIP recovery handshake.
+T2.01 provides the participant's two operations (`PendingCommandSnapshot.Collect`/`Restore`, one item per command
+with the full `Command` as JSON; restoring also restores the idempotency keys); STA's snapshotter (T1.12) wires it,
+and the subscriber reports its recovery checkpoint from then on (until then no replay is requested).
 
 ## 7. Dispatch (T2.02)
 
@@ -318,7 +379,11 @@ Live topics:
 `commands.outside_schedule`, `commands.client_kind_not_allowed`, `commands.reason.required`,
 `commands.connection.missing`, `commands.not_before.too_far`, `commands.group.too_large`,
 `commands.cancel.too_late`, `commands.approval.self_forbidden`, `commands.approval.expired`,
-`commands.approval.not_pending`, `commands.outcome_unknown`, plus connector failure messages.
+`commands.approval.not_pending`, `commands.outcome_unknown`, `commands.command.not_found` (no active command and
+none finished in the last 24 h), plus connector failure messages. Failure message key (not an error):
+`errors.commands.approval.rejected` (arg `reason`). Codes of other modules returned as they are:
+`common.forbidden`, `common.validation.failed`, `model.command.not_found`, `model.type.not_found`,
+`model.document.invalid` (with `model.value.*` field errors), `identity.stepup.required`, `identity.stepup.invalid`.
 
 ## 14. Observability
 
@@ -333,8 +398,9 @@ Live topics:
 
 Metrics: `watchpoint.commands.requests` (counter by `path`, `outcome`),
 `watchpoint.commands.latency` (histogram ms requested→terminal, by `path`),
-`watchpoint.commands.queue` (gauge by `connection`, `priority`), `watchpoint.commands.verification`
-(counter by `result`).
+`watchpoint.commands.queue` (gauge by `connection`, `priority`, T2.02), `watchpoint.commands.verification`
+(counter by `result`), `watchpoint.commands.transitions.ignored` (counter by `kind`). Request outcomes:
+`accepted`, `rejected`, `duplicate`.
 
 ## 15. Tests
 

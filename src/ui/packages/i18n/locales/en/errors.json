@@ -38,5 +38,39 @@
       "reserved_id": "The package id {package} is reserved for Watchpoint packages.",
       "file_name_invalid": "The file name {fileName} is not allowed; use name.wpkg."
     }
+  },
+  "commands": {
+    "target": {
+      "not_found": "Device {deviceId} was not found.",
+      "disabled": "Device {deviceId} is disabled.",
+      "orphaned": "Device {deviceId} is no longer reported by its system."
+    },
+    "not_supported": "This device does not support the command {path}.",
+    "outside_schedule": "You may not run this command at this time.",
+    "client_kind_not_allowed": "This command cannot be run from this client ({clientKind}).",
+    "reason": {
+      "required": "A reason is required for this command."
+    },
+    "connection": {
+      "missing": "Device {deviceId} has no connection to run commands."
+    },
+    "not_before": {
+      "too_far": "A command can be scheduled at most {maxHours} hours ahead."
+    },
+    "group": {
+      "too_large": "A group command can target at most {max} devices ({count} selected)."
+    },
+    "cancel": {
+      "too_late": "The command can no longer be cancelled ({state})."
+    },
+    "approval": {
+      "self_forbidden": "You cannot approve your own command.",
+      "expired": "The approval window has passed.",
+      "not_pending": "The command is not awaiting approval ({state}).",
+      "rejected": "The approver refused the command: {reason}"
+    },
+    "command": {
+      "not_found": "Command {commandId} was not found."
+    }
   }
 }
