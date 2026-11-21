@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 using Watchpoint.Commands.Contracts;
 using Watchpoint.Commands.Internal;
@@ -7,7 +9,12 @@ using Watchpoint.Kernel.Paging;
 using Watchpoint.Kernel.Results;
 using Watchpoint.Kernel.Testing;
 using Watchpoint.Kernel.Values;
+using Watchpoint.Model;
 using Watchpoint.Model.Contracts;
+using Watchpoint.Pipeline;
+using Watchpoint.Pipeline.Contracts;
+using Watchpoint.Registry.Contracts;
+using ChangeContext = Watchpoint.Identity.Contracts.ChangeContext;
 using Xunit;
 
 namespace Watchpoint.Commands.Tests;
@@ -82,6 +89,41 @@ public sealed class FallbackAuthorizerTests
         (await service.RequestAsync(fallback.Request(CommandsHarness.Lockdown, issuer: fallback.User(operatorId), reason: "r"), TestContext.Current.CancellationToken))
             .ShouldFailWith("common.forbidden");
         (await service.RequestAsync(fallback.Request(issuer: fallback.User(operatorId)), TestContext.Current.CancellationToken)).ShouldBeSuccess();
+
+        // The module registers the fallback only when no authorizer (RGT's) is registered.
+        await using (var provider = Services(users, rights: null))
+        {
+            provider.GetRequiredService<ICommandAuthorizer>().ShouldBeOfType<FallbackCommandAuthorizer>();
+            provider.GetRequiredService<ICommandService>().ShouldNotBeNull();
+            provider.GetServices<IPartitionSubscriber>().ShouldContain(s => s.Name == "commands" && s.Order == 200);
+        }
+
+        var rgt = new TestAuthorizer();
+        await using (var provider = Services(users, rgt))
+        {
+            provider.GetRequiredService<ICommandAuthorizer>().ShouldBeSameAs(rgt);
+        }
+    }
+
+    private static ServiceProvider Services(IUserDirectory users, ICommandAuthorizer? rights)
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddWatchpointModel();
+        services.AddWatchpointPipeline(new ConfigurationBuilder().Build());
+        services.AddSingleton(new EventLogEndpoint("nats://127.0.0.1:4222", null)); // never connected: nothing is appended
+        services.AddSingleton(users);
+        services.AddSingleton<IRegistryReader>(new FakeRegistry());
+        services.AddSingleton<ITypeCatalog>(new FakeTypes());
+        services.AddSingleton<IStepUpValidator>(new FakeStepUp());
+        services.AddSingleton<ICommandConnections>(new FakeConnections());
+        if (rights is not null)
+        {
+            services.AddSingleton(rights);
+        }
+
+        services.AddWatchpointCommands(new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?> { ["Commands:DefaultExpiry"] = "PT2M" }).Build());
+        return services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = false, ValidateScopes = true });
     }
 
     private sealed class FakeUsers : IUserDirectory

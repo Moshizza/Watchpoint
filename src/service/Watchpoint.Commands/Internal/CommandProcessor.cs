@@ -43,12 +43,18 @@ internal sealed class CommandProcessor
         foreach (var record in records)
         {
             store.Sequence = record.Sequence;
-            if (record.Envelope.Kind.StartsWith("command.", StringComparison.Ordinal) && _codec.Registry.CanRead(record))
+            try
             {
-                Apply(store, record);
+                if (record.Envelope.Kind.StartsWith("command.", StringComparison.Ordinal) && _codec.Registry.CanRead(record))
+                {
+                    Apply(store, record);
+                }
             }
-
-            _waiters.Complete(record.Envelope.Id);
+            finally
+            {
+                // A caller waits for its record even if applying it failed (a bug, logged by the pipeline as 1641).
+                _waiters.Complete(record.Envelope.Id);
+            }
         }
     }
 
