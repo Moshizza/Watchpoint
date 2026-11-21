@@ -126,7 +126,7 @@ internal sealed partial class PostgresHistoryStore
 
         q.Scope(f.Scope, "source_id");
         q.Keyset(f.After, f.Descending);
-        var sql = $"SELECT {SelectAlarms} FROM wp_history.alarms{q.WhereSql} ORDER BY time {Direction(f.Descending)}, id {Direction(f.Descending)} LIMIT @limit";
+        var sql = $"SELECT {_selectAlarms} FROM wp_history.alarms{q.WhereSql} ORDER BY time {Direction(f.Descending)}, id {Direction(f.Descending)} LIMIT @limit";
         q.Param("limit", limit, NpgsqlDbType.Integer);
         return await ReadAsync(sql, q, timeout, ReadAlarm, ct).ConfigureAwait(false);
     }
@@ -276,7 +276,7 @@ internal sealed partial class PostgresHistoryStore
         "time, id, seq, kind, category, severity, source_time, entity_id, entity_kind, server_id, location_id, location_ids, type_id, tag_keys, " +
         "origin_type, origin_id, payload::text, personal::text, person_refs, title_key, title_args::text, source_name, location_names, correlation::text";
 
-    private static readonly string SelectAlarms = AlarmColumns.Replace("\"owner\"", "\"owner\"::text", StringComparison.Ordinal);
+    private static readonly string _selectAlarms = AlarmColumns.Replace("\"owner\"", "\"owner\"::text", StringComparison.Ordinal);
 
     private const string SelectCommands =
         "time, id, seq, group_id, device_id, device_name, location_ids, path, arguments::text, issuer::text, issuer_user, reason, risk, priority, state, failure::text, " +

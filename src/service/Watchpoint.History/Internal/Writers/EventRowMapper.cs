@@ -23,36 +23,36 @@ internal sealed class EventRowMapper(ILogRecordTypeRegistry registry, IHistoryEn
         switch (envelope.Kind)
         {
             case RecordKinds.Event:
-            {
-                var body = record.BodyAs<EventRecordBody>(registry);
-                var personal = PersonalFieldsOf(source, body.Path);
-                var category = body.Path.StartsWith("health.", StringComparison.Ordinal) ? EventCategory.Health : EventCategory.Device;
-                var dot = body.Path.IndexOf('.', StringComparison.Ordinal);
-                var titleKey = dot > 0
-                    ? $"capabilities.{body.Path[..dot]}.events.{body.Path[(dot + 1)..]}.title"
-                    : $"events.{body.Path}.title";
-                return Build(record, seq, source, body.Path, category, body.Severity, body.Payload, personal, titleKey, device: true);
-            }
-
-            case HistoryRecordKinds.SysEvent:
-            {
-                var body = record.BodyAs<SysEventBody>(registry);
-                return Build(
-                    record, seq, source, body.Kind, EventCategory.System, body.Severity ?? Severity.Normal, body.Payload,
-                    body.PersonalFields ?? [], $"events.{body.Kind}.title", device: false);
-            }
-
-            case HistoryRecordKinds.OperatorNote:
-            {
-                var body = record.BodyAs<OperatorNoteBody>(registry);
-                var fields = new Dictionary<string, WpValue> { ["text"] = WpValue.String(body.Text) };
-                if (body.Location is { } location)
                 {
-                    fields["location"] = WpValue.String(location.ToString("D"));
+                    var body = record.BodyAs<EventRecordBody>(registry);
+                    var personal = PersonalFieldsOf(source, body.Path);
+                    var category = body.Path.StartsWith("health.", StringComparison.Ordinal) ? EventCategory.Health : EventCategory.Device;
+                    var dot = body.Path.IndexOf('.', StringComparison.Ordinal);
+                    var titleKey = dot > 0
+                        ? $"capabilities.{body.Path[..dot]}.events.{body.Path[(dot + 1)..]}.title"
+                        : $"events.{body.Path}.title";
+                    return Build(record, seq, source, body.Path, category, body.Severity, body.Payload, personal, titleKey, device: true);
                 }
 
-                return Build(record, seq, source, HistoryRecordKinds.OperatorNote, EventCategory.Operator, Severity.Normal, fields, [], "events.operator.note", device: false);
-            }
+            case HistoryRecordKinds.SysEvent:
+                {
+                    var body = record.BodyAs<SysEventBody>(registry);
+                    return Build(
+                        record, seq, source, body.Kind, EventCategory.System, body.Severity ?? Severity.Normal, body.Payload,
+                        body.PersonalFields ?? [], $"events.{body.Kind}.title", device: false);
+                }
+
+            case HistoryRecordKinds.OperatorNote:
+                {
+                    var body = record.BodyAs<OperatorNoteBody>(registry);
+                    var fields = new Dictionary<string, WpValue> { ["text"] = WpValue.String(body.Text) };
+                    if (body.Location is { } location)
+                    {
+                        fields["location"] = WpValue.String(location.ToString("D"));
+                    }
+
+                    return Build(record, seq, source, HistoryRecordKinds.OperatorNote, EventCategory.Operator, Severity.Normal, fields, [], "events.operator.note", device: false);
+                }
 
             default:
                 return null;
