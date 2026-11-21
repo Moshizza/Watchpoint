@@ -248,6 +248,21 @@ Size limits, checked before the transaction commits: 10,000 changes per batch, a
 `registry.changed` record of the batch (PIP §5.3) must fit the log's record limit (`Log` max message size
 minus the envelope headers, 1 MB by default). Either breach rejects the whole batch with
 `registry.batch.too_large` (args `max`, and `bytes` for the record size); nothing is written (T1.09c).
+The record size is exact, not estimated: inside the transaction, once the revision is taken and before any
+row is written, the writer measures the record through `IRegistryRecordLimit` (below), which the pipeline
+module implements with the publisher's own envelope and codec (header block with the optional `traceparent`
+header included, so the largest message the publisher can send). A refused batch is rolled back and takes no
+revision. Without the pipeline module nothing implements the limit and nothing is checked (records are never
+published then).
+
+```csharp
+// Implemented by PIP (PIP §5.5); REG never references PIP.
+public interface IRegistryRecordLimit
+{
+    int MaxBytes { get; }                          // Log:MaxMessageSize
+    int Measure(RegistryOutboxRecord record);      // exact size of the message the publisher would append
+}
+```
 
 Writes are serialised by a single async lock per node (writes are rare; correctness first).
 In a cluster (M9) the configuration publish path (CFG) is the only writer; REG relies on the
@@ -516,6 +531,7 @@ persistence fake). Integration: `Watchpoint.IntegrationTests/Registry`.
 | REG-U-051 | U | Commit signals a waiting publisher once | `WaitForRecordsAsync` pending until a batch commits; two commits before the next wait complete it once, nothing more pending |
 | REG-U-052 | U | Batch whose `registry.changed` record exceeds the log limit is refused before commit | Record limit set to 64 KB, batch of changes serialising to > 64 KB → `registry.batch.too_large` with `bytes`; no row, no revision, no outbox row |
 | REG-U-053 | U | Site id mismatch keeps the node not ready | Row with id A, `Site:Id` = B → `ready` unhealthy, reason `siteId`; with `Site:Id` = A → healthy |
+| REG-U-068 | U | Record exactly at the log limit is committed, one byte over is refused | Limit = exact size of the batch's record (revision 1) → committed; limit − 1 → `registry.batch.too_large` with `max` = limit − 1, `bytes` = size; nothing written |
 | REG-I-001 | I | Persist and reload | Apply batch; new registry instance loads same snapshot (deep equality) |
 | REG-I-002 | I | Transaction atomicity | Failure injected mid-persist → nothing persisted, snapshot unchanged |
 | REG-I-003 | I | Unique constraints back up validation | Direct duplicate insert (bypassing validation) → DB rejects |
@@ -537,4 +553,4 @@ persistence fake). Integration: `Watchpoint.IntegrationTests/Registry`.
 | T1.07b | §4 R1 (site identity), §12 (event 1504) | REG-U-046, REG-U-047 |
 | T1.09b | §6 (steps 3–5, `IRegistryOutbox`), §10 (`revision`, `outbox`) | REG-U-048…REG-U-051, REG-I-011; REG-I-005 moved onto the outbox |
 | T1.07c | §5, §6, §9 (code aligned to the spec), §4 R1 (readiness `siteId`), §12 (health check) | REG-U-001…REG-U-051 adapted, REG-U-053, REG-U-054…REG-U-067 (new members and error codes) |
-| T1.09c | §6 (record size before commit), §9 (`bytes`) | REG-U-052 |
+| T1.09c | §6 (record size before commit, `IRegistryRecordLimit`), §9 (`bytes`) | REG-U-052, REG-U-068 |

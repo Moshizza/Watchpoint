@@ -26,6 +26,12 @@ internal static class LogMessageCodec
 
     private const int HeaderBlockOverhead = 12; // "NATS/1.0\r\n" + final "\r\n"
 
+    /// <summary>
+    /// The bytes a W3C <c>traceparent</c> header adds to the header block: name, ": ", the 55-character value, CRLF. A
+    /// record encoded without an activity grows by exactly this much when it is published under one.
+    /// </summary>
+    public const int TraceParentHeaderSize = 11 + 2 + 55 + 2;
+
     public static EncodedRecord Encode(LogEnvelope envelope, int schemaVersion, Activity? activity)
     {
         var id = envelope.Id.ToString("D");

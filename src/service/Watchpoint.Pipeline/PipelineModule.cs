@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Watchpoint.Kernel.Json;
+using Watchpoint.Kernel.Time;
 using Watchpoint.Pipeline.Contracts;
 using Watchpoint.Pipeline.Internal;
 using Watchpoint.Pipeline.Internal.Ingest;
@@ -11,6 +12,7 @@ using Watchpoint.Pipeline.Internal.Log;
 using Watchpoint.Pipeline.Internal.Nats;
 using Watchpoint.Pipeline.Internal.Partitions;
 using Watchpoint.Pipeline.Internal.SideEffects;
+using Watchpoint.Registry.Contracts;
 
 namespace Watchpoint.Pipeline;
 
@@ -56,6 +58,8 @@ public static class PipelineModule
         services.AddSingleton<StreamProvisioner>();
         services.AddSingleton<IEventLogSetup>(sp => sp.GetRequiredService<StreamProvisioner>());
         services.AddHealthChecks().AddCheck<PipelineLogHealthCheck>(HealthCheckName, HealthStatus.Unhealthy, ["ready"]);
+        services.TryAddSingleton<ILeaseGate, AlwaysHeldLeaseGate>();
+        services.TryAddSingleton<IRegistryRecordLimit, RegistryRecordLimit>();
         services.AddSingleton<RegistryOutboxPublisher>();
         services.AddHostedService(sp => sp.GetRequiredService<RegistryOutboxPublisher>());
 

@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Shouldly;
 using Watchpoint.Kernel.Testing;
+using Watchpoint.Kernel.Time;
 using Watchpoint.Pipeline.Contracts;
 using Watchpoint.Pipeline.Internal;
 using Watchpoint.Pipeline.Tests.Fakes;
@@ -19,6 +21,7 @@ public sealed class OutboxPublisherTests : IDisposable
     private readonly FakeRegistryOutbox _outbox;
     private readonly CancellationTokenSource _stop = new();
     private readonly List<Task> _running = [];
+    private FakeLeaseGate? _gate;
 
     public OutboxPublisherTests()
     {
@@ -34,6 +37,7 @@ public sealed class OutboxPublisherTests : IDisposable
     {
         _stop.Cancel();
         _stop.Dispose();
+        _gate?.Dispose();
         _harness.Dispose();
     }
 
@@ -166,8 +170,10 @@ public sealed class OutboxPublisherTests : IDisposable
     [Fact]
     public async Task PIP_U_055_Outbox_record_refused_by_the_log_is_skipped_and_logged()
     {
-        // 15,000 changes make a body above the 1 MB message limit: the log can never store it.
-        _outbox.Add(1, changes: 15_000);
+        // A hand-built row (the registry refuses such batches before commit since T1.09c, REG §6): 15,000 changes make a
+        // body above the 1 MB message limit, so the log can never store it. The publisher's skip is defence in depth.
+        var oversize = _outbox.Add(1, changes: 15_000);
+        new RegistryRecordLimit(_harness.Registry, _harness.Options).Measure(oversize).ShouldBeGreaterThan(_harness.Options.MaxMessageSize);
         _outbox.Add(2);
         var publisher = Start();
 
@@ -248,6 +254,73 @@ public sealed class OutboxPublisherTests : IDisposable
         await StopAsync(publisher);
     }
 
+    [Fact]
+    public async Task PIP_U_059_Outbox_publisher_runs_only_while_the_lease_is_held_and_stops_cleanly_when_it_is_lost()
+    {
+        _gate = new FakeLeaseGate();
+        _outbox.Add(1);
+        var publisher = Start();
+
+        // Not held: nothing is read or published, whatever the time.
+        await SettleAsync(() => _gate.Waits.Count == 1);
+        _clock.Advance(_harness.Options.OutboxPollInterval * 3);
+        await Task.Yield();
+        _outbox.Reads.ShouldBe(0);
+        _harness.Broker.PublishAttempts.ShouldBeEmpty();
+        _gate.Waits.ShouldBe([RegistryOutboxPublisher.LeaseName]);
+
+        _gate.Grant();
+        await _harness.PumpUntilAsync(() => _outbox.SentRevisions.Count == 1);
+
+        // Lost: the loop stops (1615) and waits for the lease again; a new record stays unsent.
+        _gate.Revoke();
+        await SettleAsync(() => _gate.Waits.Count == 2, () => $"waits {_gate.Waits.Count}");
+        _harness.Logs.WithEventId(1615).ShouldHaveSingleItem().Properties["Lease"].ShouldBe(RegistryOutboxPublisher.LeaseName);
+        _outbox.Add(2);
+        var reads = _outbox.Reads;
+        _clock.Advance(_harness.Options.OutboxPollInterval * 3);
+        await Task.Yield();
+        _outbox.Reads.ShouldBe(reads);
+        _outbox.SentRevisions.ShouldBe([1L]);
+
+        // Held again: publishing resumes from the oldest unsent record; stopping the node ends the run without error.
+        _gate.Grant();
+        await _harness.PumpUntilAsync(() => _outbox.SentRevisions.Count == 2);
+        _harness.Broker.Messages(CfgStream).Select(m => m.Headers["Nats-Msg-Id"]).ShouldBe([RegistryOutboxPublisher.RecordId(1).ToString("D"), RegistryOutboxPublisher.RecordId(2).ToString("D")]);
+        await StopAsync(publisher);
+        publisher.Run.IsCompletedSuccessfully.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task PIP_U_060_Record_limit_measures_the_published_message_exactly()
+    {
+        // Published under a W3C activity, so the header block carries traceparent: the largest message the publisher sends.
+        using var activity = new Activity("outbox-test");
+        activity.SetIdFormat(ActivityIdFormat.W3C);
+        activity.Start();
+        var limit = new RegistryRecordLimit(_harness.Registry, _harness.Options);
+        limit.MaxBytes.ShouldBe(_harness.Options.MaxMessageSize);
+
+        // One byte over the limit: the log refuses it.
+        var first = _outbox.Add(1, changes: 200);
+        var size = limit.Measure(first);
+        _harness.Options.MaxMessageSize = size - 1;
+        var publisher = Start();
+        await _harness.PumpUntilAsync(() => _outbox.SentRevisions.Count == 1);
+        _harness.Logs.WithEventId(1613).ShouldHaveSingleItem().Properties["Code"].ShouldBe(PipelineErrors.RecordTooLargeCode);
+        _harness.Broker.Messages(CfgStream).ShouldBeEmpty();
+
+        // Exactly at the limit: stored, with the traceparent header the measure accounts for.
+        var second = _outbox.Add(2, changes: 200);
+        limit.Measure(second).ShouldBe(size);
+        _harness.Options.MaxMessageSize = size;
+        await _harness.PumpUntilAsync(() => _outbox.SentRevisions.Count == 2);
+        var stored = _harness.Broker.Messages(CfgStream).ShouldHaveSingleItem();
+        stored.Headers.ShouldContainKey("traceparent");
+        stored.Headers["Nats-Msg-Id"].ShouldBe(RegistryOutboxPublisher.RecordId(2).ToString("D"));
+        await StopAsync(publisher);
+    }
+
     /// <summary>Lets the publisher's continuations run (no time passes) until <paramref name="done"/> holds.</summary>
     private static async Task SettleAsync(Func<bool> done, Func<string>? describe = null)
     {
@@ -271,6 +344,7 @@ public sealed class OutboxPublisherTests : IDisposable
         _harness.Options,
         _harness.Time,
         _harness.Metrics,
+        _gate ?? (ILeaseGate)new AlwaysHeldLeaseGate(),
         _harness.Logger<RegistryOutboxPublisher>());
 
     private (RegistryOutboxPublisher Publisher, Task Run, CancellationTokenSource Stop) Start()

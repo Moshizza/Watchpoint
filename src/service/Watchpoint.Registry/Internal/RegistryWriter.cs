@@ -13,7 +13,7 @@ namespace Watchpoint.Registry.Internal;
 
 internal sealed class RegistryWriter : IRegistryWriter, IDisposable
 {
-    /// <summary>Maximum number of changes per batch (REG §6); the matching record byte-size check is T1.09c.</summary>
+    /// <summary>Maximum number of changes per batch (REG §6); the record byte size is checked against <see cref="IRegistryRecordLimit"/>.</summary>
     internal const int MaxBatchChanges = 10_000;
 
     private readonly SemaphoreSlim _gate = new(1, 1);
@@ -26,6 +26,7 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
     private readonly Func<RegistrySnapshot> _snapshotProvider;
     private readonly DeviceEnrichmentCache? _enrichmentCache;
     private readonly RegistryChangeFeed? _feed;
+    private readonly IRegistryRecordLimit? _recordLimit;
 
     public RegistryWriter(
         IDbContextFactory<RegistryDbContext> dbFactory,
@@ -36,7 +37,8 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
         Action<RegistrySnapshot> snapshotUpdater,
         Func<RegistrySnapshot> snapshotProvider,
         DeviceEnrichmentCache? enrichmentCache = null,
-        RegistryChangeFeed? feed = null)
+        RegistryChangeFeed? feed = null,
+        IRegistryRecordLimit? recordLimit = null)
     {
         _dbFactory = dbFactory;
         _typeCatalog = typeCatalog;
@@ -47,6 +49,7 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
         _snapshotProvider = snapshotProvider;
         _enrichmentCache = enrichmentCache;
         _feed = feed;
+        _recordLimit = recordLimit;
     }
 
     public void Dispose()
@@ -166,13 +169,27 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
             await using var db = await _dbFactory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
 
-            await PersistChangesAsync(db, batch, currentSnapshot, site, locations, tagFamilies, tags, servers, devices, links, customFields, touchedLocationPaths, touchedServers, touchedDevices, ct);
-
-            // The revision and the registry.changed record are committed with the batch (transactional outbox, REG §6 step 4):
+            // The revision and the registry.changed record are committed with the batch (transactional outbox, REG §6 step 3):
             // a node stop or a log outage after this point loses nothing, and the revision never restarts or repeats.
             var revision = await NextRevisionAsync(db, ct);
             var changes = DescribeChanges(batch, currentSnapshot);
-            RegistryOutbox.Add(db, revision, _clock.UtcNowMs(), context, changes);
+            var record = new RegistryOutboxRecord(revision, _clock.UtcNowMs(), context, changes);
+
+            // The record must fit the log (REG §6, T1.09c): measured exactly, with the publisher's serialiser and envelope,
+            // before anything is written; the transaction is rolled back, so the batch takes no revision.
+            if (_recordLimit != null)
+            {
+                var bytes = _recordLimit.Measure(record);
+                if (bytes > _recordLimit.MaxBytes)
+                {
+                    var tooLarge = RegistryErrors.BatchRecordTooLarge(_recordLimit.MaxBytes, bytes);
+                    RegistryLog.InvariantViolation(_logger, tooLarge.Code.Value, $"registry.changed record of {bytes} bytes exceeds {_recordLimit.MaxBytes}");
+                    return tooLarge;
+                }
+            }
+
+            await PersistChangesAsync(db, batch, currentSnapshot, site, locations, tagFamilies, tags, servers, devices, links, customFields, touchedLocationPaths, touchedServers, touchedDevices, ct);
+            RegistryOutbox.Add(db, record.Revision, record.CreatedAt, record.Context, record.Changes);
 
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
