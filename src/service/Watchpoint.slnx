@@ -17,6 +17,7 @@
     <Project Path="Watchpoint.Kernel.Testing/Watchpoint.Kernel.Testing.csproj" />
     <Project Path="Watchpoint.Model/Watchpoint.Model.csproj" />
     <Project Path="Watchpoint.Model.Documents/Watchpoint.Model.Documents.csproj" />
+    <Project Path="Watchpoint.Commands/Watchpoint.Commands.csproj" />
     <Project Path="Watchpoint.Pipeline/Watchpoint.Pipeline.csproj" />
     <Project Path="Watchpoint.Registry/Watchpoint.Registry.csproj" />
     <Project Path="Watchpoint.Scheduling/Watchpoint.Scheduling.csproj" />

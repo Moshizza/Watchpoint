@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Watchpoint.Commands</RootNamespace>
+    <Description>Commands: request validation, rights hook, lifecycle state machine and log records (spec CMD).</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Watchpoint.Kernel/Watchpoint.Kernel.csproj" />
+    <ProjectReference Include="../Watchpoint.Model/Watchpoint.Model.csproj" />
+    <ProjectReference Include="../Watchpoint.Registry/Watchpoint.Registry.csproj" />
+    <ProjectReference Include="../Watchpoint.Pipeline/Watchpoint.Pipeline.csproj" />
+    <ProjectReference Include="../Watchpoint.Identity/Watchpoint.Identity.csproj" />
+    <ProjectReference Include="../Watchpoint.Integrations/Watchpoint.Integrations.csproj" />
+    <ProjectReference Include="../Watchpoint.Storage/Watchpoint.Storage.csproj" />
+    <ProjectReference Include="../../integrations/Watchpoint.Integration.Abstractions/Watchpoint.Integration.Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Watchpoint.Commands.Tests" />
+    <InternalsVisibleTo Include="Watchpoint.IntegrationTests" />
+  </ItemGroup>
+
+</Project>
