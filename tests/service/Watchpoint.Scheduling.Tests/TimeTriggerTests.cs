@@ -328,21 +328,21 @@ public sealed class TimeTriggerTests
         var start = new DateTimeOffset(2026, 1, 5, 8, 0, 0, TimeSpan.Zero);
         var time = TestTime.CreateProvider(start);
         var calService = new CalendarService(NullLogger<CalendarService>.Instance);
-        var stateStore = new InMemoryTriggerStateStore();
+        var callbackFinished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var stateStore = new SignallingTriggerStateStore(callbackFinished.Task);
         var geoProvider = new DefaultLocationGeoProvider();
         using var triggerService = new TimeTriggerService(time, calService, stateStore, geoProvider, NullLogger<TimeTriggerService>.Instance);
 
         var ct = TestContext.Current.CancellationToken;
 
-        var inCallback = new TaskCompletionSource<bool>();
-        var releaseCallback = new TaskCompletionSource<bool>();
-        var callbackFinished = new TaskCompletionSource<bool>();
+        var inCallback = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseCallback = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
         using var reg = triggerService.Register("test", "persist-test", new TriggerSpec.At(start.AddSeconds(10)), MissedPolicy.Skip, async (fired, token) =>
         {
-            inCallback.TrySetResult(true);
+            inCallback.TrySetResult();
             await releaseCallback.Task.WaitAsync(token);
-            callbackFinished.TrySetResult(true);
+            callbackFinished.TrySetResult();
         });
 
         // Fire via ProcessDue in background task so we can assert mid-execution
@@ -351,13 +351,42 @@ public sealed class TimeTriggerTests
         await inCallback.Task.WaitAsync(ct);
 
         (await stateStore.GetLastFiredAsync("test", "persist-test", ct)).ShouldBeNull();
+        stateStore.Persisted.IsCompleted.ShouldBeFalse();
 
-        releaseCallback.TrySetResult(true);
-        await callbackFinished.Task.WaitAsync(ct);
+        releaseCallback.TrySetResult();
+
+        // The write happens after the callback returns, on the dispatcher's continuation: wait for the write itself
+        // (a signal), not for the callback's last statement, which runs before it.
+        var persistedAt = await stateStore.Persisted.WaitAsync(ct);
         await fireTask;
 
-        var lastFired = await stateStore.GetLastFiredAsync("test", "persist-test", ct);
-        lastFired.ShouldNotBeNull();
+        stateStore.CallbackCompletedBeforePersist.ShouldBeTrue();
+        persistedAt.ShouldBe(start.AddSeconds(10));
+        (await stateStore.GetLastFiredAsync("test", "persist-test", ct)).ShouldBe(start.AddSeconds(10));
+    }
+
+    /// <summary>
+    /// In-memory state store that signals the first <see cref="SetLastFiredAsync"/> and records whether the callback had
+    /// completed at that moment.
+    /// </summary>
+    private sealed class SignallingTriggerStateStore(Task callbackFinished) : ITriggerStateStore
+    {
+        private readonly InMemoryTriggerStateStore _inner = new();
+        private readonly TaskCompletionSource<DateTimeOffset> _persisted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task<DateTimeOffset> Persisted => _persisted.Task;
+
+        public bool CallbackCompletedBeforePersist { get; private set; }
+
+        public ValueTask<DateTimeOffset?> GetLastFiredAsync(string owner, string key, CancellationToken ct = default) =>
+            _inner.GetLastFiredAsync(owner, key, ct);
+
+        public async ValueTask SetLastFiredAsync(string owner, string key, DateTimeOffset firedAt, CancellationToken ct = default)
+        {
+            CallbackCompletedBeforePersist = callbackFinished.IsCompleted;
+            await _inner.SetLastFiredAsync(owner, key, firedAt, ct).ConfigureAwait(false);
+            _persisted.TrySetResult(firedAt);
+        }
     }
 
     [Fact]
