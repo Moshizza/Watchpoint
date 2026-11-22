@@ -305,7 +305,7 @@ None (behaviour fixed by documents).
 | `model.type.exclude_default` | Validation | Excluded enum value is a property default |
 | `model.value.type_mismatch` | Validation | Wrong value kind for the property (args `expected`, `actual`) |
 | `model.value.enum_unknown` | Validation | args `code`, `allowed` |
-| `model.value.out_of_range` | Validation | args `min`, `max` |
+| `model.value.out_of_range` | Validation | args `min`, `max` (`ParameterSchema.Validate` reports `common.value.out_of_range` with the same args) |
 | `model.value.too_long` | Validation | |
 | `model.value.unit_incompatible` | Validation | args `unit`, `expected` |
 | `model.property.not_found` | NotFound | Path not in type |
@@ -372,6 +372,8 @@ Unit: `tests/service/Watchpoint.Model.Tests`. Fixtures: a small library folder i
 | MOD-U-033 | U | State: stale and bad ignored; all unknown → Unknown | |
 | MOD-U-034 | U | State: disabled and maintenance flags | Disabled → `Disabled` with underlying computed; Maintenance → `Maintenance` |
 | MOD-U-035 | U | Translation bundle merge and ETag | std + package bundles merged (package keys under `types.vendor…`); ETag changes after registration |
+| MOD-U-036 | U | `ParameterSchema.Validate` checks `minimum` and `maximum` (T1.16b) | Inclusive bounds for `integer` and `number`; outside → `common.value.out_of_range` at the field with `min`/`max` (null when open); wrong type → format error only; duration/string bounds not checked |
+| MOD-U-037 | U | Manifest `permissions` and connector limits (T1.16b) | `permissions` ⊆ {`inboundTcp`, `inboundUdp`}, unique; `limits.maxConcurrency` 1–256, `limits.silenceTimeout` ISO duration > 0 (`/connectors/0/limits/silenceTimeout`); absent → no permissions, no limits |
 | MOD-I-001 | I | Documents persisted on registration | Register package → rows in `wp_model.documents` with sha256 |
 | MOD-I-002 | I | Historical type resolution after restart | Register, unregister, restart catalogue → `Get` returns removed type from DB |
 | MOD-I-003 | I | Symbol endpoint headers | GET symbol → `image/svg+xml`, CSP and nosniff headers (through API test host) |

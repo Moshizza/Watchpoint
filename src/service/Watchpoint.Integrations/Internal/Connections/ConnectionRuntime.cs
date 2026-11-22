@@ -290,7 +290,8 @@ internal sealed class ConnectionRuntime : IAsyncDisposable
         {
             var last = Math.Max(Interlocked.Read(ref instance.LastActivity), services.Sink.LastReport);
             var silence = _time.GetElapsedTime(last);
-            if (silence < _options.SilenceTimeout)
+            var silenceLimit = instance.Hosted?.Limits?.SilenceTimeout ?? _options.SilenceTimeout;
+            if (silence < silenceLimit)
             {
                 instance.SilenceWarned = false;
             }

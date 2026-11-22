@@ -7,6 +7,7 @@ using Watchpoint.Kernel.Ids;
 using Watchpoint.Kernel.Results;
 using Watchpoint.Kernel.Text;
 using Watchpoint.Kernel.Values;
+using Watchpoint.Model.Documents;
 using Watchpoint.Pipeline.Contracts;
 using Watchpoint.Registry.Contracts;
 using Watchpoint.Testing.Async;
@@ -590,5 +591,28 @@ public sealed class ConnectionRuntimeTests
             other is not null && Added.SequenceEqual(other.Added) && Removed.SequenceEqual(other.Removed);
 
         public override int GetHashCode() => Added.Count;
+    }
+
+    [Fact]
+    public async Task IRT_U_065_Manifest_silence_timeout_overrides_the_node_setting_per_connector_type()
+    {
+        await using var h = new ConnectionHarness();
+        h.Host.Limits = new ConnectorLimitsDoc(SilenceTimeout: TimeSpan.FromMinutes(2));
+        await h.StartedAsync();
+
+        // The node setting is 30 minutes; the connector type says 2: the warning comes at about 2 minutes.
+        await h.AdvanceUntilAsync(() => h.Logs.WithEventId(1862).Any(), TimeSpan.FromSeconds(10), "the silence is reported");
+        var silence = (TimeSpan)h.Logs.WithEventId(1862).Single().Properties["Silence"]!;
+        silence.ShouldBeGreaterThanOrEqualTo(TimeSpan.FromMinutes(2));
+        silence.ShouldBeLessThan(TimeSpan.FromMinutes(2) + h.Options.WatchdogInterval + TimeSpan.FromSeconds(1));
+        silence.ShouldBeLessThan(h.Options.SilenceTimeout);
+
+        // A longer manifest limit holds the warning back past the node setting.
+        await using var longer = new ConnectionHarness();
+        longer.Host.Limits = new ConnectorLimitsDoc(SilenceTimeout: TimeSpan.FromHours(3));
+        await longer.StartedAsync();
+        longer.Clock.Advance(longer.Options.SilenceTimeout + TimeSpan.FromMinutes(5));
+        await Task.Yield();
+        longer.Logs.WithEventId(1862).ShouldBeEmpty("the type allows 3 hours of silence");
     }
 }

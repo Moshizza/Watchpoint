@@ -288,6 +288,8 @@ internal sealed class FakeHost : IConnectionHost
 
     public IReadOnlySet<string> Permissions { get; set; } = new HashSet<string>();
 
+    public Watchpoint.Model.Documents.ConnectorLimitsDoc? Limits { get; set; }
+
     public HostMode Mode => HostMode.InProcess;
 
     public int Released;
@@ -315,7 +317,7 @@ internal sealed class FakeHost : IConnectionHost
             Connections.Add(connection);
         }
 
-        return new HostedConnector(connector, Permissions, new Release(() => Interlocked.Increment(ref Released)));
+        return new HostedConnector(connector, Permissions, new Release(() => Interlocked.Increment(ref Released))) { Limits = Limits };
     }
 
     private sealed class Release(Action release) : IDisposable

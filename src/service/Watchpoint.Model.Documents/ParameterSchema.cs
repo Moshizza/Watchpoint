@@ -267,11 +267,19 @@ public sealed record ParameterSchema
                     {
                         errors.Add(CommonErrors.InvalidFormatAt(path, "integer"));
                     }
+                    else
+                    {
+                        CheckRange(val, def, path, errors);
+                    }
                     break;
                 case "number":
                     if (val.ValueKind != JsonValueKind.Number)
                     {
                         errors.Add(CommonErrors.InvalidFormatAt(path, "number"));
+                    }
+                    else
+                    {
+                        CheckRange(val, def, path, errors);
                     }
                     break;
                 case "boolean":
@@ -293,6 +301,22 @@ public sealed record ParameterSchema
                     }
                     break;
             }
+        }
+    }
+
+    /// <summary>
+    /// Checks a numeric value against the field's <c>minimum</c> and <c>maximum</c> (both inclusive, each optional; bounds that are not
+    /// numbers, such as the ISO bounds of durations, are not checked here). A value outside gives <c>common.value.out_of_range</c> with the
+    /// arguments <c>min</c> and <c>max</c> (null when that side is unbounded).
+    /// </summary>
+    private static void CheckRange(JsonElement val, JsonElement def, string path, List<FieldError> errors)
+    {
+        double? min = def.TryGetProperty("minimum", out var minElem) && minElem.ValueKind == JsonValueKind.Number ? minElem.GetDouble() : null;
+        double? max = def.TryGetProperty("maximum", out var maxElem) && maxElem.ValueKind == JsonValueKind.Number ? maxElem.GetDouble() : null;
+        var number = val.GetDouble();
+        if ((min is { } lower && number < lower) || (max is { } upper && number > upper))
+        {
+            errors.Add(FieldError.Create(path, CommonErrorCodes.ValueOutOfRange, ("min", min), ("max", max)));
         }
     }
 

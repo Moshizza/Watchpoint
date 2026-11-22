@@ -353,7 +353,7 @@ connector never delays the others:
 |---|---|---|
 | Hung command | A command call exceeded its deadline + 30 s (the caller already got `Timeout` at the deadline; the call stays tracked until it really ends) | Log 1860; restart connection |
 | Hung start | `StartAsync` not returned after 5 s (detected by the start's own timer, §7.2) | Log 1861; Faulted, restart with back-off |
-| Silent connector | Connected, no health report and no observation for `Connections:SilenceTimeout` (default 30 min; the per connector type override `limits.silenceTimeout` needs the manifest schema to declare it, SCM) | Log 1862 (warning) once per silence |
+| Silent connector | Connected, no health report and no observation for `Connections:SilenceTimeout` (default 30 min; the per connector type override is the manifest's `connectors[].limits.silenceTimeout`, an ISO 8601 duration > 0, which replaces the node setting for connections of that type) | Log 1862 (warning) once per silence |
 | Describe interval | Connected or Degraded and `DescribeInterval` elapsed since the last describe | Describe and reconcile |
 | Timeline retention | Once a day | `connection_events` older than 30 days deleted |
 | Flooding | PIP flooding signal (PIP §8, `IIngestFloodingListener`) | Report fault `flooding` on root server health; status reason |
@@ -408,10 +408,10 @@ connector never delays the others:
 | Device map | Immutable dictionary swapped on changes; `All` excludes disabled and orphaned devices |
 | Store | `connection_store` table with an in-memory write-through cache (one per connection, kept across instances); writes of a connection are serialised and the cache changes only after the row is committed; limits: key ≤ 256 characters, value ≤ 64 KB, keys + values ≤ 1 MB — a write beyond throws `InvalidOperationException` carrying `irt.store.limit` (arg `limit`: `key`, `value`, `total`) |
 | Scheduler | `PollingLoop` from the SDK; registrations disposed at stop; paused when status not Connected unless `RunWhenDisconnected` |
-| Gate | The runtime's own gate (`Internal/Context/RequestGate.cs`): at most `MaxConcurrency` requests at once, waiting ones start Critical > High > Normal > Background, first come first served within a priority; `MaxConcurrency` = settings `maxConcurrency` if present, else 4 (manifest `limits.maxConcurrency` once the manifest schema declares it, SCM) |
+| Gate | The runtime's own gate (`Internal/Context/RequestGate.cs`): at most `MaxConcurrency` requests at once, waiting ones start Critical > High > Normal > Background, first come first served within a priority; `MaxConcurrency` = the connection's settings field `maxConcurrency` if present (a number > 0), else the manifest's `connectors[].limits.maxConcurrency` (1–256), else 4 |
 | Health | Feeds the state machine (§7.2) |
 | SecureHttp | `SocketsHttpHandler` with `SslOptions.RemoteCertificateValidationCallback` implementing pin/custom-CA/system policies; never returns true on errors other than accepted pin/CA; `AllowHttp` only if the connection settings field `allowInsecureHttp` is true (logged warning on start) |
-| Inbound | HTTP: routes mapped under `/integrations/{connectionId}/{**path}` on the main Kestrel endpoint (any method), auth enforced before calling the handler (shared secret header and HMAC-SHA256 — hex, optional `sha256=` prefix, or base64 — compared in constant time with the connection's secret field, which must be declared; client certificate SHA-256 pin; source CIDRs) → 401 and log 1846 otherwise, unknown path → 404, body limit 1 MB → 413, handler exception → 500 and log 1847; TCP: listener on requested port only if the manifest declares the `inboundTcp` permission and the connection settings field `inboundTcp` is true (the manifest schema has no permissions yet, SCM: until it does, no package is granted TCP); UDP arrives with M4 (C-SNMP). Registrations are released when the instance stops |
+| Inbound | HTTP: routes mapped under `/integrations/{connectionId}/{**path}` on the main Kestrel endpoint (any method), auth enforced before calling the handler (shared secret header and HMAC-SHA256 — hex, optional `sha256=` prefix, or base64 — compared in constant time with the connection's secret field, which must be declared; client certificate SHA-256 pin; source CIDRs) → 401 and log 1846 otherwise, unknown path → 404, body limit 1 MB → 413, handler exception → 500 and log 1847; TCP: listener on requested port only if the manifest declares the `inboundTcp` permission (top-level `permissions`, SCM §5) and the connection settings field `inboundTcp` is true (a package that declares no permissions is granted none; `inboundUdp` is declared and granted the same way, its listener API arrives with M4, C-SNMP). Registrations are released when the instance stops |
 | Logging | Logger category `Watchpoint.Connector.<packageId>`; scope properties `ConnectionId`, `Package`; only the formatted, masked text is passed on (never the structured state): declared secret field names (`name=…`, `"name": "…"`) and every secret value the connection read are replaced by `***`, an exception is logged as its type and masked message; protocol trace level enabled only while `ProtocolTraceUntil > now` |
 | Metrics | Instruments under meter `Watchpoint.Connector` with tags `connection`, `package`: `watchpoint.connector.requests` (+ `operation`, `success`), `watchpoint.connector.request.duration`, gauge `watchpoint.connector.gauge` (+ `name`) |
 
@@ -626,6 +626,9 @@ Integration: `Watchpoint.IntegrationTests/Integrations` (real PostgreSQL, NATS, 
 | IRT-U-058 | U | Inbound TCP requires manifest permission and setting | |
 | IRT-U-059 | U | Command channel: not connected → ConnectionDown | |
 | IRT-U-060 | U | Command channel: deadline → Timeout; exception → InternalError + fault | |
+| IRT-U-064 | U | Inbound TCP granted by the manifest permissions (T1.16b) | Manifest without `permissions` or with `inboundUdp` only → TCP refused even when the connection enables it; `inboundTcp` declared and enabled → allowed; declared but not enabled → refused |
+| IRT-U-065 | U | Manifest `limits.silenceTimeout` overrides the node setting (T1.16b) | Limit 2 min, node 30 min → warning 1862 at about 2 min; limit 3 h → no warning after 35 min |
+| IRT-U-066 | U | Gate size precedence (T1.16b) | Settings `maxConcurrency` 2 > manifest `limits.maxConcurrency` 7 > default 4; a setting of 0 or of the wrong type is ignored |
 | IRT-I-001 | I | Builtin simulator package verified and active at start | |
 | IRT-I-002 | I | Package rows persisted | `wp_integrations.packages` has state |
 | IRT-I-003 | I | Upload `.wpkg` through API | 201 + Verified; invalid package → 422 with problems |
@@ -649,3 +652,4 @@ Integration: `Watchpoint.IntegrationTests/Integrations` (real PostgreSQL, NATS, 
 | T1.15 | §4, §5, §6 (packages table), §10 (package endpoints), §12–§14 (package parts) | IRT-U-001…IRT-U-025, IRT-I-001…IRT-I-004 |
 | T1.16 | §6 (connections tables), §7, §8, §9, §10 (connection endpoints) | IRT-U-026…IRT-U-060, IRT-I-005…IRT-I-012; enables HST-I-008 (written in T1.02, skipped: adds the dev-seed steps for site, locations, tags, connections and import, HST §9) |
 | T4.09 | §11 | IRT-U-061…IRT-U-063 |
+| T1.16b | §3 (gate, silence, inbound permission) | IRT-U-064…IRT-U-066 (with INT-U-041, MOD-U-036, MOD-U-037) |
