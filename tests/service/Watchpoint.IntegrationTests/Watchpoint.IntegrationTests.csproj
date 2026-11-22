@@ -24,12 +24,14 @@
     <ProjectReference Include="../../../src/service/Watchpoint.Secrets/Watchpoint.Secrets.csproj" />
     <ProjectReference Include="../../../src/service/Watchpoint.Model/Watchpoint.Model.csproj" />
     <ProjectReference Include="../../../src/service/Watchpoint.Registry/Watchpoint.Registry.csproj" />
+    <ProjectReference Include="../../../src/service/Watchpoint.History/Watchpoint.History.csproj" />
     <ProjectReference Include="../../../src/service/Watchpoint.Pipeline/Watchpoint.Pipeline.csproj" />
     <ProjectReference Include="../../../src/service/Watchpoint.Storage.Postgres/Watchpoint.Storage.Postgres.csproj" />
     <ProjectReference Include="../../../src/service/Watchpoint.Integrations/Watchpoint.Integrations.csproj" />
     <ProjectReference Include="../../../src/integrations/Watchpoint.Integration.Simulator/Watchpoint.Integration.Simulator.csproj" />
     <ProjectReference Include="../Watchpoint.Integrations.Testing/Watchpoint.Integrations.Testing.csproj" />
     <ProjectReference Include="../Watchpoint.Storage.Certification/Watchpoint.Storage.Certification.csproj" />
+    <ProjectReference Include="../../../src/service/Watchpoint.Kernel.Testing/Watchpoint.Kernel.Testing.csproj" />
     <ProjectReference Include="../Watchpoint.Testing/Watchpoint.Testing.csproj" />
     <ProjectReference Include="../Watchpoint.Testing.Containers/Watchpoint.Testing.Containers.csproj" />
   </ItemGroup>

@@ -7,6 +7,7 @@
   </Folder>
   <Folder Name="/src/">
     <Project Path="Watchpoint.Expressions/Watchpoint.Expressions.csproj" />
+    <Project Path="Watchpoint.History/Watchpoint.History.csproj" />
     <Project Path="Watchpoint.Host/Watchpoint.Host.csproj" />
     <Project Path="Watchpoint.Hosting/Watchpoint.Hosting.csproj" />
     <Project Path="Watchpoint.Identity/Watchpoint.Identity.csproj" />
@@ -17,6 +18,7 @@
     <Project Path="Watchpoint.Kernel.Testing/Watchpoint.Kernel.Testing.csproj" />
     <Project Path="Watchpoint.Model/Watchpoint.Model.csproj" />
     <Project Path="Watchpoint.Model.Documents/Watchpoint.Model.Documents.csproj" />
+    <Project Path="Watchpoint.Commands/Watchpoint.Commands.csproj" />
     <Project Path="Watchpoint.Pipeline/Watchpoint.Pipeline.csproj" />
     <Project Path="Watchpoint.Registry/Watchpoint.Registry.csproj" />
     <Project Path="Watchpoint.Scheduling/Watchpoint.Scheduling.csproj" />
@@ -40,6 +42,7 @@
     <Project Path="../../tests/integrations/Watchpoint.Integration.Sdk.Tests/Watchpoint.Integration.Sdk.Tests.csproj" />
     <Project Path="../../tests/integrations/Watchpoint.Integration.Simulator.Tests/Watchpoint.Integration.Simulator.Tests.csproj" />
     <Project Path="../../tests/integrations/Watchpoint.Integration.Modbus.Tests/Watchpoint.Integration.Modbus.Tests.csproj" />
+    <Project Path="../../tests/service/Watchpoint.History.Tests/Watchpoint.History.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Hosting.Tests/Watchpoint.Hosting.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Analyzers.Tests/Watchpoint.Analyzers.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.ArchitectureTests/Watchpoint.ArchitectureTests.csproj" />
@@ -51,6 +54,7 @@
     <Project Path="../../tests/service/Watchpoint.Kernel.Tests/Watchpoint.Kernel.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Model.Tests/Watchpoint.Model.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Model.Documents.Tests/Watchpoint.Model.Documents.Tests.csproj" />
+    <Project Path="../../tests/service/Watchpoint.Commands.Tests/Watchpoint.Commands.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Pipeline.Tests/Watchpoint.Pipeline.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Registry.Tests/Watchpoint.Registry.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Scheduling.Tests/Watchpoint.Scheduling.Tests.csproj" />

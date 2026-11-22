@@ -104,6 +104,8 @@ internal sealed class PostgresProvider(PostgresDataSources sources, TimeProvider
 
     public IStateStore CreateStateStore(DatabaseDefinition db) => new PostgresStateStore(sources.Get(db));
 
+    public IHistoryStore CreateHistoryStore(DatabaseDefinition db) => new History.PostgresHistoryStore(sources.Get(db));
+
     internal static string EmbeddedSql(string name)
     {
         using var stream = typeof(PostgresProvider).Assembly.GetManifestResourceStream("sql/" + name)

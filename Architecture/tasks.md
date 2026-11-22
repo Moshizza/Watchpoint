@@ -88,6 +88,7 @@ Every AI agent working on the project has a unique name, used as its branch pref
 | `claude-lynx` | Mohcine (Moshizza) | 2026-11-15 |
 | `jules-4` | Mohcine (Moshizza) | 2026-11-12 |
 | `claude-hermes` | Mohcine (Moshizza) | 2026-11-20 |
+| `claude-castor` | Mohcine (Moshizza) | 2026-11-21 |
 | `claude-castor` | Mohcine (Moshizza) | 2026-11-20 |
 | `claude-cygnus` | Mohcine (Moshizza) | 2026-11-20 |
 | `claude-draco` | Mohcine (Moshizza) | 2026-11-20 |
@@ -173,7 +174,7 @@ spec that must exist and pass.
 
 | ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| T2.01 | Commands: model, validation (schema, rights hook, state), lifecycle state machine, log records | CMD §4–§6 | T1.16 | CMD-U-001…CMD-U-030 | [#37](https://github.com/Moshizza/Watchpoint/issues/37) | — | todo |
+| T2.01 | Commands: model, validation (schema, rights hook, state), lifecycle state machine, log records | CMD §4–§6 | T1.16 | CMD-U-001…CMD-U-030 | [#37](https://github.com/Moshizza/Watchpoint/issues/37) | claude-lynx/T2.01-commands-model-validation-lifecycle | done |
 | T2.02 | Commands: per-connection priority queues, per-device serialisation, idempotency, timeouts, failover-safe queue | CMD §7–§8 | T2.01 | CMD-U-031…CMD-U-050, CMD-I-001…CMD-I-008 | [#38](https://github.com/Moshizza/Watchpoint/issues/38) | — | todo |
 | T2.03 | Commands: verification and group commands | CMD §9–§10 | T2.02 | CMD-U-051…CMD-U-065 | [#39](https://github.com/Moshizza/Watchpoint/issues/39) | — | todo |
 | T2.04 | Commands: REST + live messages, command journal queries | CMD §11 | T2.03, T1.20 | CMD-I-009…CMD-I-015 | [#40](https://github.com/Moshizza/Watchpoint/issues/40) | — | todo |
@@ -185,7 +186,7 @@ spec that must exist and pass.
 | T2.10 | Alarms: alarm lifecycle state machine, partition-safe transitions, store, REST + live | ALM §7–§9 | T2.09 | ALM-U-036…ALM-U-070, ALM-I-001…ALM-I-010 | [#46](https://github.com/Moshizza/Watchpoint/issues/46) | — | todo |
 | T2.11 | Alarms: start/end delays, composite rules, escalation, procedures, audience | ALM §10–§13 | T2.10, T2.08 | ALM-U-071…ALM-U-110 | [#47](https://github.com/Moshizza/Watchpoint/issues/47) | — | todo |
 | T2.12 | Alarms: default rules from device types, alarm actions (commands, pop-ups; notification hook) | ALM §14–§15 | T2.11, T2.03 | ALM-U-111…ALM-U-125, ALM-I-011…ALM-I-014 | [#48](https://github.com/Moshizza/Watchpoint/issues/48) | — | todo |
-| T2.13 | History part 1: writer (events, alarms, commands, property changes, audit placeholder), basic queries | HIS §4–§7 | T1.10 | HIS-U-001…HIS-U-020, HIS-I-001…HIS-I-010 | [#49](https://github.com/Moshizza/Watchpoint/issues/49) | — | todo |
+| T2.13 | History part 1: writer (events, alarms, commands, property changes, audit placeholder), basic queries | HIS §4–§7 | T1.10 | HIS-U-001…HIS-U-020, HIS-I-001…HIS-I-010 | [#49](https://github.com/Moshizza/Watchpoint/issues/49) | claude-orion/T2.13-history-writer-queries | done |
 | T2.14 | UI operation: alarm console, alarm details, procedures runner, sounds, pop-up rules | UIO §7–§9 | T2.10, T1.23 | UIO-U-031…UIO-U-070 | [#50](https://github.com/Moshizza/Watchpoint/issues/50) | — | todo |
 | T2.15 | UI operation: event journal, command buttons with inline status, command journal | UIO §10–§11 | T2.04, T2.05 | UIO-U-071…UIO-U-095 | [#51](https://github.com/Moshizza/Watchpoint/issues/51) | — | todo |
 | T2.16 | E2E scenarios E-010…E-016 | tests/e2e-scenarios | T2.14, T2.15, T2.12, T2.17 | E-010…E-016 | [#52](https://github.com/Moshizza/Watchpoint/issues/52) | — | todo |

@@ -111,7 +111,7 @@ public interface ISystemEventPublisher
 }
 ```
 
-Record kind for system events: `sysevent` with body `{ kind, payload }`. Initial catalogue
+Record kind for system events: `sysevent` with body `{ kind, payload, severity?, personalFields? }` (the catalogue's severity and `PersonalDataFields`, so that HIS can split personal data without the catalogue; body type `SysEventBody`, HIS §5). Initial catalogue
 (registered by the owning modules; translations in their bundles):
 
 | Kind | Module | Severity |
