@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Watchpoint.Pipeline.Contracts;
 
 namespace Watchpoint.State.Internal;
@@ -19,11 +20,20 @@ internal interface IPartitionWork
     Task RunAsync(int partition, Action work, CancellationToken ct);
 }
 
-/// <summary>Posts work to the pipeline's real partition dispatcher (spec PIP §7.3).</summary>
-internal sealed class DispatcherPartitionWork(IPartitionDispatcher dispatcher) : IPartitionWork
+/// <summary>
+/// Posts work to the pipeline's real partition dispatcher (spec PIP §7.3). Resolves <see cref="IPartitionDispatcher"/>
+/// lazily, on first use, rather than taking it as a constructor dependency: the dispatcher's own implementation
+/// (<c>PartitionRouter</c>) takes every registered <see cref="IPartitionSubscriber"/> as a constructor dependency,
+/// and <see cref="StateSubscriber"/> (one of them) depends, through <see cref="ServerAvailabilityCascade"/>, on
+/// this class — a constructor-time dependency on <see cref="IPartitionDispatcher"/> here would complete the cycle
+/// and deadlock the container while building the singleton.
+/// </summary>
+internal sealed class DispatcherPartitionWork(IServiceProvider services) : IPartitionWork
 {
+    private IPartitionDispatcher? _dispatcher;
+
     public Task RunAsync(int partition, Action work, CancellationToken ct) =>
-        dispatcher.PostAsync(
+        (_dispatcher ??= services.GetRequiredService<IPartitionDispatcher>()).PostAsync(
             partition,
             _ =>
             {
