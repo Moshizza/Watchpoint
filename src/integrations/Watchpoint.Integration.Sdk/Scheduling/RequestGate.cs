@@ -5,14 +5,15 @@ namespace Watchpoint.Integration.Sdk.Scheduling;
 
 /// <summary>
 /// Outbound concurrency gate prioritizing requests by <see cref="CommandPriority"/> (INT §7.3, §10).
-/// Critical requests preempt lower-priority requests in the queue.
+/// Waiting requests start in the order Critical, High, Normal, Background, and first come first served within a priority.
 /// </summary>
 public sealed class RequestGate : IRequestGate, IDisposable
 {
     private readonly int _maxConcurrency;
     private int _runningCount;
     private readonly object _lock = new();
-    private readonly PriorityQueue<QueuedWaiter, int> _waiters = new();
+    private readonly PriorityQueue<QueuedWaiter, (int Priority, long Sequence)> _waiters = new();
+    private long _sequence;
     private bool _disposed;
 
     /// <inheritdoc />
@@ -26,17 +27,9 @@ public sealed class RequestGate : IRequestGate, IDisposable
         _maxConcurrency = maxConcurrency;
     }
 
-    private static int PriorityToOrder(CommandPriority priority)
-    {
-        // Lower number in PriorityQueue dequeues first
-        return priority switch
-        {
-            CommandPriority.Critical => 0,
-            CommandPriority.Normal => 1,
-            CommandPriority.Background => 2,
-            _ => 1,
-        };
-    }
+    /// <summary>Critical, High, Normal, Background: the order of <see cref="CommandPriority"/>; an unknown value waits as Normal.</summary>
+    private static int PriorityToOrder(CommandPriority priority) =>
+        Enum.IsDefined(priority) ? (int)priority : (int)CommandPriority.Normal;
 
     /// <inheritdoc />
     public async ValueTask<T> RunAsync<T>(CommandPriority priority, Func<CancellationToken, ValueTask<T>> request, CancellationToken ct)
@@ -56,7 +49,7 @@ public sealed class RequestGate : IRequestGate, IDisposable
             else
             {
                 tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-                _waiters.Enqueue(new QueuedWaiter(tcs, ct), PriorityToOrder(priority));
+                _waiters.Enqueue(new QueuedWaiter(tcs, ct), (PriorityToOrder(priority), _sequence++));
             }
         }
 

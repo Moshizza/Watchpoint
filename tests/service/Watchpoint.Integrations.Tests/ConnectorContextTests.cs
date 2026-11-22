@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Shouldly;
@@ -10,10 +11,12 @@ using Watchpoint.Integration.Abstractions.Context;
 using Watchpoint.Integration.Abstractions.Model;
 using Watchpoint.Integrations.Contracts;
 using Watchpoint.Integrations.Internal.Context;
+using Watchpoint.Integrations.Internal.Hosting;
 using Watchpoint.Integrations.Internal.Storage;
 using Watchpoint.Integrations.Tests.Support;
 using Watchpoint.Kernel.Ids;
 using Watchpoint.Kernel.Values;
+using Watchpoint.Model.Documents;
 using Watchpoint.Pipeline.Contracts;
 using Watchpoint.Testing.Async;
 using ConnectorStatus = Watchpoint.Integration.Abstractions.Context.ConnectionStatus;
@@ -422,5 +425,58 @@ public sealed class ConnectorContextTests
 
         await h.Router.HandleAsync(http, id.Value, path);
         return http.Response.StatusCode;
+    }
+
+    [Fact]
+    public async Task IRT_U_064_Inbound_TCP_is_granted_by_the_manifest_permissions_and_by_nothing_else()
+    {
+        await using var h = new ConnectionHarness();
+        var secrets = new SecretAccessor(ConnectionId.New(), new Dictionary<string, SecretId>(), h.Vault, new SecretRedaction([]), h.Logger);
+        ValueTask Handler(Stream stream, CancellationToken ct) => ValueTask.CompletedTask;
+        string Manifest(string permissions) => """
+            {"$schema":"https://schemas.watchpoint.dev/manifest/1.json","id":"acme.integration.demo","version":"1.0.0","vendor":"Acme","category":"generic","contract":"^1.0",
+             "minWatchpointVersion":"1.0.0","platforms":["linux-x64"],"nativeCode":false,"isolation":"inProcessAllowed","licence":{"class":"included"},__PERMISSIONS__
+             "connectors":[{"class":"A::A.C","serverType":"demo.server","supportedVendorVersions":"*","features":["discovery"],"settingsSchema":{"type":"object","properties":{}},"secretsSchema":{"fields":[]}}],
+             "types":[],"capabilities":[],"ruleTemplates":[],"files":[{"path":"lib/A.dll","sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}]}
+            """.Replace("__PERMISSIONS__", permissions, StringComparison.Ordinal);
+        var reader = new DocumentReader(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../../schemas")));
+        ManifestDocument Read(string permissions) => reader.ReadManifest(Encoding.UTF8.GetBytes(Manifest(permissions)), "manifest.json").Value;
+        InboundEndpoints Endpoints(ManifestDocument manifest, bool enabled) =>
+            new(ConnectionId.New(), h.Router, secrets, new HashSet<string>(), InProcessHost.PermissionsOf(manifest).Contains(InboundEndpoints.InboundTcpPermission), enabled, h.Logger);
+
+        // No permissions in the manifest: nothing granted, even when the connection enables TCP. UDP alone does not grant TCP.
+        InProcessHost.PermissionsOf(Read(string.Empty)).ShouldBeEmpty();
+        InProcessHost.PermissionsOf(Read("\"permissions\":[\"inboundUdp\"],")).ShouldBe(["inboundUdp"]);
+        Should.Throw<UnauthorizedAccessException>(() => Endpoints(Read(string.Empty), enabled: true).RegisterTcpAsync(0, IPAddress.Loopback, Handler, Ct).AsTask());
+        Should.Throw<UnauthorizedAccessException>(() => Endpoints(Read("\"permissions\":[\"inboundUdp\"],"), enabled: true).RegisterTcpAsync(0, IPAddress.Loopback, Handler, Ct).AsTask());
+
+        // Declared in the manifest and enabled in the connection settings: allowed; declared but not enabled: refused.
+        var tcp = Read("\"permissions\":[\"inboundTcp\",\"inboundUdp\"],");
+        InProcessHost.PermissionsOf(tcp).ShouldBe(["inboundTcp", "inboundUdp"], ignoreOrder: true);
+        Should.Throw<UnauthorizedAccessException>(() => Endpoints(tcp, enabled: false).RegisterTcpAsync(0, IPAddress.Loopback, Handler, Ct).AsTask());
+        await using var allowed = Endpoints(tcp, enabled: true);
+        var registration = await allowed.RegisterTcpAsync(0, IPAddress.Loopback, Handler, Ct);
+        registration.Address.ShouldContain(IPAddress.Loopback.ToString());
+    }
+
+    [Fact]
+    public async Task IRT_U_066_Gate_size_is_the_connection_setting_then_the_manifest_limit_then_four()
+    {
+        await using var h = new ConnectionHarness();
+        h.Host.Limits = new ConnectorLimitsDoc(MaxConcurrency: 7);
+        var fromManifest = await h.StartedAsync(name: "Manifest");
+        h.Host.Created.Single().Context.Gate.MaxConcurrency.ShouldBe(7);
+
+        var overridden = await h.Manager.CreateAsync(h.NewConnection("Setting", """{ "host": "a", "maxConcurrency": 2 }"""), ConnectionHarness.Ctx, Ct);
+        await h.WaitForAsync(overridden.Value, ConnectionState.Connected);
+        h.Host.Created.Single(c => c.Context.Connection.Id == overridden.Value.Value).Context.Gate.MaxConcurrency.ShouldBe(2);
+
+        var json = (string text) => JsonDocument.Parse(text).RootElement;
+        ConnectorContextFactory.ResolveMaxConcurrency(json("{}"), null).ShouldBe(ConnectorContextFactory.DefaultMaxConcurrency);
+        ConnectorContextFactory.ResolveMaxConcurrency(json("{}"), 9).ShouldBe(9);
+        ConnectorContextFactory.ResolveMaxConcurrency(json("""{"maxConcurrency":3}"""), 9).ShouldBe(3);
+        ConnectorContextFactory.ResolveMaxConcurrency(json("""{"maxConcurrency":0}"""), 9).ShouldBe(9);
+        ConnectorContextFactory.ResolveMaxConcurrency(json("""{"maxConcurrency":"many"}"""), null).ShouldBe(ConnectorContextFactory.DefaultMaxConcurrency);
+        h.Manager.GetStatus(fromManifest).State.ShouldBe(ConnectionState.Connected);
     }
 }

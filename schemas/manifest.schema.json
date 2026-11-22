@@ -55,6 +55,11 @@
       "type": "string",
       "enum": ["inProcessAllowed", "isolatedRecommended", "isolatedRequired"]
     },
+    "permissions": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["inboundTcp", "inboundUdp"] },
+      "uniqueItems": true
+    },
     "licence": {
       "type": "object",
       "properties": {
@@ -130,6 +135,10 @@
     "^x-": true
   },
   "$defs": {
+    "isoDuration": {
+      "type": "string",
+      "pattern": "^P(?!$)(?:\\d+D)?(?:T(?=\\d)(?:\\d+H)?(?:\\d+M)?(?:\\d+(?:\\.\\d+)?S)?)?$"
+    },
     "connector": {
       "type": "object",
       "properties": {
@@ -185,7 +194,9 @@
           "type": "object",
           "properties": {
             "devicesPerConnection": { "type": "integer", "minimum": 1 },
-            "commandsPerSecond": { "type": "integer", "minimum": 1 }
+            "commandsPerSecond": { "type": "integer", "minimum": 1 },
+            "maxConcurrency": { "type": "integer", "minimum": 1, "maximum": 256 },
+            "silenceTimeout": { "$ref": "#/$defs/isoDuration" }
           },
           "additionalProperties": false,
           "patternProperties": {

@@ -305,7 +305,8 @@ public sealed record PollingOptions(double Jitter = 0.1, bool RunWhenDisconnecte
 public interface IRequestGate               // per-connection outbound concurrency with priorities
 {
     ValueTask<T> RunAsync<T>(CommandPriority priority, Func<CancellationToken, ValueTask<T>> request, CancellationToken ct);
-    int MaxConcurrency { get; }              // from settings or manifest limits; default 4
+    int MaxConcurrency { get; }              // connection setting, else manifest limits.maxConcurrency; default 4
+                                             // Waiting requests start Critical > High > Normal > Background, first come first served within a priority
 }
 
 public interface IConnectionHealth
@@ -536,6 +537,7 @@ public abstract class ConnectorConformanceTests<TConnector> where TConnector : I
 | INT-U-038 | Secure HTTP pin validation | Pin mismatch → `HttpRequestException` with TLS inner; match → success (test server with self-signed cert) |
 | INT-U-039 | Secure HTTP custom CA | Server cert chained to provided CA → success; other CA → failure |
 | INT-U-040 | Secure HTTP refuses plain HTTP unless allowed | |
+| INT-U-041 | SDK `RequestGate` priority order (T1.16b) | One slot busy; queued Background, Normal, High, Critical, High, Normal, Critical, Background → start order Critical×2, High×2, Normal×2, Background×2 (FIFO within a priority); a cancelled waiter gives up its place |
 
 ## 14. Tasks
 
@@ -543,4 +545,5 @@ public abstract class ConnectorConformanceTests<TConnector> where TConnector : I
 |---|---|---|
 | T1.13 | §4–§8, §11 | INT-U-001…INT-U-010 |
 | T1.14 | §9, §10 | INT-U-011…INT-U-040 |
+| T1.16b | §10 (gate) | INT-U-041 |
 | T4.03 | §12 | INT-C-001…INT-C-040 (run against C-SIM first) |

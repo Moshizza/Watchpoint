@@ -594,4 +594,72 @@ public sealed class DocumentReaderTests
         res.IsSuccess.ShouldBeFalse();
         res.Error.FieldErrors.ShouldContain(e => e.Path.Contains("class"));
     }
+
+    [Fact]
+    public void MOD_U_036_ParameterSchema_checks_minimum_and_maximum_of_numbers()
+    {
+        var schema = ParameterSchema.Parse(JsonDocument.Parse("""
+            {"type":"object","properties":{
+              "port":{"type":"integer","minimum":1,"maximum":65535},
+              "ratio":{"type":"number","minimum":0},
+              "level":{"type":"integer","maximum":10},
+              "window":{"type":"duration","minimum":"PT1S","maximum":"PT1H"},
+              "name":{"type":"string"}}}
+            """).RootElement).Value;
+        JsonElement Doc(string json) => JsonDocument.Parse(json).RootElement.Clone();
+
+        // The bounds themselves are allowed (inclusive).
+        schema.Validate(Doc("""{"port":1,"ratio":0,"level":10}""")).ShouldBeEmpty();
+        schema.Validate(Doc("""{"port":65535,"ratio":1000000.5,"level":-5}""")).ShouldBeEmpty();
+
+        // Outside: out_of_range at the field, with both bounds as arguments (null where the side is open).
+        var errors = schema.Validate(Doc("""{"port":0,"ratio":-0.1,"level":11}"""));
+        errors.Count.ShouldBe(3);
+        var port = errors.Single(e => e.Path == "/port");
+        port.Code.Value.ShouldBe("common.value.out_of_range");
+        (port.Args["min"], port.Args["max"]).ShouldBe((1.0, 65535.0));
+        var ratio = errors.Single(e => e.Path == "/ratio");
+        (ratio.Args["min"], ratio.Args["max"]).ShouldBe((0.0, null));
+        var level = errors.Single(e => e.Path == "/level");
+        (level.Args["min"], level.Args["max"]).ShouldBe((null, 10.0));
+        schema.Validate(Doc("""{"port":65536}""")).Single().Path.ShouldBe("/port");
+
+        // A value of the wrong type is a format error only, not also a range error; durations and strings carry no numeric bounds here.
+        var wrongType = schema.Validate(Doc("""{"port":"80","ratio":1.5,"window":"PT2H","name":"x"}"""));
+        wrongType.Select(e => (e.Path, e.Code.Value)).ShouldBe([("/port", "common.value.invalid_format")]);
+        schema.Validate(Doc("""{"port":80.5}""")).Single().Code.Value.ShouldBe("common.value.invalid_format");
+    }
+
+    [Fact]
+    public void MOD_U_037_Manifest_declares_permissions_and_connector_limits()
+    {
+        static string Manifest(string permissions, string limits) => """
+            {"$schema":"https://schemas.watchpoint.dev/manifest/1.json","id":"acme.integration.demo","version":"1.0.0","vendor":"Acme","category":"generic","contract":"^1.0",
+             "minWatchpointVersion":"1.0.0","platforms":["linux-x64"],"nativeCode":false,"isolation":"inProcessAllowed","licence":{"class":"included"},__PERMISSIONS__
+             "connectors":[{"class":"A::A.C","serverType":"demo.server","supportedVendorVersions":"*","features":["discovery"],"settingsSchema":{"type":"object","properties":{}},
+               "secretsSchema":{"fields":[]}__LIMITS__}],
+             "types":[],"capabilities":[],"ruleTemplates":[],"files":[{"path":"lib/A.dll","sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}]}
+            """.Replace("__PERMISSIONS__", permissions, StringComparison.Ordinal).Replace("__LIMITS__", limits, StringComparison.Ordinal);
+        Result<ManifestDocument> Read(string permissions, string limits) => _reader.ReadManifest(Encoding.UTF8.GetBytes(Manifest(permissions, limits)), "manifest.json");
+
+        // Declared values are read; nothing declared means no permissions and no limits.
+        var full = Read("\"permissions\":[\"inboundTcp\",\"inboundUdp\"],", ""","limits":{"devicesPerConnection":100,"maxConcurrency":8,"silenceTimeout":"PT2H"}""").Value;
+        full.Permissions.ShouldBe(["inboundTcp", "inboundUdp"]);
+        var limits = full.Connectors.Single().Limits!;
+        (limits.DevicesPerConnection, limits.MaxConcurrency, limits.SilenceTimeout, limits.CommandsPerSecond).ShouldBe((100, 8, TimeSpan.FromHours(2), null));
+        var none = Read(string.Empty, string.Empty).Value;
+        none.Permissions.ShouldNotBeNull().ShouldBeEmpty();
+        none.Connectors.Single().Limits.ShouldBeNull();
+        Read("\"permissions\":[],", string.Empty).Value.Permissions.ShouldBeEmpty();
+
+        // Unknown or repeated permissions, a gate size outside 1–256 and a silence timeout that is not a positive duration are refused with their path.
+        string[] Paths(Result<ManifestDocument> r) => [.. r.Error.FieldErrors.Select(e => e.Path)];
+        Read("\"permissions\":[\"root\"],", string.Empty).IsSuccess.ShouldBeFalse();
+        Read("\"permissions\":[\"inboundTcp\",\"inboundTcp\"],", string.Empty).IsSuccess.ShouldBeFalse();
+        Read(string.Empty, ""","limits":{"maxConcurrency":0}""").IsSuccess.ShouldBeFalse();
+        Read(string.Empty, ""","limits":{"maxConcurrency":257}""").IsSuccess.ShouldBeFalse();
+        Read(string.Empty, ""","limits":{"silenceTimeout":"2 hours"}""").IsSuccess.ShouldBeFalse();
+        Paths(Read(string.Empty, ""","limits":{"silenceTimeout":"PT0S"}""")).ShouldContain("/connectors/0/limits/silenceTimeout");
+        Read(string.Empty, ""","limits":{"timeout":5}""").IsSuccess.ShouldBeFalse();
+    }
 }

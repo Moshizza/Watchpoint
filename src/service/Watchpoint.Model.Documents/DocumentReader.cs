@@ -618,9 +618,25 @@ public sealed class DocumentReader : IDocumentReader
             ConnectorLimitsDoc? limits = null;
             if (c.TryGetProperty("limits", out var limElem))
             {
+                TimeSpan? silence = null;
+                if (limElem.TryGetProperty("silenceTimeout", out var st))
+                {
+                    var parsed = ParseIsoDuration(st.GetString()!);
+                    if (!parsed.IsSuccess || parsed.Value <= TimeSpan.Zero)
+                    {
+                        semanticErrors.Add(CommonErrors.InvalidFormatAt($"/connectors/{connIdx}/limits/silenceTimeout", "positive ISO 8601 duration"));
+                    }
+                    else
+                    {
+                        silence = parsed.Value;
+                    }
+                }
+
                 limits = new ConnectorLimitsDoc(
                     limElem.TryGetProperty("devicesPerConnection", out var dpc) ? dpc.GetInt32() : null,
-                    limElem.TryGetProperty("commandsPerSecond", out var cps) ? cps.GetInt32() : null);
+                    limElem.TryGetProperty("commandsPerSecond", out var cps) ? cps.GetInt32() : null,
+                    limElem.TryGetProperty("maxConcurrency", out var mc) ? mc.GetInt32() : null,
+                    silence);
             }
 
             connectors.Add(new ConnectorDefinitionDoc(
@@ -683,7 +699,8 @@ public sealed class DocumentReader : IDocumentReader
             root.TryGetProperty("docs", out var d) ? d.GetString() : null,
             root.TryGetProperty("privacy", out var priv) && priv.TryGetProperty("personalData", out var pd)
                 ? new PackagePrivacyDoc(pd.EnumerateArray().Select(x => x.GetString()!).ToList())
-                : null);
+                : null,
+            root.TryGetProperty("permissions", out var perms) ? perms.EnumerateArray().Select(x => x.GetString()!).ToList() : []);
     }
 
     private static Result<TimeSpan> ParseIsoDuration(string input)

@@ -254,6 +254,7 @@ Secrets are **never** in parameter schemas; they are declared separately (§5.3)
   "platforms": ["win-x64", "linux-x64", "linux-arm64"],
   "nativeCode": false,
   "isolation": "inProcessAllowed",
+  "permissions": [],
   "licence": { "featureKey": "int.simulator", "class": "included" },
   "connectors": [
     {
@@ -263,7 +264,7 @@ Secrets are **never** in parameter schemas; they are declared separately (§5.3)
       "features": ["discovery", "liveObservation", "stateRefresh", "commandExecution", "eventCatchUp", "diagnostics"],
       "settingsSchema": "settings/simulator.settings.json",
       "secretsSchema": { "fields": [] },
-      "limits": { "devicesPerConnection": 50000, "commandsPerSecond": 500 }
+      "limits": { "devicesPerConnection": 50000, "commandsPerSecond": 500, "maxConcurrency": 4, "silenceTimeout": "PT30M" }
     }
   ],
   "types": ["types/sim.server.json"],
@@ -282,6 +283,8 @@ Secrets are **never** in parameter schemas; they are declared separately (§5.3)
 | Field | Rules |
 |---|---|
 | `isolation` | `inProcessAllowed`, `isolatedRecommended`, `isolatedRequired`; must be `isolatedRequired` if `nativeCode` is true |
+| `permissions` | Optional; subset of `inboundTcp`, `inboundUdp`, no repeats. What the connectors of the package may ask the runtime for (IRT §8): TCP/UDP listeners. A package that declares none is granted none |
+| `connectors[].limits` | `devicesPerConnection`, `commandsPerSecond` (integers ≥ 1), `maxConcurrency` (1–256: size of the connector's request gate unless the connection settings set one), `silenceTimeout` (ISO 8601 duration > 0: how long a connected connector may stay silent before the warning, replacing `Connections:SilenceTimeout`) |
 | `platforms` | Subset of `win-x64`, `win-x86`, `linux-x64`, `linux-arm64` |
 | `licence.class` | `included` (no licence needed), `standard`, `advanced` |
 | `connectors[].class` | `"<AssemblyName>::<FullTypeName>"`; assembly must be listed in `files` under `lib/` |

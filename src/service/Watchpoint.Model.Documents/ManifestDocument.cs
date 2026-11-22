@@ -12,7 +12,11 @@ public sealed record SecretFieldDoc(string Id, string Kind, bool Required);
 
 public sealed record SecretsSchemaDoc(IReadOnlyList<SecretFieldDoc> Fields);
 
-public sealed record ConnectorLimitsDoc(int? DevicesPerConnection = null, int? CommandsPerSecond = null);
+public sealed record ConnectorLimitsDoc(
+    int? DevicesPerConnection = null,
+    int? CommandsPerSecond = null,
+    int? MaxConcurrency = null,
+    TimeSpan? SilenceTimeout = null);
 
 public sealed record ConnectorDefinitionDoc(
     string Class,
@@ -47,4 +51,5 @@ public sealed record ManifestDocument(
     string? Symbols = null,
     string? I18n = null,
     string? Docs = null,
-    PackagePrivacyDoc? Privacy = null);
+    PackagePrivacyDoc? Privacy = null,
+    IReadOnlyList<string>? Permissions = null);

@@ -77,8 +77,7 @@ internal sealed class ConnectorContextFactory(IObservationIngest ingest, IRegist
         }
 
         var http = new ConnectorHttp(allowHttp);
-        var maxConcurrency = settings.ValueKind == JsonValueKind.Object && settings.TryGetProperty(MaxConcurrencySetting, out var max)
-            && max.TryGetInt32(out var value) && value > 0 ? value : DefaultMaxConcurrency;
+        var maxConcurrency = ResolveMaxConcurrency(settings, hosted.Limits?.MaxConcurrency);
         var gate = new RequestGate(maxConcurrency);
         var scheduler = new ConnectorScheduler(sink, time);
         var inbound = new InboundEndpoints(id, router, secrets, schema.Secrets.Select(s => s.Id).ToHashSet(StringComparer.Ordinal),
@@ -91,6 +90,15 @@ internal sealed class ConnectorContextFactory(IObservationIngest ingest, IRegist
             new ConnectorMetrics(meter, id.Value.ToString("D"), package), logging, time, stopping);
         return new InstanceServices { Context = context, Sink = sink, Map = map, Scheduler = scheduler, Gate = gate, Inbound = inbound, Http = http };
     }
+
+    /// <summary>The gate size: the connection's <c>maxConcurrency</c> setting, else the manifest's <c>limits.maxConcurrency</c>, else 4 (spec IRT §8).</summary>
+    /// <param name="settings">The effective settings.</param>
+    /// <param name="manifestLimit">The manifest limit, if any.</param>
+    /// <returns>The maximum number of concurrent requests.</returns>
+    internal static int ResolveMaxConcurrency(JsonElement settings, int? manifestLimit) =>
+        settings.ValueKind == JsonValueKind.Object && settings.TryGetProperty(MaxConcurrencySetting, out var max) && max.ValueKind == JsonValueKind.Number && max.TryGetInt32(out var value) && value > 0
+            ? value
+            : manifestLimit is > 0 ? manifestLimit.Value : DefaultMaxConcurrency;
 
     private static bool Flag(JsonElement settings, string name) =>
         settings.ValueKind == JsonValueKind.Object && settings.TryGetProperty(name, out var flag) && flag.ValueKind == JsonValueKind.True;
