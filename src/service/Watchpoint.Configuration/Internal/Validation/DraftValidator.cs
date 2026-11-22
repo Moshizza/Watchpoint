@@ -77,7 +77,8 @@ internal sealed class DraftValidator(IConfigObjectTypeRegistry types, ILicencePr
         if (entry.Operation != EntryOperation.Create && live is not null && entry.BaseVersion is { } baseVersion && baseVersion != live.Version)
         {
             problems.Add(Problem(
-                ConfigurationErrors.EntryOutdated, entry.Ref, null, ("baseVersion", baseVersion), ("liveVersion", live.Version)) with { Severity = ProblemSeverity.Warning });
+                ConfigurationErrors.EntryOutdated, entry.Ref, null, ("baseVersion", baseVersion), ("liveVersion", live.Version)) with
+            { Severity = ProblemSeverity.Warning });
         }
 
         if (entry.Operation == EntryOperation.Delete)

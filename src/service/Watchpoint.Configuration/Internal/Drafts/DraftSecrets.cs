@@ -83,24 +83,24 @@ internal sealed class DraftSecrets(ISecretVault vault)
         switch (node)
         {
             case JsonObject obj when obj.Count == 1 && obj.ContainsKey("$secret"):
-            {
-                if (obj["$secret"] is not JsonValue value || !value.TryGetValue<string>(out var text))
                 {
-                    return Error.Create(ErrorKind.Validation, ConfigurationErrors.SecretInvalid, ("path", path));
-                }
+                    if (obj["$secret"] is not JsonValue value || !value.TryGetValue<string>(out var text))
+                    {
+                        return Error.Create(ErrorKind.Validation, ConfigurationErrors.SecretInvalid, ("path", path));
+                    }
 
-                var name = $"draft/{draft.Value:D}/{entryId:D}{path}";
-                var result = await vault.CreateAsync(name, SecretKind.Password, OwnerOf(draft), Encoding.UTF8.GetBytes(text), null, ct).ConfigureAwait(false);
-                if (!result.TryGetValue(out var id, out var error))
-                {
-                    return error;
-                }
+                    var name = $"draft/{draft.Value:D}/{entryId:D}{path}";
+                    var result = await vault.CreateAsync(name, SecretKind.Password, OwnerOf(draft), Encoding.UTF8.GetBytes(text), null, ct).ConfigureAwait(false);
+                    if (!result.TryGetValue(out var id, out var error))
+                    {
+                        return error;
+                    }
 
-                created.Add(new DraftSecretRef(entryId, path, id));
-                obj.Clear();
-                obj["$secretRef"] = id.ToString();
-                return null;
-            }
+                    created.Add(new DraftSecretRef(entryId, path, id));
+                    obj.Clear();
+                    obj["$secretRef"] = id.ToString();
+                    return null;
+                }
 
             case JsonObject obj:
                 foreach (var (name, child) in obj.ToList())
