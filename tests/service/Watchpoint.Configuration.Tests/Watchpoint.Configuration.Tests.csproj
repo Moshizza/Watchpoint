@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Unit tests of configuration (spec CFG §13): drafts, change sets, validation, module adapters, on fakes. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Watchpoint.Configuration.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Shouldly" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../../src/service/Watchpoint.Configuration/Watchpoint.Configuration.csproj" />
+    <ProjectReference Include="../../../src/service/Watchpoint.Kernel.Testing/Watchpoint.Kernel.Testing.csproj" />
+    <ProjectReference Include="../Watchpoint.Testing/Watchpoint.Testing.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -30,12 +30,14 @@ types** that each module implements.
 Watchpoint.Configuration/
 ├── Contracts/
 │   ├── IConfigurableObjectType.cs, ConfigObjectRef.cs, ConfigDocument.cs
-│   ├── Draft.cs, DraftEntry.cs, Problem.cs
+│   ├── ConfigModel.cs (refs, documents, Draft, DraftEntry, Problem, ChangeSet), Ports.cs (authorizer, licence hook, approval policy, publish seam, draft repository, document source)
 │   ├── IDraftService.cs, IPublishService.cs, IVersionService.cs, ILockService.cs, IImportExportService.cs
 │   └── ConfigurationErrors.cs
+├── Adapters/DocumentObjectType.cs, ModuleObjectTypes.cs   object types of the existing modules (REG, IRT, SCH, IDN, HIS): schema + references
 ├── Internal/
 │   ├── ObjectTypeRegistry.cs
-│   ├── Drafts/DraftStore.cs, DraftValidator.cs, ReferenceChecker.cs
+│   ├── Validation/DocumentSchemaValidator.cs, DraftValidator.cs, DraftView.cs, JsonPatch.cs   (pure; reference checks in DraftValidator)
+│   ├── Drafts/DraftService.cs, InMemoryDraftRepository.cs, DraftSecrets.cs, ValidationJob.cs, QuickEdit.cs
 │   ├── Publish/PublishOrchestrator.cs, ApprovalWorkflow.cs, ScheduledPublisher.cs
 │   ├── Versions/VersionStore.cs, InverseBuilder.cs, JsonDiff.cs, ThreeWayMerge.cs
 │   ├── Locks/SoftLockService.cs
@@ -56,21 +58,22 @@ public interface IConfigurableObjectType
 {
     string Type { get; }                                   // "<module>.<object>", e.g. "alarms.rule"
     string Module { get; }
-    PermissionCode ViewPermission { get; }  PermissionCode EditPermission { get; }  PermissionCode PublishPermission { get; }
-    JsonTypeInfo DocumentTypeInfo { get; }
+    PermissionCode PermissionFor(ConfigAccess access);     // View | Edit | Publish
+    JsonElement? Schema { get; }                           // document schema (DocumentSchema subset, §5): replaces DocumentTypeInfo
     bool SupportsSoftLock { get; }                         // large documents: synoptics, scripts, procedures
-    bool Tabular { get; }                                  // CSV/XLSX import/export supported
-    TabularMapping? TabularMapping { get; }
+    bool Tabular { get; }                                  // CSV/XLSX import/export supported (TabularMapping: T3.03)
 
     Task<ConfigDocument?> LoadAsync(Guid id, CancellationToken ct);
     IAsyncEnumerable<ConfigDocument> ListAsync(ConfigListQuery query, CancellationToken ct);
 
-    // Validate one entry in the context of the whole draft (other entries visible through `draft`).
+    // Validate one entry in the context of the whole draft (other entries visible through `draft`): module rules beyond the schema.
+    // Deterministic; problems are data (code, args, path), never message text; CFG adds the object reference.
     ValueTask<IReadOnlyList<Problem>> ValidateAsync(DraftEntry entry, IDraftView draft, CancellationToken ct);
 
     // References this document makes to other objects (for delete checks and import mapping).
     IReadOnlyList<ConfigObjectRef> GetReferences(JsonElement content);
 
+    // --- T3.02 (publish): not in the contract of T3.01. ---
     // Transactional apply: write within the given transaction; return new versions. No in-memory changes yet.
     Task<IReadOnlyList<AppliedEntry>> PrepareApplyAsync(IReadOnlyList<DraftEntry> entries, DbConnection connection,
         DbTransaction transaction, ChangeContext context, CancellationToken ct);
@@ -83,7 +86,11 @@ public interface IConfigurableObjectType
 public sealed record AppliedEntry(ConfigObjectRef Ref, EntryOperation Operation, long NewVersion, JsonElement? Before, JsonElement? After);
 ```
 
-Modules register their object types at start-up (phase `Catalogue`). v1 object types:
+Modules register their object types at start-up (phase `Catalogue`) with `IConfigObjectTypeRegistry.Register`; registration order is
+the order publishing applies them in. T3.01 describes the types of the modules that exist (REG, IRT, SCH, IDN, HIS) in `Adapters/`: a
+`DocumentObjectType` is an object type declared by an `ObjectTypeDefinition` (schema, references by JSON pointer, optional module rule)
+that reads live documents through an `IConfigDocumentSource`; each module's service becomes that source (or implements the type itself)
+when it refactors its write path in T3.02. The ALM and RGT types are described in their own tasks (T3.04 for rights). v1 object types:
 
 | Module | Types |
 |---|---|
@@ -119,10 +126,43 @@ public sealed record FixSuggestion(string Code, IReadOnlyDictionary<string, obje
 ```
 
 - A user may have several open drafts; a draft has an owner and optional collaborators
-  (same permissions required).
+  (same permissions required: adding a collaborator needs the edit permission of every type in the draft; a collaborator's
+  edits are checked with the collaborator's own rights; only the owner adds collaborators or discards). A user who is neither owner
+  nor collaborator gets `config.draft.not_found`; a discarded draft is gone for everyone.
+- **Optimistic concurrency.** `Draft.Version` increases with every change (entry, collaborator, status). Every change names the
+  version the editor read; if the stored version differs nothing changes and the answer is `common.version.conflict` (412, args
+  `expected`, `actual`); the editor reloads and retries. The store replaces a draft only if it still has the expected version
+  (compare and swap), so concurrent changes with the same expected version give exactly one success. Validation results are
+  stored without changing the version, and only if the version they were computed for is still current.
+- **Change sets.** A draft is isolated from the live configuration: editing, validating, overlay reads and `BuildChangeSetAsync`
+  never write live data. `BuildChangeSetAsync` validates the draft, refuses one with errors (`config.publish.invalid`, `errors`) or one
+  that is not open, and freezes the entries as a `ChangeSet(id, draftId, draftVersion, entries)`: creates and updates in catalogue
+  order (then object id), deletes after them in reverse catalogue order. Modules apply it with change context origin
+  `publish:<changeSetId>` and `ChangeSet` (REG §6); publishing itself is T3.02 (`IPublishService`).
+- Entry rules: replacing the entry of an object keeps its `EntryId` and `BaseVersion`; a create that is deleted cancels out; a delete
+  followed by a create is an update. `config.entry.invalid` (args `reason`: `unknown_type`, `content_required`, `content_not_allowed`,
+  `already_exists`, `not_found`) for malformed entries.
+- **Validation is pure and deterministic**: a function of the entries and the live configuration; problems are data (`Code`, `Args`,
+  `Path` = JSON pointer, `Object`, `Fixes`), never message text or exception text; they are ordered by object type, object id, path,
+  code, and `Problem` compares by value. Checks, in order: type known; operation/content consistency; document schema (below);
+  the module's `ValidateAsync`; references (`config.reference.missing`, args `type`, `id`, `deletedInDraft`); for deletes the
+  live referrers the draft does not touch (`config.reference.in_use`, args `count`, `referrers` (first 10 as `type:id`)); outdated
+  base version (`config.entry.outdated`, warning, args `baseVersion`, `liveVersion`); then, for the whole draft, the licence hook
+  (`config.licence.quota_exceeded`, args `allowed`, `projected`, `unit`; no object).
+- **DocumentSchema** (the JSON Schema subset of `IConfigurableObjectType.Schema`): `type`, `properties`, `required`,
+  `additionalProperties: false`, `items`, `enum`, `minimum`, `maximum`, `minLength`, `maxLength`, `pattern`, `format: uuid`,
+  `default`. Problems: wrong type or format → `common.value.invalid_format` (`expected`); missing → `common.value.required` at the
+  pointer of the missing field; out of range → `common.value.out_of_range` (`min`, `max`); length → `common.value.too_short` /
+  `too_long`; not in enum or unknown field → `common.value.not_allowed` (`allowed`).
+- **Fix suggestions** carry a JSON Patch (RFC 6902 `add`, `remove`, `replace`): a missing field with a default → `config.fix.set_default`
+  (add); a number out of range → `config.fix.set_nearest` (replace with the nearest bound); an unknown field → `config.fix.remove_field`.
+  Applying a patch to the entry's content makes its problem go away. Modules add their own fixes.
+- On every change the changed entry, the entries that refer to it and all delete entries are checked again (others keep their
+  problems); drafts with more than `ValidationChunkSize` (100) entries are validated as a background job with progress
+  (`IValidationJob`: `Total`, `Done`, `Completion`).
 - Adding/updating an entry for an object already in the draft replaces the entry (keeping the
   original `BaseVersion`).
-- Draft size limit: 20,000 entries (bulk imports may create large drafts).
+- Draft size limit: `MaxDraftEntries` (20,000; bulk imports may create large drafts): adding the next entry is `config.draft.too_large`.
 - Validation runs after every change for the changed entries **and** entries that reference them
   (ReferenceChecker), within 1 s for typical drafts (≤ 100 entries); larger drafts validate in a
   background job with progress.
@@ -167,14 +207,16 @@ Write-only fields (connection passwords, provider secrets) are submitted in the 
 `{ "$secret": "new value" }`; CFG stores them **encrypted in the draft** (SEC vault, owner
 `Configuration`, entity = draft id) and replaces them by `{ "$secretRef": "<id>" }`; at publish
 the owning module moves the value to its own secret (owner = module/entity) and the draft secret
-is deleted. Draft secrets are deleted when the draft is discarded or published.
+is deleted. Draft secrets are deleted when the draft is discarded or published. Sending `{ "$secretRef": "<id>" }` back keeps the secret;
+replacing an entry without it deletes the secret; a `$secret` that is not text is `config.secret.invalid` and nothing is stored.
 
 ### 6.4 Quick edits
 
 Direct module endpoints (e.g. `PATCH /devices/{id}`, `POST /alarm-rules`) and UI "apply now"
 actions call `QuickEdit.ApplyAsync(entries, actor, comment)`: create a hidden draft, validate,
 publish immediately (approval rules still apply — if approval is required for the type, the quick
-edit returns `202` with the draft id awaiting approval).
+edit returns `202` with the draft id awaiting approval; errors in the changes return `422` with the problems and publish nothing). The hidden
+draft is not listed; editing and publishing permissions of every touched type are required.
 
 ## 7. Publish and versions (T3.02)
 
@@ -302,7 +344,10 @@ Errors: `config.draft.not_found`, `config.draft.not_open`, `config.draft.too_lar
 `config.reference.in_use`, `config.publish.invalid`, `config.publish.conflict`,
 `config.publish.in_progress`, `config.approval.required`, `config.approval.self_forbidden`,
 `config.lock.held_by`, `config.lock.not_supported`, `config.import.invalid_bundle`,
-`config.import.unmapped_reference`, `config.version.not_found`.
+`config.import.unmapped_reference`, `config.version.not_found`, `config.licence.quota_exceeded`, `config.secret.invalid`, the fix codes
+`config.fix.remove_field`, `config.fix.set_default`, `config.fix.set_nearest`, and `api.client_kind.not_allowed` (§6.1, API §5.3:
+`ConfigurationClientRule`). Problems also use the `common.value.*` codes of the schema checks. Every code has a text `errors.<code>`
+in en, fr and ar (CFG-U-018).
 
 | EventId | Level | Message |
 |---|---|---|
@@ -323,11 +368,11 @@ Metrics: `watchpoint.config.publish.duration`, `watchpoint.config.publishes` (co
 | Id | Layer | Test |
 |---|---|---|
 | CFG-U-001 | U | Object type registration and lookup |
-| CFG-U-002 | U | Create draft, add/replace/remove entries keeping BaseVersion |
+| CFG-U-002 | U | Create draft, add/replace/remove entries keeping BaseVersion; two editors with the same version: one wins, the other gets `common.version.conflict` (also under concurrency) |
 | CFG-U-003 | U | Draft size limit |
 | CFG-U-004 | U | Schema validation errors as problems with JSON pointer paths |
 | CFG-U-005 | U | Module validator problems aggregated with object refs |
-| CFG-U-006 | U | Permission per object type and scope (RGT fake) |
+| CFG-U-006 | U | Permission per object type and object scope (RGT fake) |
 | CFG-U-007 | U | Reference to object deleted in the same draft → missing |
 | CFG-U-008 | U | Deleting live object still referenced → in_use with referrers |
 | CFG-U-009 | U | Re-validation of dependent entries on change |
@@ -336,13 +381,23 @@ Metrics: `watchpoint.config.publish.duration`, `watchpoint.config.publishes` (co
 | CFG-U-012 | U | Draft overlay reads (draft content vs live) |
 | CFG-U-013 | U | Secrets in drafts stored in vault and replaced by refs |
 | CFG-U-014 | U | Draft secrets deleted on discard |
-| CFG-U-015 | U | Quick edit: draft + publish in one step |
+| CFG-U-015 | U | Quick edit: draft + publish in one step (publish through the `IPublishService` seam; fake) |
 | CFG-U-016 | U | Quick edit with approval-required type → 202 awaiting approval |
 | CFG-U-017 | U | Collaborators need same permissions |
 | CFG-U-018 | U | Plain-language problem keys exist in en/fr/ar for every CFG and module code (scan) |
 | CFG-U-019 | U | Licence hook projected quota error (fake) |
 | CFG-U-020 | U | Draft endpoints refuse non-desktop clients |
-| CFG-U-021…030 | U | Per-module object type adapters: REG, IRT, ALM, SCH, IDN, RGT, HIS validate/prepare/complete with fakes |
+| CFG-U-021 | U | REG site and location: schema, parent reference, kinds |
+| CFG-U-022 | U | REG tag family and tag |
+| CFG-U-023 | U | REG server: connection, location and tag references |
+| CFG-U-024 | U | REG device: server, parent (in the draft), location, tags |
+| CFG-U-025 | U | REG link and custom field |
+| CFG-U-026 | U | SCH holiday set and calendar (holiday set references) |
+| CFG-U-027 | U | IRT connection and IDN user |
+| CFG-U-028 | U | HIS policy override |
+| CFG-U-029 | U | Catalogue of module types: unique, ordered, permissions, references name registered types, live load and list through the source |
+| CFG-U-030 | U | Change set order (catalogue order, deletes reversed), live configuration untouched, invalid or closed drafts give none |
+| (T3.02) | U | `PrepareApply`/`CompleteApply`/`Reload` of the module adapters (validate/prepare/complete with fakes; ALM and RGT types with their modules) are covered by CFG-U-031, 034, 036 |
 | CFG-U-031 | U | Publish runs modules in catalogue order inside one transaction |
 | CFG-U-032 | U | Revalidation at publish catches live changes since last validation |
 | CFG-U-033 | U | BaseVersion mismatch → conflict listing objects |

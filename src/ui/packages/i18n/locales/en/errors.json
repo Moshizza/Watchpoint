@@ -14,8 +14,14 @@
     },
     "value": {
       "out_of_range": "Value must be between {min} and {max}.",
-      "required": "This field is required."
-    }
+      "required": "This field is required.",
+      "not_allowed": "This value is not allowed.",
+      "invalid_format": "This value has the wrong format (expected {expected}).",
+      "too_long": "This value is too long (at most {max}).",
+      "too_short": "This value is too short (at least {min}).",
+      "duplicate": "This value is already used."
+    },
+    "forbidden": "You are not allowed to do this."
   },
   "irt": {
     "package": {
@@ -71,6 +77,57 @@
     },
     "command": {
       "not_found": "Command {commandId} was not found."
+    }
+  },
+  "config": {
+    "draft": {
+      "not_found": "Draft {draftId} was not found.",
+      "not_open": "Draft {draftId} is {status} and can no longer be changed.",
+      "too_large": "A draft can hold at most {max} changes."
+    },
+    "entry": {
+      "invalid": "This change is not valid ({reason}).",
+      "outdated": "This object was changed by someone else after you started editing it (you edited version {baseVersion}, it is now version {liveVersion})."
+    },
+    "reference": {
+      "missing": "This refers to {type} {id}, which does not exist or is deleted in this draft.",
+      "in_use": "This object is still used by {count} other objects and cannot be deleted."
+    },
+    "publish": {
+      "invalid": "The draft has {errors} errors and cannot be published.",
+      "conflict": "Other changes were published since you started; resolve the conflicts first.",
+      "in_progress": "Another publish is in progress; try again in a moment."
+    },
+    "approval": {
+      "required": "These changes need approval before they are published.",
+      "self_forbidden": "You cannot approve your own changes."
+    },
+    "lock": {
+      "held_by": "This object is being edited by {user}.",
+      "not_supported": "This kind of object cannot be locked."
+    },
+    "import": {
+      "invalid_bundle": "The file is not a valid configuration bundle.",
+      "unmapped_reference": "The file refers to {type} {name}, which could not be matched."
+    },
+    "version": {
+      "not_found": "Configuration version {version} was not found."
+    },
+    "licence": {
+      "quota_exceeded": "Your licence allows {allowed} {unit}; these changes would use {projected}."
+    },
+    "secret": {
+      "invalid": "A secret value must be text."
+    },
+    "fix": {
+      "remove_field": "Remove the field {field}.",
+      "set_default": "Set {field} to its default value.",
+      "set_nearest": "Use the nearest allowed value, {value}."
+    }
+  },
+  "api": {
+    "client_kind": {
+      "not_allowed": "Configuration can only be changed from the desktop application."
     }
   }
 }

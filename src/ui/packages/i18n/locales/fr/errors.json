@@ -14,8 +14,14 @@
     },
     "value": {
       "out_of_range": "La valeur doit être comprise entre {min} et {max}.",
-      "required": "Ce champ est obligatoire."
-    }
+      "required": "Ce champ est obligatoire.",
+      "not_allowed": "Cette valeur n'est pas autorisée.",
+      "invalid_format": "Cette valeur a un format incorrect (attendu : {expected}).",
+      "too_long": "Cette valeur est trop longue (au plus {max}).",
+      "too_short": "Cette valeur est trop courte (au moins {min}).",
+      "duplicate": "Cette valeur est déjà utilisée."
+    },
+    "forbidden": "Vous n'avez pas le droit de faire cela."
   },
   "irt": {
     "package": {
@@ -71,6 +77,57 @@
     },
     "command": {
       "not_found": "La commande {commandId} est introuvable."
+    }
+  },
+  "config": {
+    "draft": {
+      "not_found": "Le brouillon {draftId} est introuvable.",
+      "not_open": "Le brouillon {draftId} est {status} et ne peut plus être modifié.",
+      "too_large": "Un brouillon contient au plus {max} modifications."
+    },
+    "entry": {
+      "invalid": "Cette modification n'est pas valide ({reason}).",
+      "outdated": "Cet objet a été modifié par quelqu'un d'autre après le début de votre édition (vous avez modifié la version {baseVersion}, elle est maintenant à la version {liveVersion})."
+    },
+    "reference": {
+      "missing": "Ceci fait référence à {type} {id}, qui n'existe pas ou est supprimé dans ce brouillon.",
+      "in_use": "Cet objet est encore utilisé par {count} autres objets et ne peut pas être supprimé."
+    },
+    "publish": {
+      "invalid": "Le brouillon contient {errors} erreurs et ne peut pas être publié.",
+      "conflict": "D'autres modifications ont été publiées depuis votre début ; résolvez d'abord les conflits.",
+      "in_progress": "Une autre publication est en cours ; réessayez dans un instant."
+    },
+    "approval": {
+      "required": "Ces modifications doivent être approuvées avant d'être publiées.",
+      "self_forbidden": "Vous ne pouvez pas approuver vos propres modifications."
+    },
+    "lock": {
+      "held_by": "Cet objet est en cours de modification par {user}.",
+      "not_supported": "Ce type d'objet ne peut pas être verrouillé."
+    },
+    "import": {
+      "invalid_bundle": "Le fichier n'est pas un lot de configuration valide.",
+      "unmapped_reference": "Le fichier fait référence à {type} {name}, qui n'a pas pu être associé."
+    },
+    "version": {
+      "not_found": "La version de configuration {version} est introuvable."
+    },
+    "licence": {
+      "quota_exceeded": "Votre licence autorise {allowed} {unit} ; ces modifications en utiliseraient {projected}."
+    },
+    "secret": {
+      "invalid": "Un secret doit être du texte."
+    },
+    "fix": {
+      "remove_field": "Supprimer le champ {field}.",
+      "set_default": "Remettre {field} à sa valeur par défaut.",
+      "set_nearest": "Utiliser la valeur autorisée la plus proche, {value}."
+    }
+  },
+  "api": {
+    "client_kind": {
+      "not_allowed": "La configuration ne peut être modifiée que depuis l'application de bureau."
     }
   }
 }
