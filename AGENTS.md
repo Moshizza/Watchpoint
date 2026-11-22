@@ -22,3 +22,6 @@ this file only adds what differs for agents that are not Claude Code.
   CLAUDE.md §7.
 - **Never merge.** Open the pull request, mark it ready for review, and stop. The person
   responsible merges after approval.
+- **Coordination file**: keep your status file on the `coordination` branch
+  ([`Architecture/coordination.md`](Architecture/coordination.md)). If your platform cannot push
+  before you submit, ask the person who started you to create and update it for you.
