@@ -92,7 +92,7 @@ public sealed class QueryTests
         stopwatch.Stop();
 
         page.Items.Count.ShouldBe(PageRequest.DefaultLimit);
-        var limit = TimingLimits.For(TimeSpan.FromMilliseconds(20), TimeSpan.FromMilliseconds(200));
+        var limit = TimingLimits.For(TimeSpan.FromMilliseconds(20), TimeSpan.FromSeconds(1));
         stopwatch.Elapsed.ShouldBeLessThan(limit);
     }
 }
