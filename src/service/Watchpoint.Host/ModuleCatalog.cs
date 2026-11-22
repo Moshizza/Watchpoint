@@ -19,6 +19,7 @@ public static class ModuleCatalog
         new ModelModule(),
         new RegistryModule(),
         new PipelineModule(),
+        new StateModule(),
         new HistoryModule(),
         new IdentityModule(),
         new IntegrationRuntimeModule(),
@@ -26,7 +27,7 @@ public static class ModuleCatalog
 
         // Other modules are added by their tasks, in this order (HST §5.2):
         // new KernelModule(), [SecretsModule], [StorageModule], [ModelModule],
-        // [RegistryModule], [PipelineModule], new StateModule(), [IdentityModule],
+        // [RegistryModule], [PipelineModule], [StateModule], [HistoryModule], [IdentityModule],
         // [IntegrationRuntimeModule], [CommandsModule], new ApiModule(),
     ];
 }
