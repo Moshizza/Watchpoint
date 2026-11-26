@@ -130,7 +130,7 @@ internal sealed class InventoryReconciler(
         var existingDevices = new List<Device>();
         foreach (var srv in existingServers)
         {
-            var paged = reader.QueryDevices(new DeviceQuery(ServerId: srv.Id), new PageRequest(10000)).Items;
+            var paged = reader.QueryDevices(new DeviceQuery(Servers: [srv.Id]), new PageRequest(10000)).Items;
             existingDevices.AddRange(paged);
         }
         var existingDeviceByKey = existingDevices.ToDictionary(d => (d.ServerId, d.NativeId));

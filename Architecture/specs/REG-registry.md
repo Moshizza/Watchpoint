@@ -150,16 +150,9 @@ public sealed record DeviceQuery(
     bool? Enabled = null, bool? Maintenance = null, bool? Orphaned = null, DeviceId? Parent = null,
     bool RootsOnly = false, IReadOnlySet<DeviceId>? Within = null /* RGT visible set */, SortSpec? Sort = null);
 // Sort fields: name (display name in culture), type, location, createdAt. Default name asc.
-//
-// Known divergence, not in T1.07c's scope (2026-11 review finding 2.2 only cites the reader/writer method
-// signatures, not this filter shape): the code's DeviceQuery/ServerQuery/LocationQuery still have the single-value
-// filters of T1.07 (ServerId?/LocationId?/TypeId?/Tags?/SearchText?, one LocationId not a subtree list). Categories,
-// Capabilities and Within need MOD/RGT integration RGT does not exist before M3; Sort needs Kernel SortSpec wiring.
-// A future task expands the filter shape when a consumer needs it (e.g. T1.19's API, T3.04+ for RGT's Within).
-
-public sealed record DeviceEnrichment(DeviceId Id, string DisplayNameDefault, ServerId ServerId,
-    LocationId LocationId, string LocationPath, IReadOnlyList<string> LocationNames /* default culture, root first */,
-    IReadOnlyList<string> TagKeys, TypeRef Type, IReadOnlyList<DeviceId> LinkedCameras, bool Enabled, bool Maintenance);
+// Types match descendants through the type catalog's lineage (exact id without a catalog); Categories and
+// Capabilities need the catalog (no match without one). Within is applied by callers from RGT (M3); M1 passes null.
+// Aligned in T1.19 (the code's ServerQuery/LocationQuery keep their single-value T1.07 shape).
 ```
 
 ## 6. Public contract — writing
@@ -198,11 +191,9 @@ public sealed record DevicePatch(Optional<LocalizedName?> Name, Optional<Locatio
     Optional<IReadOnlyList<TagId>> TagsSet, IReadOnlyList<TagId>? TagsAdd, IReadOnlyList<TagId>? TagsRemove,
     Optional<bool> Enabled, Optional<bool> Maintenance, Optional<IReadOnlyDictionary<string, WpValue>> AttributesMerge);
 // Optional<T> is a Kernel-style "set or not set" wrapper defined in this module (HasValue + Value).
-//
-// Known divergence, not in T1.07c's scope (same reason as DeviceQuery above): the code's DevicePatch keeps the
-// T1.07 shape (DisplayName/LocationId/Tags/Attributes/CustomFields/UnsupportedCaps/Geometry/Enabled/Maintenance,
-// full-replace semantics, no TagsAdd/TagsRemove). A future task aligns it when PATCH /api/v1/devices/{id} (REG §11)
-// is implemented, since that is what actually needs the incremental tag add/remove and attribute-merge semantics.
+// Name: a null value clears the user override. Tags: TagsSet first, then TagsAdd, then TagsRemove.
+// AttributesMerge: WpValue.Null removes the key (JSON Merge Patch null). Custom fields, geometry and unsupported
+// capabilities change through UpsertDevice. Aligned in T1.19.
 
 public sealed record EntityChange(string Entity /* "device" … */, Guid Id, ChangeKind Kind /* Created, Updated, Deleted */);
 
@@ -532,6 +523,8 @@ persistence fake). Integration: `Watchpoint.IntegrationTests/Registry`.
 | REG-U-052 | U | Batch whose `registry.changed` record exceeds the log limit is refused before commit | Record limit set to 64 KB, batch of changes serialising to > 64 KB → `registry.batch.too_large` with `bytes`; no row, no revision, no outbox row |
 | REG-U-053 | U | Site id mismatch keeps the node not ready | Row with id A, `Site:Id` = B → `ready` unhealthy, reason `siteId`; with `Site:Id` = A → healthy |
 | REG-U-068 | U | Record exactly at the log limit is committed, one byte over is refused | Limit = exact size of the batch's record (revision 1) → committed; limit − 1 → `registry.batch.too_large` with `max` = limit − 1, `bytes` = size; nothing written |
+| REG-U-069 | U | Query by server, category, parent, roots and sort | Server list, category via catalog, `Parent` direct children, `RootsOnly`, `-name` and `type,name` orders; unknown sort field → `common.sort.invalid_field` |
+| REG-U-070 | U | Device patch incremental semantics | Name set then cleared (null); `TagsSet` → `TagsAdd` → `TagsRemove`; `AttributesMerge` with null removes a key; version +1 |
 | REG-I-001 | I | Persist and reload | Apply batch; new registry instance loads same snapshot (deep equality) |
 | REG-I-002 | I | Transaction atomicity | Failure injected mid-persist → nothing persisted, snapshot unchanged |
 | REG-I-003 | I | Unique constraints back up validation | Direct duplicate insert (bypassing validation) → DB rejects |

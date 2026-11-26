@@ -133,7 +133,7 @@ public sealed class ConnectionIntegrationTests(PostgresContainerFixture postgres
         await using var node = await ConnectionNode.StartAsync(postgres, "i009", Ct);
         var id = (await node.Connections.CreateAsync(Simulator(node), Context, Ct)).Value;
         var door = await Eventually.UntilAsync(() =>
-            node.Registry.QueryDevices(new DeviceQuery(TypeId: TypeId.FromTrusted("ac.door")), new PageRequest(10)).Items is { Count: > 0 } doors ? doors[0] : null, _wait, "a door imported", ct: Ct);
+            node.Registry.QueryDevices(new DeviceQuery(Types: [TypeId.FromTrusted("ac.door")]), new PageRequest(10)).Items is { Count: > 0 } doors ? doors[0] : null, _wait, "a door imported", ct: Ct);
         await Eventually.UntilAsync(() => node.Connections.GetStatus(id).State == ConnectionState.Connected, _wait, "connected", ct: Ct);
         var server = node.Registry.GetServer(door.ServerId).Value;
         var channel = node.Services.GetRequiredService<IConnectionCommandChannel>();
