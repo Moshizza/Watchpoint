@@ -180,7 +180,7 @@ internal sealed class ConnectionDispatcher : IAsyncDisposable
                         _queue.Remove(command.Id);
                         starts.Add(() => FinishQueuedAsync(command, CommandRecordKinds.Expired, null, ct));
                     }
-                    else if (_s.FailsFast(command))
+                    else if (_s.FailsFast(command, state))
                     {
                         _queue.Remove(command.Id);
                         var failure = DispatchServices.Failure(FailureCategory.ConnectionDown, CommandErrors.ConnectionDown(state.ToString()));
@@ -450,8 +450,15 @@ internal sealed class DispatchServices(
     /// Whether a command fails at once while its connection is down (CMD §7 step 3): <c>Commands:FailFastWhenDisconnected</c>
     /// applies to commands of people (users, federation users); automations, scripts and alarm actions wait until expiry.
     /// </summary>
-    public bool FailsFast(Command command) =>
-        options.FailFastWhenDisconnected && command.Issuer is CommandIssuer.User or CommandIssuer.Federation;
+    /// <remarks>
+    /// A connection that is about to run (<see cref="ConnectionState.Configured"/> before the <c>Connections</c> start-up
+    /// phase, <see cref="ConnectionState.Starting"/>) is not down: its commands wait, so commands requeued by the recovery
+    /// (which runs before the connections start) are dispatched once the connection is up.
+    /// </remarks>
+    public bool FailsFast(Command command, ConnectionState state) =>
+        options.FailFastWhenDisconnected
+        && command.Issuer is CommandIssuer.User or CommandIssuer.Federation
+        && state is not (ConnectionState.Configured or ConnectionState.Starting);
 
     /// <summary>The connection of a device's server, or <see langword="null"/> when the device or its server is gone.</summary>
     public ConnectionId? ConnectionOf(DeviceId device) =>

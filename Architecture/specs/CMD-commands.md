@@ -289,6 +289,9 @@ and the subscriber reports its recovery checkpoint from then on (until then no r
      `command.failed` with `ConnectionDown` immediately (operators must know now), key
      `errors.commands.connection.down` (arg `state`). The setting applies to commands of people (issuer `User` or
      `Federation`); automations, scripts and alarm actions always wait until expiry (or the connection comes back).
+     A connection about to run (`Configured` before the `Connections` start-up phase, `Starting`) is not down: its
+     commands wait, so commands requeued by the recovery (§8, which runs before the connections start) are dispatched
+     once it is up.
   4. Append `command.dispatched` (awaited, durable), lock device, call
      `IConnectionCommandChannel.ExecuteAsync` with `Deadline = now + Timeout` and the
      command's priority.

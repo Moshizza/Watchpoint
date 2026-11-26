@@ -327,7 +327,7 @@ public sealed class DispatchTests : IAsyncDisposable
     [Fact]
     public async Task CMD_U_047_Dispatcher_survives_a_connection_restart_queued_commands_wait()
     {
-        Use(o => o.FailFastWhenDisconnected = false);
+        // Fail fast stays on: a connection that is starting is not down (CMD §7 step 3), its commands wait.
         var before = await QueueAsync(_h.Door);
         await UntilCallsAsync(1);
         _h.Channel.Complete(before.Value, ConnectorCommandResult.Succeeded());
