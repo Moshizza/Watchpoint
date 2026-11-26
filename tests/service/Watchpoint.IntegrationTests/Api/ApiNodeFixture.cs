@@ -1,8 +1,8 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
-using Watchpoint.IntegrationTests.Host;
 using Watchpoint.Integrations.Testing;
+using Watchpoint.IntegrationTests.Host;
 using Watchpoint.Testing.Async;
 using Watchpoint.Testing.Containers;
 using Xunit;
