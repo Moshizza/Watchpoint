@@ -39,7 +39,8 @@ internal static class SystemEndpoints
             return HttpResults.Problem(Kernel.Results.CommonErrors.Unavailable("certificates"));
         }
 
-        using var ca = certificates.GetCaCertificate();
+        // The service owns the certificate (shared instance): never dispose it here.
+        var ca = certificates.GetCaCertificate();
         return Results.Json(new CaDto(ca.ExportCertificatePem(), certificates.GetCaFingerprintSha256()), ApiJson.Options);
     }
 

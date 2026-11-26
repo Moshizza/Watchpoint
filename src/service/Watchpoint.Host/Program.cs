@@ -1,9 +1,9 @@
 extern alias OtelRuntime;
-
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Net;
 using System.Reflection;
+using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -15,6 +15,7 @@ using Watchpoint.Host.Dev;
 using Watchpoint.Host.Nats;
 using Watchpoint.Hosting;
 using Watchpoint.Hosting.Supervision;
+using Watchpoint.Secrets.Contracts;
 using Watchpoint.Storage.Contracts;
 
 namespace Watchpoint.Host;
@@ -191,7 +192,9 @@ public static class Program
                             listenOptions.Protocols = Microsoft.AspNetCore.Server.Kestrel.Core.HttpProtocols.Http1AndHttp2;
                             if (uri.Scheme == "https")
                             {
-                                listenOptions.UseHttps();
+                                // The site certificate of SEC (or Http:Certificate:Path), picked per handshake (API-I-011).
+                                var services = listenOptions.ApplicationServices;
+                                listenOptions.UseHttps(https => https.ServerCertificateSelector = (_, _) => ServerCertificate(settings, services));
                             }
                         });
                 }
@@ -442,6 +445,28 @@ public static class Program
         }
 
         return app;
+    }
+
+    private static X509Certificate2? _fileCertificate;
+
+    /// <summary>
+    /// The TLS certificate of the main endpoint: the PKCS#12 file of <c>Http:Certificate:Path</c> when set (loaded once),
+    /// otherwise the site server certificate issued by the site CA (SEC §7, <see cref="ISiteCertificateService"/>).
+    /// </summary>
+    /// <param name="settings">The node settings.</param>
+    /// <param name="services">The application services.</param>
+    /// <returns>The certificate.</returns>
+    public static X509Certificate2 ServerCertificate(NodeSettings settings, IServiceProvider services)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(services);
+        if (!string.IsNullOrWhiteSpace(settings.Http.Certificate.Path))
+        {
+            return LazyInitializer.EnsureInitialized(ref _fileCertificate,
+                () => X509CertificateLoader.LoadPkcs12FromFile(settings.Http.Certificate.Path, settings.Http.Certificate.Password));
+        }
+
+        return services.GetRequiredService<ISiteCertificateService>().GetServerCertificate();
     }
 
     /// <summary>Path of <c>watchpoint.json</c>: <c>--config</c> / <c>--config=</c> when given, else <c>&lt;Data&gt;/watchpoint.json</c>.</summary>
