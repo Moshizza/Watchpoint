@@ -408,7 +408,7 @@ Reads (M1: any authenticated user; M3: permission `operate.devices.view` + scope
 | `GET /api/v1/locations` | Whole tree (flat list ordered by path) |
 | `GET /api/v1/locations/{id}` | One location with ancestors |
 | `GET /api/v1/tags`, `GET /api/v1/tag-families` | |
-| `GET /api/v1/servers?connection=&location=&type=&text=&limit=&cursor=` | |
+| `GET /api/v1/servers?connection=&location=&text=&limit=&cursor=` | (`type` waits for `ServerQuery` to have a type filter) |
 | `GET /api/v1/servers/{id}` | |
 | `GET /api/v1/devices?server=&location=&type=&category=&capability=&tag=&anyTag=&text=&enabled=&maintenance=&orphaned=&parent=&roots=&sort=&limit=&cursor=` | `location` = subtree |
 | `GET /api/v1/devices/{id}` | Includes `displayName` resolved in the caller's culture |
@@ -420,8 +420,8 @@ remain for **quick edits** and internally create a draft + publish through CFG):
 
 | Method and path | Body |
 |---|---|
-| `POST /api/v1/registry/batch` | `RegistryChangeBatch` JSON (`{"changes":[{"op":"upsertDevice", …}]}`) |
-| `PATCH /api/v1/devices/{id}` | JSON Merge Patch of `name`, `locationId`, `tags`, `enabled`, `maintenance`, `attributes` (with `If-Match`) |
+| `POST /api/v1/registry/batch` | `RegistryChangeBatch` JSON (`{"changes":[{"op":"upsertDevice","device":{…},"expectedVersion":3}], "comment":"…"}`): each change is its `RegistryChange` record in camelCase plus `op` (the record name, camelCase); `patchDevice` is `{"op":"patchDevice","id":…,"patch":<merge patch as above>,"expectedVersion":…}`; honours `Idempotency-Key` |
+| `PATCH /api/v1/devices/{id}` | JSON Merge Patch of `name` (string, `{default, translations}`, or `null` to clear), `locationId`, `tags` (replace), `tagsAdd`, `tagsRemove`, `enabled`, `maintenance`, `attributes` (merge; `null` removes a key) (with `If-Match`); other members → `common.value.not_allowed` |
 | `POST /api/v1/connections/{id}/discovered/import` | `{ "nativeIds": [...], "overrides": {...} }` |
 | `POST /api/v1/connections/{id}/discovered/ignore` | `{ "nativeIds": [...], "ignored": true }` |
 
