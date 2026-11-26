@@ -387,4 +387,4 @@ Integration: `Watchpoint.IntegrationTests/State`.
 | Task | Sections | Tests |
 |---|---|---|
 | T1.11 | §4–§7, §9–§12 | STA-U-001…STA-U-035 |
-| T1.12 | §8 | STA-U-036…STA-U-047, STA-I-001…STA-I-003, STA-I-005 (STA-I-004 and STA-I-006 need the API: with T1.19) |
+| T1.12 | §8 | STA-U-036…STA-U-047, STA-I-001…STA-I-003, STA-I-005, CMD-I-007 (STA-I-004 and STA-I-006 need the API: with T1.19) |

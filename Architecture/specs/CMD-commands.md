@@ -480,7 +480,7 @@ Integration: `Watchpoint.IntegrationTests/Commands` (simulator connection).
 | CMD-I-004 | I | Node crash during dispatch → recovery per §8 |
 | CMD-I-005 | I | 1,000-door group (campus profile) → batched, all verified, progress events |
 | CMD-I-006 | I | Disconnected connection → fail fast |
-| CMD-I-007 | I | Pending commands snapshot persisted and restored |
+| CMD-I-007 | I | Pending commands snapshot persisted and restored (with T1.12: `PendingCommandSnapshot` is the `ISnapshotParticipant` of consumer `commands`; the subscriber reports the restored sequence as its recovery checkpoint) |
 | CMD-I-008 | I | Priority under load: Critical command dispatched before 500 queued Background commands |
 | CMD-I-009 | I | API POST /commands with Idempotency via clientCommandId |
 | CMD-I-010 | I | API approval flow with two users |

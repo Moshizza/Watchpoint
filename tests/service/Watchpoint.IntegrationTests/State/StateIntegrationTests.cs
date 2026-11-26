@@ -5,6 +5,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using Shouldly;
+using Watchpoint.Commands.Contracts;
+using Watchpoint.Commands.Internal;
 using Watchpoint.IntegrationTests.Pipeline;
 using Watchpoint.Kernel.Ids;
 using Watchpoint.Kernel.Text;
@@ -152,6 +154,85 @@ public sealed class StateIntegrationTests(PostgresContainerFixture postgres, Nat
         elapsed.ShouldBeLessThan(TimingLimits.For(TimeSpan.FromSeconds(6), TimeSpan.FromSeconds(60)));
     }
 
+    [Fact]
+    public async Task CMD_I_007_Pending_commands_snapshot_persisted_and_restored()
+    {
+        var (db, scope) = await PrepareAsync(nameof(CMD_I_007_Pending_commands_snapshot_persisted_and_restored));
+        Node first;
+        Command pending;
+        int partition;
+        long checkpoint;
+        await using (first = await StartLifeAsync(db, scope, seed: (n, c) => SeedAsync(n, c, servers: 1, doorsPerServer: 3), configure: AddCommandsParticipant))
+        {
+            await IngestAsync(first, "closed");
+            await WaitAppliedAsync(first);
+            var door = first.Devices[0].Id;
+            partition = Partitioning.Of(door);
+            pending = PendingCommand(door, TimeProvider.System.GetUtcNow());
+            var processor = first.Services.GetRequiredService<CommandProcessor>();
+            await first.Services.GetRequiredService<IPartitionDispatcher>().PostAsync(
+                partition,
+                _ =>
+                {
+                    processor.Store(partition).Put(pending, pending.RequestedAt);
+                    return ValueTask.CompletedTask;
+                },
+                Ct);
+
+            (await first.Services.GetRequiredService<Snapshotter>().SnapshotAsync(onWorkers: true, Ct)).ShouldBeTrue();
+            checkpoint = first.Reader.CurrentSequence;
+            (await CountAsync(db, $"SELECT count(*) FROM wp_state.items WHERE kind = 'command' AND key = '{pending.Id.Value}' AND partition = {partition}")).ShouldBe(1);
+            (await CountAsync(db, $"SELECT max(sequence) FROM wp_state.checkpoints WHERE consumer = 'commands' AND partition = {partition}"))
+                .ShouldBe(first.Services.GetRequiredService<CommandProcessor>().Store(partition).Sequence);
+        }
+
+        // A crash: no shutdown snapshot. The next life restores the pending store inside StateRestore.
+        await using var second = await StartLifeAsync(db, scope, devices: first.Devices, servers: first.Servers, configure: AddCommandsParticipant);
+        var restored = await second.Services.GetRequiredService<IPartitionDispatcher>().InvokeAsync(
+            partition,
+            _ => ValueTask.FromResult(second.Services.GetRequiredService<CommandProcessor>().Find(partition, pending.Id)),
+            Ct);
+
+        restored.ShouldNotBeNull();
+        System.Text.Json.JsonSerializer.Serialize(restored, CommandRecordCodec.Json).ShouldBe(System.Text.Json.JsonSerializer.Serialize(pending, CommandRecordCodec.Json));
+        second.Services.GetServices<IPartitionSubscriber>().Single(s => s.Name == "commands").GetRecoveryCheckpoint(partition)
+            .ShouldNotBeNull().ShouldBeGreaterThanOrEqualTo(checkpoint);
+    }
+
+    /// <summary>The pending store of the commands module and its subscriber, without the dispatch side (CMD §6, STA §8.1).</summary>
+    private static void AddCommandsParticipant(IServiceCollection services)
+    {
+        services.AddSingleton(new CommandsOptions());
+        services.AddSingleton<CommandDirectory>();
+        services.AddSingleton<CommandRecordCodec>();
+        services.AddSingleton<CommandWaiters>();
+        services.AddSingleton(_ => new CommandMetrics());
+        services.AddSingleton<CommandProcessor>();
+        services.AddSingleton<PendingCommandSnapshot>();
+        services.AddSingleton<ISnapshotParticipant>(sp => sp.GetRequiredService<PendingCommandSnapshot>());
+        services.AddSingleton<IPartitionSubscriber, CommandSubscriber>();
+    }
+
+    private static Command PendingCommand(DeviceId door, DateTimeOffset now)
+    {
+        var at = new DateTimeOffset(now.UtcTicks - now.UtcTicks % TimeSpan.TicksPerMillisecond, TimeSpan.Zero);
+        return new Command
+        {
+            Id = CommandId.New(),
+            Target = door,
+            Path = CommandPath.FromTrusted("openable.open"),
+            Arguments = new Dictionary<string, WpValue>(),
+            Issuer = new CommandIssuer.User(UserId.New(), SessionId.New(), Watchpoint.Identity.Contracts.ClientKind.Web, null),
+            EffectiveRisk = Risk.Normal,
+            Priority = CommandPriority.High,
+            Timeout = TimeSpan.FromSeconds(10),
+            ExpiresAt = at.AddMinutes(5),
+            State = CommandState.Queued,
+            RequestedAt = at,
+            QueuedAt = at,
+        };
+    }
+
     private async Task<(PostgresDatabase Db, NatsScope Scope)> PrepareAsync(string test, long logBytes = 64L * 1024 * 1024)
     {
         await postgres.StartAsync(Ct);
@@ -169,7 +250,8 @@ public sealed class StateIntegrationTests(PostgresContainerFixture postgres, Nat
         Func<ServiceProvider, ConnectionId[], Task<(List<Server> Servers, List<Device> Devices)>>? seed = null,
         string? snapshotInterval = null,
         List<Device>? devices = null,
-        List<Server>? servers = null)
+        List<Server>? servers = null,
+        Action<IServiceCollection>? configure = null)
     {
         var cs = new NpgsqlConnectionStringBuilder(db.ConnectionString);
         var settings = new Dictionary<string, string?>
@@ -198,6 +280,7 @@ public sealed class StateIntegrationTests(PostgresContainerFixture postgres, Nat
         services.AddSingleton(new EventLogEndpoint(nats.Url, null));
         services.AddPipeline(PipelineNode.OptionsFor(scope, _logBytes));
         services.AddWatchpointState(configuration);
+        configure?.Invoke(services);
         var provider = services.BuildServiceProvider();
         var node = new Node(provider, logs);
         await provider.GetRequiredService<IStorageStartup>().MigrateAsync(Ct);
