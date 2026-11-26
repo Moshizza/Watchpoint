@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using Watchpoint.Commands.Contracts;
 using Watchpoint.Commands.Internal;
+using Watchpoint.Commands.Internal.Dispatch;
 using Watchpoint.Identity.Contracts;
 using Watchpoint.Integrations.Contracts;
 using Watchpoint.Kernel.Ids;
@@ -30,7 +31,7 @@ namespace Watchpoint.Commands.Tests;
 /// records to an in-memory log and hands them to the processor — the order the pipeline guarantees (PIP §7.3).
 /// The value validator and the record kind registry are the real ones of the Model and Pipeline modules.
 /// </summary>
-internal sealed class CommandsHarness : IDisposable
+internal sealed class CommandsHarness : IDisposable, IAsyncDisposable
 {
     public static readonly CommandPath Open = CommandPath.FromTrusted("openable.open");
     public static readonly CommandPath UnlockFor = CommandPath.FromTrusted("openable.unlockFor");
@@ -42,7 +43,7 @@ internal sealed class CommandsHarness : IDisposable
     private static readonly Lazy<(IValueValidator Values, ILogRecordTypeRegistry Records)> _shared = new(Load);
     private readonly ILoggerFactory _loggerFactory;
 
-    public CommandsHarness(Action<CommandsOptions>? configure = null, ICommandAuthorizer? authorizer = null)
+    public CommandsHarness(Action<CommandsOptions>? configure = null, ICommandAuthorizer? authorizer = null, bool dispatch = false)
     {
         configure?.Invoke(Options);
         _loggerFactory = LoggerFactory.Create(b => b.SetMinimumLevel(LogLevel.Trace).AddProvider(Logs));
@@ -64,7 +65,19 @@ internal sealed class CommandsHarness : IDisposable
         var rights = authorizer ?? Authorizer;
         Validator = new CommandValidator(Registry, Types, _shared.Value.Values, rights, StepUpGuard, Connections, Options);
         Service = new CommandService(Validator, Processor, Directory, Partitions, Codec, Registry, Types, _shared.Value.Values, rights, StepUpGuard, Time, Metrics);
+        if (dispatch)
+        {
+            var services = new DispatchServices(Processor, Partitions, Codec, Channel, Connections, Registry, Options, Time,
+                _loggerFactory.CreateLogger<CommandDispatch>());
+            Dispatch = new CommandDispatch(services, Types, Metrics);
+        }
     }
+
+    /// <summary>The connector channel seen by the dispatch (calls wait until the test completes them, unless a handler is set).</summary>
+    public FakeChannel Channel { get; } = new();
+
+    /// <summary>The dispatch, when the harness was built with <c>dispatch: true</c>.</summary>
+    public CommandDispatch? Dispatch { get; }
 
     public FakeTimeProvider Time { get; } = TestTime.CreateProvider();
 
@@ -162,6 +175,18 @@ internal sealed class CommandsHarness : IDisposable
     }
 
     public Task TickAsync(DeviceId? device = null) => Partitions.TickAsync(Partitioning.Of(device ?? Door));
+
+    /// <summary>Stops the dispatch (if any), then disposes the rest.</summary>
+    public async ValueTask DisposeAsync()
+    {
+        if (Dispatch is { } dispatch)
+        {
+            Channel.ReleaseAll();
+            await dispatch.DisposeAsync();
+        }
+
+        Dispose();
+    }
 
     public void Dispose()
     {
@@ -506,7 +531,22 @@ internal sealed class TestMeterFactory : IMeterFactory
         };
         _listener.SetMeasurementEventCallback<long>((instrument, value, tags, _) => Add(instrument, tags, value));
         _listener.SetMeasurementEventCallback<double>((instrument, value, tags, _) => Add(instrument, tags, value));
+        _listener.SetMeasurementEventCallback<int>((instrument, value, tags, _) => Add(instrument, tags, value));
         _listener.Start();
+    }
+
+    /// <summary>Records the current values of the observable instruments (gauges).</summary>
+    public void Observe() => _listener.RecordObservableInstruments();
+
+    /// <summary>The measurements of an instrument carrying every given tag, oldest first.</summary>
+    public List<double> Values(string instrument, params (string Tag, string Value)[] tags)
+    {
+        lock (_measurements)
+        {
+            return [.. _measurements
+                .Where(m => m.Instrument == instrument && tags.All(w => m.Tags.Any(t => t.Key == w.Tag && Equals(t.Value?.ToString(), w.Value))))
+                .Select(m => m.Value)];
+        }
     }
 
     public Meter Create(MeterOptions options)

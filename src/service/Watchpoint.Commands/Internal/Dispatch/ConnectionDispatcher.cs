@@ -371,11 +371,9 @@ internal sealed class ConnectionDispatcher : IAsyncDisposable
         {
             var call = _s.Channel.ExecuteAsync(Connection, request, linked.Token).AsTask();
             ObserveLate(call);
-            result = await call.WaitAsync(command.Timeout, _s.Time, ct).ConfigureAwait(false);
-        }
-        catch (TimeoutException)
-        {
-            return (CommandRecordKinds.TimedOut, new CommandIdBody(command.Id));
+
+            // The deadline also ends a connector call that ignores its token; its late result is dropped.
+            result = await call.WaitAsync(linked.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {

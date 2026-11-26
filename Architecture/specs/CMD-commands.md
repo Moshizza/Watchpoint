@@ -286,13 +286,19 @@ and the subscriber reports its recovery checkpoint from then on (until then no r
   2. If `ExpiresAt` passed → `command.expired`.
   3. Check connection status: not `Connected`/`Degraded` → keep queued until expiry, unless
      `Commands:FailFastWhenDisconnected` (default **true** for user commands): then
-     `command.failed` with `ConnectionDown` immediately (operators must know now).
+     `command.failed` with `ConnectionDown` immediately (operators must know now), key
+     `errors.commands.connection.down` (arg `state`). The setting applies to commands of people (issuer `User` or
+     `Federation`); automations, scripts and alarm actions always wait until expiry (or the connection comes back).
   4. Append `command.dispatched` (awaited, durable), lock device, call
      `IConnectionCommandChannel.ExecuteAsync` with `Deadline = now + Timeout` and the
      command's priority.
   5. Map the result: `Succeeded` → `command.succeeded`; `Failed` → `command.failed` with the
-     connector's category and message; `NotSupported` → `command.failed(NotSupported)`;
-     deadline reached → `command.timedOut`.
+     connector's category and message (key `packages.<packageId>.<key>`, vendor code kept); `NotSupported` →
+     `command.failed(NotSupported)` key `errors.commands.not_supported`; deadline reached (also when the connector
+     ignores its cancellation, or returns `Timeout`) → `command.timedOut`, a later connector result is dropped; the
+     connector throwing → `command.failed(InternalError)` key `errors.commands.connector.failed` (log 2413).
+     A command whose device (or server) was deleted while queued → `command.failed(InvalidState)` key
+     `errors.commands.target.not_found`.
   6. Unlock device; continue.
 - Concurrency: up to `Commands:MaxInFlightPerConnection` (default 8) commands in flight per
   connection (the connector's `RequestGate` also limits).
@@ -303,6 +309,8 @@ and the subscriber reports its recovery checkpoint from then on (until then no r
 
 - After recovery, commands found in `Queued` are requeued; in `AwaitingApproval` keep waiting
   (expiry still applies).
+- The subscriber does not feed the dispatchers while the partition replays (`PartitionContext.IsRecovering`);
+  `OnRecoveryCompleted` runs these rules as posted work on the recovered pending store.
 - Commands found in `Dispatched` without outcome (node crashed during the call): if the command
   definition is `Idempotent` and `Attempt == 1` → requeued with `Attempt = 2`
   (`command.queued` record with attempt); otherwise `command.failed` with category `Conflict` and
@@ -379,7 +387,8 @@ Live topics:
 `commands.outside_schedule`, `commands.client_kind_not_allowed`, `commands.reason.required`,
 `commands.connection.missing`, `commands.not_before.too_far`, `commands.group.too_large`,
 `commands.cancel.too_late`, `commands.approval.self_forbidden`, `commands.approval.expired`,
-`commands.approval.not_pending`, `commands.outcome_unknown`, `commands.command.not_found` (no active command and
+`commands.approval.not_pending`, `commands.outcome_unknown`, `commands.connection.down`, `commands.connector.failed`,
+`commands.command.not_found` (no active command and
 none finished in the last 24 h), plus connector failure messages. Failure message key (not an error):
 `errors.commands.approval.rejected` (arg `reason`). Codes of other modules returned as they are:
 `common.forbidden`, `common.validation.failed`, `model.command.not_found`, `model.type.not_found`,
@@ -393,11 +402,13 @@ none finished in the last 24 h), plus connector failure messages. Failure messag
 | 2410 | Warning | Command {CommandId} failed: {Category} {VendorCode} |
 | 2411 | Warning | Command {CommandId} timed out after {TimeoutMs} ms |
 | 2412 | Warning | Command {CommandId} not verified |
+| 2413 | Warning | Command {CommandId}: the connector threw instead of returning a result |
 | 2420 | Debug | Ignored late transition {Kind} for command {CommandId} in state {State} |
 | 2430 | Information | Group {GroupId} completed: {Counters} |
+| 2440 | Error | Command dispatch of connection {ConnectionId} failed |
 
 Metrics: `watchpoint.commands.requests` (counter by `path`, `outcome`),
-`watchpoint.commands.latency` (histogram ms requested→terminal, by `path`),
+`watchpoint.commands.latency` (histogram ms requested→terminal, by `path` and terminal `state`),
 `watchpoint.commands.queue` (gauge by `connection`, `priority`, T2.02), `watchpoint.commands.verification`
 (counter by `result`), `watchpoint.commands.transitions.ignored` (counter by `kind`). Request outcomes:
 `accepted`, `rejected`, `duplicate`.
