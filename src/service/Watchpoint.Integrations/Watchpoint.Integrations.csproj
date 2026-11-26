@@ -17,6 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../Watchpoint.Api/Watchpoint.Api.csproj" />
     <ProjectReference Include="../Watchpoint.Kernel/Watchpoint.Kernel.csproj" />
     <ProjectReference Include="../Watchpoint.Model.Documents/Watchpoint.Model.Documents.csproj" />
     <ProjectReference Include="../Watchpoint.Model/Watchpoint.Model.csproj" />

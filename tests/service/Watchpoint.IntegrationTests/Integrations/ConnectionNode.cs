@@ -8,8 +8,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using Watchpoint.Api.Contracts;
 using Watchpoint.Host.Modules;
 using Watchpoint.Hosting;
+using Watchpoint.IntegrationTests.Testing;
 using Watchpoint.Integrations.Contracts;
 using Watchpoint.Integrations.Testing;
 using Watchpoint.Kernel.Ids;
@@ -85,7 +87,7 @@ internal sealed class ConnectionNode : IAsyncDisposable
         await StartAsync(ct);
     }
 
-    public HttpClient Http() => new() { BaseAddress = BaseAddress };
+    public HttpClient Http() => new HttpClient { BaseAddress = BaseAddress }.WithAdminToken();
 
     /// <summary>The node's warnings and errors so far (diagnostics for a failed wait).</summary>
     public string Problems() => string.Join(Environment.NewLine, Logs.Entries
@@ -176,7 +178,9 @@ internal sealed class ConnectionNode : IAsyncDisposable
             module.ConfigureServices(builder.Services, context);
         }
 
+        builder.Services.AddTestApi(builder.Configuration);
         _app = builder.Build();
+        _app.UseWatchpointApi();
         foreach (var module in _modules)
         {
             module.MapEndpoints(_app);

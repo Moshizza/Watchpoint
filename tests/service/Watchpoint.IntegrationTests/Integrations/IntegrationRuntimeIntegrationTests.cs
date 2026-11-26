@@ -1,6 +1,6 @@
 using System.Globalization;
-using System.Net;
 using System.Net.Http.Headers;
+using System.Net;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.Loader;
@@ -14,6 +14,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using Shouldly;
+using Watchpoint.Api.Contracts;
+using Watchpoint.IntegrationTests.Testing;
 using Watchpoint.Integrations.Contracts;
 using Watchpoint.Integrations.Internal.Packages;
 using Watchpoint.Integrations.Testing;
@@ -118,7 +120,7 @@ public sealed class IntegrationRuntimeIntegrationTests(PostgresContainerFixture 
     {
         await using var node = await NodeAsync(nameof(IRT_I_003_Upload_wpkg_through_API));
         await node.Start();
-        using var http = new HttpClient { BaseAddress = node.BaseAddress };
+        using var http = new HttpClient { BaseAddress = node.BaseAddress }.WithAdminToken();
 
         // Valid package: 201 with Location, then listed.
         using var valid = Multipart(new TestPackage("vendor.uploaded").WithConnector().ToWpkg(node.DevKey), "vendor.uploaded.wpkg");
@@ -290,7 +292,9 @@ public sealed class IntegrationRuntimeIntegrationTests(PostgresContainerFixture 
         builder.Services.AddPostgresStorage();
         builder.Services.AddWatchpointModel();
         builder.Services.AddWatchpointIntegrations(node.Options);
+        builder.Services.AddTestApi(builder.Configuration);
         var app = builder.Build();
+        app.UseWatchpointApi();
         app.MapPackageEndpoints();
         app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
         {

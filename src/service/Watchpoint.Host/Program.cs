@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting.Systemd;
 using Serilog;
+using Watchpoint.Api.Contracts;
 using Watchpoint.Host.Dev;
 using Watchpoint.Host.Nats;
 using Watchpoint.Hosting;
@@ -97,6 +98,12 @@ public static class Program
                 return elevatedExit;
             }
 
+            // Development is refused on a production install (spec HST §12, HST-U-048)
+            if (CheckDevelopmentInstall(settings, RunsAsService(System.Environment.GetEnvironmentVariable), NodePaths.Resolve().Data, bootstrap) is { } devExit)
+            {
+                return devExit;
+            }
+
             // Validate settings (spec HST §4, HST-U-003)
             var validationResults = settings.Validate(new ValidationContext(settings)).ToList();
             if (validationResults.Count > 0)
@@ -126,6 +133,10 @@ public static class Program
             .Enrich.WithProperty("NodeName", settings.Node.Name)
             .Enrich.With<ModuleEnricher>()
             .Enrich.With<RedactionEnricher>();
+
+        // ASP.NET Core's raw request lines carry query strings (hub access_token): only API event 2002 logs requests (API §10).
+        loggerConfig.MinimumLevel.Override(Api.Contracts.ApiServiceCollectionExtensions.HostingDiagnosticsCategory, Serilog.Events.LogEventLevel.Warning);
+        loggerConfig.MinimumLevel.Override(Api.Contracts.ApiServiceCollectionExtensions.RoutingCategory, Serilog.Events.LogEventLevel.Warning);
 
         foreach (var (category, levelStr) in settings.Logging.Overrides)
         {
@@ -304,11 +315,15 @@ public static class Program
             await next();
         });
 
+        // REST pipeline (spec API §4), after the readiness barrier
+        app.UseWatchpointApi();
+
         // Log node starting (HST1102)
         var loggerFactory = app.Services.GetRequiredService<Microsoft.Extensions.Logging.ILoggerFactory>();
         var logger = loggerFactory.CreateLogger("Watchpoint.Host");
         var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.0.0";
-        HostingLog.LogNodeStarting(logger, settings.Node.Id, settings.Node.Name, version, settings.Node.Environment);
+        var startingLevel = NodeStartingLevel(settings.Node.Environment);
+        HostingLog.LogNodeStarting(logger, startingLevel, settings.Node.Id, settings.Node.Name, version, settings.Node.Environment);
 
         // Management URLs set for routing filter
         var managementPorts = new HashSet<int>();
@@ -328,6 +343,9 @@ public static class Program
 
         // Map Health and Prometheus endpoints
         MapHostEndpoints(app, managementPorts);
+
+        // Every /api endpoint declares its guard and operation id (spec API §5.1, API-U-030)
+        ApiConventions.Validate(app);
 
         try
         {
@@ -433,6 +451,65 @@ public static class Program
         HostingLog.LogElevatedAllowed(logger);
         return null;
     }
+
+    /// <summary>
+    /// Refuses <c>Node:Environment = Development</c> on a production install (spec HST §12, HST-U-048): when the host runs
+    /// as a service (Windows service, or systemd: <c>NOTIFY_SOCKET</c> / <c>INVOCATION_ID</c>) or <c>Paths:Data</c> is the
+    /// OS default, logs <c>HST1101</c> and returns exit code 78; otherwise <see langword="null"/>.
+    /// </summary>
+    /// <param name="settings">The node settings.</param>
+    /// <param name="runsAsService">Whether the process runs as a service.</param>
+    /// <param name="defaultDataPath">The production default of <c>Paths:Data</c> on this OS.</param>
+    /// <param name="logger">The logger.</param>
+    /// <returns>The exit code to stop with, or <see langword="null"/> to continue.</returns>
+    public static int? CheckDevelopmentInstall(NodeSettings settings, bool runsAsService, string defaultDataPath, Microsoft.Extensions.Logging.ILogger logger)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(logger);
+        if (settings.Node.Environment != NodeEnvironment.Development)
+        {
+            return null;
+        }
+
+        string? problem = null;
+        if (runsAsService)
+        {
+            problem = "Node:Environment=Development is refused when running as a service (production install)";
+        }
+        else
+        {
+            var data = NodePaths.Resolve(settings.Paths).Data;
+            if (string.Equals(Path.GetFullPath(data).TrimEnd(Path.DirectorySeparatorChar), Path.GetFullPath(defaultDataPath).TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase))
+            {
+                problem = "Node:Environment=Development is refused with the production data path " + defaultDataPath + " (set Paths:Data)";
+            }
+        }
+
+        if (problem is null)
+        {
+            return null;
+        }
+
+        HostingLog.LogInvalidNodeSettings(logger, problem);
+        return ExitCodeConfig;
+    }
+
+    /// <summary>Whether the process runs as a service: Windows service, or systemd (<c>NOTIFY_SOCKET</c> or <c>INVOCATION_ID</c> set).</summary>
+    /// <param name="environment">Reads an environment variable.</param>
+    /// <returns><see langword="true"/> for a service.</returns>
+    public static bool RunsAsService(Func<string, string?> environment)
+    {
+        ArgumentNullException.ThrowIfNull(environment);
+        return Microsoft.Extensions.Hosting.WindowsServices.WindowsServiceHelpers.IsWindowsService()
+            || !string.IsNullOrEmpty(environment("NOTIFY_SOCKET"))
+            || !string.IsNullOrEmpty(environment("INVOCATION_ID"));
+    }
+
+    /// <summary>Level of event 1102: Warning in Development (every relaxation is public, HST §12), else Information.</summary>
+    /// <param name="environment">The node environment.</param>
+    /// <returns>The level.</returns>
+    public static Microsoft.Extensions.Logging.LogLevel NodeStartingLevel(NodeEnvironment environment) =>
+        environment == NodeEnvironment.Development ? Microsoft.Extensions.Logging.LogLevel.Warning : Microsoft.Extensions.Logging.LogLevel.Information;
 
     /// <summary>
     /// Generates a v7 <c>Node:Id</c> when none is set and writes it to <paramref name="watchpointJsonPath"/> (spec HST §4);

@@ -65,12 +65,9 @@ public sealed class ConnectionIntegrationTests(PostgresContainerFixture postgres
         api["status"]!["state"]!.GetValue<string>().ShouldBe("connected");
         api["status"]!["counters"]!["observationsAccepted"]!.GetValue<long>().ShouldBeGreaterThan(0);
 
-        // The endpoints that change the node answer loopback requests only (IRT §10): others get 404, the endpoint never runs.
-        var remote = new Microsoft.AspNetCore.Http.DefaultHttpContext();
-        remote.Connection.RemoteIpAddress = IPAddress.Parse("192.0.2.10");
-        var filtered = await EndpointResults.LoopbackOnlyAsync(new Microsoft.AspNetCore.Http.DefaultEndpointFilterInvocationContext(remote),
-            _ => throw new InvalidOperationException("the endpoint ran"));
-        filtered.ShouldBeOfType<Microsoft.AspNetCore.Http.HttpResults.NotFound>();
+        // Changes need a desktop token with the configuration permission (IRT §10, API §5.2–§5.3).
+        using var anonymous = new HttpClient { BaseAddress = node.BaseAddress };
+        (await anonymous.PostAsync($"api/v1/connections/{id.Value:D}/stop", null, Ct)).StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
     }
 
     [Fact]

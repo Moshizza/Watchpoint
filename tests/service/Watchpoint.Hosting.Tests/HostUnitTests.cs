@@ -522,6 +522,43 @@ public sealed class HostUnitTests
     }
 
     [Fact]
+    public void HST_U_048_Development_refused_on_a_production_install()
+    {
+        using var logs = new LogCollector();
+        var logger = logs.CreateLogger("Watchpoint.Host");
+        var defaultData = NodePaths.Resolve().Data;
+        var custom = Path.Combine(Path.GetTempPath(), "wp-dev-" + Guid.NewGuid().ToString("N"));
+        NodeSettings Dev(string? data) => new()
+        {
+            Node = new NodeSection { Environment = NodeEnvironment.Development },
+            Paths = new PathsSection { Data = data },
+        };
+
+        // Service host (Windows service / systemd) → exit 78.
+        Program.CheckDevelopmentInstall(Dev(custom), runsAsService: true, defaultData, logger).ShouldBe(Program.ExitCodeConfig);
+        logs.WithEventId(HostingLog.InvalidNodeSettings.Id).Single().Level.ShouldBe(LogLevel.Critical);
+
+        // Console run with the OS default data path → exit 78.
+        logs.Clear();
+        Program.CheckDevelopmentInstall(Dev(null), runsAsService: false, defaultData, logger).ShouldBe(Program.ExitCodeConfig);
+        Program.CheckDevelopmentInstall(Dev(defaultData), runsAsService: false, defaultData, logger).ShouldBe(Program.ExitCodeConfig);
+
+        // Console run with a custom data path → starts, 1102 at Warning.
+        logs.Clear();
+        Program.CheckDevelopmentInstall(Dev(custom), runsAsService: false, defaultData, logger).ShouldBeNull();
+        logs.Entries.ShouldBeEmpty();
+        Program.NodeStartingLevel(NodeEnvironment.Development).ShouldBe(LogLevel.Warning);
+        Program.NodeStartingLevel(NodeEnvironment.Production).ShouldBe(LogLevel.Information);
+
+        // Production is never refused by this check; systemd is detected by its variables.
+        var production = new NodeSettings { Node = new NodeSection { Environment = NodeEnvironment.Production } };
+        Program.CheckDevelopmentInstall(production, runsAsService: true, defaultData, logger).ShouldBeNull();
+        Program.RunsAsService(name => name == "NOTIFY_SOCKET" ? "/run/systemd/notify" : null).ShouldBeTrue();
+        Program.RunsAsService(name => name == "INVOCATION_ID" ? "abc" : null).ShouldBeTrue();
+        Program.RunsAsService(_ => null).ShouldBeFalse();
+    }
+
+    [Fact]
     public void HST_U_015_Dev_seed_skipped_outside_Development()
     {
         using var logs = new LogCollector();
