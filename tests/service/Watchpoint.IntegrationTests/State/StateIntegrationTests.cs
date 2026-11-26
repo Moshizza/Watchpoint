@@ -180,10 +180,15 @@ public sealed class StateIntegrationTests(PostgresContainerFixture postgres, Nat
                 Ct);
 
             (await first.Services.GetRequiredService<Snapshotter>().SnapshotAsync(onWorkers: true, Ct)).ShouldBeTrue();
-            checkpoint = first.Reader.CurrentSequence;
+
+            // The checkpoint is per partition: the last record applied in the door's partition, not the node-wide maximum.
+            checkpoint = await first.Services.GetRequiredService<IPartitionDispatcher>().InvokeAsync(
+                partition,
+                _ => ValueTask.FromResult(processor.Store(partition).Sequence),
+                Ct);
+            checkpoint.ShouldBeGreaterThan(0);
             (await CountAsync(db, $"SELECT count(*) FROM wp_state.items WHERE kind = 'command' AND key = '{pending.Id.Value}' AND partition = {partition}")).ShouldBe(1);
-            (await CountAsync(db, $"SELECT max(sequence) FROM wp_state.checkpoints WHERE consumer = 'commands' AND partition = {partition}"))
-                .ShouldBe(first.Services.GetRequiredService<CommandProcessor>().Store(partition).Sequence);
+            (await CountAsync(db, $"SELECT max(sequence) FROM wp_state.checkpoints WHERE consumer = 'commands' AND partition = {partition}")).ShouldBe(checkpoint);
         }
 
         // A crash: no shutdown snapshot. The next life restores the pending store inside StateRestore.
@@ -196,7 +201,7 @@ public sealed class StateIntegrationTests(PostgresContainerFixture postgres, Nat
         restored.ShouldNotBeNull();
         System.Text.Json.JsonSerializer.Serialize(restored, CommandRecordCodec.Json).ShouldBe(System.Text.Json.JsonSerializer.Serialize(pending, CommandRecordCodec.Json));
         second.Services.GetServices<IPartitionSubscriber>().Single(s => s.Name == "commands").GetRecoveryCheckpoint(partition)
-            .ShouldNotBeNull().ShouldBeGreaterThanOrEqualTo(checkpoint);
+            .ShouldBe(checkpoint);
     }
 
     /// <summary>The pending store of the commands module and its subscriber, without the dispatch side (CMD §6, STA §8.1).</summary>
