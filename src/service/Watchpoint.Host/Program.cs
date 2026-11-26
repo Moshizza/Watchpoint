@@ -403,6 +403,47 @@ public static class Program
         });
     }
 
+    /// <summary>
+    /// Composes every module as the host does (Development, nothing started, no database or NATS contacted) and maps their
+    /// endpoints: for the OpenAPI export (<c>tools/export-openapi</c>, API §5.7) and the endpoint convention tests.
+    /// </summary>
+    /// <returns>The application, not started; the caller disposes it.</returns>
+    public static WebApplication ComposeForInspection()
+    {
+        var builder = WebApplication.CreateSlimBuilder();
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Database:Databases:default:Host"] = "localhost",
+            ["Database:Databases:default:Name"] = "watchpoint",
+            ["Database:Databases:default:Username"] = "watchpoint",
+            ["Database:Databases:default:PasswordDev"] = "inspection",
+            ["Database:Databases:default:Tls"] = "Disable",
+        });
+        var node = new NodeSettings
+        {
+            Node = new NodeSection { Id = Guid.CreateVersion7(), Name = "inspection", Environment = NodeEnvironment.Development },
+            Site = new SiteSection { Id = Guid.CreateVersion7() },
+            Paths = new PathsSection { Data = Path.Combine(Path.GetTempPath(), "watchpoint-inspection") },
+        };
+        var paths = NodePaths.Resolve(node.Paths);
+        builder.Services.AddSingleton(node);
+        builder.Services.AddSingleton(paths);
+        builder.Services.AddSingleton(new NatsEndpoint("nats://127.0.0.1:4222", null));
+        var context = new ModuleContext { Node = node, Configuration = builder.Configuration, Paths = paths, IsDevelopment = true };
+        foreach (var module in ModuleCatalog.All)
+        {
+            module.ConfigureServices(builder.Services, context);
+        }
+
+        var app = builder.Build();
+        foreach (var module in ModuleCatalog.All)
+        {
+            module.MapEndpoints(app);
+        }
+
+        return app;
+    }
+
     /// <summary>Path of <c>watchpoint.json</c>: <c>--config</c> / <c>--config=</c> when given, else <c>&lt;Data&gt;/watchpoint.json</c>.</summary>
     /// <param name="args">Command-line arguments.</param>
     /// <returns>The path.</returns>
