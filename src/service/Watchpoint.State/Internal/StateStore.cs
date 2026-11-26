@@ -6,6 +6,7 @@ using Watchpoint.Model.Contracts;
 using Watchpoint.Pipeline.Contracts;
 using Watchpoint.Registry.Contracts;
 using Watchpoint.State.Contracts;
+using Watchpoint.Storage.Contracts;
 
 namespace Watchpoint.State.Internal;
 
@@ -16,7 +17,7 @@ namespace Watchpoint.State.Internal;
 /// <see cref="SetServerUnavailable"/>) must be called only on the worker thread of the partition it names — the
 /// single writer per partition (spec STA §6.1) — so none of them takes a lock.
 /// </summary>
-internal sealed class StateStore : IStateReader, IAggregateReader
+internal sealed class StateStore : IStateReader, IAggregateReader, ILastValueSource
 {
     private static readonly IReadOnlyDictionary<PropertyPath, PropertyState> _emptyProperties = new Dictionary<PropertyPath, PropertyState>();
     private static readonly IReadOnlyDictionary<EventPath, LastEvent> _emptyLastEvents = new Dictionary<EventPath, LastEvent>();
@@ -442,6 +443,162 @@ internal sealed class StateStore : IStateReader, IAggregateReader
         }
 
         return _aggregates.RunConsistencyCheck(entries, logger);
+    }
+
+    /// <summary>Gets the store of a partition (snapshotter and recovery).</summary>
+    public PartitionStateStore PartitionStore(int partition) => _partitions[partition];
+
+    /// <summary>
+    /// Collects the dirty set of a partition (spec STA §8.1): the persisted form of every entity changed since the
+    /// previous call, the ids removed since then, and the partition sequence they reflect. Must run on the partition
+    /// worker (or while no worker runs).
+    /// </summary>
+    public PartitionSnapshot CollectSnapshot(int partition)
+    {
+        var store = _partitions[partition];
+        var (changed, deleted) = store.TakeDirty();
+        var upserts = new List<StateItem>(changed.Count);
+        foreach (var id in changed)
+        {
+            if (store.TryGet(id, out var state))
+            {
+                var payload = StateSerializer.Serialize(state, path => store.TryPeekPreStaleQuality(id, path, out var q) ? q : null);
+                upserts.Add(new StateItem(StateSerializer.Kind, id, partition, payload, state.Sequence));
+            }
+        }
+
+        return new PartitionSnapshot(partition, store.Sequence, upserts, [.. deleted], changed, deleted);
+    }
+
+    /// <summary>
+    /// Restores one registered entity at recovery (spec STA §8.2 step 1): from its persisted form when there is one
+    /// (properties adapted when the type changed meanwhile), as a new entity otherwise. The summary is recomputed;
+    /// <see cref="DeviceState.ServerUnavailable"/> is recomputed after the replay (<see cref="RecomputeServerUnavailable"/>).
+    /// Runs while no partition worker runs.
+    /// </summary>
+    public void RestoreEntity(EntityInfo info, PersistedEntity? persisted, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(info);
+        if (HasEntity(info.Id))
+        {
+            RemoveEntity(info.Id, now);
+        }
+
+        if (persisted is null || persisted.Kind != info.Kind)
+        {
+            InitializeEntity(info, now);
+            return;
+        }
+
+        var store = PartitionOf(info.Id);
+        var flags = new DeviceFlags(!info.Enabled, info.Maintenance);
+        var properties = persisted.Properties;
+        StateSummary summary = _unknownSummary;
+        if (_typeCatalog.Get(info.Type).TryGetValue(out var type, out _))
+        {
+            if (persisted.Type != info.Type || !SameKeys(type, properties))
+            {
+                properties = RebuildProperties(type, properties);
+            }
+
+            summary = _evaluator.Evaluate(type, new PropertyMapView(properties), flags, info.Attributes, null);
+            foreach (var (path, property) in properties)
+            {
+                if (property.LastSeen is { } lastSeen && type.Properties.TryGetValue(path, out var definition) && definition.StaleAfter is { } staleAfter)
+                {
+                    store.StaleTracker.Schedule(info.Id, path, lastSeen + staleAfter);
+                }
+            }
+        }
+
+        var state = new DeviceState(info.Id, info.Kind, info.Type, properties, persisted.Health, summary, false, persisted.LastEvents, persisted.Sequence, persisted.UpdatedAt);
+        store.Set(info.Id, state);
+        var scopes = MembershipScopes.Compute(_registry, info);
+        store.SetMeta(info.Id, new EntityMeta(scopes, flags, info.Attributes));
+        AdjustAggregates(null, null, scopes, summary.State);
+    }
+
+    /// <summary>
+    /// Recomputes <see cref="DeviceState.ServerUnavailable"/> of every device of a partition from the health of its
+    /// server chain (spec STA §8.2 step 3), after the replay of every partition. A server is unavailable when it is
+    /// offline, or unknown after it was heard from (the classification the runtime cascade reaches, STA §6.1).
+    /// </summary>
+    public void RecomputeServerUnavailable(int partition, DateTimeOffset now)
+    {
+        var store = _partitions[partition];
+        foreach (var state in store.Snapshot().ToList())
+        {
+            if (state.Kind != EntityKind.Device || !_registry.GetDevice(DeviceId.From(state.EntityId)).TryGetValue(out var device, out _))
+            {
+                continue;
+            }
+
+            var unavailable = IsServerChainUnavailable(device.ServerId);
+            if (unavailable != state.ServerUnavailable)
+            {
+                store.Set(state.EntityId, state with { ServerUnavailable = unavailable, UpdatedAt = now });
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public void ProvideLastValues(int partition, ILastValueSink sink)
+    {
+        ArgumentNullException.ThrowIfNull(sink);
+        var store = _partitions[partition];
+        foreach (var state in store.Snapshot())
+        {
+            foreach (var (path, property) in state.Properties)
+            {
+                if (property.Value is { } value && property.Sequence > 0)
+                {
+                    var quality = property.Quality == Quality.Stale && store.TryPeekPreStaleQuality(state.EntityId, path, out var stored) ? stored : property.Quality;
+                    sink.SetProperty(state.EntityId, path, value, quality);
+                }
+            }
+
+            if (state.Health.LastContact is not null)
+            {
+                sink.SetHealth(state.EntityId, new HealthRecordBody(state.Health.Connectivity, state.Health.Faults, state.Health.Reason));
+            }
+        }
+    }
+
+    private bool IsServerChainUnavailable(ServerId server)
+    {
+        var visited = new HashSet<ServerId>();
+        ServerId? current = server;
+        while (current is { } id && visited.Add(id))
+        {
+            if (PartitionOf(id.Value).TryGet(id.Value, out var serverState)
+                && (serverState.Health.Connectivity == Connectivity.Offline
+                    || (serverState.Health.Connectivity == Connectivity.Unknown && serverState.Health.LastContact is not null)))
+            {
+                return true;
+            }
+
+            current = _registry.GetServer(id).TryGetValue(out var registered, out _) ? registered.ParentId : null;
+        }
+
+        return false;
+    }
+
+    private static bool SameKeys(DeviceTypeDefinition type, IReadOnlyDictionary<PropertyPath, PropertyState> properties)
+    {
+        if (type.Properties.Count != properties.Count)
+        {
+            return false;
+        }
+
+        foreach (var path in type.Properties.Keys)
+        {
+            if (!properties.ContainsKey(path))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private (ServerId Server, bool Unavailable)? ApplyRecord(PartitionStateStore store, LogRecord record, DateTimeOffset now, bool isRecovering)
