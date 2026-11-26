@@ -7,7 +7,7 @@ using Watchpoint.Api.Contracts;
 using Watchpoint.Kernel.Text;
 using Watchpoint.Secrets.Contracts;
 
-namespace Watchpoint.Api.Internal.System;
+namespace Watchpoint.Api.Internal.Platform;
 
 /// <summary>System and job endpoints owned by the API (spec API §6).</summary>
 internal static class SystemEndpoints

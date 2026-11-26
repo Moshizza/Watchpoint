@@ -18,9 +18,14 @@ internal static class ProblemDetailsWriter
         var code = status ?? HttpResults.StatusOf(error);
         context.Response.StatusCode = code;
         context.Response.ContentType = ContentType;
-        await using var writer = new Utf8JsonWriter(context.Response.Body);
-        Write(writer, error, code, TraceIdOf(context));
-        await writer.FlushAsync(context.RequestAborted).ConfigureAwait(false);
+        var buffer = new System.Buffers.ArrayBufferWriter<byte>(512);
+        using (var writer = new Utf8JsonWriter(buffer))
+        {
+            Write(writer, error, code, TraceIdOf(context));
+        }
+
+        context.Response.ContentLength = buffer.WrittenCount;
+        await context.Response.Body.WriteAsync(buffer.WrittenMemory, context.RequestAborted).ConfigureAwait(false);
     }
 
     public static void Write(Utf8JsonWriter writer, Error error, int status, string traceId)

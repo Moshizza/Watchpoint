@@ -7,19 +7,26 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Watchpoint.Api.Internal.Auth;
 using Watchpoint.Api.Internal.Idempotency;
 using Watchpoint.Api.Internal.Jobs;
 using Watchpoint.Api.Internal.OpenApi;
 using Watchpoint.Api.Internal.Pipeline;
-using Watchpoint.Api.Internal.System;
+using Watchpoint.Api.Internal.Platform;
 
 namespace Watchpoint.Api.Contracts;
 
 /// <summary>Registration and pipeline of the REST framework (spec API §4).</summary>
 public static class ApiServiceCollectionExtensions
 {
+    /// <summary>The ASP.NET Core category logging raw request lines; the host keeps it at Warning (Serilog override).</summary>
+    public const string HostingDiagnosticsCategory = "Microsoft.AspNetCore.Hosting.Diagnostics";
+
+    /// <summary>The ASP.NET Core routing category (logs request paths at Debug); kept at Warning.</summary>
+    public const string RoutingCategory = "Microsoft.AspNetCore.Routing";
+
     /// <summary>Registers the framework services. Needs IDN (<c>ITokenService</c>, <c>ISessionRegistry</c>) and a <see cref="TimeProvider"/>.</summary>
     /// <param name="services">The services.</param>
     /// <param name="configuration">The configuration (sections <c>Api</c>, <c>Http:TrustedProxies</c>).</param>
@@ -35,6 +42,12 @@ public static class ApiServiceCollectionExtensions
         configuration.GetSection("Api").Bind(options);
         options.TrustedProxies = configuration.GetSection("Http:TrustedProxies").Get<List<string>>() ?? [];
         services.AddSingleton(Options.Create(options));
+
+        // ASP.NET Core's own request lines carry the raw path and query string (a hub access_token, API §4 row 4,
+        // §10): only the framework's request log (2002) records requests.
+        services.AddLogging(b => b
+            .AddFilter(HostingDiagnosticsCategory, LogLevel.Warning)
+            .AddFilter(RoutingCategory, LogLevel.Warning));
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton(info);
         services.TryAddSingleton<IPermissionEvaluator, FallbackPermissionEvaluator>();
