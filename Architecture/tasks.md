@@ -93,6 +93,7 @@ Every AI agent working on the project has a unique name, used as its branch pref
 | `claude-cygnus` | Mohcine (Moshizza) | 2026-11-20 |
 | `claude-draco` | Mohcine (Moshizza) | 2026-11-20 |
 | `claude-tarazed` | Mohcine (Moshizza) | 2026-11-20 |
+| `claude-maia` | Mohcine (Moshizza) | 2026-11-26 |
 
 Owners of merged tasks keep the branch name actually used. Early Jules sessions pushed
 branches without an agent prefix (`jules-<session>-<hash>`: T1.08, T1.14, T1.17, T1.18, T2.08,
@@ -175,7 +176,7 @@ spec that must exist and pass.
 | ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
 |---|---|---|---|---|---|---|---|
 | T2.01 | Commands: model, validation (schema, rights hook, state), lifecycle state machine, log records | CMD §4–§6 | T1.16 | CMD-U-001…CMD-U-030 | [#37](https://github.com/Moshizza/Watchpoint/issues/37) | claude-lynx/T2.01-commands-model-validation-lifecycle | done |
-| T2.02 | Commands: per-connection priority queues, per-device serialisation, idempotency, timeouts, failover-safe queue | CMD §7–§8 | T2.01 | CMD-U-031…CMD-U-050, CMD-I-001…CMD-I-008 | [#38](https://github.com/Moshizza/Watchpoint/issues/38) | — | todo |
+| T2.02 | Commands: per-connection priority queues, per-device serialisation, idempotency, timeouts, failover-safe queue | CMD §7–§8 | T2.01 | CMD-U-031…CMD-U-050, CMD-I-001…CMD-I-008 | [#38](https://github.com/Moshizza/Watchpoint/issues/38) | claude-maia/T2.02-command-queues | in progress |
 | T2.03 | Commands: verification and group commands | CMD §9–§10 | T2.02 | CMD-U-051…CMD-U-065 | [#39](https://github.com/Moshizza/Watchpoint/issues/39) | — | todo |
 | T2.04 | Commands: REST + live messages, command journal queries | CMD §11 | T2.03, T1.20 | CMD-I-009…CMD-I-015 | [#40](https://github.com/Moshizza/Watchpoint/issues/40) | — | todo |
 | T2.05 | Events: model, event type registry, operator notes, journal query API | EVT | T1.10, T1.19 | EVT-U-001…EVT-U-020, EVT-I-001…EVT-I-008 | [#41](https://github.com/Moshizza/Watchpoint/issues/41) | — | todo |
