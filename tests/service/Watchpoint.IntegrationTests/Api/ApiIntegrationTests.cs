@@ -438,7 +438,14 @@ public sealed class ApiIntegrationTests(ApiNodeFixture node) : IClassFixture<Api
     {
         using var admin = node.Client(node.AdminToken);
         var connection = JsonNode.Parse(await admin.GetStringAsync("api/v1/connections", Ct))!["items"]![0]!["id"]!.GetValue<string>();
-        var id = (await FirstDeviceAsync(admin))["id"]!.GetValue<string>();
+        // The simulator must have delivered data first: a server that was never online cannot become unavailable.
+        string? id = null;
+        await ApiNodeFixture.PollAsync(async () =>
+        {
+            var states = JsonNode.Parse(await admin.GetStringAsync("api/v1/states?limit=1000", Ct))!["items"]!.AsArray();
+            id = states.FirstOrDefault(s => s!["properties"]!.AsObject().Any(p => p.Value!["quality"]!.GetValue<string>() == "good"))?["id"]?.GetValue<string>();
+            return id is not null;
+        }, TestTimeouts.Container * 2, "a simulator device has live data", Ct);
         try
         {
             (await admin.PostAsync($"api/v1/connections/{connection}/stop", null, Ct)).StatusCode.ShouldBe(HttpStatusCode.OK);
