@@ -248,10 +248,12 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.AspNetCore.OpenApi": "[10.0.15, )",
+          "Microsoft.EntityFrameworkCore.Relational": "[10.0.14, )",
           "Watchpoint.Hosting": "[1.0.0, )",
           "Watchpoint.Identity": "[1.0.0, )",
           "Watchpoint.Kernel": "[1.0.0, )",
-          "Watchpoint.Secrets": "[1.0.0, )"
+          "Watchpoint.Secrets": "[1.0.0, )",
+          "Watchpoint.Storage": "[1.0.0, )"
         }
       },
       "watchpoint.commands": {

@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
   </ItemGroup>
 
   <ItemGroup>
@@ -18,6 +19,7 @@
     <ProjectReference Include="../Watchpoint.Hosting/Watchpoint.Hosting.csproj" />
     <ProjectReference Include="../Watchpoint.Identity/Watchpoint.Identity.csproj" />
     <ProjectReference Include="../Watchpoint.Secrets/Watchpoint.Secrets.csproj" />
+    <ProjectReference Include="../Watchpoint.Storage/Watchpoint.Storage.csproj" />
   </ItemGroup>
 
   <ItemGroup>

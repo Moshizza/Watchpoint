@@ -20,6 +20,7 @@ public sealed class ApiModule : IWatchpointModule
         var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.0.0";
         var info = new SystemInfo(node.Node.Id, node.Node.Name, node.Node.Environment.ToString().ToLowerInvariant(), version,
             [.. ModuleCatalog.All.Select(m => m.Name.ToLowerInvariant())], [.. node.Http.Urls]);
+        services.AddApiStorage();
         services.AddWatchpointApi(context.Configuration, info, isProduction: !context.IsDevelopment);
         services.AddSingleton<ISiteNameProvider, RegistrySiteName>();
     }
