@@ -75,7 +75,7 @@ public static class PackageEndpoints
         return endpoints;
     }
 
-    private static async Task<IResult> InstallAsync(HttpRequest request, IPackageCatalog catalog, CancellationToken ct)
+    private static async Task<IResult> InstallAsync(HttpRequest request, [Microsoft.AspNetCore.Mvc.FromServices] IPackageCatalog catalog, CancellationToken ct)
     {
         if (!request.HasFormContentType)
         {
@@ -94,7 +94,8 @@ public static class PackageEndpoints
         }
         catch (Exception ex) when (ex is InvalidDataException or BadHttpRequestException)
         {
-            return Problem(IntegrationErrors.UnsafeArchive("tooLarge"));
+            // Over the upload limit (API §4.1): 413.
+            return Problem(ApiErrors.RequestTooLarge(MaxUploadBytes));
         }
 
         if (form.Files.Count != 1)
@@ -107,8 +108,7 @@ public static class PackageEndpoints
         var stream = file.OpenReadStream();
         await using (stream.ConfigureAwait(false))
         {
-            // No authenticated user before the API framework (T1.19): the actor is the empty id.
-            installed = await catalog.InstallAsync(stream, file.FileName, default, ct).ConfigureAwait(false);
+            installed = await catalog.InstallAsync(stream, file.FileName, request.HttpContext.CurrentUser().UserId, ct).ConfigureAwait(false);
         }
 
         if (!installed.TryGetValue(out var package, out var error))
