@@ -1,5 +1,6 @@
 using Watchpoint.Hosting;
 using Watchpoint.State;
+using Watchpoint.State.Contracts;
 
 namespace Watchpoint.Host.Modules;
 
@@ -28,4 +29,7 @@ public sealed class StateModule : IWatchpointModule
             throw new InvalidSettingsException(Name, ex.Message);
         }
     }
+
+    /// <inheritdoc />
+    public void MapEndpoints(IEndpointRouteBuilder endpoints) => endpoints.MapStateEndpoints();
 }

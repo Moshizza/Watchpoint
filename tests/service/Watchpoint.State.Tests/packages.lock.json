@@ -519,10 +519,7 @@
       "watchpoint.state": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.Extensions.Configuration.Binder": "[10.0.14, )",
-          "Microsoft.Extensions.Diagnostics": "[10.0.14, )",
-          "Microsoft.Extensions.Hosting.Abstractions": "[10.0.14, )",
-          "Microsoft.Extensions.Logging.Abstractions": "[10.0.14, )",
+          "Watchpoint.Api": "[1.0.0, )",
           "Watchpoint.Kernel": "[1.0.0, )",
           "Watchpoint.Model": "[1.0.0, )",
           "Watchpoint.Pipeline": "[1.0.0, )",
