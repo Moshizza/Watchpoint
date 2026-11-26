@@ -33,13 +33,15 @@ internal sealed class ConnectionNode : IAsyncDisposable
         [new SecretsModule(), new StorageModule(), new ModelModule(), new RegistryModule(), new PipelineModule(), new IntegrationRuntimeModule()];
 
     private readonly Guid _siteId = Guid.CreateVersion7();
+    private readonly NodeOptions _options;
     private WebApplication? _app;
 
-    private ConnectionNode(PostgresDatabase database, NatsContainerFixture nats, string data)
+    private ConnectionNode(PostgresDatabase database, NatsContainerFixture nats, string data, NodeOptions options)
     {
         Database = database;
         Nats = nats;
         Data = data;
+        _options = options;
     }
 
     public PostgresDatabase Database { get; }
@@ -60,7 +62,11 @@ internal sealed class ConnectionNode : IAsyncDisposable
 
     public LocationId Root => Registry.GetLocationTree().Single(l => l.ParentId is null).Id;
 
-    public static async Task<ConnectionNode> StartAsync(PostgresContainerFixture postgres, string name, CancellationToken ct)
+    public static Task<ConnectionNode> StartAsync(PostgresContainerFixture postgres, string name, CancellationToken ct) =>
+        StartAsync(postgres, name, new NodeOptions(), ct);
+
+    /// <summary>Starts a node with more modules (after the runtime's), settings and services registered before the modules.</summary>
+    public static async Task<ConnectionNode> StartAsync(PostgresContainerFixture postgres, string name, NodeOptions options, CancellationToken ct)
     {
         var database = await postgres.CreateDatabaseAsync(nameof(ConnectionNode) + "." + name, ct);
         var nats = NatsContainerFixture.WithOptions(new ContainerFixtureOptions());
@@ -73,7 +79,7 @@ internal sealed class ConnectionNode : IAsyncDisposable
             RelayPackage.Package().WriteFolder(Path.Combine(data, "builtin", "relay"), key);
         }
 
-        var node = new ConnectionNode(database, nats, data);
+        var node = new ConnectionNode(database, nats, data, options);
         await node.StartAsync(ct);
         return node;
     }
@@ -158,6 +164,7 @@ internal sealed class ConnectionNode : IAsyncDisposable
             ["Integrations:BuiltinPath"] = Path.Combine(Data, "builtin"),
             ["Secrets:MasterKeyProvider"] = "file",
         });
+        builder.Configuration.AddInMemoryCollection(_options.Settings);
         builder.WebHost.UseUrls("http://127.0.0.1:0");
         builder.Logging.ClearProviders().AddProvider(Logs).SetMinimumLevel(LogLevel.Debug);
         var settings = new NodeSettings
@@ -171,13 +178,15 @@ internal sealed class ConnectionNode : IAsyncDisposable
         builder.Services.AddSingleton(paths);
         builder.Services.AddSingleton(new NatsEndpoint(Nats.Url, null));
         var context = new ModuleContext { Node = settings, Configuration = builder.Configuration, Paths = paths, IsDevelopment = true };
-        foreach (var module in _modules)
+        _options.Services?.Invoke(builder.Services);
+        IWatchpointModule[] modules = [.. _modules, .. _options.Modules];
+        foreach (var module in modules)
         {
             module.ConfigureServices(builder.Services, context);
         }
 
         _app = builder.Build();
-        foreach (var module in _modules)
+        foreach (var module in modules)
         {
             module.MapEndpoints(_app);
         }
@@ -227,6 +236,18 @@ internal sealed class ConnectionNode : IAsyncDisposable
         await _app.StopAsync(ct);
         await _app.DisposeAsync();
         _app = null;
+    }
+}
+
+/// <summary>What a <see cref="ConnectionNode"/> adds to the runtime's modules.</summary>
+/// <param name="Modules">More host modules, configured after the runtime's.</param>
+/// <param name="Settings">More configuration.</param>
+/// <param name="Services">Services registered before the modules (their <c>TryAdd</c> defaults then yield).</param>
+internal sealed record NodeOptions(IReadOnlyList<IWatchpointModule> Modules, IReadOnlyDictionary<string, string?> Settings, Action<IServiceCollection>? Services)
+{
+    public NodeOptions()
+        : this([], new Dictionary<string, string?>(), null)
+    {
     }
 }
 

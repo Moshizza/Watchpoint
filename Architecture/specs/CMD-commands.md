@@ -506,6 +506,9 @@ Integration: `Watchpoint.IntegrationTests/Commands` (simulator connection).
 | Task | Sections | Tests |
 |---|---|---|
 | T2.01 | §4–§6 | CMD-U-001…CMD-U-030 |
-| T2.02 | §7, §8 | CMD-U-031…CMD-U-050, CMD-I-001…CMD-I-008 |
-| T2.03 | §9, §10 | CMD-U-051…CMD-U-065 |
+| T2.02 | §7, §8 | CMD-U-031…CMD-U-050, CMD-I-001 (up to `Succeeded`), CMD-I-002, CMD-I-003, CMD-I-006, CMD-I-008 |
+| T2.03 | §9, §10 | CMD-U-051…CMD-U-065, CMD-I-001 (`Verified`), CMD-I-005 |
+
+CMD-I-004 and CMD-I-007 need the pending store to survive a restart (STA's snapshotter wiring of
+`PendingCommandSnapshot`, §6): they belong to T1.12.
 | T2.04 | §11 | CMD-I-009…CMD-I-015 |
