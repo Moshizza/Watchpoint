@@ -46,8 +46,8 @@ public sealed class ProblemTests
     [Fact]
     public async Task API_U_002_Problem_details_shape_without_developer_detail()
     {
-        var error = CommonErrors.ValidationFailed([FieldError.Create("/settings/port", CommonErrorCodes.ValueOutOfRange, ("min", 1L), ("max", 65535L))])
-            with { DeveloperDetail = "SECRET-DETAIL" };
+        var fields = new[] { FieldError.Create("/settings/port", CommonErrorCodes.ValueOutOfRange, ("min", 1L), ("max", 65535L)) };
+        var error = CommonErrors.ValidationFailed(fields) with { DeveloperDetail = "SECRET-DETAIL" };
         var internalError = Error.Internal("SECRET-INTERNAL");
         await using var host = await ApiHost.StartAsync(app =>
         {
