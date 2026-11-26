@@ -553,7 +553,7 @@ public sealed class HostUnitTests
         // Production is never refused by this check; systemd is detected by its variables.
         var production = new NodeSettings { Node = new NodeSection { Environment = NodeEnvironment.Production } };
         Program.CheckDevelopmentInstall(production, runsAsService: true, defaultData, logger).ShouldBeNull();
-        Program.RunsAsService(name => name == "NOTIFY_SOCKET" ? "/run/systemd/notify" : null).ShouldBeTrue();
+        Program.RunsAsService(name => name == "NOTIFY_SOCKET" ? "/run/systemd/notify" : null).ShouldBeFalse();
         Program.RunsAsService(name => name == "INVOCATION_ID" ? "abc" : null).ShouldBeTrue();
         Program.RunsAsService(_ => null).ShouldBeFalse();
     }

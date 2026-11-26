@@ -162,8 +162,8 @@ internal sealed class HostProcess : IAsyncDisposable
                 UseShellExecute = false,
             },
         };
-        // A CI runner under systemd passes INVOCATION_ID / NOTIFY_SOCKET down: the Development host would then refuse to
-        // start as a "service" (HST §12, HST-U-048). The test host is a console run.
+        // A CI runner under systemd passes INVOCATION_ID down: the Development host would then refuse to start as a
+        // "service" (HST §12, HST-U-048). The test host is a console run.
         process.StartInfo.EnvironmentVariables.Remove("INVOCATION_ID");
         process.StartInfo.EnvironmentVariables.Remove("NOTIFY_SOCKET");
         foreach (var (key, value) in environment ?? new Dictionary<string, string>())

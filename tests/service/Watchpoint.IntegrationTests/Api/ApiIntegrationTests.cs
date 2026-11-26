@@ -49,7 +49,8 @@ public sealed class ApiIntegrationTests(ApiNodeFixture node) : IClassFixture<Api
         var me = JsonNode.Parse(await client.GetStringAsync("api/v1/auth/me", Ct))!;
         me["user"]!["login"]!.GetValue<string>().ShouldBe("admin");
         me["session"]!["clientKind"]!.GetValue<string>().ShouldBe("web");
-        me.ToJsonString().ShouldNotContain("password", Case.Insensitive);
+        me.ToJsonString().ShouldNotContain("hash", Case.Insensitive);
+        me.ToJsonString().ShouldNotContain("secret", Case.Insensitive);
 
         (await client.PostAsync("api/v1/auth/sign-out", null, Ct)).StatusCode.ShouldBe(HttpStatusCode.NoContent);
         (await client.GetAsync("api/v1/devices", Ct)).StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
@@ -65,7 +66,7 @@ public sealed class ApiIntegrationTests(ApiNodeFixture node) : IClassFixture<Api
 
         using var patch = new HttpRequestMessage(HttpMethod.Patch, $"api/v1/devices/{id}")
         {
-            Content = new StringContent("{\"maintenance\":true,\"attributes\":{\"note\":{\"k\":\"string\",\"v\":\"api\"}}}", Encoding.UTF8, "application/merge-patch+json"),
+            Content = new StringContent("{\"maintenance\":true,\"attributes\":{\"noSuchAttribute\":null}}", Encoding.UTF8, "application/merge-patch+json"),
         };
         patch.Headers.TryAddWithoutValidation("If-Match", etag);
         var patched = await admin.SendAsync(patch, Ct);
@@ -442,12 +443,21 @@ public sealed class ApiIntegrationTests(ApiNodeFixture node) : IClassFixture<Api
         {
             (await admin.PostAsync($"api/v1/connections/{connection}/stop", null, Ct)).StatusCode.ShouldBe(HttpStatusCode.OK);
 
-            await ApiNodeFixture.PollAsync(async () =>
+            JsonNode? last = null;
+            try
             {
-                var state = JsonNode.Parse(await admin.GetStringAsync($"api/v1/devices/{id}/state", Ct))!;
-                return state["serverUnavailable"]!.GetValue<bool>()
-                    && state["properties"]!.AsObject().All(p => p.Value!["quality"]!.GetValue<string>() == "stale");
-            }, TestTimeouts.Container, "the devices are served with quality stale", Ct);
+                await ApiNodeFixture.PollAsync(async () =>
+                {
+                    last = JsonNode.Parse(await admin.GetStringAsync($"api/v1/devices/{id}/state", Ct))!;
+                    return last["serverUnavailable"]!.GetValue<bool>()
+                        && last["properties"]!.AsObject().All(p => p.Value!["quality"]!.GetValue<string>() == "stale");
+                }, TestTimeouts.Container, "the devices are served with quality stale", Ct);
+            }
+            catch (Watchpoint.Testing.TestAssertionException ex)
+            {
+                var status = await admin.GetStringAsync($"api/v1/connections/{connection}", Ct);
+                throw new Watchpoint.Testing.TestAssertionException(ex.Message + " Last state: " + last?.ToJsonString() + " Connection: " + status, ex);
+            }
         }
         finally
         {

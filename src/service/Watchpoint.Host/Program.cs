@@ -520,7 +520,7 @@ public static class Program
 
     /// <summary>
     /// Refuses <c>Node:Environment = Development</c> on a production install (spec HST §12, HST-U-048): when the host runs
-    /// as a service (Windows service, or systemd: <c>NOTIFY_SOCKET</c> / <c>INVOCATION_ID</c>) or <c>Paths:Data</c> is the
+    /// as a service (Windows service, or systemd: <c>INVOCATION_ID</c>) or <c>Paths:Data</c> is the
     /// OS default, logs <c>HST1101</c> and returns exit code 78; otherwise <see langword="null"/>.
     /// </summary>
     /// <param name="settings">The node settings.</param>
@@ -560,14 +560,16 @@ public static class Program
         return ExitCodeConfig;
     }
 
-    /// <summary>Whether the process runs as a service: Windows service, or systemd (<c>NOTIFY_SOCKET</c> or <c>INVOCATION_ID</c> set).</summary>
+    /// <summary>
+    /// Whether the process runs as a service: Windows service, or a systemd unit (<c>INVOCATION_ID</c>, which systemd sets
+    /// for every unit). <c>NOTIFY_SOCKET</c> alone is not a service: it is what <c>systemd-notify</c> tests use (HST-I-004).
+    /// </summary>
     /// <param name="environment">Reads an environment variable.</param>
     /// <returns><see langword="true"/> for a service.</returns>
     public static bool RunsAsService(Func<string, string?> environment)
     {
         ArgumentNullException.ThrowIfNull(environment);
         return Microsoft.Extensions.Hosting.WindowsServices.WindowsServiceHelpers.IsWindowsService()
-            || !string.IsNullOrEmpty(environment("NOTIFY_SOCKET"))
             || !string.IsNullOrEmpty(environment("INVOCATION_ID"));
     }
 
