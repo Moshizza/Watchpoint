@@ -129,6 +129,7 @@ public static class ApiServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(endpoints);
         SystemEndpoints.Map(endpoints);
+        Internal.Accounts.AuthEndpoints.Map(endpoints);
         if (!endpoints.ServiceProvider.GetRequiredService<IOptions<ApiOptions>>().Value.IsProduction)
         {
             endpoints.MapOpenApi("/openapi/{documentName}.json");

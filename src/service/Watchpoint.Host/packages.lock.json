@@ -499,6 +499,7 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.EntityFrameworkCore.Relational": "[10.0.14, )",
+          "Watchpoint.Api": "[1.0.0, )",
           "Watchpoint.Hosting": "[1.0.0, )",
           "Watchpoint.Kernel": "[1.0.0, )",
           "Watchpoint.Model": "[1.0.0, )",
