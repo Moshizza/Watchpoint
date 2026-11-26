@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Watchpoint.Commands.Contracts;
 using Watchpoint.Commands.Internal;
+using Watchpoint.Commands.Internal.Dispatch;
 using Watchpoint.Pipeline.Contracts;
 
 namespace Watchpoint.Commands;
@@ -11,7 +12,7 @@ namespace Watchpoint.Commands;
 public static class CommandsModule
 {
     /// <summary>
-    /// Adds the command service (<see cref="ICommandService"/>), its partition subscriber (order 200) and the M2 fallback
+    /// Adds the command service (<see cref="ICommandService"/>), its partition subscriber (order 200), the dispatch of queued commands to the connections (CMD §7–§8) and the M2 fallback
     /// <see cref="ICommandAuthorizer"/> unless one is registered (RGT). Needs the registry, model, pipeline, identity and
     /// integration runtime modules. Settings come from the <c>Commands</c> section (CMD §12).
     /// </summary>
@@ -35,6 +36,8 @@ public static class CommandsModule
         services.AddSingleton<CommandRecordCodec>();
         services.AddSingleton<CommandProcessor>();
         services.AddSingleton<PendingCommandSnapshot>();
+        services.AddSingleton<DispatchServices>();
+        services.AddSingleton<CommandDispatch>();
         services.AddSingleton<IPartitionSubscriber, CommandSubscriber>();
         services.TryAddSingleton<ICommandPartitions, PipelineCommandPartitions>();
         services.AddSingleton<CommandValidator>();

@@ -7,6 +7,7 @@ using Microsoft.Extensions.Time.Testing;
 using Watchpoint.Commands.Contracts;
 using Watchpoint.Commands.Internal;
 using Watchpoint.Identity.Contracts;
+using Watchpoint.Integrations.Contracts;
 using Watchpoint.Kernel.Ids;
 using Watchpoint.Kernel.Paging;
 using Watchpoint.Kernel.Results;
@@ -266,9 +267,34 @@ internal sealed class FakeStepUp : IStepUpValidator
 
 internal sealed class FakeConnections : ICommandConnections
 {
+    private readonly Dictionary<ConnectionId, ConnectionState> _states = [];
+
+    public event EventHandler<ConnectionId>? StateChanged;
+
     public HashSet<ConnectionId> Known { get; } = [];
 
     public bool Exists(ConnectionId connection) => Known.Contains(connection);
+
+    public ConnectionState State(ConnectionId connection)
+    {
+        lock (_states)
+        {
+            return _states.GetValueOrDefault(connection, Known.Contains(connection) ? ConnectionState.Connected : ConnectionState.Disabled);
+        }
+    }
+
+    public string? PackageOf(ConnectionId connection) => Known.Contains(connection) ? "sim" : null;
+
+    /// <summary>Changes the state of a connection and raises <see cref="StateChanged"/>.</summary>
+    public void Set(ConnectionId connection, ConnectionState state)
+    {
+        lock (_states)
+        {
+            _states[connection] = state;
+        }
+
+        StateChanged?.Invoke(this, connection);
+    }
 }
 
 internal sealed class FakeTypes : ITypeCatalog
