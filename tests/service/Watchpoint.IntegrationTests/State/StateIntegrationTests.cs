@@ -57,7 +57,8 @@ public sealed class StateIntegrationTests(PostgresContainerFixture postgres, Nat
         await using var node = await StartLifeAsync(db, scope, seed: (n, c) => SeedAsync(n, c, servers: 1, doorsPerServer: 20), snapshotInterval: "PT1S");
         await IngestAsync(node, "open");
 
-        var entities = 1 + 20;
+        // The devices changed; the server, restored from the registry and unchanged since, needs no item yet.
+        var entities = 20;
         var partitions = node.Devices.Select(d => Partitioning.Of(d.Id)).Distinct().Count();
         var deadline = Stopwatch.GetTimestamp() + (long)(TestTimeouts.Container.TotalSeconds * Stopwatch.Frequency);
         while (await CountAsync(db, "SELECT count(*) FROM wp_state.items WHERE kind = 'device'") < entities
@@ -289,7 +290,16 @@ public sealed class StateIntegrationTests(PostgresContainerFixture postgres, Nat
     /// <summary>The states of every seeded entity as §7.1 JSON, without the times derived at recovery.</summary>
     private static List<string> Normalised(Node node) =>
         [.. node.Servers.Select(s => s.Id.Value).Concat(node.Devices.Select(d => d.Id.Value))
-            .Select(id => DeviceStateJson.ToJson(node.Reader.Get(id).Value with { UpdatedAt = default }))];
+            .Select(id => Canonical(System.Text.Json.Nodes.JsonNode.Parse(DeviceStateJson.ToJson(node.Reader.Get(id).Value with { UpdatedAt = default })))!.ToJsonString())];
+
+    /// <summary>The JSON with the members of every object sorted, so that the order of a dictionary does not matter.</summary>
+    private static System.Text.Json.Nodes.JsonNode? Canonical(System.Text.Json.Nodes.JsonNode? node) => node switch
+    {
+        System.Text.Json.Nodes.JsonObject o => new System.Text.Json.Nodes.JsonObject(
+            o.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => KeyValuePair.Create(kv.Key, Canonical(kv.Value)))),
+        System.Text.Json.Nodes.JsonArray a => new System.Text.Json.Nodes.JsonArray([.. a.Select(Canonical)]),
+        _ => node?.DeepClone(),
+    };
 
     private sealed class Node(ServiceProvider services, Watchpoint.Testing.Logging.LogCollector logs) : IAsyncDisposable
     {

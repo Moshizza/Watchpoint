@@ -159,9 +159,9 @@ internal sealed class Snapshotter : IAsyncDisposable
             {
                 throw;
             }
-            catch (Exception ex) when (ex is PipelineException or InvalidOperationException)
+            catch (Exception ex) when (!ct.IsCancellationRequested)
             {
-                // The pipeline is stopping: the final snapshot at shutdown covers what is left.
+                // A failed interval (the pipeline stopping, an unexpected error) never ends the loop: the next interval retries.
                 StateLog.SnapshotWriteFailed(_logger, -1, ex);
             }
         }

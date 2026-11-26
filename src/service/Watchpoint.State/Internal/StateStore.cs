@@ -496,10 +496,8 @@ internal sealed class StateStore : IStateReader, IAggregateReader, ILastValueSou
         StateSummary summary = _unknownSummary;
         if (_typeCatalog.Get(info.Type).TryGetValue(out var type, out _))
         {
-            if (persisted.Type != info.Type || !SameKeys(type, properties))
-            {
-                properties = RebuildProperties(type, properties);
-            }
+            // Always rebuilt in the type's order: the same order as an uninterrupted run (and adapted when the type changed).
+            properties = RebuildProperties(type, properties);
 
             summary = _evaluator.Evaluate(type, new PropertyMapView(properties), flags, info.Attributes, null);
             foreach (var (path, property) in properties)
@@ -581,24 +579,6 @@ internal sealed class StateStore : IStateReader, IAggregateReader, ILastValueSou
         }
 
         return false;
-    }
-
-    private static bool SameKeys(DeviceTypeDefinition type, IReadOnlyDictionary<PropertyPath, PropertyState> properties)
-    {
-        if (type.Properties.Count != properties.Count)
-        {
-            return false;
-        }
-
-        foreach (var path in type.Properties.Keys)
-        {
-            if (!properties.ContainsKey(path))
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     private (ServerId Server, bool Unavailable)? ApplyRecord(PartitionStateStore store, LogRecord record, DateTimeOffset now, bool isRecovering)
