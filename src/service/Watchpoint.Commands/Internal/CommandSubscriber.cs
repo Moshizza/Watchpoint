@@ -15,6 +15,9 @@ internal sealed class CommandSubscriber(CommandProcessor processor) : IPartition
         processor.OnRecords(context.Partition, records);
     }
 
+    /// <summary>The sequence of the restored snapshot (STA §8.2): records after it are replayed.</summary>
+    public long? GetRecoveryCheckpoint(int partition) => processor.Store(partition).Sequence;
+
     public void OnTick(PartitionContext context)
     {
         ArgumentNullException.ThrowIfNull(context);

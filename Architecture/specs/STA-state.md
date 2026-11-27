@@ -222,12 +222,16 @@ Live stream topics `devices` and `aggregates` are served by API using `IStateCha
 
 ### 8.1 Snapshotter
 
-- Every `State:SnapshotInterval` (default 5 s) and at shutdown (`IShutdownTask`, phase
-  Runtime), for each owned partition: post to the partition worker a job that collects the
+- Every `State:SnapshotInterval` (default 5 s, started in phase Runtime after the partition
+  workers) and at shutdown (`IShutdownTask`, phase Recovery — shutdown runs phases in
+  descending order, so this is after the workers drained in phase Runtime; the final snapshot
+  is then collected directly, no worker running), for each owned partition: post to the partition worker a job that collects the
   **dirty set** (entities changed since the last snapshot) and serialises them
   (`StateSerializer`, compact JSON) together with the partition's current sequence; then a
   background writer calls `IStateStore.WriteSnapshotAsync` (consumer `state`, kind `device`,
-  batches of ≤ 5,000, checkpoint in the last batch).
+  batches of ≤ 5,000, checkpoint in the last batch: the earlier batches carry the checkpoint
+  already persisted, so a crash between batches only leaves newer items, which the replay
+  overwrites).
 - If writing fails, the dirty set is merged back and retried next interval (log 1720).
 - Other modules with per-partition in-memory state (CMD pending commands, ALM active alarms
   and rule windows) plug into the same cadence through:
@@ -240,11 +244,17 @@ public interface ISnapshotParticipant
     // Called on the partition worker: return dirty items since the last call (serialised) and deletions.
     SnapshotContribution Collect(int partition);
     void Restore(int partition, IReadOnlyList<StateItem> items);   // during recovery, before replay
+    // During recovery, after Restore: the persisted checkpoint of Consumer (0 if none), for the
+    // participant's own subscriber to report through GetRecoveryCheckpoint (default: no-op).
+    void RestoreCheckpoint(int partition, long checkpoint) { }
 }
 public sealed record SnapshotContribution(IReadOnlyList<StateItem> Upserts, IReadOnlyList<StateItemKey> Deletes);
 ```
 
-  Each participant writes its own checkpoint (consumer name) in the same transaction pattern.
+  Each participant writes its own checkpoint (consumer name) in the same transaction pattern;
+  the checkpoint is the partition sequence at collection (all subscribers of the partition
+  have applied the same records between two worker calls). A failed participant write is
+  kept and merged into the next one.
 - Persisted payload excludes derived fields (`Summary`, `ServerUnavailable`, stale-derived
   quality) — they are recomputed at recovery.
 
@@ -254,10 +264,16 @@ Start-up task `StateRestore` (phase `Recovery`, order 50, before `PipelineRecove
 other snapshot participants (`ISnapshotParticipant`: CMD, ALM) restore inside it.
 
 1. Read checkpoints (`consumer = state`) and all `device` items for owned partitions →
-   rebuild `PartitionStateStore`s (entities no longer in REG are discarded; entities in REG
-   without a snapshot are initialised as new).
+   rebuild `PartitionStateStore`s from every server and device of REG (entities no longer in
+   REG are discarded and deleted from the snapshot; entities in REG without a snapshot are
+   initialised as new; a persisted entity whose type changed meanwhile gets its properties
+   adapted as on a type change, §6.3).
 2. Report checkpoints to PIP (`IPartitionSubscriber.GetRecoveryCheckpoint`); PIP replays records after them (PIP §7.4); STA applies them.
-3. Recompute summaries, `ServerUnavailable`, aggregates from scratch.
+3. Recompute summaries (at step 1 and on every replayed record), `ServerUnavailable` (in
+   `OnRecoveryCompleted`, once every partition is replayed: a device is unavailable when a
+   server of its chain is offline, or unknown after it was heard from — the classification the
+   runtime cascade of §6.1 reaches), aggregates (built at step 1, kept by the replay, checked
+   from scratch by the consistency check after the last partition).
 4. Provide current values to PIP's last value cache (`ILastValueSource.ProvideLastValues`, called by PIP after the replay, just before `OnRecoveryCompleted`).
 5. Mark readiness for the State module.
 
@@ -295,11 +311,10 @@ Metrics: `watchpoint.state.entities` (gauge by `kind`), `watchpoint.state.apply.
 `watchpoint.state.snapshot.lag` (gauge: sequences between applied and snapshotted),
 `watchpoint.state.listener.overflows` (counter, tag `listener`).
 
-Note (T1.11): events 1701, 1710 and 1720 and the `snapshot.lag` metric are produced by the
-snapshotter (§8), implemented with T1.12; T1.11 implements 1730, 1740 and the other metrics.
+Note: events 1701, 1710 and 1720 and the `snapshot.lag` metric (meter `Watchpoint.State`) are
+produced by the snapshotter and the recovery (§8, T1.12); T1.11 implements 1730 and 1740.
 
-Health check `ready`: recovery completed. Registered with T1.12 (recovery); T1.11 has no
-recovery concept yet, so it registers none.
+Health check `ready` (`state-recovery`): recovery completed (every partition replayed, §8.2).
 
 ## 12. Security
 
@@ -358,16 +373,18 @@ Integration: `Watchpoint.IntegrationTests/State`.
 | STA-U-043 | U | Recovery discards entities removed from REG | |
 | STA-U-044 | U | Recovery initialises entities missing from snapshot | |
 | STA-U-045 | U | Recovery provides last values to PIP cache | |
+| STA-U-046 | U | Snapshot participant collected and written with own checkpoint | Participant item, first write fails → written on the next interval with consumer checkpoint = partition sequence |
+| STA-U-047 | U | Recovery restores snapshot participants | Persisted participant item and checkpoint → `Restore` and `RestoreCheckpoint` called per partition |
 | STA-I-001 | I | Snapshot persisted to PostgreSQL | After interval, `wp_state.items` has rows with JSON payloads; checkpoint rows per partition |
 | STA-I-002 | I | Restart restores state | Ingest, stop node gracefully, start → same states (excluding derived timestamps) |
 | STA-I-003 | I | Crash restores state | Kill node without shutdown snapshot → restart → state equals last acknowledged ingest (replay) |
-| STA-I-004 | I | API state endpoints | GET state, batch, query and aggregates through the API test host |
+| STA-I-004 | I | API state endpoints | GET state, batch, query and aggregates through the API test host (with T1.19: needs the API) |
 | STA-I-005 | I | Recovery time target | 25,000 devices × 10 properties, 1 M records after snapshot → recovered < 60 s (nightly; CI scaled down ×10 with proportional target) |
-| STA-I-006 | I | Server offline end-to-end | Simulator connection stopped → devices served with quality stale via API |
+| STA-I-006 | I | Server offline end-to-end | Simulator connection stopped → devices served with quality stale via API (with T1.19: needs the API) |
 
 ## 14. Tasks
 
 | Task | Sections | Tests |
 |---|---|---|
 | T1.11 | §4–§7, §9–§12 | STA-U-001…STA-U-035 |
-| T1.12 | §8 | STA-U-036…STA-U-045, STA-I-001…STA-I-006 |
+| T1.12 | §8 | STA-U-036…STA-U-047, STA-I-001…STA-I-003, STA-I-005, CMD-I-007 (STA-I-004 and STA-I-006 need the API: with T1.19) |
