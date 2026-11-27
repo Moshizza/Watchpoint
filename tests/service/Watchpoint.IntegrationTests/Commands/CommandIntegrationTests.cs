@@ -7,7 +7,9 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Shouldly;
 using Watchpoint.Commands.Contracts;
 using Watchpoint.Commands.Internal;
+using Watchpoint.Commands.Internal.Dispatch;
 using Watchpoint.Host.Modules;
+using Watchpoint.Hosting;
 using Watchpoint.Identity.Contracts;
 using Watchpoint.Integration.Abstractions.Model;
 using Watchpoint.Integrations.Contracts;
@@ -105,6 +107,34 @@ public sealed class CommandIntegrationTests(PostgresContainerFixture postgres)
     }
 
     [Fact]
+    public async Task CMD_I_004_Node_crash_during_dispatch_requeues_the_idempotent_command_as_attempt_2()
+    {
+        await using var node = await StartAsync("i004", new StateModule());
+        await Diagnosed(node, async () =>
+        {
+            var (_, doors) = await SimulatorAsync(node,
+                new { profile = "office", doors = 1, areas = 1, zonesPerArea = 1, seed = 3, activity = "calm", commandLatency = "PT8S" });
+            var id = await RequestAsync(node, doors[0], timeout: TimeSpan.FromSeconds(60));
+            await UntilAsync(node, id, c => c.State == CommandState.Dispatched);
+
+            // The node dies while the connector call runs: the dispatch is gone, no outcome is ever recorded. The pending
+            // store (command Dispatched) is in the final snapshot.
+            await node.Services.GetRequiredService<CommandDispatch>().DisposeAsync();
+            await node.RestartAsync(Ct);
+
+            // openable.open is idempotent and this was attempt 1: requeued as attempt 2 and dispatched again (CMD §8).
+            var done = await UntilAsync(node, id, c => c.State == CommandState.Succeeded);
+            done.Attempt.ShouldBe(2);
+            var records = (await node.ReadLogAsync(Ct)).Where(r => r.Envelope.Corr.Command == id).ToList();
+            records.Select(r => r.Envelope.Kind).ShouldBe([CommandRecordKinds.Requested, CommandRecordKinds.Queued, CommandRecordKinds.Dispatched,
+                CommandRecordKinds.Queued, CommandRecordKinds.Dispatched, CommandRecordKinds.Succeeded]);
+            var codec = node.Services.GetRequiredService<ILogRecordTypeRegistry>();
+            records[3].BodyAs<CommandQueuedBody>(codec).Attempt.ShouldBe(2);
+            records[4].BodyAs<CommandDispatchedBody>(codec).Attempt.ShouldBe(2);
+        });
+    }
+
+    [Fact]
     public async Task CMD_I_006_Disconnected_connection_fails_fast()
     {
         await using var node = await StartAsync("i006");
@@ -154,9 +184,9 @@ public sealed class CommandIntegrationTests(PostgresContainerFixture postgres)
         });
     }
 
-    private Task<ConnectionNode> StartAsync(string name) =>
+    private Task<ConnectionNode> StartAsync(string name, params IWatchpointModule[] before) =>
         ConnectionNode.StartAsync(postgres, "cmd-" + name, new NodeOptions(
-            [new CommandsModule()],
+            [.. before, new CommandsModule()],
             new Dictionary<string, string?>(),
             services =>
             {

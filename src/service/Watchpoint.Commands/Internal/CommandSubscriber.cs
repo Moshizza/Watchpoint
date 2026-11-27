@@ -27,6 +27,9 @@ internal sealed class CommandSubscriber(CommandProcessor processor, IServiceProv
         processor.OnRecords(context.Partition, records, context.IsRecovering);
     }
 
+    /// <summary>The sequence of the restored snapshot (STA §8.2): records after it are replayed.</summary>
+    public long? GetRecoveryCheckpoint(int partition) => processor.Store(partition).Sequence;
+
     /// <summary>CMD §8: requeue or settle what the recovered pending store holds.</summary>
     public void OnRecoveryCompleted(int partition, long lastSequence) => _dispatch.Value?.Recovered(partition);
 

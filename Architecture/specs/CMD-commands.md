@@ -491,10 +491,10 @@ Integration: `Watchpoint.IntegrationTests/Commands` (simulator connection).
 | CMD-I-001 | I | End-to-end open door on simulator → Succeeded → Verified records in the log |
 | CMD-I-002 | I | Simulator refusal → Failed with package message key resolvable in en/fr/ar |
 | CMD-I-003 | I | Simulator timeout mode → TimedOut at deadline |
-| CMD-I-004 | I | Node crash during dispatch → recovery per §8 |
+| CMD-I-004 | I | Node crash during dispatch → recovery per §8 (with T2.02, written once T1.12's snapshot participant is merged: both the snapshot and the §8 requeue are needed) |
 | CMD-I-005 | I | 1,000-door group (campus profile) → batched, all verified, progress events |
 | CMD-I-006 | I | Disconnected connection → fail fast |
-| CMD-I-007 | I | Pending commands snapshot persisted and restored |
+| CMD-I-007 | I | Pending commands snapshot persisted and restored (with T1.12: `PendingCommandSnapshot` is the `ISnapshotParticipant` of consumer `commands`; the subscriber reports the restored sequence as its recovery checkpoint) |
 | CMD-I-008 | I | Priority under load: Critical command dispatched before 500 queued Background commands |
 | CMD-I-009 | I | API POST /commands with Idempotency via clientCommandId |
 | CMD-I-010 | I | API approval flow with two users |
@@ -509,9 +509,8 @@ Integration: `Watchpoint.IntegrationTests/Commands` (simulator connection).
 | Task | Sections | Tests |
 |---|---|---|
 | T2.01 | §4–§6 | CMD-U-001…CMD-U-030 |
-| T2.02 | §7, §8 | CMD-U-031…CMD-U-050, CMD-I-001 (up to `Succeeded`), CMD-I-002, CMD-I-003, CMD-I-006, CMD-I-008 |
+| T2.02 | §7, §8 | CMD-U-031…CMD-U-050, CMD-I-001 (up to `Succeeded`), CMD-I-002, CMD-I-003, CMD-I-004, CMD-I-006, CMD-I-008 |
 | T2.03 | §9, §10 | CMD-U-051…CMD-U-065, CMD-I-001 (`Verified`), CMD-I-005 |
-
-CMD-I-004 and CMD-I-007 need the pending store to survive a restart (STA's snapshotter wiring of
-`PendingCommandSnapshot`, §6): they belong to T1.12.
 | T2.04 | §11 | CMD-I-009…CMD-I-015 |
+
+CMD-I-007 (pending store snapshot) is tested with T1.12, which wires `PendingCommandSnapshot` (§6).

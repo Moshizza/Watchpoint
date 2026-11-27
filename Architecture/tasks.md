@@ -94,6 +94,7 @@ Every AI agent working on the project has a unique name, used as its branch pref
 | `claude-draco` | Mohcine (Moshizza) | 2026-11-20 |
 | `claude-tarazed` | Mohcine (Moshizza) | 2026-11-20 |
 | `claude-maia` | Mohcine (Moshizza) | 2026-11-26 |
+| `claude-pollux` | Mohcine (Moshizza) | 2026-11-26 |
 
 Owners of merged tasks keep the branch name actually used. Early Jules sessions pushed
 branches without an agent prefix (`jules-<session>-<hash>`: T1.08, T1.14, T1.17, T1.18, T2.08,
@@ -152,7 +153,7 @@ spec that must exist and pass.
 | T1.09c | Registry: refuse a batch whose `registry.changed` record would exceed the log's record limit, before commit (`registry.batch.too_large`, arg `bytes`); the PIP §5.5 skip stays as defence in depth; Kernel `ILeaseGate` + `AlwaysHeldLeaseGate` awaited by the outbox publisher (D7) | REG §6, §9; PIP §5.5; K §6.1 | T1.09b | REG-U-052, REG-U-068, PIP-U-055 (adjusted: hand-built oversize row), PIP-U-059, PIP-U-060, K-U-063 | — | claude-lynx/T1.09c-registry-batch-size-guard | done |
 | T1.10b | Pipeline: purge last-value cache entries of deleted devices/servers on registry changes (`Changed` with `kind = deleted`, posted through `IPartitionDispatcher`); PIP owns the purge; subscriber soft budget `Ingest:SubscriberBudget` + log 1646 (D13); `Log:Retention` capped at P30D (D11) | PIP §7.2, §7.3, §10; STA §6.3 | T1.10 | PIP-U-057, PIP-U-058 | — | — | todo |
 | T1.11 | State: live store, overall state computation, aggregates, queries, change feed | STA §4–§7 | T1.10, T1.07c | STA-U-001…STA-U-035 | [#22](https://github.com/Moshizza/Watchpoint/issues/22) | claude-cygnus/T1.11-state-live-store-and-aggregates | done |
-| T1.12 | State: snapshotter and recovery (snapshot + replay), `ILastValueSource` implementation, uses `GetRecoveryCheckpoint` (STA §8.2) | STA §8 | T1.11 | STA-U-036…STA-U-045, STA-I-001…STA-I-006 | [#23](https://github.com/Moshizza/Watchpoint/issues/23) | — | todo |
+| T1.12 | State: snapshotter and recovery (snapshot + replay), `ILastValueSource` implementation, uses `GetRecoveryCheckpoint` (STA §8.2) | STA §8, CMD §6 (snapshot participant) | T1.11 | STA-U-036…STA-U-047, STA-I-001…STA-I-003, STA-I-005, CMD-I-007 (STA-I-004, STA-I-006 need the API: with T1.19) | [#23](https://github.com/Moshizza/Watchpoint/issues/23) | claude-pollux/T1.12-snapshots-recovery | done |
 | T1.13 | Integration contract (`Watchpoint.Integration.Abstractions`) | INT §4–§8 | T0.03, T0.04 | INT-U-001…INT-U-010 | [#24](https://github.com/Moshizza/Watchpoint/issues/24) | claude-orion/T1.13-integration-contract | done |
 | T1.14 | Integration SDK helpers (polling scheduler, resilience, device map, connection store client, secure HTTP, redacting logger) | INT §9–§11 | T1.13 | INT-U-011…INT-U-040 | [#25](https://github.com/Moshizza/Watchpoint/issues/25) | jules-523469058024656279-7e0abb3b | done |
 | T1.15 | Integration runtime: package folder watcher, manifest reader, verifier (dev mode), package catalogue, load contexts | IRT §4–§6 | T1.13, T1.06 | IRT-U-001…IRT-U-025, IRT-I-001…IRT-I-004 | [#26](https://github.com/Moshizza/Watchpoint/issues/26) | claude-vega/T1.15-integration-runtime-packages | done |
@@ -176,7 +177,7 @@ spec that must exist and pass.
 | ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
 |---|---|---|---|---|---|---|---|
 | T2.01 | Commands: model, validation (schema, rights hook, state), lifecycle state machine, log records | CMD §4–§6 | T1.16 | CMD-U-001…CMD-U-030 | [#37](https://github.com/Moshizza/Watchpoint/issues/37) | claude-lynx/T2.01-commands-model-validation-lifecycle | done |
-| T2.02 | Commands: per-connection priority queues, per-device serialisation, idempotency, timeouts, failover-safe queue | CMD §7–§8 | T2.01 | CMD-U-031…CMD-U-050, CMD-I-001 (to Succeeded), CMD-I-002, CMD-I-003, CMD-I-006, CMD-I-008 (CMD-I-004, CMD-I-007 in T1.12) | [#38](https://github.com/Moshizza/Watchpoint/issues/38) | claude-maia/T2.02-command-queues | in progress |
+| T2.02 | Commands: per-connection priority queues, per-device serialisation, idempotency, timeouts, failover-safe queue | CMD §7–§8 | T2.01 | CMD-U-031…CMD-U-050, CMD-I-001 (to Succeeded), CMD-I-002, CMD-I-003, CMD-I-004, CMD-I-006, CMD-I-008 (CMD-I-007 in T1.12) | [#38](https://github.com/Moshizza/Watchpoint/issues/38) | claude-maia/T2.02-command-queues | in review |
 | T2.03 | Commands: verification and group commands | CMD §9–§10 | T2.02 | CMD-U-051…CMD-U-065, CMD-I-001 (Verified), CMD-I-005 | [#39](https://github.com/Moshizza/Watchpoint/issues/39) | — | todo |
 | T2.04 | Commands: REST + live messages, command journal queries | CMD §11 | T2.03, T1.20 | CMD-I-009…CMD-I-015 | [#40](https://github.com/Moshizza/Watchpoint/issues/40) | — | todo |
 | T2.05 | Events: model, event type registry, operator notes, journal query API | EVT | T1.10, T1.19 | EVT-U-001…EVT-U-020, EVT-I-001…EVT-I-008 | [#41](https://github.com/Moshizza/Watchpoint/issues/41) | — | todo |

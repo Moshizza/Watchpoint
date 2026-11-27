@@ -5,6 +5,7 @@ using Watchpoint.Commands.Contracts;
 using Watchpoint.Commands.Internal;
 using Watchpoint.Commands.Internal.Dispatch;
 using Watchpoint.Pipeline.Contracts;
+using Watchpoint.State.Contracts;
 
 namespace Watchpoint.Commands;
 
@@ -38,6 +39,7 @@ public static class CommandsModule
         services.AddSingleton<PendingCommandSnapshot>();
         services.AddSingleton<DispatchServices>();
         services.AddSingleton<CommandDispatch>();
+        services.AddSingleton<ISnapshotParticipant>(sp => sp.GetRequiredService<PendingCommandSnapshot>());
         services.AddSingleton<IPartitionSubscriber, CommandSubscriber>();
         services.TryAddSingleton<ICommandPartitions, PipelineCommandPartitions>();
         services.AddSingleton<CommandValidator>();
