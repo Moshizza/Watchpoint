@@ -93,6 +93,7 @@ Every AI agent working on the project has a unique name, used as its branch pref
 | `claude-cygnus` | Mohcine (Moshizza) | 2026-11-20 |
 | `claude-draco` | Mohcine (Moshizza) | 2026-11-20 |
 | `claude-tarazed` | Mohcine (Moshizza) | 2026-11-20 |
+| `claude-corvus` | Mohcine (Moshizza) | 2026-11-27 |
 
 Owners of merged tasks keep the branch name actually used. Early Jules sessions pushed
 branches without an agent prefix (`jules-<session>-<hash>`: T1.08, T1.14, T1.17, T1.18, T2.08,
@@ -151,6 +152,7 @@ spec that must exist and pass.
 | T1.09c | Registry: refuse a batch whose `registry.changed` record would exceed the log's record limit, before commit (`registry.batch.too_large`, arg `bytes`); the PIP §5.5 skip stays as defence in depth; Kernel `ILeaseGate` + `AlwaysHeldLeaseGate` awaited by the outbox publisher (D7) | REG §6, §9; PIP §5.5; K §6.1 | T1.09b | REG-U-052, REG-U-068, PIP-U-055 (adjusted: hand-built oversize row), PIP-U-059, PIP-U-060, K-U-063 | — | claude-lynx/T1.09c-registry-batch-size-guard | done |
 | T1.10b | Pipeline: purge last-value cache entries of deleted devices/servers on registry changes (`Changed` with `kind = deleted`, posted through `IPartitionDispatcher`); PIP owns the purge; subscriber soft budget `Ingest:SubscriberBudget` + log 1646 (D13); `Log:Retention` capped at P30D (D11) | PIP §7.2, §7.3, §10; STA §6.3 | T1.10 | PIP-U-057, PIP-U-058 | — | — | todo |
 | T1.11 | State: live store, overall state computation, aggregates, queries, change feed | STA §4–§7 | T1.10, T1.07c | STA-U-001…STA-U-035 | [#22](https://github.com/Moshizza/Watchpoint/issues/22) | claude-cygnus/T1.11-state-live-store-and-aggregates | done |
+| T1.11c | State: fix `ServerUnavailable` cascade and initial value, found by claude-castor against a seeded host while implementing STA-I-006 (T1.19/#199): every server health record recomputes it for the server's devices (STA §6.1), not only when connectivity crosses the online/unavailable boundary; a newly created device initialises it from its hosting server's current health instead of always `false` (STA §4, §6.3) | STA §4, §6.1, §6.3 | T1.11 | STA-U-050…STA-U-052 | — | claudem/sleepy-brown-7s2vii | in progress |
 | T1.12 | State: snapshotter and recovery (snapshot + replay), `ILastValueSource` implementation, uses `GetRecoveryCheckpoint` (STA §8.2) | STA §8 | T1.11 | STA-U-036…STA-U-045, STA-I-001…STA-I-006 | [#23](https://github.com/Moshizza/Watchpoint/issues/23) | — | todo |
 | T1.13 | Integration contract (`Watchpoint.Integration.Abstractions`) | INT §4–§8 | T0.03, T0.04 | INT-U-001…INT-U-010 | [#24](https://github.com/Moshizza/Watchpoint/issues/24) | claude-orion/T1.13-integration-contract | done |
 | T1.14 | Integration SDK helpers (polling scheduler, resilience, device map, connection store client, secure HTTP, redacting logger) | INT §9–§11 | T1.13 | INT-U-011…INT-U-040 | [#25](https://github.com/Moshizza/Watchpoint/issues/25) | jules-523469058024656279-7e0abb3b | done |
