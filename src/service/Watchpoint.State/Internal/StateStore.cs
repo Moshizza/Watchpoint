@@ -229,11 +229,29 @@ internal sealed class StateStore : IStateReader, IAggregateReader
             summary = _unknownSummary;
         }
 
-        var state = new DeviceState(info.Id, info.Kind, info.Type, properties, HealthState.Unknown, summary, false, _emptyLastEvents, 0, now);
+        var state = new DeviceState(info.Id, info.Kind, info.Type, properties, HealthState.Unknown, summary, IsInitiallyServerUnavailable(info), _emptyLastEvents, 0, now);
         store.Set(info.Id, state);
         var scopes = MembershipScopes.Compute(_registry, info);
         store.SetMeta(info.Id, new EntityMeta(scopes, flags, info.Attributes));
         AdjustAggregates(null, null, scopes, summary.State);
+    }
+
+    /// <summary>
+    /// The <c>ServerUnavailable</c> a newly created device starts with (spec STA §4, §5, §6.3): the current health of
+    /// its hosting server, read from that server's own tracked <see cref="DeviceState"/> (which may live in a
+    /// different partition; reading another partition's dictionary is safe, spec STA §6.1). A server not yet tracked
+    /// here is treated the same as one whose connectivity is <see cref="Connectivity.Unknown"/> — unavailable. A
+    /// server entity itself has no "hosting server" in this sense and always starts available.
+    /// </summary>
+    private bool IsInitiallyServerUnavailable(EntityInfo info)
+    {
+        if (info.Kind != EntityKind.Device)
+        {
+            return false;
+        }
+
+        var serverId = info.ServerId.Value;
+        return !PartitionOf(serverId).TryGet(serverId, out var server) || IsUnavailable(server.Health.Connectivity);
     }
 
     /// <summary>Removes the state of a deleted device or server and its aggregate contribution (spec STA §6.3).</summary>
@@ -485,17 +503,16 @@ internal sealed class StateStore : IStateReader, IAggregateReader
             case RecordKinds.Health:
                 {
                     var body = record.BodyAs<HealthRecordBody>(_recordTypes);
-                    var wasUnavailable = IsUnavailable(current.Health.Connectivity);
                     var since = body.Connectivity != current.Health.Connectivity ? envelope.Ts : current.Health.Since;
                     health = new HealthState(body.Connectivity, body.Faults, body.Reason, envelope.Ts, since);
                     healthChanged = true;
                     if (envelope.Srv is not null && envelope.Dev is null && !isRecovering)
                     {
-                        var isUnavailable = IsUnavailable(body.Connectivity);
-                        if (isUnavailable != wasUnavailable)
-                        {
-                            transition = (ServerId.From(target), isUnavailable);
-                        }
+                        // Every server health record recomputes ServerUnavailable for its devices (spec STA §6.1), not
+                        // only when connectivity crosses the online/unavailable boundary: SetServerUnavailable is itself
+                        // idempotent, so a cascade that finds nothing to change is cheap, and a server that goes
+                        // Unknown -> Offline (or stays Unknown) still needs its devices recomputed.
+                        transition = (ServerId.From(target), IsUnavailable(body.Connectivity));
                     }
 
                     break;
