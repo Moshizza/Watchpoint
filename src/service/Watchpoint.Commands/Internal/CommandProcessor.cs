@@ -34,10 +34,13 @@ internal sealed class CommandProcessor
 
     public PendingCommandStore Store(int partition) => _stores[partition];
 
+    /// <summary>Receives the commands that become <c>Queued</c> outside a recovery replay (the dispatch, CMD §7).</summary>
+    public Dispatch.ICommandQueueSink? Sink { get; set; }
+
     /// <summary>The command in its partition's store (call on that partition's worker).</summary>
     public Command? Find(int partition, CommandId id) => _stores[partition].Find(id);
 
-    public void OnRecords(int partition, IReadOnlyList<LogRecord> records)
+    public void OnRecords(int partition, IReadOnlyList<LogRecord> records, bool recovering = false)
     {
         var store = _stores[partition];
         foreach (var record in records)
@@ -47,7 +50,10 @@ internal sealed class CommandProcessor
             {
                 if (record.Envelope.Kind.StartsWith("command.", StringComparison.Ordinal) && _codec.Registry.CanRead(record))
                 {
-                    Apply(store, record);
+                    if (Apply(store, record) is { State: CommandState.Queued } queued && !recovering)
+                    {
+                        Sink?.Queued(queued);
+                    }
                 }
             }
             finally
@@ -96,7 +102,8 @@ internal sealed class CommandProcessor
         store.TakeChanges();
     }
 
-    private void Apply(PendingCommandStore store, LogRecord record)
+    /// <summary>Applies one record; returns the command it changed, if any.</summary>
+    private Command? Apply(PendingCommandStore store, LogRecord record)
     {
         var envelope = record.Envelope;
         var kind = envelope.Kind;
@@ -106,14 +113,14 @@ internal sealed class CommandProcessor
             var requested = _codec.Body<Command>(record);
             if (store.Find(requested.Id) is not null)
             {
-                return; // the same record again (replay)
+                return null; // the same record again (replay)
             }
 
             store.Put(requested, at);
             _directory.Publish(requested);
             Remember(requested);
             Log(requested);
-            return;
+            return null;
         }
 
         var id = envelope.Corr.Command;
@@ -125,11 +132,11 @@ internal sealed class CommandProcessor
                 // A request refused by validation: there is no command to update.
                 CommandsLog.Transition(_logger, refused.Id.Value, path.Value, envelope.Dev?.Value ?? Guid.Empty, new IssuerText(refused.Issuer), CommandState.Rejected);
 
-                return;
+                return null;
             }
 
             Ignore(kind, id?.Value ?? Guid.Empty, "unknown");
-            return;
+            return null;
         }
 
         if (CommandStateMachine.Next(command, kind) is not { } next)
@@ -139,7 +146,7 @@ internal sealed class CommandProcessor
                 Ignore(kind, command.Id.Value, command.State.ToString());
             }
 
-            return;
+            return null;
         }
 
         var updated = Update(command, next, record) with { State = next };
@@ -149,8 +156,10 @@ internal sealed class CommandProcessor
         Log(updated);
         if (CommandStateMachine.IsTerminal(updated))
         {
-            _metrics.Finished(updated.Path.Value, at - updated.RequestedAt);
+            _metrics.Finished(updated.Path.Value, updated.State, at - updated.RequestedAt);
         }
+
+        return updated;
     }
 
     private Command Update(Command command, CommandState next, LogRecord record)
