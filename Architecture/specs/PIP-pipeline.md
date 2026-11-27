@@ -872,6 +872,7 @@ with real NATS (Testcontainers, scoped prefixes).
 | PIP-U-058 | U | Slow subscriber logged against the budget | Subscriber that advances the test clock by 8 ms per call, budget 5 ms → one 1646 per minute, records still processed |
 | PIP-U-059 | U | Outbox publisher runs only while the lease is held and stops cleanly when it is lost | Gate not granted → no read, no publish after 3 poll intervals; granted → record 1 published; revoked → 1615, waits again, record 2 not read; granted again → record 2 published; node stop ends the run without error |
 | PIP-U-060 | U | Record limit measures the published message exactly | Under a W3C activity: `Log:MaxMessageSize` = `Measure(record)` − 1 → refused (1613 `pipeline.record.too_large`); = `Measure(record)` → stored with `traceparent` |
+| PIP-U-061 | U | Cascading delete sweeps every partition | `DeleteServer` with `DeleteDevices` names only the server → the cached door of another partition that the registry no longer has is purged; a door that still exists keeps its entries |
 | PIP-I-001 | I | Streams provisioned on real NATS | Start module → three streams with expected subjects/retention |
 | PIP-I-002 | I | Provisioning idempotent | Restart → no error, configs unchanged |
 | PIP-I-003 | I | Append and replay one or several partitions | 1,000 records over 4 partitions → replay of p returns its records in order; `ReadPartitionsAsync({p, q})` returns the records of p and q in global sequence order, nothing else |
@@ -900,4 +901,4 @@ with real NATS (Testcontainers, scoped prefixes).
 | T1.10 | §6 (rules), §7, §8, §9, §10 (ingest settings), §12 (ingest part), §13 | PIP-U-021…PIP-U-050, PIP-I-009…PIP-I-016 |
 | T1.09b | §5.3 (`registry.changed`), §5.5, §12 (outbox events and metrics) | PIP-U-051…PIP-U-056, PIP-I-017…PIP-I-019 |
 | T1.09c | §5.5 (refused record as defence in depth; `RegistryRecordLimit`; `ILeaseGate` in the publisher, always held in M1), §12 (1615) | PIP-U-055 (adjusted), PIP-U-059, PIP-U-060 |
-| T1.10b | §7.2 (purge of deleted targets), §7.3 (subscriber budget), §10 (`Log:Retention` ≤ P30D, `Ingest:SubscriberBudget`), §12 (1646) | PIP-U-057, PIP-U-058 |
+| T1.10b | §7.2 (purge of deleted targets), §7.3 (subscriber budget), §10 (`Log:Retention` ≤ P30D, `Ingest:SubscriberBudget`), §12 (1646, 1647) | PIP-U-057, PIP-U-058, PIP-U-061 |
