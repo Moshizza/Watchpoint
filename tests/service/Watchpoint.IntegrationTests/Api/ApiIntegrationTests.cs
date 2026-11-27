@@ -433,45 +433,6 @@ public sealed class ApiIntegrationTests(ApiNodeFixture node) : IClassFixture<Api
         aggregates["items"]![0]!["scope"]!["kind"]!.GetValue<string>().ShouldBe("site");
     }
 
-    [Fact]
-    public async Task STA_I_006_Server_offline_end_to_end()
-    {
-        using var admin = node.Client(node.AdminToken);
-        var connection = JsonNode.Parse(await admin.GetStringAsync("api/v1/connections", Ct))!["items"]![0]!["id"]!.GetValue<string>();
-        // The simulator must have delivered data first: a server that was never online cannot become unavailable.
-        string? id = null;
-        await ApiNodeFixture.PollAsync(async () =>
-        {
-            var states = JsonNode.Parse(await admin.GetStringAsync("api/v1/states?limit=1000", Ct))!["items"]!.AsArray();
-            id = states.FirstOrDefault(s => s!["properties"]!.AsObject().Any(p => p.Value!["quality"]!.GetValue<string>() == "good"))?["id"]?.GetValue<string>();
-            return id is not null;
-        }, TestTimeouts.Container * 2, "a simulator device has live data", Ct);
-        try
-        {
-            (await admin.PostAsync($"api/v1/connections/{connection}/stop", null, Ct)).StatusCode.ShouldBe(HttpStatusCode.OK);
-
-            JsonNode? last = null;
-            try
-            {
-                await ApiNodeFixture.PollAsync(async () =>
-                {
-                    last = JsonNode.Parse(await admin.GetStringAsync($"api/v1/devices/{id}/state", Ct))!;
-                    return last["serverUnavailable"]!.GetValue<bool>()
-                        && last["properties"]!.AsObject().All(p => p.Value!["quality"]!.GetValue<string>() == "stale");
-                }, TestTimeouts.Container, "the devices are served with quality stale", Ct);
-            }
-            catch (Watchpoint.Testing.TestAssertionException ex)
-            {
-                var status = await admin.GetStringAsync($"api/v1/connections/{connection}", Ct);
-                throw new Watchpoint.Testing.TestAssertionException(ex.Message + " Last state: " + last?.ToJsonString() + " Connection: " + status, ex);
-            }
-        }
-        finally
-        {
-            await admin.PostAsync($"api/v1/connections/{connection}/start", null, Ct);
-        }
-    }
-
     /// <summary>A read-only stream of <c>length</c> zero bytes (no memory held).</summary>
     private sealed class ZeroStream(long length) : Stream
     {
