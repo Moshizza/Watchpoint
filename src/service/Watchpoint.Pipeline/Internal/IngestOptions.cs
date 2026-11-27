@@ -36,6 +36,9 @@ internal sealed class IngestOptions
     /// <summary><c>Ingest:TickInterval</c>: cadence of <c>OnTick</c> (PT0.1S–PT10S).</summary>
     public TimeSpan TickInterval { get; set; } = TimeSpan.FromSeconds(1);
 
+    /// <summary><c>Ingest:SubscriberBudget</c>: a subscriber call longer than this is logged (1646), never interrupted (PT0.001S–PT1S).</summary>
+    public TimeSpan SubscriberBudget { get; set; } = TimeSpan.FromMilliseconds(5);
+
     /// <summary>Levels of follow-up records appended for one input batch.</summary>
     public int MaxFollowUpDepth { get; set; } = 4;
 
@@ -88,6 +91,7 @@ internal sealed class IngestOptions
         options.Linger = ReadDuration(section, "Linger", options.Linger, problems);
         options.MaxFutureSkew = ReadDuration(section, "MaxFutureSkew", options.MaxFutureSkew, problems);
         options.TickInterval = ReadDuration(section, "TickInterval", options.TickInterval, problems);
+        options.SubscriberBudget = ReadDuration(section, "SubscriberBudget", options.SubscriberBudget, problems);
 
         var sideEffects = configuration.GetSection(SideEffectsSectionName);
         foreach (var effectClass in Enum.GetValues<SideEffectClass>())
@@ -137,6 +141,11 @@ internal sealed class IngestOptions
         if (TickInterval < TimeSpan.FromMilliseconds(100) || TickInterval > TimeSpan.FromSeconds(10))
         {
             problems.Add("Ingest:TickInterval must be between PT0.1S and PT10S.");
+        }
+
+        if (SubscriberBudget < TimeSpan.FromMilliseconds(1) || SubscriberBudget > TimeSpan.FromSeconds(1))
+        {
+            problems.Add("Ingest:SubscriberBudget must be between PT0.001S and PT1S.");
         }
 
         foreach (var effectClass in Enum.GetValues<SideEffectClass>())

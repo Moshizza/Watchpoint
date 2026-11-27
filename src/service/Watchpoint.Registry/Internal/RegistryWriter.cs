@@ -472,15 +472,32 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
                     return RegistryErrors.VersionConflict("device", pdev.Id.Value.ToString(), targetDev.Version, pdev.ExpectedVersion);
 
                 var p = pdev.Patch;
+                var patchedTags = p.TagsSet.IsSpecified ? p.TagsSet.Value! : targetDev.Tags;
+                if (p.TagsAdd is { Count: > 0 } add)
+                    patchedTags = [.. patchedTags, .. add.Where(t => !patchedTags.Contains(t))];
+                if (p.TagsRemove is { Count: > 0 } remove)
+                    patchedTags = [.. patchedTags.Where(t => !remove.Contains(t))];
+                var patchedAttributes = targetDev.Attributes;
+                if (p.AttributesMerge.IsSpecified)
+                {
+                    var merged = new Dictionary<string, Kernel.Values.WpValue>(targetDev.Attributes, StringComparer.Ordinal);
+                    foreach (var (key, value) in p.AttributesMerge.Value!)
+                    {
+                        if (value.IsNull)
+                            merged.Remove(key);
+                        else
+                            merged[key] = value;
+                    }
+
+                    patchedAttributes = merged;
+                }
+
                 devices[pdev.Id] = targetDev with
                 {
-                    DisplayName = p.DisplayName.IsSpecified ? p.DisplayName.Value : targetDev.DisplayName,
-                    LocationId = p.LocationId.IsSpecified ? p.LocationId.Value : targetDev.LocationId,
-                    Tags = p.Tags.IsSpecified ? p.Tags.Value! : targetDev.Tags,
-                    Attributes = p.Attributes.IsSpecified ? p.Attributes.Value! : targetDev.Attributes,
-                    CustomFields = p.CustomFields.IsSpecified ? p.CustomFields.Value! : targetDev.CustomFields,
-                    UnsupportedCaps = p.UnsupportedCaps.IsSpecified ? p.UnsupportedCaps.Value! : targetDev.UnsupportedCaps,
-                    Geometry = p.Geometry.IsSpecified ? p.Geometry.Value : targetDev.Geometry,
+                    DisplayName = p.Name.IsSpecified ? p.Name.Value : targetDev.DisplayName,
+                    LocationId = p.Location.IsSpecified ? p.Location.Value : targetDev.LocationId,
+                    Tags = patchedTags,
+                    Attributes = patchedAttributes,
                     Enabled = p.Enabled.IsSpecified ? p.Enabled.Value : targetDev.Enabled,
                     Maintenance = p.Maintenance.IsSpecified ? p.Maintenance.Value : targetDev.Maintenance,
                     Version = targetDev.Version + 1

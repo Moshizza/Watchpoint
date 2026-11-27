@@ -15,7 +15,7 @@ internal sealed partial class PipelineOptions
 
     private const long Gibibyte = 1024L * 1024 * 1024;
 
-    /// <summary><c>Log:Retention</c>: maximum age of <c>WP_LOG</c> records (P1D–P90D).</summary>
+    /// <summary><c>Log:Retention</c>: maximum age of <c>WP_LOG</c> records (P1D–P30D: a privacy purge completes within this window, HIS §12).</summary>
     public TimeSpan Retention { get; set; } = TimeSpan.FromDays(7);
 
     /// <summary><c>Log:MaxBytes</c>: maximum size of <c>WP_LOG</c> (≥ 1 GB).</summary>
@@ -162,9 +162,9 @@ internal sealed partial class PipelineOptions
     public IReadOnlyList<string> Validate()
     {
         var problems = new List<string>();
-        if (Retention < TimeSpan.FromDays(1) || Retention > TimeSpan.FromDays(90))
+        if (Retention < TimeSpan.FromDays(1) || Retention > TimeSpan.FromDays(30))
         {
-            problems.Add("Log:Retention must be between P1D and P90D.");
+            problems.Add("Log:Retention must be between P1D and P30D.");
         }
 
         if (MaxBytes < Gibibyte)

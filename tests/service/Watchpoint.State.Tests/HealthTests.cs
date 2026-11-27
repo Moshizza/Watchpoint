@@ -89,7 +89,21 @@ public sealed class HealthTests
     }
 
     [Fact]
-    public void STA_U_050_New_device_initialised_unavailable_when_its_server_is_unknown()
+    public void STA_U_050_New_device_initialised_unavailable_when_its_server_already_lost_contact()
+    {
+        var fixture = new StateFixture();
+        var (server, _) = SeedServerWithDevices(fixture, count: 1);
+        fixture.Apply(fixture.Records.Health(null, server.Id, Connectivity.Online));
+        fixture.Apply(fixture.Records.Health(null, server.Id, Connectivity.Offline));
+
+        var lateDevice = TestEntities.Door(serverId: server.Id);
+        fixture.Registry.CreateDevice(lateDevice);
+
+        fixture.Store.Get(lateDevice.Id.Value).Value.ServerUnavailable.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void STA_U_053_New_device_initialised_available_when_its_server_was_never_heard_from()
     {
         var fixture = new StateFixture();
         fixture.Types.Add(TestTypes.Server());
@@ -97,11 +111,13 @@ public sealed class HealthTests
         var server = TestEntities.Server();
         fixture.Registry.CreateServer(server);
 
-        // The server never reported anything: its health is still the default Unknown (STA-I-006's scenario).
+        // The server never reported anything: default Health.Unknown with no LastContact, not yet classified
+        // unavailable (spec STA §8.2: "unknown after it was heard from") — STA-I-006's premise, but a device added
+        // at this point must not be stamped Stale before the server has even attempted its first health check.
         var device = TestEntities.Door(serverId: server.Id);
         fixture.Registry.CreateDevice(device);
 
-        fixture.Store.Get(device.Id.Value).Value.ServerUnavailable.ShouldBeTrue();
+        fixture.Store.Get(device.Id.Value).Value.ServerUnavailable.ShouldBeFalse();
     }
 
     [Fact]

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
+using Watchpoint.Api.Contracts;
 using Watchpoint.Kernel.Results;
 
 namespace Watchpoint.Integrations.Contracts;
@@ -24,58 +25,7 @@ internal static class EndpointResults
         return await next(context).ConfigureAwait(false);
     }
 
-    public static IResult Problem(Error error)
-    {
-        var status = error.Kind switch
-        {
-            ErrorKind.Validation => StatusCodes.Status400BadRequest,
-            ErrorKind.Unauthenticated => StatusCodes.Status401Unauthorized,
-            ErrorKind.Forbidden => StatusCodes.Status403Forbidden,
-            ErrorKind.NotFound => StatusCodes.Status404NotFound,
-            ErrorKind.Conflict => StatusCodes.Status409Conflict,
-            ErrorKind.PreconditionFailed => StatusCodes.Status412PreconditionFailed,
-            ErrorKind.Unprocessable => StatusCodes.Status422UnprocessableEntity,
-            ErrorKind.TooManyRequests => StatusCodes.Status429TooManyRequests,
-            ErrorKind.Unavailable => StatusCodes.Status503ServiceUnavailable,
-            _ => StatusCodes.Status500InternalServerError,
-        };
-
-        // RFC 9457 problem details (Architecture README §6.2); the API framework (T1.19) replaces this local mapping.
-        return Json(status, writer =>
-        {
-            writer.WriteStartObject();
-            writer.WriteString("type", "https://watchpoint.dev/errors/" + error.Code.Value);
-            writer.WriteString("title", error.Code.Value);
-            writer.WriteNumber("status", status);
-            writer.WriteString("code", error.Code.Value);
-            writer.WriteString("messageKey", error.MessageKey);
-            writer.WriteStartObject("args");
-            if (error.Kind != ErrorKind.Internal)
-            {
-                foreach (var (key, value) in error.Args)
-                {
-                    writer.WriteString(key, Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture));
-                }
-            }
-
-            writer.WriteEndObject();
-            if (error.FieldErrors is { Count: > 0 } fields)
-            {
-                writer.WriteStartArray("errors");
-                foreach (var field in fields)
-                {
-                    writer.WriteStartObject();
-                    writer.WriteString("path", field.Path);
-                    writer.WriteString("code", field.Code.Value);
-                    writer.WriteEndObject();
-                }
-
-                writer.WriteEndArray();
-            }
-
-            writer.WriteEndObject();
-        }, contentType: "application/problem+json");
-    }
+    public static IResult Problem(Error error) => HttpResults.Problem(error);
 
     public static IResult Json(int status, Action<Utf8JsonWriter> write, string? location = null, string contentType = "application/json") =>
         new JsonResult(status, write, location, contentType);

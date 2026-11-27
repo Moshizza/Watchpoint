@@ -135,12 +135,15 @@ public sealed class StreamProvisionerTests : IDisposable
         // Out-of-range settings are refused when the configuration is read.
         foreach (var (key, value) in new[]
         {
-            ("Log:Retention", "PT1H"), ("Log:Retention", "P91D"), ("Log:Retention", "three days"), ("Log:MaxBytes", "512MB"),
+            ("Log:Retention", "PT1H"), ("Log:Retention", "P31D"), ("Log:Retention", "three days"), ("Log:MaxBytes", "512MB"),
             ("Log:Replicas", "2"), ("Log:SubjectPrefix", "Bad Prefix"), ("Log:StreamPrefix", "lower"), ("Log:AppendTimeout", "PT5M"),
         })
         {
             Should.Throw<InvalidOperationException>(() => PipelineOptions.FromConfiguration(Configuration((key, value)))).Message.ShouldContain(key);
         }
+
+        // D11: the largest retention accepted is P30D.
+        PipelineOptions.FromConfiguration(Configuration(("Log:Retention", "P30D"))).Retention.ShouldBe(TimeSpan.FromDays(30));
     }
 
     private static IConfiguration Configuration(params (string Key, string Value)[] values) =>

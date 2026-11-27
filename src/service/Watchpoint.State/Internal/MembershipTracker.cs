@@ -14,7 +14,9 @@ namespace Watchpoint.State.Internal;
 /// module does not track them yet, updated otherwise. A batch that can delete entities without naming every one of
 /// them (a cascading device, server or location delete) is followed by a sweep that removes every tracked entity no
 /// longer in the registry, so nothing is leaked (spec STA §6.3: "STA discards entities no longer in REG only from
-/// its own state").
+/// its own state"). A location delete (devices and servers reassigned to another location) or a location upsert (a
+/// re-parent changes the ancestors of a whole subtree) is followed by a walk that recomputes the membership of every
+/// tracked entity (T1.11b).
 /// </summary>
 internal sealed class MembershipTracker : IHostedService
 {
@@ -57,6 +59,7 @@ internal sealed class MembershipTracker : IHostedService
         var devices = new HashSet<DeviceId>();
         var servers = new HashSet<ServerId>();
         var needsSweep = false;
+        var needsRewalk = false;
 
         foreach (var change in batch.Changes)
         {
@@ -74,6 +77,12 @@ internal sealed class MembershipTracker : IHostedService
                 case RegistryChange.DeleteDevice:
                 case RegistryChange.DeleteServer:
                     needsSweep = true;
+                    break;
+                case RegistryChange.DeleteLocation:
+                case RegistryChange.UpsertLocation:
+                    // Entities can change location (DeleteLocation ReassignTo) or ancestors (a location re-parent)
+                    // without being named in the batch: every tracked entity's membership is walked again.
+                    needsRewalk = true;
                     break;
             }
         }
@@ -102,7 +111,11 @@ internal sealed class MembershipTracker : IHostedService
             }
         }
 
-        if (needsSweep)
+        if (needsRewalk)
+        {
+            Rewalk(devices, servers, now, ct);
+        }
+        else if (needsSweep)
         {
             Sweep(now, ct);
         }
@@ -128,6 +141,53 @@ internal sealed class MembershipTracker : IHostedService
                 }
             },
             ct);
+    }
+
+    /// <summary>
+    /// Walks the membership of every tracked entity again (spec STA §6.3, §6.4): an entity still in the registry is
+    /// updated (<see cref="StateStore.UpdateEntity"/> recomputes its scopes and moves its aggregate counts only when they
+    /// changed), one no longer in it is removed. Entities already handled by this batch are skipped.
+    /// </summary>
+    private void Rewalk(HashSet<DeviceId> devices, HashSet<ServerId> servers, DateTimeOffset now, CancellationToken ct)
+    {
+        foreach (var id in _store.AllEntityIds().ToList())
+        {
+            if (!_store.Get(id).TryGetValue(out var state, out _))
+            {
+                continue;
+            }
+
+            EntityInfo? info = null;
+            if (state.Kind == EntityKind.Device)
+            {
+                if (devices.Contains(DeviceId.From(id)))
+                {
+                    continue;
+                }
+
+                if (_registry.GetDevice(DeviceId.From(id)).TryGetValue(out var device, out _))
+                {
+                    info = EntityInfo.Of(device);
+                }
+            }
+            else
+            {
+                if (servers.Contains(ServerId.From(id)))
+                {
+                    continue;
+                }
+
+                if (_registry.GetServer(ServerId.From(id)).TryGetValue(out var server, out _))
+                {
+                    info = EntityInfo.Of(server);
+                }
+            }
+
+            var partition = Partitioning.Of(id);
+            _ = info is not null
+                ? _work.RunAsync(partition, () => _store.UpdateEntity(info, now), ct)
+                : _work.RunAsync(partition, () => _store.RemoveEntity(id, now), ct);
+        }
     }
 
     private void Sweep(DateTimeOffset now, CancellationToken ct)

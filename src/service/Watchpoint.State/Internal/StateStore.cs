@@ -6,6 +6,7 @@ using Watchpoint.Model.Contracts;
 using Watchpoint.Pipeline.Contracts;
 using Watchpoint.Registry.Contracts;
 using Watchpoint.State.Contracts;
+using Watchpoint.Storage.Contracts;
 
 namespace Watchpoint.State.Internal;
 
@@ -16,7 +17,7 @@ namespace Watchpoint.State.Internal;
 /// <see cref="SetServerUnavailable"/>) must be called only on the worker thread of the partition it names — the
 /// single writer per partition (spec STA §6.1) — so none of them takes a lock.
 /// </summary>
-internal sealed class StateStore : IStateReader, IAggregateReader
+internal sealed class StateStore : IStateReader, IAggregateReader, ILastValueSource
 {
     private static readonly IReadOnlyDictionary<PropertyPath, PropertyState> _emptyProperties = new Dictionary<PropertyPath, PropertyState>();
     private static readonly IReadOnlyDictionary<EventPath, LastEvent> _emptyLastEvents = new Dictionary<EventPath, LastEvent>();
@@ -237,22 +238,17 @@ internal sealed class StateStore : IStateReader, IAggregateReader
     }
 
     /// <summary>
-    /// The <c>ServerUnavailable</c> a newly created device starts with (spec STA §4, §5, §6.3): the current health of
-    /// its hosting server, read from that server's own tracked <see cref="DeviceState"/> (which may live in a
-    /// different partition; reading another partition's dictionary is safe, spec STA §6.1). A server not yet tracked
-    /// here is treated the same as one whose connectivity is <see cref="Connectivity.Unknown"/> — unavailable. A
-    /// server entity itself has no "hosting server" in this sense and always starts available.
+    /// The <c>ServerUnavailable</c> a newly created device starts with (spec STA §4, §6.3): the current classification
+    /// of its hosting server's chain, exactly as <see cref="IsServerChainUnavailable"/> computes it at recovery (§8.2) —
+    /// offline, or unknown <em>after it was heard from</em>. A server never heard from at all (no health record ever
+    /// applied — the common case right after import, before its first health check) is not unavailable: the plain
+    /// "offline or unknown" of §4 only becomes true once a health record is actually processed, which is also true of
+    /// the runtime cascade (§6.1): the record that would make a server's own classification "unknown" is the same
+    /// record that sets its <c>LastContact</c>. A server entity itself has no "hosting server" in this sense and
+    /// always starts available.
     /// </summary>
-    private bool IsInitiallyServerUnavailable(EntityInfo info)
-    {
-        if (info.Kind != EntityKind.Device)
-        {
-            return false;
-        }
-
-        var serverId = info.ServerId.Value;
-        return !PartitionOf(serverId).TryGet(serverId, out var server) || IsUnavailable(server.Health.Connectivity);
-    }
+    private bool IsInitiallyServerUnavailable(EntityInfo info) =>
+        info.Kind == EntityKind.Device && IsServerChainUnavailable(info.ServerId);
 
     /// <summary>Removes the state of a deleted device or server and its aggregate contribution (spec STA §6.3).</summary>
     public void RemoveEntity(Guid id, DateTimeOffset now)
@@ -460,6 +456,142 @@ internal sealed class StateStore : IStateReader, IAggregateReader
         }
 
         return _aggregates.RunConsistencyCheck(entries, logger);
+    }
+
+    /// <summary>Gets the store of a partition (snapshotter and recovery).</summary>
+    public PartitionStateStore PartitionStore(int partition) => _partitions[partition];
+
+    /// <summary>
+    /// Collects the dirty set of a partition (spec STA §8.1): the persisted form of every entity changed since the
+    /// previous call, the ids removed since then, and the partition sequence they reflect. Must run on the partition
+    /// worker (or while no worker runs).
+    /// </summary>
+    public PartitionSnapshot CollectSnapshot(int partition)
+    {
+        var store = _partitions[partition];
+        var (changed, deleted) = store.TakeDirty();
+        var upserts = new List<StateItem>(changed.Count);
+        foreach (var id in changed)
+        {
+            if (store.TryGet(id, out var state))
+            {
+                var payload = StateSerializer.Serialize(state, path => store.TryPeekPreStaleQuality(id, path, out var q) ? q : null);
+                upserts.Add(new StateItem(StateSerializer.Kind, id, partition, payload, state.Sequence));
+            }
+        }
+
+        return new PartitionSnapshot(partition, store.Sequence, upserts, [.. deleted], changed, deleted);
+    }
+
+    /// <summary>
+    /// Restores one registered entity at recovery (spec STA §8.2 step 1): from its persisted form when there is one
+    /// (properties adapted when the type changed meanwhile), as a new entity otherwise. The summary is recomputed;
+    /// <see cref="DeviceState.ServerUnavailable"/> is recomputed after the replay (<see cref="RecomputeServerUnavailable"/>).
+    /// Runs while no partition worker runs.
+    /// </summary>
+    public void RestoreEntity(EntityInfo info, PersistedEntity? persisted, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(info);
+        if (HasEntity(info.Id))
+        {
+            RemoveEntity(info.Id, now);
+        }
+
+        if (persisted is null || persisted.Kind != info.Kind)
+        {
+            InitializeEntity(info, now);
+            return;
+        }
+
+        var store = PartitionOf(info.Id);
+        var flags = new DeviceFlags(!info.Enabled, info.Maintenance);
+        var properties = persisted.Properties;
+        StateSummary summary = _unknownSummary;
+        if (_typeCatalog.Get(info.Type).TryGetValue(out var type, out _))
+        {
+            // Always rebuilt in the type's order: the same order as an uninterrupted run (and adapted when the type changed).
+            properties = RebuildProperties(type, properties);
+
+            summary = _evaluator.Evaluate(type, new PropertyMapView(properties), flags, info.Attributes, null);
+            foreach (var (path, property) in properties)
+            {
+                if (property.LastSeen is { } lastSeen && type.Properties.TryGetValue(path, out var definition) && definition.StaleAfter is { } staleAfter)
+                {
+                    store.StaleTracker.Schedule(info.Id, path, lastSeen + staleAfter);
+                }
+            }
+        }
+
+        var state = new DeviceState(info.Id, info.Kind, info.Type, properties, persisted.Health, summary, false, persisted.LastEvents, persisted.Sequence, persisted.UpdatedAt);
+        store.Set(info.Id, state);
+        var scopes = MembershipScopes.Compute(_registry, info);
+        store.SetMeta(info.Id, new EntityMeta(scopes, flags, info.Attributes));
+        AdjustAggregates(null, null, scopes, summary.State);
+    }
+
+    /// <summary>
+    /// Recomputes <see cref="DeviceState.ServerUnavailable"/> of every device of a partition from the health of its
+    /// server chain (spec STA §8.2 step 3), after the replay of every partition. A server is unavailable when it is
+    /// offline, or unknown after it was heard from (the classification the runtime cascade reaches, STA §6.1).
+    /// </summary>
+    public void RecomputeServerUnavailable(int partition, DateTimeOffset now)
+    {
+        var store = _partitions[partition];
+        foreach (var state in store.Snapshot().ToList())
+        {
+            if (state.Kind != EntityKind.Device || !_registry.GetDevice(DeviceId.From(state.EntityId)).TryGetValue(out var device, out _))
+            {
+                continue;
+            }
+
+            var unavailable = IsServerChainUnavailable(device.ServerId);
+            if (unavailable != state.ServerUnavailable)
+            {
+                store.Set(state.EntityId, state with { ServerUnavailable = unavailable, UpdatedAt = now });
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public void ProvideLastValues(int partition, ILastValueSink sink)
+    {
+        ArgumentNullException.ThrowIfNull(sink);
+        var store = _partitions[partition];
+        foreach (var state in store.Snapshot())
+        {
+            foreach (var (path, property) in state.Properties)
+            {
+                if (property.Value is { } value && property.Sequence > 0)
+                {
+                    var quality = property.Quality == Quality.Stale && store.TryPeekPreStaleQuality(state.EntityId, path, out var stored) ? stored : property.Quality;
+                    sink.SetProperty(state.EntityId, path, value, quality);
+                }
+            }
+
+            if (state.Health.LastContact is not null)
+            {
+                sink.SetHealth(state.EntityId, new HealthRecordBody(state.Health.Connectivity, state.Health.Faults, state.Health.Reason));
+            }
+        }
+    }
+
+    private bool IsServerChainUnavailable(ServerId server)
+    {
+        var visited = new HashSet<ServerId>();
+        ServerId? current = server;
+        while (current is { } id && visited.Add(id))
+        {
+            if (PartitionOf(id.Value).TryGet(id.Value, out var serverState)
+                && (serverState.Health.Connectivity == Connectivity.Offline
+                    || (serverState.Health.Connectivity == Connectivity.Unknown && serverState.Health.LastContact is not null)))
+            {
+                return true;
+            }
+
+            current = _registry.GetServer(id).TryGetValue(out var registered, out _) ? registered.ParentId : null;
+        }
+
+        return false;
     }
 
     private (ServerId Server, bool Unavailable)? ApplyRecord(PartitionStateStore store, LogRecord record, DateTimeOffset now, bool isRecovering)

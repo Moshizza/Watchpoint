@@ -117,6 +117,7 @@ public sealed class FallbackAuthorizerTests
         services.AddSingleton<ITypeCatalog>(new FakeTypes());
         services.AddSingleton<IStepUpValidator>(new FakeStepUp());
         services.AddSingleton<ICommandConnections>(new FakeConnections());
+        services.AddSingleton<Integrations.Contracts.IConnectionCommandChannel>(new FakeChannel());
         if (rights is not null)
         {
             services.AddSingleton(rights);
