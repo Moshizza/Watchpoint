@@ -498,9 +498,12 @@ Notes (T1.10):
   deadband`, absolute or percent, SCM §4, applied by the HIS writer, HIS §6) and a reporting option of
   connectors (e.g. C-MODBUS `deadband`); applying it here would hide values from alarm conditions.
 - **Purge of deleted targets (PIP owns it, T1.10b).** PIP subscribes to the registry's `Changed`
-  event; for each change with `kind = deleted` on a device or server it posts, through
-  `IPartitionDispatcher.PostAsync`, a work item to the target's partition that removes every cache
-  entry (properties and health) of that target. A record of a deleted target that is still in flight
+  event; for each device or server delete it posts, through the partition dispatcher, a work item
+  to the target's partition that removes every cache entry (properties and health) of that target.
+  The in-process event carries the request batch, not the resolved deletions (REG §6), so a target
+  is removed only once the registry no longer finds it, and a delete that can remove unnamed targets
+  (`DeleteDevice` with `DeleteChildren`, `DeleteServer` with `DeleteDevices`) sweeps every partition
+  for cached targets the registry no longer has. A record of a deleted target that is still in flight
   is rejected at validation (`pipeline.target.unknown`), so no entry comes back. STA does not purge
   PIP's cache (STA §6.3).
 
@@ -760,6 +763,7 @@ contracts return values, not `Result`.
 | 1644 | Warning | Pipeline stopped before {Count} queued observations were processed; they are rejected |
 | 1645 | Error | Posted work failed in partition {Partition} |
 | 1646 | Warning | Subscriber {Subscriber} took {Duration} ms in partition {Partition} (budget {Budget} ms; at most once per minute per subscriber) |
+| 1647 | Debug | Purge of deleted targets skipped in partition {Partition}: the pipeline is stopping |
 | 1650 | Error | Replay for partition {Partition} starts after retention: wanted {Wanted}, first available {First} |
 | 1660 | Warning | Side effect {Kind} ({Class}) failed after {Attempts} attempts |
 | 1661 | Warning | Side-effect queue {Class} is full or stopped; {Count} effects were refused, last {Kind} (at most once per minute per class) |

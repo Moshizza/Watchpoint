@@ -83,6 +83,12 @@ internal static partial class PipelineLog
     [LoggerMessage(EventId = 1645, Level = LogLevel.Error, Message = "Posted work failed in partition {Partition}")]
     public static partial void PostedWorkFailed(ILogger logger, Exception exception, int partition);
 
+    [LoggerMessage(EventId = 1646, Level = LogLevel.Warning, Message = "Subscriber {Subscriber} took {DurationMs} ms in partition {Partition} (budget {BudgetMs} ms; at most once per minute per subscriber)")]
+    public static partial void SubscriberOverBudget(ILogger logger, string subscriber, double durationMs, int partition, double budgetMs);
+
+    [LoggerMessage(EventId = 1647, Level = LogLevel.Debug, Message = "Purge of deleted targets skipped in partition {Partition}: the pipeline is stopping")]
+    public static partial void PurgeSkipped(ILogger logger, int partition);
+
     [LoggerMessage(EventId = 1650, Level = LogLevel.Error, Message = "Replay for partition {Partition} starts after retention: wanted {Wanted}, first available {First}")]
     public static partial void ReplayAfterRetention(ILogger logger, int partition, long wanted, long first);
 

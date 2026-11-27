@@ -40,6 +40,36 @@ internal sealed class LastValueCache : ILastValueSink
         _health[target] = health;
     }
 
+    /// <summary>
+    /// Removes every entry (properties and health) of the targets that no longer exist (spec PIP §7.2, purge of deleted
+    /// targets): of <paramref name="targets"/> when given, otherwise of every target in the cache.
+    /// </summary>
+    /// <returns>The number of targets purged.</returns>
+    public int Purge(IReadOnlyCollection<Guid>? targets, Func<Guid, bool> exists)
+    {
+        ArgumentNullException.ThrowIfNull(exists);
+        var candidates = targets is not null
+            ? new HashSet<Guid>(targets)
+            : [.. _health.Keys, .. _properties.Keys.Select(k => k.Target)];
+        var gone = candidates.Where(t => !exists(t)).ToHashSet();
+        if (gone.Count == 0)
+        {
+            return 0;
+        }
+
+        foreach (var key in _properties.Keys.Where(k => gone.Contains(k.Target)).ToList())
+        {
+            _properties.Remove(key);
+        }
+
+        foreach (var target in gone)
+        {
+            _health.Remove(target);
+        }
+
+        return gone.Count;
+    }
+
     /// <summary>Applies a record read from the log (recovery replay).</summary>
     public void Apply(LogRecord record, ILogRecordTypeRegistry registry)
     {

@@ -90,6 +90,15 @@ internal sealed class PartitionRouter : IPartitionDispatcher, IPipelineLifecycle
             ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Removes the last value cache entries of deleted targets of a partition, on its worker (spec PIP §7.2): of
+    /// <paramref name="targets"/>, or of every cached target when <see langword="null"/>; a target is removed only when
+    /// <paramref name="exists"/> says it no longer exists.
+    /// </summary>
+    /// <returns>The number of targets purged.</returns>
+    internal ValueTask<int> PurgeAsync(int partition, IReadOnlyCollection<Guid>? targets, Func<Guid, bool> exists, CancellationToken ct) =>
+        InvokeAsync(partition, _ => ValueTask.FromResult(_workers[partition].Cache.Purge(targets, exists)), ct);
+
     public async ValueTask<T> InvokeAsync<T>(int partition, Func<PartitionContext, ValueTask<T>> work, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(work);
