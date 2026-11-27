@@ -1,8 +1,10 @@
 using System.Diagnostics.CodeAnalysis;
 using Watchpoint.Kernel.Ids;
+using Watchpoint.Kernel.Paging;
 using Watchpoint.Kernel.Text;
 using Watchpoint.Kernel.Values;
 using Watchpoint.Model.Contracts;
+using Watchpoint.Model.Documents;
 
 namespace Watchpoint.Registry.Contracts;
 
@@ -219,31 +221,69 @@ public sealed record ServerQuery(
     string? SearchText = null);
 
 /// <summary>
-/// Filter criteria for querying devices.
+/// Filter criteria for querying devices (REG §5). Every list filter matches any of its values, except
+/// <see cref="TagsAll"/>, which needs all of them; the filters combine with AND.
 /// </summary>
+/// <param name="Servers">Only devices of these servers.</param>
+/// <param name="LocationsSubtree">Only devices located in one of these locations or their descendants.</param>
+/// <param name="Types">Only devices of these types or of types descending from them (<c>IsA</c>; exact match without a type catalog).</param>
+/// <param name="Categories">Only devices whose type has one of these categories (needs the type catalog).</param>
+/// <param name="Capabilities">Only devices whose type has one of these capabilities (needs the type catalog).</param>
+/// <param name="TagsAll">Only devices carrying all of these tags.</param>
+/// <param name="TagsAny">Only devices carrying at least one of these tags.</param>
+/// <param name="Text">Case- and diacritic-insensitive contains on names, vendor name and native id.</param>
+/// <param name="Enabled">Only devices with this enabled flag.</param>
+/// <param name="Maintenance">Only devices with this maintenance flag.</param>
+/// <param name="Orphaned">Only devices with this orphaned flag.</param>
+/// <param name="Parent">Only direct children of this device.</param>
+/// <param name="RootsOnly">Only devices without a parent.</param>
+/// <param name="Within">Only these devices (the caller's visible set, RGT).</param>
+/// <param name="Sort">Sort order; fields <c>name</c>, <c>type</c>, <c>location</c>, <c>createdAt</c>; default <c>name</c> ascending.</param>
 public sealed record DeviceQuery(
-    ServerId? ServerId = null,
-    LocationId? LocationId = null,
-    TypeId? TypeId = null,
-    IReadOnlyList<TagId>? Tags = null,
+    IReadOnlyList<ServerId>? Servers = null,
+    IReadOnlyList<LocationId>? LocationsSubtree = null,
+    IReadOnlyList<TypeId>? Types = null,
+    IReadOnlyList<Category>? Categories = null,
+    IReadOnlyList<CapabilityId>? Capabilities = null,
+    IReadOnlyList<TagId>? TagsAll = null,
+    IReadOnlyList<TagId>? TagsAny = null,
+    string? Text = null,
     bool? Enabled = null,
     bool? Maintenance = null,
     bool? Orphaned = null,
-    string? SearchText = null);
+    DeviceId? Parent = null,
+    bool RootsOnly = false,
+    IReadOnlySet<DeviceId>? Within = null,
+    SortSpec? Sort = null)
+{
+    /// <summary>The sort fields <see cref="Sort"/> accepts.</summary>
+    public static readonly IReadOnlySet<string> SortFields =
+        new HashSet<string>(["name", "type", "location", "createdAt"], StringComparer.Ordinal);
+
+    /// <summary>The default sort order: name ascending.</summary>
+    public static SortSpec DefaultSort { get; } = new([new SortField("name", false)]);
+}
 
 /// <summary>
-/// Device patch representation where omitted fields are not updated.
+/// Incremental device edit (REG §6; JSON Merge Patch at the API): omitted fields are left alone.
 /// </summary>
+/// <param name="Name">New name; <c>null</c> value clears the user override (the vendor name shows again).</param>
+/// <param name="Location">New location.</param>
+/// <param name="TagsSet">Replaces the whole tag list.</param>
+/// <param name="TagsAdd">Tags to add (after <paramref name="TagsSet"/>, when both are given).</param>
+/// <param name="TagsRemove">Tags to remove (after add).</param>
+/// <param name="Enabled">New enabled flag.</param>
+/// <param name="Maintenance">New maintenance flag.</param>
+/// <param name="AttributesMerge">Attributes to set; a <see cref="WpValue.Null"/> value removes the attribute.</param>
 public sealed record DevicePatch(
-    Optional<LocalizedName?> DisplayName = default,
-    Optional<LocationId> LocationId = default,
-    Optional<IReadOnlyList<TagId>> Tags = default,
-    Optional<IReadOnlyDictionary<string, WpValue>> Attributes = default,
-    Optional<IReadOnlyDictionary<CustomFieldId, WpValue>> CustomFields = default,
-    Optional<IReadOnlySet<CapabilityId>> UnsupportedCaps = default,
-    Optional<DeviceGeometry?> Geometry = default,
+    Optional<LocalizedName?> Name = default,
+    Optional<LocationId> Location = default,
+    Optional<IReadOnlyList<TagId>> TagsSet = default,
+    IReadOnlyList<TagId>? TagsAdd = null,
+    IReadOnlyList<TagId>? TagsRemove = null,
     Optional<bool> Enabled = default,
-    Optional<bool> Maintenance = default);
+    Optional<bool> Maintenance = default,
+    Optional<IReadOnlyDictionary<string, WpValue>> AttributesMerge = default);
 
 /// <summary>
 /// Enrichment of a device for streaming pipelines (REG §5, §7.2): the slowly-changing fields a consumer needs per

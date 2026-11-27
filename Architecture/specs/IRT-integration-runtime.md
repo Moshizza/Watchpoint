@@ -444,13 +444,11 @@ at 2 s (`IntegrationsOptions.Debounce`), and the product version compared with
 | `POST /api/v1/packages` (multipart, ≤ 500 MB) | `config.integrations.install` | Install `.wpkg` → verification result |
 | `POST /api/v1/packages/{id}/versions/{version}/enable` / `disable` | `config.integrations.install` | |
 
-Until the API framework and its permission filter exist (T1.19), the endpoints that change the node
-(`POST`, `PATCH`, `DELETE`) are mapped only when `Node:Environment = Development` and answer only requests from a loopback
-address (`127.0.0.0/8`, `::1`; others get 404 and the endpoint does not run), so a development node reachable on a network
-cannot be changed from it (T1.16, package and connection endpoints); the `GET` endpoints are always mapped. Errors are
-problem details with `code`, `args` and, for validation, `errors: [{ path, code }]`. In M1, `discover` runs within the
-request and returns the inventory (200); the job with progress on the live topic and the diagnostics endpoints come with
-the API (T1.19). The connectors' inbound route `/integrations/{connectionId}/{**path}` is always mapped (§8).
+Since T1.19 the endpoints run on the API framework: the permissions above (M1 fallback: `config.*` needs an
+administrator), changes from the desktop client only (API §5.3), `If-Match` on `PATCH`, the 500 MB upload limit (413
+`api.request.too_large`), problem details with `code`, `args` and, for validation, `errors: [{ path, code, args }]`.
+`discover` is a job (API §5.6): `202` with the job id, the inventory is the job result. The connectors' inbound route
+`/integrations/{connectionId}/{**path}` is always mapped (§8).
 Package rows (§6) hold only verified packages; invalid ones are not persisted (the file is the source
 of truth and is verified again at the next scan).
 | `GET /api/v1/connections` | `config.integrations.view` (operators see status via HLT later) | List with status |

@@ -79,13 +79,13 @@ internal sealed class FakeRegistryReader : IRegistryReader
             _deviceIds,
             id => _devices[id],
             d => d.Id.Value,
-            d => (query.ServerId is not { } server || d.ServerId == server)
-                && (query.LocationId is not { } location || d.LocationId == location)
-                && (query.TypeId is not { } type || d.Type.Id == type)
+            d => (query.Servers is not { } servers || servers.Contains(d.ServerId))
+                && (query.LocationsSubtree is not { } locations || locations.Contains(d.LocationId))
+                && (query.Types is not { } types || types.Contains(d.Type.Id))
                 && (query.Enabled is not { } enabled || d.Enabled == enabled)
                 && (query.Maintenance is not { } maintenance || d.Maintenance == maintenance)
                 && (query.Orphaned is not { } orphaned || d.Orphaned == orphaned)
-                && (query.Tags is null || query.Tags.All(t => d.Tags.Contains(t))),
+                && (query.TagsAll is null || query.TagsAll.All(t => d.Tags.Contains(t))),
             page);
     }
 

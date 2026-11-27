@@ -36,6 +36,9 @@ public sealed class StateModule : IWatchpointModule
         services.AddStartupTask<StateSnapshotsStartupTask>();
         services.AddShutdownTask<StateSnapshotShutdownTask>();
     }
+
+    /// <inheritdoc />
+    public void MapEndpoints(IEndpointRouteBuilder endpoints) => endpoints.MapStateEndpoints();
 }
 
 /// <summary>Phase <c>Recovery</c>, order 50: restores the state snapshot before the pipeline replays the log (STA §8.2).</summary>

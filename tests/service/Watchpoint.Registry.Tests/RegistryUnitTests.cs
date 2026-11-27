@@ -71,7 +71,7 @@ public sealed partial class RegistryUnitTests : IDisposable
         _factory = new TestDbContextFactory(_options, _info);
         _outbox = new RegistryOutbox(_factory, _clock);
         _writer = new RegistryWriter(_factory, _types, _outbox, _clock, NullLogger<RegistryWriter>.Instance, s => _snapshot = s, () => _snapshot, _enrichmentCache, _feed);
-        _reader = new RegistryReader(() => _snapshot, _enrichmentCache, _feed);
+        _reader = new RegistryReader(() => _snapshot, _enrichmentCache, _feed, _types);
     }
 
     public void Dispose()
@@ -512,12 +512,12 @@ public sealed partial class RegistryUnitTests : IDisposable
         ]), _context, TestContext.Current.CancellationToken);
 
         // Search without diacritics
-        var resFrench = _reader.QueryDevices(new DeviceQuery(SearchText: "entree"), new PageRequest(10));
+        var resFrench = _reader.QueryDevices(new DeviceQuery(Text: "entree"), new PageRequest(10));
         resFrench.Items.Count.ShouldBe(1);
         resFrench.Items[0].Id.ShouldBe(d1Id);
 
         // Search Arabic substring
-        var resArabic = _reader.QueryDevices(new DeviceQuery(SearchText: "الدخول"), new PageRequest(10));
+        var resArabic = _reader.QueryDevices(new DeviceQuery(Text: "الدخول"), new PageRequest(10));
         resArabic.Items.Count.ShouldBe(1);
         resArabic.Items[0].Id.ShouldBe(d2Id);
     }
@@ -545,7 +545,7 @@ public sealed partial class RegistryUnitTests : IDisposable
             new RegistryChange.UpsertDevice(devB2)
         ]), _context, TestContext.Current.CancellationToken);
 
-        var qB1 = _reader.QueryDevices(new DeviceQuery(LocationId: b1Id), new PageRequest(10));
+        var qB1 = _reader.QueryDevices(new DeviceQuery(LocationsSubtree: [b1Id]), new PageRequest(10));
         qB1.Items.Count.ShouldBe(1);
         qB1.Items[0].LocationId.ShouldBe(b1Id);
     }
@@ -573,7 +573,7 @@ public sealed partial class RegistryUnitTests : IDisposable
             new RegistryChange.UpsertDevice(d2)
         ]), _context, TestContext.Current.CancellationToken);
 
-        var filtered = _reader.QueryDevices(new DeviceQuery(Tags: [tagId], Enabled: true), new PageRequest(10));
+        var filtered = _reader.QueryDevices(new DeviceQuery(TagsAll: [tagId], Enabled: true), new PageRequest(10));
         filtered.Items.Count.ShouldBe(1);
         filtered.Items[0].NativeId.ShouldBe("d1");
     }
@@ -788,7 +788,7 @@ public sealed partial class RegistryUnitTests : IDisposable
                 Role = type.Id.Value.Contains("server", StringComparison.OrdinalIgnoreCase) ? TypeRole.Server : TypeRole.Device,
                 Category = Category.AccessControl,
                 Source = "standard",
-                Lineage = [type],
+                Lineage = type.Id.Value.StartsWith("vendor.x.", StringComparison.Ordinal) ? [type, new TypeRef(TypeId.FromTrusted("ac.door"), type.Version)] : [type],
                 Capabilities = new Dictionary<CapabilityId, CapabilityUseDefinition>(),
                 Properties = new Dictionary<PropertyPath, PropertyDefinition>(),
                 Commands = new Dictionary<CommandPath, CommandDefinition>(),
