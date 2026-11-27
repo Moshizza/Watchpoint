@@ -41,8 +41,12 @@ public sealed class ConnectorContextTests
         var device = h.Registry.AddDevice(server, "d1");
         await h.Manager.ActivateAsync(Ct);
         await h.WaitForAsync(id, ConnectionState.Connected);
-        var sink = h.Host.Created.Single().Context.Sink;
+        var connector = h.Host.Created.Single();
+        var sink = connector.Context.Sink;
         var command = Guid.CreateVersion7();
+
+        // Past the connect-time race (IRT-U-067…069): the first reconcile's map rebuild has completed.
+        await Eventually.UntilAsync(() => ((DeviceMap)connector.Context.Devices).Ready, because: "the map is rebuilt after the first reconcile", ct: Ct);
 
         sink.ReportProperty(_d1, "doorPosition.position", WpValue.Enum("open"), sourceTime: h.Clock.GetUtcNow(), causedByCommand: command);
         sink.ReportEvent(_d1, "doorPosition.forced");
