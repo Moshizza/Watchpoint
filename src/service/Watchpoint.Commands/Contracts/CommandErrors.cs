@@ -77,4 +77,20 @@ public static class CommandErrors
     /// <param name="id">The command.</param>
     /// <returns>The error.</returns>
     public static Error CommandNotFound(CommandId id) => Error.NotFound("commands.command.not_found", ("commandId", id.Value));
+
+    /// <summary>
+    /// <c>commands.outcome_unknown</c>: the node stopped while the command was dispatched and it may not be repeated
+    /// ("The outcome is unknown after a restart; check the device state", CMD §8).
+    /// </summary>
+    /// <returns>The error.</returns>
+    public static Error OutcomeUnknown() => Error.Conflict("commands.outcome_unknown");
+
+    /// <summary><c>commands.connection.down</c>: the device's connection is not connected (fail fast, CMD §7 step 3).</summary>
+    /// <param name="state">The connection state.</param>
+    /// <returns>The error.</returns>
+    public static Error ConnectionDown(string state) => Error.Unprocessable("commands.connection.down", ("state", state));
+
+    /// <summary><c>commands.connector.failed</c>: the connector threw instead of returning a result (CMD §7 step 5).</summary>
+    /// <returns>The error.</returns>
+    public static Error ConnectorFailed() => Error.Create(ErrorKind.Internal, "commands.connector.failed");
 }
