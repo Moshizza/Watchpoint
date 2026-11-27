@@ -86,6 +86,7 @@ internal sealed class ObservationSink : IObservationSink, IAsyncDisposable
     private readonly Lock _lock = new();
     private readonly LinkedList<Entry> _queue = new();
     private readonly List<Action> _deferredUntilMapped = [];
+    private readonly List<TaskCompletionSource> _deferredDrainedWaiters = [];
     private readonly Dictionary<(Guid Target, string Path), Entry> _coalescible = [];
     private readonly List<(long Seq, TaskCompletionSource Done)> _waiters = [];
     private readonly Dictionary<string, Connectivity> _serverConnectivity = new(StringComparer.Ordinal);
@@ -272,6 +273,7 @@ internal sealed class ObservationSink : IObservationSink, IAsyncDisposable
 
     public async ValueTask<SinkFlushResult> FlushAsync(CancellationToken ct)
     {
+        await WaitForDeferredDrainAsync(ct).ConfigureAwait(false);
         TaskCompletionSource done;
         lock (_lock)
         {
@@ -366,6 +368,7 @@ internal sealed class ObservationSink : IObservationSink, IAsyncDisposable
 
         int dropped;
         List<TaskCompletionSource> waiters;
+        List<TaskCompletionSource> deferredWaiters;
         lock (_lock)
         {
             dropped = _queue.Count + _inFlight.Count + _deferredUntilMapped.Count;
@@ -375,6 +378,8 @@ internal sealed class ObservationSink : IObservationSink, IAsyncDisposable
             _deferredUntilMapped.Clear();
             waiters = [.. _waiters.Select(w => w.Done)];
             _waiters.Clear();
+            deferredWaiters = [.. _deferredDrainedWaiters];
+            _deferredDrainedWaiters.Clear();
         }
 
         if (dropped > 0)
@@ -382,6 +387,8 @@ internal sealed class ObservationSink : IObservationSink, IAsyncDisposable
             _counters.AddRejected(dropped);
             IntegrationLog.SinkDropped(_logger, _connection.Value, dropped);
         }
+
+        deferredWaiters.ForEach(w => w.TrySetCanceled());
 
         waiters.ForEach(w => w.TrySetCanceled());
         _stop.Dispose();
@@ -449,17 +456,52 @@ internal sealed class ObservationSink : IObservationSink, IAsyncDisposable
 
         if (evicted)
         {
+            // Rare (the race window is short): capacity-bounded, like the main buffer's overflow; no log per item.
             _counters.AddRejected(1);
-            IntegrationLog.SinkDropped(_logger, _connection.Value, 1);
         }
 
         return deferred;
     }
 
-    /// <summary>Replays every report deferred by <see cref="Defer"/> once the device map has been rebuilt.</summary>
+    /// <summary>
+    /// Replays every report deferred by <see cref="Defer"/> once the device map has been rebuilt, then releases
+    /// anyone waiting in <see cref="WaitForDeferredDrainAsync"/> (<see cref="FlushAsync"/>) — after the replay, so a
+    /// flush that follows a deferred report sees its outcome (accepted or unknown) instead of racing ahead of it.
+    /// </summary>
     private void OnMapReady()
     {
         List<Action> deferred;
+        List<TaskCompletionSource> waiters;
+        lock (_lock)
+        {
+            deferred = [.. _deferredUntilMapped];
+            _deferredUntilMapped.Clear();
+            waiters = [.. _deferredDrainedWaiters];
+            _deferredDrainedWaiters.Clear();
+        }
+
+        if (!Volatile.Read(ref _closed))
+        {
+            foreach (var retry in deferred)
+            {
+                try
+                {
+                    retry();
+                }
+                catch (Exception ex)
+                {
+                    IntegrationLog.RuntimeOperationFailed(_logger, ex, _connection.Value, "deferred observation");
+                }
+            }
+        }
+
+        waiters.ForEach(w => w.TrySetResult());
+    }
+
+    /// <summary>Waits until nothing is deferred (<see cref="Defer"/>) — at most once: see <see cref="OnMapReady"/>.</summary>
+    private async Task WaitForDeferredDrainAsync(CancellationToken ct)
+    {
+        TaskCompletionSource done;
         lock (_lock)
         {
             if (_closed || _deferredUntilMapped.Count == 0)
@@ -467,21 +509,11 @@ internal sealed class ObservationSink : IObservationSink, IAsyncDisposable
                 return;
             }
 
-            deferred = [.. _deferredUntilMapped];
-            _deferredUntilMapped.Clear();
+            done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            _deferredDrainedWaiters.Add(done);
         }
 
-        foreach (var retry in deferred)
-        {
-            try
-            {
-                retry();
-            }
-            catch (Exception ex)
-            {
-                IntegrationLog.RuntimeOperationFailed(_logger, ex, _connection.Value, "deferred observation");
-            }
-        }
+        await done.Task.WaitAsync(ct).ConfigureAwait(false);
     }
 
     private bool TryPath(string text, out PropertyPath path)
