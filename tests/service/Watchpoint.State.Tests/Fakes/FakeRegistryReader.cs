@@ -141,6 +141,34 @@ internal sealed class FakeRegistryReader : IRegistryReader
         Raise([new RegistryChange.DeleteServer(id, deleteDevices)]);
     }
 
+    /// <summary>
+    /// Deletes a location and moves its devices and servers to <paramref name="reassignTo"/>, as REG does for
+    /// <c>DeleteLocation(id, ReassignTo)</c>: the moved entities are not named in the batch.
+    /// </summary>
+    public void DeleteLocation(LocationId id, LocationId reassignTo)
+    {
+        foreach (var device in _devices.Values.Where(d => d.LocationId == id).ToList())
+        {
+            _devices[device.Id.Value] = device with { LocationId = reassignTo };
+        }
+
+        foreach (var server in _servers.Values.Where(sv => sv.LocationId == id).ToList())
+        {
+            _servers[server.Id.Value] = server with { LocationId = reassignTo };
+        }
+
+        _locations.Remove(id.Value);
+        Raise([new RegistryChange.DeleteLocation(id, reassignTo)]);
+    }
+
+    /// <summary>Moves a location under another parent: the entities of its subtree get new ancestors without being named.</summary>
+    public void MoveLocation(Location location, LocationId newParent)
+    {
+        var moved = location with { ParentId = newParent };
+        _locations[location.Id.Value] = moved;
+        Raise([new RegistryChange.UpsertLocation(moved)]);
+    }
+
     /// <summary>Raises <see cref="Changed"/> directly, for batches the simple helpers above do not cover.</summary>
     public void Raise(IReadOnlyList<RegistryChange> changes, ChangeContext? context = null)
     {

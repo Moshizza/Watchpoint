@@ -154,6 +154,12 @@ public sealed record StateChange(Guid EntityId, long Sequence, IReadOnlyList<Pro
 - Type version changes: properties no longer in the type are dropped; new ones initialised.
 - Flags (`Enabled`, `Maintenance`) and memberships (location, tags, server) changes: posted
   to the partition; summary recomputed (flags) and aggregates moved (memberships).
+- Membership changes the batch does not name (T1.11b): a `DeleteLocation(…, ReassignTo)` moves
+  the location's devices and servers, and an `UpsertLocation` that re-parents a location gives
+  its whole subtree new ancestors. On either change STA walks the membership of every tracked
+  entity again, posted to each entity's partition: scopes are recomputed and aggregates move only
+  for entities whose scopes changed (a `StateChange` is emitted for those only). Location changes
+  are rare, so the walk over all entities is acceptable.
 
 ### 6.4 Aggregates
 
@@ -375,6 +381,8 @@ Integration: `Watchpoint.IntegrationTests/State`.
 | STA-U-045 | U | Recovery provides last values to PIP cache | |
 | STA-U-046 | U | Snapshot participant collected and written with own checkpoint | Participant item, first write fails → written on the next interval with consumer checkpoint = partition sequence |
 | STA-U-047 | U | Recovery restores snapshot participants | Persisted participant item and checkpoint → `Restore` and `RestoreCheckpoint` called per partition |
+| STA-U-048 | U | Aggregates move with devices reassigned by a location delete | Building A (one forced, one closed door) deleted with `ReassignTo` B → A counts 0, B `Total=3`, `Alarm=1`; changes only for the two moved doors; no drift |
+| STA-U-049 | U | Aggregates move with a location subtree | Floor with a door re-parented from building A to B → A 0, B 1, floor 1 |
 | STA-I-001 | I | Snapshot persisted to PostgreSQL | After interval, `wp_state.items` has rows with JSON payloads; checkpoint rows per partition |
 | STA-I-002 | I | Restart restores state | Ingest, stop node gracefully, start → same states (excluding derived timestamps) |
 | STA-I-003 | I | Crash restores state | Kill node without shutdown snapshot → restart → state equals last acknowledged ingest (replay) |
@@ -387,4 +395,5 @@ Integration: `Watchpoint.IntegrationTests/State`.
 | Task | Sections | Tests |
 |---|---|---|
 | T1.11 | §4–§7, §9–§12 | STA-U-001…STA-U-035 |
+| T1.11b | §6.3 (membership changes not named by the batch) | STA-U-048, STA-U-049 |
 | T1.12 | §8 | STA-U-036…STA-U-047, STA-I-001…STA-I-003, STA-I-005, CMD-I-007 (STA-I-004 and STA-I-006 need the API: with T1.19) |
