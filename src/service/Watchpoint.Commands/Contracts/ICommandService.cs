@@ -51,4 +51,21 @@ public interface ICommandService
     /// <param name="who">The issuer.</param>
     /// <returns>The commands, in path order; empty for an unknown device.</returns>
     IReadOnlyList<AvailableCommand> GetAvailable(DeviceId device, CommandIssuer who);
+
+    /// <summary>A group with its counters and children (spec CMD §10), while it is in memory (24 h after completion).</summary>
+    /// <param name="id">The group id.</param>
+    /// <returns>The group, or <c>commands.command.not_found</c>.</returns>
+    Result<CommandGroup> GetGroup(CommandId id);
+
+    /// <summary>
+    /// "Retry failed" (spec CMD §10): a new group of the same command for the children that failed, timed out or expired.
+    /// The new group is validated again as a whole (reason, step-up).
+    /// </summary>
+    /// <param name="id">The group to retry.</param>
+    /// <param name="issuer">Who retries.</param>
+    /// <param name="reason">The reason (the original group's when null).</param>
+    /// <param name="stepUpToken">A fresh step-up proof when the group needs one.</param>
+    /// <param name="ct">Cancels the wait (not the request).</param>
+    /// <returns>The new group, <c>commands.command.not_found</c> or <c>commands.group.nothing_to_retry</c>.</returns>
+    Task<Result<CommandAccepted>> RetryFailedAsync(CommandId id, CommandIssuer issuer, string? reason, string? stepUpToken, CancellationToken ct);
 }

@@ -210,11 +210,31 @@ internal sealed class ConnectionDispatcher : IAsyncDisposable
 
     private void Start(DateTimeOffset now, List<Func<Task>> starts, CancellationToken ct)
     {
-        while (_inFlight < _s.Options.MaxInFlightPerConnection
-            && _queue.TakeFirst(c => !_locks.IsLocked(c.Target) && (c.NotBefore is not { } notBefore || notBefore <= now)) is { } next)
+        bool Ready(Command c) => !_locks.IsLocked(c.Target) && (c.NotBefore is not { } notBefore || notBefore <= now);
+        while (_inFlight < _s.Options.MaxInFlightPerConnection && _queue.TakeFirst(Ready) is { } next)
         {
             _locks.TryLock(next.Target);
             _inFlight++;
+
+            // CMD §10: the queued children of the same group go in one batch (one in-flight slot) when the command is
+            // batchable and the connector executes batches.
+            if (next.GroupId is { } group && _s.Options.BatchSize > 1 && _s.Batchable(next) && _s.Channel.SupportsBatch(Connection))
+            {
+                var batch = new List<Command> { next };
+                while (batch.Count < _s.Options.BatchSize
+                    && _queue.TakeFirst(c => c.GroupId == group && c.Path == next.Path && Ready(c)) is { } mate)
+                {
+                    _locks.TryLock(mate.Target);
+                    batch.Add(mate);
+                }
+
+                if (batch.Count > 1)
+                {
+                    starts.Add(() => DispatchBatchAsync(batch, ct));
+                    continue;
+                }
+            }
+
             starts.Add(() => DispatchAsync(next, ct));
         }
     }
@@ -296,20 +316,7 @@ internal sealed class ConnectionDispatcher : IAsyncDisposable
                 return;
             }
 
-            var (kind, body) = await ExecuteAsync(dispatched, ct).ConfigureAwait(false);
-            await _s.Partitions.RunAsync(partition, emitter =>
-            {
-                // A late outcome (the command left Dispatched meanwhile) is ignored by the state machine and counted.
-                var current = _s.Processor.Find(partition, dispatched.Command.Id) ?? dispatched.Command;
-                emitter.Emit(body switch
-                {
-                    CommandSucceededBody b => _s.Codec.Envelope(kind, current, b, emitter.Now),
-                    CommandFailedBody b => _s.Codec.Envelope(kind, current, b, emitter.Now),
-                    CommandIdBody b => _s.Codec.Envelope(kind, current, b, emitter.Now),
-                    _ => throw new InvalidOperationException("Unknown outcome body."),
-                });
-                return true;
-            }, ct).ConfigureAwait(false);
+            await RecordAsync(dispatched, await ExecuteAsync(dispatched, ct).ConfigureAwait(false), ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -330,6 +337,109 @@ internal sealed class ConnectionDispatcher : IAsyncDisposable
             Signal();
         }
     }
+
+    /// <summary>A batch of children of one group (CMD §10): each is begun on its partition, then executed in one call.</summary>
+    private async Task DispatchBatchAsync(List<Command> batch, CancellationToken ct)
+    {
+        try
+        {
+            var begun = await Task.WhenAll(batch.Select(c =>
+            {
+                var partition = Partitioning.Of(c.Target);
+                return _s.Partitions.RunAsync(partition, emitter => Begin(partition, c.Id, emitter), ct);
+            })).ConfigureAwait(false);
+            var started = begun.OfType<Dispatched>().ToList();
+            if (started.Count == 0)
+            {
+                return;
+            }
+
+            var outcomes = await ExecuteBatchAsync(started, ct).ConfigureAwait(false);
+            await Task.WhenAll(started.Select((dispatched, i) => RecordAsync(dispatched, outcomes[i], ct))).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // Node stopping: dispatched children without outcome are settled by the recovery (CMD §8).
+        }
+        catch (Exception ex)
+        {
+            CommandsLog.DispatchFailed(_s.Logger, ex, Connection.Value);
+        }
+        finally
+        {
+            lock (_gate)
+            {
+                batch.ForEach(c => _locks.Unlock(c.Target));
+                _inFlight--;
+            }
+
+            Signal();
+        }
+    }
+
+    /// <summary>Appends the outcome of a dispatched command on its partition.</summary>
+    private Task<bool> RecordAsync(Dispatched dispatched, (string Kind, object Body) outcome, CancellationToken ct)
+    {
+        var partition = Partitioning.Of(dispatched.Command.Target);
+        return _s.Partitions.RunAsync(partition, emitter =>
+        {
+            // A late outcome (the command left Dispatched meanwhile) is ignored by the state machine and counted.
+            var current = _s.Processor.Find(partition, dispatched.Command.Id) ?? dispatched.Command;
+            emitter.Emit(outcome.Body switch
+            {
+                CommandSucceededBody b => _s.Codec.Envelope(outcome.Kind, current, b, emitter.Now),
+                CommandFailedBody b => _s.Codec.Envelope(outcome.Kind, current, b, emitter.Now),
+                CommandIdBody b => _s.Codec.Envelope(outcome.Kind, current, b, emitter.Now),
+                _ => throw new InvalidOperationException("Unknown outcome body."),
+            });
+            return true;
+        }, ct);
+    }
+
+    /// <summary>One connector call for a batch; the deadline is the earliest of the children's.</summary>
+    private async Task<IReadOnlyList<(string Kind, object Body)>> ExecuteBatchAsync(List<Dispatched> batch, CancellationToken ct)
+    {
+        var started = _s.Time.GetTimestamp();
+        var requests = batch.Select(Request).ToList();
+        var timeout = batch.Min(d => d.Command.Timeout);
+        using var deadline = new CancellationTokenSource(timeout, _s.Time);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token, ct);
+        IReadOnlyList<ConnectorCommandResult> results;
+        try
+        {
+            var call = _s.Channel.ExecuteBatchAsync(Connection, requests, linked.Token).AsTask();
+            ObserveLate(call);
+            results = await call.WaitAsync(linked.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return [.. batch.Select(d => (CommandRecordKinds.TimedOut, (object)new CommandIdBody(d.Command.Id)))];
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            CommandsLog.ConnectorThrew(_s.Logger, ex, batch[0].Command.Id.Value);
+            return [.. batch.Select(d => ConnectorThrew(d.Command))];
+        }
+
+        if (results.Count != batch.Count)
+        {
+            CommandsLog.ConnectorThrew(_s.Logger, new InvalidOperationException($"{results.Count} results for {batch.Count} commands"), batch[0].Command.Id.Value);
+            return [.. batch.Select(d => ConnectorThrew(d.Command))];
+        }
+
+        var duration = (long)_s.Time.GetElapsedTime(started).TotalMilliseconds;
+        return [.. batch.Select((d, i) => Map(d.Command, results[i], duration))];
+    }
+
+    private ConnectorCommand Request(Dispatched dispatched)
+    {
+        var command = dispatched.Command;
+        return new ConnectorCommand(command.Id.Value, dispatched.Handle, command.Path.Value, command.Arguments,
+            dispatched.At + command.Timeout, command.Attempt, (ConnectorPriority)(int)command.Priority);
+    }
+
+    private static (string Kind, object Body) ConnectorThrew(Command command) =>
+        (CommandRecordKinds.Failed, new CommandFailedBody(command.Id, DispatchServices.Failure(FailureCategory.InternalError, CommandErrors.ConnectorFailed())));
 
     /// <summary>On the partition: re-reads the command, then expires it, fails it (target gone) or appends <c>command.dispatched</c>.</summary>
     private Dispatched? Begin(int partition, CommandId id, ICommandEmitter emitter)
@@ -362,8 +472,7 @@ internal sealed class ConnectionDispatcher : IAsyncDisposable
     {
         var command = dispatched.Command;
         var started = _s.Time.GetTimestamp();
-        var request = new ConnectorCommand(command.Id.Value, dispatched.Handle, command.Path.Value, command.Arguments,
-            dispatched.At + command.Timeout, command.Attempt, (ConnectorPriority)(int)command.Priority);
+        var request = Request(dispatched);
         using var deadline = new CancellationTokenSource(command.Timeout, _s.Time);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token, ct);
         ConnectorCommandResult result;
@@ -382,11 +491,15 @@ internal sealed class ConnectionDispatcher : IAsyncDisposable
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             CommandsLog.ConnectorThrew(_s.Logger, ex, command.Id.Value);
-            return (CommandRecordKinds.Failed, new CommandFailedBody(command.Id, DispatchServices.Failure(FailureCategory.InternalError, CommandErrors.ConnectorFailed())));
+            return ConnectorThrew(command);
         }
 
-        var duration = (long)_s.Time.GetElapsedTime(started).TotalMilliseconds;
-        return result.Outcome switch
+        return Map(command, result, (long)_s.Time.GetElapsedTime(started).TotalMilliseconds);
+    }
+
+    /// <summary>CMD §7 step 5: a connector result as the outcome record.</summary>
+    private (string Kind, object Body) Map(Command command, ConnectorCommandResult result, long duration) =>
+        result.Outcome switch
         {
             CommandOutcome.Succeeded => (CommandRecordKinds.Succeeded, new CommandSucceededBody(command.Id, duration)),
             CommandOutcome.NotSupported => (CommandRecordKinds.Failed,
@@ -394,7 +507,6 @@ internal sealed class ConnectionDispatcher : IAsyncDisposable
             _ when result.Failure == FailureCategory.Timeout => (CommandRecordKinds.TimedOut, new CommandIdBody(command.Id)),
             _ => (CommandRecordKinds.Failed, new CommandFailedBody(command.Id, ConnectorFailure(result))),
         };
-    }
 
     private CommandFailure ConnectorFailure(ConnectorCommandResult result)
     {
@@ -421,6 +533,7 @@ internal sealed class DispatchServices(
     IConnectionCommandChannel channel,
     ICommandConnections connections,
     IRegistryReader registry,
+    Model.Contracts.ITypeCatalog types,
     CommandsOptions options,
     TimeProvider time,
     ILogger<CommandDispatch> logger)
@@ -459,6 +572,13 @@ internal sealed class DispatchServices(
         options.FailFastWhenDisconnected
         && command.Issuer is CommandIssuer.User or CommandIssuer.Federation
         && state is not (ConnectionState.Configured or ConnectionState.Starting);
+
+    /// <summary>Whether the command's definition is batchable (CMD §10).</summary>
+    public bool Batchable(Command command) =>
+        registry.GetDevice(command.Target).TryGetValue(out var device, out _)
+        && types.Get(device.Type).TryGetValue(out var type, out _)
+        && type.Commands.TryGetValue(command.Path, out var definition)
+        && definition.Batchable;
 
     /// <summary>The connection of a device's server, or <see langword="null"/> when the device or its server is gone.</summary>
     public ConnectionId? ConnectionOf(DeviceId device) =>

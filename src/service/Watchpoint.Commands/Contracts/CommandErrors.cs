@@ -93,4 +93,8 @@ public static class CommandErrors
     /// <summary><c>commands.connector.failed</c>: the connector threw instead of returning a result (CMD §7 step 5).</summary>
     /// <returns>The error.</returns>
     public static Error ConnectorFailed() => Error.Create(ErrorKind.Internal, "commands.connector.failed");
+
+    /// <summary><c>commands.group.nothing_to_retry</c>: no child of the group failed, timed out or expired.</summary>
+    /// <returns>The error.</returns>
+    public static Error NothingToRetry() => Error.Conflict("commands.group.nothing_to_retry");
 }

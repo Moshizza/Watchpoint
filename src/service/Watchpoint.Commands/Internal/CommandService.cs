@@ -29,12 +29,14 @@ internal sealed class CommandService(
     ICommandAuthorizer authorizer,
     StepUpGuard stepUp,
     TimeProvider time,
-    CommandMetrics metrics) : ICommandService
+    CommandMetrics metrics,
+    Groups.GroupCommandCoordinator groups) : ICommandService
 {
-    private readonly ConcurrentDictionary<CommandId, CommandAccepted> _groups = new();
+    private readonly ConcurrentDictionary<CommandId, CommandAccepted> _groups = InitGroups(processor, groups);
 
     public async Task<Result<CommandAccepted>> RequestAsync(CommandRequest request, CancellationToken ct)
     {
+        ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(request.Target);
         ArgumentNullException.ThrowIfNull(request.Issuer);
@@ -47,8 +49,8 @@ internal sealed class CommandService(
         return request.Target switch
         {
             CommandTargetSpec.Device one => await RequestOneAsync(request, one.Id, null, now, ct).ConfigureAwait(false),
-            CommandTargetSpec.Devices many => await RequestGroupAsync(request, many.Ids, now, ct).ConfigureAwait(false),
-            CommandTargetSpec.Selector selector => await RequestGroupAsync(request, Select(selector.Query), now, ct).ConfigureAwait(false),
+            CommandTargetSpec.Devices many => await RequestGroupAsync(request, many.Ids, now, null, ct).ConfigureAwait(false),
+            CommandTargetSpec.Selector selector => await RequestGroupAsync(request, Select(selector.Query, request.Issuer), now, null, ct).ConfigureAwait(false),
             _ => throw new ArgumentException("Unknown target.", nameof(request)),
         };
     }
@@ -85,6 +87,34 @@ internal sealed class CommandService(
         }
 
         return DecideAsync(id, approver, approve: false, reason, ct);
+    }
+
+    public Result<CommandGroup> GetGroup(CommandId id) => groups.View(id) is { } group ? group : CommandErrors.CommandNotFound(id);
+
+    public async Task<Result<CommandAccepted>> RetryFailedAsync(CommandId id, CommandIssuer issuer, string? reason, string? stepUpToken, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(issuer);
+        if (groups.Find(id) is not { } group)
+        {
+            return CommandErrors.CommandNotFound(id);
+        }
+
+        var failed = groups.FailedTargets(id);
+        if (failed.Count == 0)
+        {
+            return CommandErrors.NothingToRetry();
+        }
+
+        var retry = group.Request with
+        {
+            Target = new CommandTargetSpec.Devices(failed),
+            Issuer = issuer,
+            Reason = reason ?? group.Request.Reason,
+            StepUpToken = stepUpToken,
+            ClientCommandId = null,
+            NotBefore = null,
+        };
+        return await RequestGroupAsync(retry, failed, time.UtcNowMs(), id, ct).ConfigureAwait(false);
     }
 
     public Result<Command> Get(CommandId id) =>
@@ -173,10 +203,11 @@ internal sealed class CommandService(
     /// <summary>
     /// A group (CMD §10): the group's risk is one level above the highest child risk, and the reason and step-up are
     /// decided once for the group — a failure rejects the whole request and creates no child. Each child is then
-    /// validated and recorded on its own (a refused child is rejected, the others continue). The <c>commandGroup.*</c>
-    /// records, batching and progress are T2.03.
+    /// validated and recorded on its own (a refused child is rejected, the others continue). The group is recorded first
+    /// (<c>commandGroup.requested</c> in <c>WP_SYS</c>); the coordinator then follows its children.
     /// </summary>
-    private async Task<Result<CommandAccepted>> RequestGroupAsync(CommandRequest request, IReadOnlyList<DeviceId> targets, DateTimeOffset now, CancellationToken ct)
+    private async Task<Result<CommandAccepted>> RequestGroupAsync(CommandRequest request, IReadOnlyList<DeviceId> targets, DateTimeOffset now, CommandId? retryOf,
+        CancellationToken ct)
     {
         var path = request.Path.Value;
         var distinct = targets.Distinct().ToList();
@@ -239,6 +270,9 @@ internal sealed class CommandService(
             return raced;
         }
 
+        // commandGroup.requested in WP_SYS, then one child per device (CMD §10).
+        await groups.BeginAsync(new Groups.GroupRequest(groupId, request with { StepUpToken = null, ClientCommandId = null }, distinct, now, retryOf), ct)
+            .ConfigureAwait(false);
         var decided = new GroupDecision(groupId);
         var state = CommandState.Rejected;
         foreach (var target in distinct)
@@ -292,15 +326,27 @@ internal sealed class CommandService(
         }, ct).ConfigureAwait(false);
     }
 
+    /// <summary>The group coordinator follows the children the processor applies (CMD §10).</summary>
+    private static ConcurrentDictionary<CommandId, CommandAccepted> InitGroups(CommandProcessor processor, Groups.GroupCommandCoordinator groups)
+    {
+        processor.GroupSink = groups;
+        return new();
+    }
+
     private CommandAccepted? Duplicate(UserId identity, string key, DateTimeOffset now) =>
         directory.FindKey(identity, key, now) is { } existing ? Accepted(existing) : null;
 
     private CommandAccepted Accepted(CommandId existing) =>
         new(existing, false, directory.Find(existing, time.GetUtcNow())?.State ?? CommandState.Requested, 1);
 
-    /// <summary>The devices a selector selects now (all pages). The issuer's visible scope is applied with T2.03 (RGT).</summary>
-    private List<DeviceId> Select(DeviceQuery query)
+    /// <summary>The devices a selector selects now (all pages), within the issuer's visible devices (CMD §10).</summary>
+    private List<DeviceId> Select(DeviceQuery query, CommandIssuer issuer)
     {
+        if (authorizer.VisibleDevices(issuer) is { } visible)
+        {
+            query = query with { Within = query.Within is { } within ? within.Where(visible.Contains).ToHashSet() : visible };
+        }
+
         var ids = new List<DeviceId>();
         string? cursor = null;
         do

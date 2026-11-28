@@ -4,6 +4,8 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Watchpoint.Commands.Contracts;
 using Watchpoint.Commands.Internal;
 using Watchpoint.Commands.Internal.Dispatch;
+using Watchpoint.Commands.Internal.Groups;
+using Watchpoint.Commands.Internal.Verification;
 using Watchpoint.Pipeline.Contracts;
 using Watchpoint.State.Contracts;
 
@@ -35,7 +37,10 @@ public static class CommandsModule
         services.AddSingleton<CommandWaiters>();
         services.AddSingleton<CommandDirectory>();
         services.AddSingleton<CommandRecordCodec>();
+        services.TryAddSingleton<ICommandStateView>(sp => sp.GetService<IStateReader>() is { } state ? new StateReaderView(state) : new NoStateView());
         services.AddSingleton<CommandProcessor>();
+        services.TryAddSingleton<ICommandSysRecords, LogSysRecords>();
+        services.AddSingleton<GroupCommandCoordinator>();
         services.AddSingleton<PendingCommandSnapshot>();
         services.AddSingleton<DispatchServices>();
         services.AddSingleton<CommandDispatch>();

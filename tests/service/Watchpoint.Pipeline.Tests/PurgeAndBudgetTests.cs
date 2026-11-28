@@ -1,9 +1,9 @@
+using Microsoft.Extensions.Logging;
 using Shouldly;
 using Watchpoint.Kernel.Values;
 using Watchpoint.Pipeline.Internal;
 using Watchpoint.Registry.Contracts;
 using Xunit;
-using Microsoft.Extensions.Logging;
 
 namespace Watchpoint.Pipeline.Tests;
 

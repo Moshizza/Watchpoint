@@ -24,7 +24,7 @@ internal sealed class CommandSubscriber(CommandProcessor processor, IServiceProv
     {
         ArgumentNullException.ThrowIfNull(context);
         _ = _dispatch.Value;
-        processor.OnRecords(context.Partition, records, context.IsRecovering);
+        processor.OnRecords(context.Partition, records, context.IsRecovering, new PartitionEmitter(context));
     }
 
     /// <summary>The sequence of the restored snapshot (STA §8.2): records after it are replayed.</summary>

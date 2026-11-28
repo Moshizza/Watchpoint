@@ -89,6 +89,9 @@ internal sealed class CommandDispatch : ICommandQueueSink, IAsyncDisposable
         {
             Queued(command);
         }
+
+        // CMD §9: an expected effect that became visible while the node was down or during the replay.
+        _s.Processor.CheckWatchers(emitter);
     });
 
     public async ValueTask DisposeAsync()

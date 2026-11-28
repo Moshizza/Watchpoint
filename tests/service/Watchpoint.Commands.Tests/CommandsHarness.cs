@@ -7,6 +7,8 @@ using Microsoft.Extensions.Time.Testing;
 using Watchpoint.Commands.Contracts;
 using Watchpoint.Commands.Internal;
 using Watchpoint.Commands.Internal.Dispatch;
+using Watchpoint.Commands.Internal.Groups;
+using Watchpoint.Commands.Internal.Verification;
 using Watchpoint.Identity.Contracts;
 using Watchpoint.Integrations.Contracts;
 using Watchpoint.Kernel.Ids;
@@ -59,18 +61,42 @@ internal sealed class CommandsHarness : IDisposable, IAsyncDisposable
         Metrics = new CommandMetrics(Meters);
         Codec = new CommandRecordCodec(_shared.Value.Records);
         Directory = new CommandDirectory(Options);
-        Processor = new CommandProcessor(Directory, Codec, new CommandWaiters(), Metrics, _loggerFactory.CreateLogger<CommandProcessor>());
+        Processor = new CommandProcessor(Directory, Codec, new CommandWaiters(), Metrics, _loggerFactory.CreateLogger<CommandProcessor>(), State);
         Partitions = new FakePartitions(Processor, Time);
         StepUpGuard = new StepUpGuard(StepUp);
         var rights = authorizer ?? Authorizer;
         Validator = new CommandValidator(Registry, Types, _shared.Value.Values, rights, StepUpGuard, Connections, Options);
-        Service = new CommandService(Validator, Processor, Directory, Partitions, Codec, Registry, Types, _shared.Value.Values, rights, StepUpGuard, Time, Metrics);
+        Groups = new GroupCommandCoordinator(Sys, _shared.Value.Records, Time, _loggerFactory.CreateLogger<GroupCommandCoordinator>());
+        Service = new CommandService(Validator, Processor, Directory, Partitions, Codec, Registry, Types, _shared.Value.Values, rights, StepUpGuard, Time, Metrics,
+            Groups);
         if (dispatch)
         {
-            var services = new DispatchServices(Processor, Partitions, Codec, Channel, Connections, Registry, Options, Time,
+            var services = new DispatchServices(Processor, Partitions, Codec, Channel, Connections, Registry, Types, Options, Time,
                 _loggerFactory.CreateLogger<CommandDispatch>());
             Dispatch = new CommandDispatch(services, Types, Metrics);
         }
+    }
+
+    /// <summary>The current property values the verification reads (the state module's, CMD §9).</summary>
+    public FakeState State { get; } = new();
+
+    /// <summary>The group records appended to <c>WP_SYS</c>.</summary>
+    public FakeSys Sys { get; } = new();
+
+    public GroupCommandCoordinator Groups { get; }
+
+    /// <summary>
+    /// Appends a <c>property</c> record of <paramref name="device"/> (as the ingest would) and updates <see cref="State"/>
+    /// first, as STA (order 100) does before the commands subscriber.
+    /// </summary>
+    public Task PropertyAsync(DeviceId device, PropertyPath path, WpValue value)
+    {
+        State.Set(device, path, value);
+        var now = Time.GetUtcNow();
+        var body = _shared.Value.Records.SerializeBody(RecordKinds.Property, new PropertyRecordBody(path.Value, value, Quality.Good, null));
+        var envelope = new LogEnvelope(Guid.CreateVersion7(now), RecordKinds.Property, now, now, Partitioning.Of(device), device, null,
+            RecordOrigin.System, RecordCorrelation.None, body);
+        return Partitions.DeliverAsync(Partitioning.Of(device), envelope);
     }
 
     /// <summary>The connector channel seen by the dispatch (calls wait until the test completes them, unless a handler is set).</summary>
@@ -185,6 +211,8 @@ internal sealed class CommandsHarness : IDisposable, IAsyncDisposable
             await dispatch.DisposeAsync();
         }
 
+        await Groups.DisposeAsync();
+
         Dispose();
     }
 
@@ -280,6 +308,11 @@ internal sealed class TestAuthorizer : ICommandAuthorizer
     }
 
     public bool CanApprove(UserId approver, Command command, DateTimeOffset now) => Approvers.Contains(approver);
+
+    /// <summary>The devices the issuers may see (<see langword="null"/>: all).</summary>
+    public IReadOnlySet<DeviceId>? Visible { get; set; }
+
+    public IReadOnlySet<DeviceId>? VisibleDevices(CommandIssuer issuer) => Visible;
 }
 
 internal sealed class FakeStepUp : IStepUpValidator
@@ -288,6 +321,60 @@ internal sealed class FakeStepUp : IStepUpValidator
 
     public Result Validate(string stepUpToken, SessionId session) =>
         Valid.Contains((stepUpToken, session)) ? Result.Success() : IdentityErrors.StepUpRequired();
+}
+
+internal sealed class FakeState : ICommandStateView
+{
+    private readonly Dictionary<(DeviceId, PropertyPath), WpValue> _values = [];
+
+    public void Set(DeviceId device, PropertyPath path, WpValue value)
+    {
+        lock (_values)
+        {
+            _values[(device, path)] = value;
+        }
+    }
+
+    public WpValue? Current(DeviceId device, PropertyPath property)
+    {
+        lock (_values)
+        {
+            return _values.TryGetValue((device, property), out var value) ? value : null;
+        }
+    }
+}
+
+/// <summary>The records the group coordinator appends to <c>WP_SYS</c>, in order.</summary>
+internal sealed class FakeSys : ICommandSysRecords
+{
+    private readonly List<LogEnvelope> _records = [];
+
+    public IReadOnlyList<LogEnvelope> Records
+    {
+        get
+        {
+            lock (_records)
+            {
+                return [.. _records];
+            }
+        }
+    }
+
+    public ValueTask AppendAsync(LogEnvelope record, CancellationToken ct)
+    {
+        var valid = record.Validate(LogStream.Sys);
+        if (!valid.IsSuccess)
+        {
+            throw new InvalidOperationException($"Invalid WP_SYS record {record.Kind}: {valid.Error.Code.Value}");
+        }
+
+        lock (_records)
+        {
+            _records.Add(record);
+        }
+
+        return ValueTask.CompletedTask;
+    }
 }
 
 internal sealed class FakeConnections : ICommandConnections
@@ -363,7 +450,8 @@ internal sealed class FakeRegistry : IRegistryReader
     public Result<Server> GetServer(ServerId id) =>
         Servers.TryGetValue(id, out var server) ? server : Error.NotFound("registry.server.not_found", ("id", id.Value));
 
-    public Page<Device> QueryDevices(DeviceQuery query, PageRequest page) => new([.. Devices.Values], null);
+    public Page<Device> QueryDevices(DeviceQuery query, PageRequest page) =>
+        new([.. Devices.Values.Where(d => query.Within is null || query.Within.Contains(d.Id)).OrderBy(d => d.Id.Value)], null);
 
     public Result<Location> GetLocation(LocationId id) => throw new NotSupportedException();
 
@@ -495,7 +583,10 @@ internal sealed class FakePartitions(CommandProcessor processor, TimeProvider ti
             }
         }
 
-        processor.OnRecords(partition, records);
+        // Follow-up records (verification, CMD §9) are appended after the batch, as PIP §7.3 does.
+        var followUps = new Emitter(partition, time.GetUtcNow());
+        processor.OnRecords(partition, records, recovering: false, followUps);
+        Append(partition, followUps.Records);
     }
 
     private sealed class Emitter(int partition, DateTimeOffset now) : ICommandEmitter
