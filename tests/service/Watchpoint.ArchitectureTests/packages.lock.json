@@ -766,6 +766,7 @@
           "Serilog.Sinks.File": "[7.0.0, )",
           "Watchpoint.Api": "[1.0.0, )",
           "Watchpoint.Commands": "[1.0.0, )",
+          "Watchpoint.Configuration": "[1.0.0, )",
           "Watchpoint.History": "[1.0.0, )",
           "Watchpoint.Hosting": "[1.0.0, )",
           "Watchpoint.Identity": "[1.0.0, )",

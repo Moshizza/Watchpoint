@@ -80,5 +80,5 @@ internal static class JsonDiff
 
     internal static JsonNode? Node(JsonElement? element) => element is { } e ? JsonNode.Parse(e.GetRawText()) : null;
 
-    internal static JsonElement Element(JsonNode? node) => JsonSerializer.SerializeToElement(node);
+    internal static JsonElement Element(JsonNode? node) => NodeJson.ToElement(node);
 }

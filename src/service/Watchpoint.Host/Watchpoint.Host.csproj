@@ -19,6 +19,7 @@
     <ProjectReference Include="../Watchpoint.Pipeline/Watchpoint.Pipeline.csproj" />
     <ProjectReference Include="../Watchpoint.State/Watchpoint.State.csproj" />
     <ProjectReference Include="../Watchpoint.Commands/Watchpoint.Commands.csproj" />
+    <ProjectReference Include="../Watchpoint.Configuration/Watchpoint.Configuration.csproj" />
   </ItemGroup>
 
   <ItemGroup>

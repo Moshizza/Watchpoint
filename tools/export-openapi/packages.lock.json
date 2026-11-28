@@ -270,6 +270,19 @@
           "Watchpoint.Storage": "[1.0.0, )"
         }
       },
+      "watchpoint.configuration": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore.Relational": "[10.0.14, )",
+          "Watchpoint.Identity": "[1.0.0, )",
+          "Watchpoint.Kernel": "[1.0.0, )",
+          "Watchpoint.Pipeline": "[1.0.0, )",
+          "Watchpoint.Registry": "[1.0.0, )",
+          "Watchpoint.Scheduling": "[1.0.0, )",
+          "Watchpoint.Secrets": "[1.0.0, )",
+          "Watchpoint.Storage": "[1.0.0, )"
+        }
+      },
       "watchpoint.history": {
         "type": "Project",
         "dependencies": {
@@ -299,6 +312,7 @@
           "Serilog.Sinks.File": "[7.0.0, )",
           "Watchpoint.Api": "[1.0.0, )",
           "Watchpoint.Commands": "[1.0.0, )",
+          "Watchpoint.Configuration": "[1.0.0, )",
           "Watchpoint.History": "[1.0.0, )",
           "Watchpoint.Hosting": "[1.0.0, )",
           "Watchpoint.Identity": "[1.0.0, )",
@@ -405,6 +419,15 @@
           "Watchpoint.Storage": "[1.0.0, )"
         }
       },
+      "watchpoint.scheduling": {
+        "type": "Project",
+        "dependencies": {
+          "Cronos": "[0.13.0, )",
+          "Microsoft.EntityFrameworkCore.Relational": "[10.0.14, )",
+          "Watchpoint.Kernel": "[1.0.0, )",
+          "Watchpoint.Storage": "[1.0.0, )"
+        }
+      },
       "watchpoint.secrets": {
         "type": "Project",
         "dependencies": {
@@ -441,6 +464,12 @@
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )",
           "Watchpoint.Storage": "[1.0.0, )"
         }
+      },
+      "Cronos": {
+        "type": "CentralTransitive",
+        "requested": "[0.13.0, )",
+        "resolved": "0.13.0",
+        "contentHash": "Nkve+Yi0+ol3ntSBRHeW0ka9cJQ8vndSUvvkXqF9LVqwpoqWueyxu/HS275r98RDOmF7/mzRnZW5XXUBXob+TA=="
       },
       "EFCore.NamingConventions": {
         "type": "CentralTransitive",

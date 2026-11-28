@@ -1,6 +1,5 @@
 using System.Data.Common;
 using System.Runtime.CompilerServices;
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using Watchpoint.Configuration.Contracts;
 using Watchpoint.Kernel.Ids;
@@ -178,7 +177,7 @@ public static class RegistryDocuments
     }
 
     private static ConfigDocument Doc(ConfigObjectRef reference, long version, JsonObject content) =>
-        new(reference, version, JsonSerializer.SerializeToElement(content));
+        new(reference, version, Internal.NodeJson.ToElement(content));
 
     private static JsonObject Site(Site s) => new() { ["name"] = NameJson(s.Name), ["timeZone"] = s.DefaultTimezone };
 
