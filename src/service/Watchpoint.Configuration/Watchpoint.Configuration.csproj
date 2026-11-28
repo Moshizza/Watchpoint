@@ -8,6 +8,8 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
   </ItemGroup>
 
   <ItemGroup>
@@ -15,6 +17,9 @@
     <ProjectReference Include="../Watchpoint.Registry/Watchpoint.Registry.csproj" />
     <ProjectReference Include="../Watchpoint.Secrets/Watchpoint.Secrets.csproj" />
     <ProjectReference Include="../Watchpoint.Identity/Watchpoint.Identity.csproj" />
+    <ProjectReference Include="../Watchpoint.Storage/Watchpoint.Storage.csproj" />
+    <ProjectReference Include="../Watchpoint.Pipeline/Watchpoint.Pipeline.csproj" />
+    <ProjectReference Include="../Watchpoint.Scheduling/Watchpoint.Scheduling.csproj" />
   </ItemGroup>
 
   <ItemGroup>

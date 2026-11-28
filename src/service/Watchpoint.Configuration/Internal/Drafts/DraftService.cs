@@ -289,6 +289,54 @@ internal sealed class DraftService(
         return (entries, entry);
     }
 
+    /// <summary>
+    /// Replaces an entry's content and base version (a rebase on the live document, CFG §8); the entry is checked again.
+    /// <paramref name="content"/> is the merged document (no new secret: secrets keep their vault references).
+    /// </summary>
+    public async Task<Result<EntryResult>> RebaseAsync(DraftId id, UserId actor, long expectedVersion, Guid entryId, JsonElement? content, long baseVersion,
+        CancellationToken ct)
+    {
+        if (!(await OpenAsync(id, actor, expectedVersion, ct).ConfigureAwait(false)).TryGetValue(out var draft, out var error))
+        {
+            return error;
+        }
+
+        if (draft.Entries.FirstOrDefault(e => e.EntryId == entryId) is not { } existing)
+        {
+            return Error.Create(ErrorKind.NotFound, ConfigurationErrors.EntryInvalid, ("reason", "not_found"), ("entryId", entryId));
+        }
+
+        var permission = types.Find(existing.Ref.Type)!.PermissionFor(ConfigAccess.Edit);
+        if (!await authorizer.IsAllowedAsync(actor, permission, existing.Ref, ct).ConfigureAwait(false))
+        {
+            return ConfigurationErrors.Forbidden(permission.Value);
+        }
+
+        var entry = existing with { Content = existing.Operation == EntryOperation.Delete ? null : content, BaseVersion = baseVersion };
+        List<DraftEntry> entries = [.. draft.Entries.Select(e => e.EntryId == entryId ? entry : e)];
+        return await CommitAsync(draft, entries, entry, entry.Ref, [], ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Replaces a draft as the publish path changes its status (compare and swap on the version).</summary>
+    public async Task<Result<Draft>> SetStatusAsync(Draft draft, DraftStatus status, DateTimeOffset? publishAt, ApprovalInfo? approval, IReadOnlyList<Problem>? problems,
+        CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(draft);
+        var next = draft with
+        {
+            Status = status,
+            PublishAt = publishAt,
+            Approval = approval,
+            Problems = problems ?? draft.Problems,
+            UpdatedAt = time.GetUtcNow(),
+            Version = draft.Version + 1,
+        };
+        return await repository.TryReplaceAsync(next, draft.Version, null, ct).ConfigureAwait(false) ? next : await ConflictAsync(draft.Id, draft.Version, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>A draft the actor may see (owner or collaborator), without the open check.</summary>
+    public Task<Result<Draft>> FindVisibleAsync(DraftId id, UserId actor, CancellationToken ct) => VisibleAsync(id, actor, ct);
+
     private async Task<Result<EntryResult>> CommitAsync(
         Draft draft, List<DraftEntry> entries, DraftEntry? entry, ConfigObjectRef changed, IReadOnlyList<DraftSecretRef> created, CancellationToken ct)
     {

@@ -116,6 +116,12 @@ public interface IDraftRepository
     /// <param name="ct">The cancellation token.</param>
     /// <returns>The secrets.</returns>
     Task<IReadOnlyList<DraftSecretRef>> GetSecretsAsync(DraftId id, CancellationToken ct);
+
+    /// <summary>The drafts in a status, whoever owns them (scheduled drafts re-armed at start-up, CFG §7).</summary>
+    /// <param name="status">The status.</param>
+    /// <param name="ct">Cancels the query.</param>
+    /// <returns>The drafts.</returns>
+    Task<IReadOnlyList<Draft>> ListByStatusAsync(DraftStatus status, CancellationToken ct);
 }
 
 /// <summary>Live documents of a module that has no document-oriented service yet (the adapters of the <c>Adapters</c> folder read through it).</summary>
