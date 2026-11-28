@@ -331,6 +331,11 @@ and the subscriber reports its recovery checkpoint from then on (until then no r
 - The current state is also checked immediately at success time (the effect may already be
   visible before the result arrives).
 - Verification failures can raise alarms through ALM rules on `command.unverified` records.
+- Details (T2.03): an expected effect without `within` uses 10 s. The value is compared whatever its quality. The current
+  value comes from STA's live store (`IStateReader`; STA applies a batch before the commands subscriber, order 100 < 200).
+  Bodies: `observed` = the matching value (verified) or the current value (unverified), `afterMs` = time since success.
+  While a partition replays nothing is emitted (watchers are registered, from records and from the restored snapshot);
+  `OnRecoveryCompleted` checks every watcher against the current state, then the deadline tick applies as usual.
 
 ## 10. Group commands (T2.03)
 
@@ -350,6 +355,24 @@ and the subscriber reports its recovery checkpoint from then on (until then no r
   verified, unverified, rejected, pending`) and publishes `commandGroup.progress` (WP_SYS) at most
   every 500 ms and `commandGroup.completed` when all children are terminal.
 - "Retry failed": `POST /command-groups/{id}/retry` creates a new group with the failed children.
+- Details (T2.03):
+  - The visible scope comes from `ICommandAuthorizer.VisibleDevices(issuer)`: `null` = every device (M2 fallback; RGT
+    narrows it), otherwise the selector's `DeviceQuery.Within` is intersected with it.
+  - `commandGroup.requested` carries `args` as requested (JSON; each child validates them), the resolved `targets`, and
+    `retryOf` for a retry. All three group kinds are in `WP_SYS` with `p = 0` and `corr.command` = the group id.
+  - Counters: `succeeded` counts every child that succeeded, verified or not (`verified` and `unverified` are parts of it);
+    `failed` also counts expired and cancelled children; `pending` = children not terminal (a succeeded child still waiting
+    for its effect is pending). A progress record is published only when the counters change; at most one every 500 ms per
+    group (the latest counters are flushed at the end of the interval); `commandGroup.completed` once, then log 2430.
+  - A batch takes one in-flight slot of the connection and locks every device in it; children of the same group, command
+    and connection that are ready are taken in queue order. A child left alone is dispatched with `ExecuteAsync` (no batch of
+    one). The batch deadline is the earliest of its children's; a call that throws, or returns the wrong number of
+    results, fails every child with `errors.commands.connector.failed`.
+  - `ICommandService.GetGroup(id)` (counters and one child per target) and `RetryFailedAsync(id, issuer, reason?, stepUp?)`:
+    the retry takes the children that failed, timed out or expired, and is validated again as a new group (a fresh step-up
+    proof when needed; the original reason by default); no such child → `commands.group.nothing_to_retry`.
+  - Groups are kept in memory until 24 h after completion; they are not rebuilt after a restart (the children are, through
+    the pending store).
 
 ## 11. API and live (T2.04)
 
@@ -391,6 +414,7 @@ Live topics:
 `commands.connection.missing`, `commands.not_before.too_far`, `commands.group.too_large`,
 `commands.cancel.too_late`, `commands.approval.self_forbidden`, `commands.approval.expired`,
 `commands.approval.not_pending`, `commands.outcome_unknown`, `commands.connection.down`, `commands.connector.failed`,
+`commands.group.nothing_to_retry`,
 `commands.command.not_found` (no active command and
 none finished in the last 24 h), plus connector failure messages. Failure message key (not an error):
 `errors.commands.approval.rejected` (arg `reason`). Codes of other modules returned as they are:
@@ -409,6 +433,7 @@ none finished in the last 24 h), plus connector failure messages. Failure messag
 | 2420 | Debug | Ignored late transition {Kind} for command {CommandId} in state {State} |
 | 2430 | Information | Group {GroupId} completed: {Counters} |
 | 2440 | Error | Command dispatch of connection {ConnectionId} failed |
+| 2441 | Warning | Group {GroupId}: a group record could not be appended |
 
 Metrics: `watchpoint.commands.requests` (counter by `path`, `outcome`),
 `watchpoint.commands.latency` (histogram ms requested→terminal, by `path` and terminal `state`),
