@@ -3,7 +3,6 @@ using Watchpoint.Configuration.Internal.Storage;
 using Watchpoint.Identity.Contracts;
 using Watchpoint.Kernel.Ids;
 using Watchpoint.Pipeline.Contracts;
-using Watchpoint.Scheduling;
 
 namespace Watchpoint.Configuration.Internal.Publish;
 
@@ -29,13 +28,6 @@ internal sealed class LogConfigPublishedSink : IConfigPublishedSink
             new RecordOrigin(RecordOriginType.User, actor.Value), RecordCorrelation.None, _registry.SerializeBody(Kind, body));
         await _log.AppendGlobalAsync(LogStream.Cfg, envelope, ct).ConfigureAwait(false);
     }
-}
-
-/// <summary>Scheduled publish through SCH one-shot triggers (owner <c>config</c>).</summary>
-internal sealed class SchedulingConfigScheduler(ITimeTriggerService triggers) : IConfigScheduler
-{
-    public IDisposable At(string key, DateTimeOffset when, Func<CancellationToken, ValueTask> callback) =>
-        triggers.Register("config", key, new TriggerSpec.At(when), MissedPolicy.FireOnce, (_, ct) => callback(ct));
 }
 
 /// <summary>

@@ -259,6 +259,14 @@ Writes are serialised by a single async lock per node (writes are rare; correctn
 In a cluster (M9) the configuration publish path (CFG) is the only writer; REG relies on the
 database transaction + version checks.
 
+**Publish transaction (CFG §7.1, T3.02).** The writer also implements `IRegistryTransactionalWriter.PrepareAsync(batch,
+context, connection, transaction)`: the same staging, invariants, revision, record-size check and outbox record as
+`ApplyAsync`, persisted through the caller's connection and transaction of the configuration database without committing.
+The returned `IPreparedRegistryBatch` exposes the staged registry (`Staged`, for the new versions and documents);
+`Complete()` after the commit swaps the snapshot, invalidates the enrichment, signals the outbox and raises `Changed`;
+`Abort()` after a rollback forgets the batch. The writer's gate is held from the prepare until one of them, so other
+writes wait for the publish.
+
 ## 7. Internal design
 
 ### 7.1 Snapshot

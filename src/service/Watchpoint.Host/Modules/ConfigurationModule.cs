@@ -1,6 +1,7 @@
 using Watchpoint.Configuration;
 using Watchpoint.Configuration.Contracts;
 using Watchpoint.Hosting;
+using Watchpoint.Scheduling;
 
 namespace Watchpoint.Host.Modules;
 
@@ -30,6 +31,12 @@ public sealed class ConfigurationModule : IWatchpointModule
         }
 
         services.AddWatchpointConfiguration(settings);
+        if (services.Any(d => d.ServiceType == typeof(ITimeTriggerService)))
+        {
+            // Scheduled publish through SCH one-shot triggers (owner "config"), when SCH is composed.
+            services.AddSingleton<IConfigScheduler>(sp => new SchedulingConfigScheduler(sp.GetRequiredService<ITimeTriggerService>()));
+        }
+
         services.AddConfigurationPublishing();
         services.AddStartupTask<ConfigurationTypesStartupTask>();
         services.AddStartupTask<ConfigurationSchedulesStartupTask>();
@@ -66,4 +73,13 @@ public sealed class ConfigurationSchedulesStartupTask(IServiceProvider services)
 
     /// <inheritdoc />
     public Task ExecuteAsync(CancellationToken ct) => Watchpoint.Configuration.ConfigurationModule.ResumeScheduledPublishesAsync(services, ct);
+}
+
+/// <summary>Scheduled publish through SCH one-shot triggers (spec CFG §8).</summary>
+/// <param name="triggers">SCH's trigger service.</param>
+public sealed class SchedulingConfigScheduler(ITimeTriggerService triggers) : IConfigScheduler
+{
+    /// <inheritdoc />
+    public IDisposable At(string key, DateTimeOffset instant, Func<CancellationToken, ValueTask> callback) =>
+        triggers.Register("config", key, new TriggerSpec.At(instant), MissedPolicy.FireOnce, (_, ct) => callback(ct));
 }

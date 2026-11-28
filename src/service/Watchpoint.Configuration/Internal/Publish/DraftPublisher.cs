@@ -9,12 +9,6 @@ using Watchpoint.Kernel.Results;
 
 namespace Watchpoint.Configuration.Internal.Publish;
 
-/// <summary>Runs a callback once at an instant (SCH one-shot trigger in the host; spec CFG §1 scheduled publish).</summary>
-internal interface IConfigScheduler
-{
-    IDisposable At(string key, DateTimeOffset when, Func<CancellationToken, ValueTask> callback);
-}
-
 /// <summary>
 /// Publishing drafts (spec CFG §7–§8): the publish permission of every type, approval when a type requires it (approver ≠
 /// requester), scheduled publish, and rebasing an entry on the live document by three-way merge.

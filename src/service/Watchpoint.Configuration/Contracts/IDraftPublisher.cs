@@ -100,3 +100,14 @@ public interface IConfigPublishedSink
     /// <returns>A task.</returns>
     ValueTask AppendAsync(ConfigPublishedBody body, UserId actor, DateTimeOffset at, CancellationToken ct);
 }
+
+/// <summary>Runs a callback once at an instant: scheduled publish (spec CFG §1, §8). The host adapts SCH's one-shot triggers.</summary>
+public interface IConfigScheduler
+{
+    /// <summary>Schedules <paramref name="callback"/> at <paramref name="instant"/>.</summary>
+    /// <param name="key">The schedule key (one schedule per key).</param>
+    /// <param name="instant">When to run it.</param>
+    /// <param name="callback">What to run.</param>
+    /// <returns>Disposing it cancels the schedule.</returns>
+    IDisposable At(string key, DateTimeOffset instant, Func<CancellationToken, ValueTask> callback);
+}

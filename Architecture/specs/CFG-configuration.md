@@ -31,15 +31,17 @@ Watchpoint.Configuration/
 ├── Contracts/
 │   ├── IConfigurableObjectType.cs, ConfigObjectRef.cs, ConfigDocument.cs
 │   ├── ConfigModel.cs (refs, documents, Draft, DraftEntry, Problem, ChangeSet), Ports.cs (authorizer, licence hook, approval policy, publish seam, draft repository, document source)
-│   ├── IDraftService.cs, IPublishService.cs, IVersionService.cs, ILockService.cs, IImportExportService.cs
+│   ├── IDraftService.cs, IPublishService.cs (in Ports.cs), IDraftPublisher.cs (publish/approve/reject/rebase, config.published body, audit and sink ports), IVersionService.cs (+ IConfigApplier), ILockService.cs, IImportExportService.cs
 │   └── ConfigurationErrors.cs
 ├── Adapters/DocumentObjectType.cs, ModuleObjectTypes.cs   object types of the existing modules (REG, IRT, SCH, IDN, HIS): schema + references
+│   └── RegistryConfig.cs             REG live documents (RegistryConfigSource) and applier (RegistryConfigApplier), T3.02
 ├── Internal/
 │   ├── ObjectTypeRegistry.cs
 │   ├── Validation/DocumentSchemaValidator.cs, DraftValidator.cs, DraftView.cs, JsonPatch.cs   (pure; reference checks in DraftValidator)
 │   ├── Drafts/DraftService.cs, InMemoryDraftRepository.cs, DraftSecrets.cs, ValidationJob.cs, QuickEdit.cs
-│   ├── Publish/PublishOrchestrator.cs, ApprovalWorkflow.cs, ScheduledPublisher.cs
-│   ├── Versions/VersionStore.cs, InverseBuilder.cs, JsonDiff.cs, ThreeWayMerge.cs
+│   ├── Publish/PublishOrchestrator.cs, DraftPublisher.cs (approval, scheduled publish, rebase), PublishStore.cs, ConfigReloader.cs (M9), PublishAdapters.cs (WP_CFG sink, SCH scheduler, fallback authorizer)
+│   ├── Storage/ConfigDbContext.cs (wp_config + migration), PostgresDraftRepository.cs, PostgresPublishStore.cs, ConfigJson.cs
+│   ├── Versions/VersionService.cs, JsonDiff.cs, ThreeWayMerge.cs
 │   ├── Locks/SoftLockService.cs
 │   ├── ImportExport/BundleExporter.cs, BundleImporter.cs, TabularImporter.cs (CSV/XLSX)
 │   └── QuickEdit.cs
@@ -73,15 +75,37 @@ public interface IConfigurableObjectType
     // References this document makes to other objects (for delete checks and import mapping).
     IReadOnlyList<ConfigObjectRef> GetReferences(JsonElement content);
 
-    // --- T3.02 (publish): not in the contract of T3.01. ---
+}
+
+// T3.02: applying is per module, not per type (one optional applier per module; a type whose module has none is not
+// publishable: config.publish.not_supported, args type, module).
+public interface IConfigApplier
+{
+    string Module { get; }
     // Transactional apply: write within the given transaction; return new versions. No in-memory changes yet.
-    Task<IReadOnlyList<AppliedEntry>> PrepareApplyAsync(IReadOnlyList<DraftEntry> entries, DbConnection connection,
-        DbTransaction transaction, ChangeContext context, CancellationToken ct);
+    Task<Result<IReadOnlyList<AppliedEntry>>> PrepareApplyAsync(IReadOnlyList<DraftEntry> entries, DbConnection connection,
+        DbTransaction transaction, ConfigApplyContext context, CancellationToken ct);
     // After commit: update in-memory snapshots, publish module records if any. Must not fail (log only).
-    ValueTask CompleteApplyAsync(IReadOnlyList<AppliedEntry> applied, ChangeContext context, CancellationToken ct);
+    ValueTask CompleteApplyAsync(IReadOnlyList<AppliedEntry> applied, ConfigApplyContext context, CancellationToken ct);
+    // The transaction was rolled back after a successful prepare (another module refused, or a failure): forget it.
+    ValueTask AbortApplyAsync(ConfigApplyContext context, CancellationToken ct) => ValueTask.CompletedTask;
     // Other nodes (M9) and self-healing: reload the listed objects from the database into memory.
     ValueTask ReloadAsync(IReadOnlyList<ConfigObjectRef> objects, CancellationToken ct);
 }
+public sealed record ConfigApplyContext(UserId Actor, ChangeSetId ChangeSet, long Version, string? Comment);   // Origin "publish:<changeSetId>"
+```
+
+**Registry (T3.02).** `RegistryConfigApplier` turns the `registry.*` entries into one registry batch written through
+`IRegistryTransactionalWriter.PrepareAsync` (REG: the registry writer stages and persists the batch, revision and
+`registry.changed` outbox record included, in the publish transaction; `Complete` swaps the snapshot after the commit,
+`Abort` after a rollback; other registry writes wait meanwhile). The documents hold what an operator configures: devices
+and servers are created by their integration, so configuration updates (name, location, tags, enabled, maintenance) and
+deletes them (`type`, `serverId`/`connectionId`, `parentId` are owned by the integration and must not change); sites are
+updated; locations, tag families, tags, custom fields and links are created, updated and deleted. Location kinds and link
+kinds use the registry's values (camelCase). The other modules' appliers come with T3.02b (IRT, SCH, IDN, HIS) and T3.02c
+(ALM).
+
+```csharp
 
 public sealed record AppliedEntry(ConfigObjectRef Ref, EntryOperation Operation, long NewVersion, JsonElement? Before, JsonElement? After);
 ```
@@ -238,14 +262,26 @@ draft is not listed; editing and publishing permissions of every touched type ar
    system event `configuration.published`, draft status `Published`.
 7. Failure in step 4–5 → rollback transaction, draft `Failed` with error, nothing applied.
 
+Details (T3.02): a type without applier refuses the publish before anything is locked (`config.publish.not_supported`).
+A draft already `Publishing` → `config.publish.in_progress`; the change set must have been built from the draft's current
+version (`common.version.conflict`). Steps 2–3 put the draft back to `Open` (with the new problems). A module refusing in
+step 4 (its error code) or an exception → the modules that prepared are aborted (`AbortApplyAsync`), the transaction is
+rolled back, the draft is `Failed` with one problem `config.publish.failed` (arg `reason`), log 1303. In step 6 a failing
+`CompleteApplyAsync` is logged (1304) and followed by `ReloadAsync` of the affected objects (1305 if that fails too); the
+`config.published` record and the audit (`IConfigAudit`, implemented by AUD in T3.06; until then publishes are only
+logged, 1301) never undo a committed version (1306). The system event `configuration.published` comes with AUD. The
+publish lock key is a constant of `wp_config` (`pg_advisory_xact_lock`). `config.published` also carries `nodeId`.
+Metrics: `watchpoint.config.publishes` by `outcome` (`published`, `invalid`, `conflict`, `rejected`, `failed`).
+
 Atomicity relies on all configuration stores being in the **same database** (STO default; the
 store mapping keeps Configuration in one database by design).
 
 ### 7.2 Propagation to other nodes (M9)
 
 Nodes other than the publisher consume `config.published` from WP_CFG and call each module's
-`ReloadAsync(changes)` (part of `IConfigurableObjectType`, default: reload the listed objects from
-the database) — same in-memory effect as `CompleteApplyAsync`.
+`IConfigApplier.ReloadAsync(changes)` (reload the listed objects from the database) — same in-memory effect as
+`CompleteApplyAsync`; a node skips the records it published itself (`nodeId`). `ConfigReloader` does this (T3.02, unit
+tested); it is wired to the WP_CFG consumer with clustering (M9).
 
 ### 7.3 Versions and rollback
 
@@ -254,7 +290,7 @@ public interface IVersionService
 {
     Task<Page<ConfigVersion>> ListAsync(VersionQuery query, PageRequest page, CancellationToken ct);
     Task<Result<ConfigVersionDetail>> GetAsync(long version, CancellationToken ct);      // entries + diff
-    Task<Result<DraftId>> CreateRollbackDraftAsync(long version, UserId actor, CancellationToken ct);  // inverse of version v (and of later versions if requested)
+    Task<Result<DraftId>> CreateRollbackDraftAsync(long version, UserId actor, bool restore, CancellationToken ct);  // restore = false: inverse of version v; true: inverse of every version after v
     Task<Result<JsonElement>> GetObjectAtVersionAsync(ConfigObjectRef obj, long version, CancellationToken ct);
 }
 ```
@@ -262,6 +298,9 @@ public interface IVersionService
 - Rollback creates a **draft** containing the inverse entries of the chosen version (or of all
   versions after a point — "restore to version v"); it is validated (objects may have changed
   since) and published like any draft.
+- "Restore to version v" folds the inverses per object: the document is the state right after v, the base version the
+  live one; an object created after v is deleted, one deleted after v created again. `ListAsync` pages with an offset
+  cursor, newest first; `GetObjectAtVersionAsync` answers `config.version.not_found` when the object did not exist then.
 - Versions are kept forever by default (they are small); `Configuration:VersionRetention` can
   limit to N days (default unlimited).
 
@@ -280,6 +319,16 @@ with translated field labels from the object type's schema.
   field). Resolving updates the entry with `BaseVersion = theirs.Version`.
 - Endpoint `POST /api/v1/drafts/{id}/entries/{entryId}/rebase` → `{ merged, conflicts[] }`;
   `PUT …/entries` with the resolved content.
+- T3.02: `IDraftPublisher.RebaseEntryAsync(draft, actor, expectedVersion, entryId, resolved?)` is the service behind the
+  endpoint (API in T3.03/UIF). Base = the document published with the entry's base version (`version_entries`, unknown for
+  objects never published through CFG: then every difference conflicts). Objects merge by key; other values (arrays
+  included) as a whole. Without conflict, or with `resolved`, the entry takes the result and `BaseVersion` = live version.
+- Publish, approval and scheduling go through `IDraftPublisher`: `PublishDraftAsync(draft, actor, expectedVersion, comment,
+  publishAt?)` (publish permission of every type; approval when `Configuration:ApprovalRequiredFor` lists a type →
+  `AwaitingApproval`; `publishAt` in the future → `Scheduled`, an SCH one-shot trigger, re-armed at start-up),
+  `ApproveAsync` (approver ≠ requester, `config.approval.self_forbidden`; then published or scheduled, author = the draft's
+  owner), `RejectAsync(reason)` (draft `Open` again with the warning `config.approval.rejected`, args `reason`, `by`).
+  Without SCH, a scheduled publish is `common.unavailable`.
 
 ## 9. Soft locks (T3.03)
 
@@ -326,11 +375,12 @@ or `,` delimiter auto-detected.
 
 | Table | Columns |
 |---|---|
-| `drafts` | id, name jsonb, owner, collaborators uuid[], status, publish_at, approval jsonb, created_at, updated_at, row_version |
-| `draft_entries` | id, draft_id, type, object_id, operation, base_version, content jsonb, updated_at — unique (draft_id, type, object_id) |
-| `draft_problems` | draft_id, entry_id null, severity, code, args jsonb, path, fixes jsonb (rewritten on each validation) |
-| `versions` | version bigint PK (sequence), published_at, author, comment, draft_id, summary jsonb (counts per type/op), inverse jsonb, diff jsonb |
-| `version_entries` | version, type, object_id, operation, new_version, before jsonb, after jsonb — PK (version, type, object_id) |
+| `drafts` | id, name jsonb, owner, collaborators uuid[], status, publish_at, approval jsonb, hidden (quick edits), created_at, updated_at, version (the draft's compare-and-swap version) |
+| `draft_entries` | id, draft_id, position, type, object_id, operation, base_version, content jsonb, updated_at — unique (draft_id, type, object_id) |
+| `draft_problems` | draft_id, position, severity, code, args jsonb, object_type, object_id, path, fixes jsonb — PK (draft_id, position) (rewritten on each validation) |
+| `draft_secrets` | draft_id, entry_id, field_path, secret_id — the vault references a draft holds (§6.3) |
+| `versions` | version bigint PK (next number under the publish lock), published_at, author, comment, draft_id, change_set_id, summary jsonb (counts per `type:operation`), inverse jsonb, diff jsonb |
+| `version_entries` | version, position, type, object_id, operation, new_version, before jsonb, after jsonb — PK (version, type, object_id) |
 | `locks` | id, type, object_id (unique pair), user_id, acquired_at, expires_at |
 | `settings` | approval rules (types requiring approval), version retention |
 
@@ -344,7 +394,8 @@ Errors: `config.draft.not_found`, `config.draft.not_open`, `config.draft.too_lar
 `config.reference.in_use`, `config.publish.invalid`, `config.publish.conflict`,
 `config.publish.in_progress`, `config.approval.required`, `config.approval.self_forbidden`,
 `config.lock.held_by`, `config.lock.not_supported`, `config.import.invalid_bundle`,
-`config.import.unmapped_reference`, `config.version.not_found`, `config.licence.quota_exceeded`, `config.secret.invalid`, the fix codes
+`config.import.unmapped_reference`, `config.version.not_found`, `config.licence.quota_exceeded`, `config.secret.invalid`,
+`config.publish.not_supported`, `config.publish.failed`, `config.approval.rejected` (T3.02), the fix codes
 `config.fix.remove_field`, `config.fix.set_default`, `config.fix.set_nearest`, and `api.client_kind.not_allowed` (§6.1, API §5.3:
 `ConfigurationClientRule`). Problems also use the `common.value.*` codes of the schema checks. Every code has a text `errors.<code>`
 in en, fr and ar (CFG-U-018).
@@ -355,6 +406,9 @@ in en, fr and ar (CFG-U-018).
 | 1302 | Warning | Publish of draft {DraftId} rejected: {Code} |
 | 1303 | Error | Publish of draft {DraftId} failed and was rolled back: {Error} |
 | 1304 | Error | CompleteApply failed in module {Module} for version {Version} (in-memory state will be reloaded) |
+| 1305 | Error | Reload of module {Module} failed for version {Version} |
+| 1306 | Error | Version {Version} committed but its config.published record or audit failed |
+| 1307 | Warning | Scheduled publish of draft {DraftId} failed: {Code} |
 | 1310 | Information | Rollback draft {DraftId} created from version {Version} |
 
 On `CompleteApply` failure the module is asked to reload the affected objects from the database
@@ -448,5 +502,7 @@ Metrics: `watchpoint.config.publish.duration`, `watchpoint.config.publishes` (co
 | Task | Sections | Tests |
 |---|---|---|
 | T3.01 | §4–§6 | CFG-U-001…CFG-U-030 |
-| T3.02 | §7–§8 | CFG-U-031…CFG-U-050, CFG-I-001…CFG-I-008 |
+| T3.02 | §7–§8 | CFG-U-031…CFG-U-050, CFG-I-001 (REG), CFG-I-002…CFG-I-006, CFG-I-008 |
+| T3.02b | §4, §6.4 (IRT, SCH, IDN, HIS appliers; quick edits through module endpoints) | CFG-I-007, CFG-I-001 (IRT part) |
+| T3.02c | §4 (ALM types) | CFG-I-001 (ALM part), CFG-I-005 (rule part) |
 | T3.03 | §9–§10 | CFG-U-051…CFG-U-070 |

@@ -355,9 +355,9 @@ internal sealed class FakeScheduler : IConfigScheduler
 {
     public Dictionary<string, (DateTimeOffset At, Func<CancellationToken, ValueTask> Callback)> Pending { get; } = [];
 
-    public IDisposable At(string key, DateTimeOffset when, Func<CancellationToken, ValueTask> callback)
+    public IDisposable At(string key, DateTimeOffset instant, Func<CancellationToken, ValueTask> callback)
     {
-        Pending[key] = (when, callback);
+        Pending[key] = (instant, callback);
         return new Handle(() => Pending.Remove(key));
     }
 

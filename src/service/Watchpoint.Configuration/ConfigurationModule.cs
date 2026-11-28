@@ -10,7 +10,6 @@ using Watchpoint.Configuration.Internal.Publish;
 using Watchpoint.Configuration.Internal.Storage;
 using Watchpoint.Configuration.Internal.Validation;
 using Watchpoint.Configuration.Internal.Versions;
-using Watchpoint.Scheduling;
 using Watchpoint.Storage.Contracts;
 
 namespace Watchpoint.Configuration;
@@ -51,7 +50,7 @@ public static class ConfigurationModule
     /// <summary>
     /// Adds publishing (spec CFG §7–§8) on PostgreSQL: drafts and versions in <c>wp_config</c> (replacing the in-memory draft
     /// repository), the publish orchestrator (<see cref="IPublishService"/>), <see cref="IDraftPublisher"/> (approval, scheduled
-    /// publish through SCH when it is registered, rebase), <see cref="IVersionService"/>, <c>config.published</c> on <c>WP_CFG</c>,
+    /// publish when the host registers an <see cref="IConfigScheduler"/>, rebase), <see cref="IVersionService"/>, <c>config.published</c> on <c>WP_CFG</c>,
     /// the registry's object types and applier, and the M2 fallback <see cref="IConfigurationAuthorizer"/> (administrators) unless
     /// RGT registered one. Call after <see cref="AddWatchpointConfiguration"/>; needs STO, PIP, REG and IDN.
     /// </summary>
@@ -76,7 +75,7 @@ public static class ConfigurationModule
             sp.GetRequiredService<DraftService>(), sp.GetRequiredService<IDraftRepository>(), sp.GetRequiredService<IPublishService>(),
             sp.GetRequiredService<IConfigObjectTypeRegistry>(), sp.GetRequiredService<IConfigurationAuthorizer>(), sp.GetRequiredService<IApprovalPolicy>(),
             sp.GetRequiredService<IPublishStore>(), sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<ILogger<DraftPublisher>>(),
-            sp.GetService<IConfigScheduler>() ?? (sp.GetService<ITimeTriggerService>() is { } triggers ? new SchedulingConfigScheduler(triggers) : null)));
+            sp.GetService<IConfigScheduler>()));
         services.TryAddSingleton<IDraftPublisher>(sp => sp.GetRequiredService<DraftPublisher>());
         services.TryAddSingleton<IVersionService, VersionService>();
         return services;
