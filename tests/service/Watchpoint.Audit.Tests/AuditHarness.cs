@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Watchpoint.Audit.Contracts;
 using Watchpoint.Audit.Internal;
+using Watchpoint.Testing.Async;
 using Watchpoint.Testing.Logging;
 using Watchpoint.Testing.Time;
 using Xunit;
@@ -56,6 +57,10 @@ internal sealed class AuditHarness : IAsyncDisposable
         using var document = JsonDocument.Parse(json);
         return document.RootElement.Clone();
     }
+
+    public ILogger<T> LoggerFor<T>() => _loggers.CreateLogger<T>();
+
+    public static Task UntilAsync(Func<bool> condition) => Eventually.UntilAsync(condition, ct: TestContext.Current.CancellationToken);
 
     public ValueTask WriteAsync(AuditRecord record) => Writer.WriteAsync(record, TestContext.Current.CancellationToken);
 
