@@ -8,6 +8,7 @@ using Xunit;
 namespace Watchpoint.Rights.Tests;
 
 /// <summary>Scopes, schedules, constraints and decisions of the evaluator (RGT §6).</summary>
+[Collection(PerformanceGroup.Name)]
 public sealed class EvaluatorTests
 {
     private const string View = "operate.devices.view";
@@ -371,4 +372,11 @@ public sealed class EvaluatorTests
     }
 
     private static DeviceId TestIdsDevice(long n) => Watchpoint.Kernel.Testing.TestIds.Device(n);
+}
+
+/// <summary>The benchmark runs alone so that parallel tests do not disturb its timing.</summary>
+[CollectionDefinition(Name, DisableParallelization = true)]
+public sealed class PerformanceGroup
+{
+    public const string Name = "rights-performance";
 }
