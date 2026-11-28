@@ -56,6 +56,12 @@ public static class ConfigurationErrors
     /// <summary><c>config.version.not_found</c>.</summary>
     public const string VersionNotFound = "config.version.not_found";
 
+    /// <summary>The draft has an entry of a type whose module cannot apply published changes yet (args <c>type</c>, <c>module</c>).</summary>
+    public const string PublishNotSupported = "config.publish.not_supported";
+
+    /// <summary>The publish failed and was rolled back; nothing was applied (args <c>reason</c>).</summary>
+    public const string PublishFailed = "config.publish.failed";
+
     /// <summary><c>config.licence.quota_exceeded</c>: the draft would take the site over its licence (LIC hook).</summary>
     public const string LicenceQuotaExceeded = "config.licence.quota_exceeded";
 
@@ -76,7 +82,7 @@ public static class ConfigurationErrors
     [
         DraftNotFound, DraftNotOpen, DraftTooLarge, EntryInvalid, EntryOutdated, ReferenceMissing, ReferenceInUse, PublishInvalid, PublishConflict,
         PublishInProgress, ApprovalRequired, ApprovalSelfForbidden, LockHeldBy, LockNotSupported, ImportInvalidBundle, ImportUnmappedReference,
-        VersionNotFound, LicenceQuotaExceeded, SecretInvalid, FixRemoveField, FixSetDefault, FixSetNearest,
+        VersionNotFound, LicenceQuotaExceeded, SecretInvalid, FixRemoveField, FixSetDefault, FixSetNearest, PublishNotSupported, PublishFailed,
         "api.client_kind.not_allowed",
     ];
 
