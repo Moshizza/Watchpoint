@@ -63,7 +63,10 @@ internal sealed class ConnectionCounterSource
 /// The connector's observation sink (spec IRT §8, INT §7.1): <c>Report*</c> never blocks; a background flusher sends one
 /// batch at a time to <see cref="IObservationIngest"/> every 50 ms or 500 items, so the ingest's back-pressure stalls the
 /// flusher, not the connector. Beyond <c>SinkBuffer</c> the reports spill into an overflow as large again; beyond that,
-/// property reports are coalesced latest-per-(target, path) in place and events and health are kept.
+/// property reports are coalesced latest-per-(target, path) in place and events and health are kept. A report whose
+/// target does not resolve against the device map is deferred, not counted unknown, while the connection's first
+/// connect reconcile and map rebuild (IRT §7.2, §7.4) have not completed yet — ConnectorBase's own post-connect
+/// refresh/catch-up (INT §9) otherwise races that rebuild and every such report would be lost as "unknown".
 /// </summary>
 internal sealed class ObservationSink : IObservationSink, IAsyncDisposable
 {
@@ -82,6 +85,7 @@ internal sealed class ObservationSink : IObservationSink, IAsyncDisposable
     private readonly int _capacity;
     private readonly Lock _lock = new();
     private readonly LinkedList<Entry> _queue = new();
+    private readonly List<Action> _deferredUntilMapped = [];
     private readonly Dictionary<(Guid Target, string Path), Entry> _coalescible = [];
     private readonly List<(long Seq, TaskCompletionSource Done)> _waiters = [];
     private readonly Dictionary<string, Connectivity> _serverConnectivity = new(StringComparer.Ordinal);
@@ -112,6 +116,7 @@ internal sealed class ObservationSink : IObservationSink, IAsyncDisposable
         _logger = logger;
         _capacity = Math.Max(1, bufferSize) * 2;
         _lastUnknownLog = time.GetTimestamp();
+        _map.BecameReady += OnMapReady;
         _flusher = Task.Run(() => RunAsync(_stop.Token), CancellationToken.None);
     }
 
@@ -122,7 +127,7 @@ internal sealed class ObservationSink : IObservationSink, IAsyncDisposable
         {
             lock (_lock)
             {
-                return _queue.Count + _inFlight.Count;
+                return _queue.Count + _inFlight.Count + _deferredUntilMapped.Count;
             }
         }
     }
@@ -149,7 +154,8 @@ internal sealed class ObservationSink : IObservationSink, IAsyncDisposable
     public void ReportProperty(DeviceKey device, string propertyPath, WpValue value, Quality quality = Quality.Good,
         DateTimeOffset? sourceTime = null, string? unit = null, Guid? causedByCommand = null)
     {
-        if (!TryDevice(device, out var id) || !TryPath(propertyPath, out var path))
+        if (!TryDevice(device, () => ReportProperty(device, propertyPath, value, quality, sourceTime, unit, causedByCommand), out var id)
+            || !TryPath(propertyPath, out var path))
         {
             return;
         }
@@ -171,7 +177,7 @@ internal sealed class ObservationSink : IObservationSink, IAsyncDisposable
 
     public void ReportEvent(DeviceKey device, string eventPath, IReadOnlyDictionary<string, WpValue>? payload = null, DateTimeOffset? sourceTime = null)
     {
-        if (!TryDevice(device, out var id))
+        if (!TryDevice(device, () => ReportEvent(device, eventPath, payload, sourceTime), out var id))
         {
             return;
         }
@@ -196,7 +202,7 @@ internal sealed class ObservationSink : IObservationSink, IAsyncDisposable
 
     public void ReportDeviceHealth(DeviceKey device, Connectivity connectivity, IReadOnlyList<string>? faults = null, string? reason = null)
     {
-        if (TryDevice(device, out var id))
+        if (TryDevice(device, () => ReportDeviceHealth(device, connectivity, faults, reason), out var id))
         {
             Enqueue(Health(connectivity, faults ?? [], reason) with { Device = id }, null);
         }
@@ -210,7 +216,7 @@ internal sealed class ObservationSink : IObservationSink, IAsyncDisposable
             _serverConnectivity[serverNativeId] = connectivity;
         }
 
-        if (!TryServer(serverNativeId, out var server))
+        if (!TryServer(serverNativeId, () => ReportServerHealth(serverNativeId, connectivity, faults, reason), out var server))
         {
             return;
         }
@@ -226,7 +232,8 @@ internal sealed class ObservationSink : IObservationSink, IAsyncDisposable
 
     public void ReportServerProperty(string serverNativeId, string propertyPath, WpValue value, Quality quality = Quality.Good, DateTimeOffset? sourceTime = null)
     {
-        if (!TryServer(serverNativeId, out var server) || !TryPath(propertyPath, out var path))
+        if (!TryServer(serverNativeId, () => ReportServerProperty(serverNativeId, propertyPath, value, quality, sourceTime), out var server)
+            || !TryPath(propertyPath, out var path))
         {
             return;
         }
@@ -342,6 +349,7 @@ internal sealed class ObservationSink : IObservationSink, IAsyncDisposable
             _closed = true;
         }
 
+        _map.BecameReady -= OnMapReady;
         if (!_stop.IsCancellationRequested)
         {
             await _stop.CancelAsync().ConfigureAwait(false);
@@ -360,10 +368,11 @@ internal sealed class ObservationSink : IObservationSink, IAsyncDisposable
         List<TaskCompletionSource> waiters;
         lock (_lock)
         {
-            dropped = _queue.Count + _inFlight.Count;
+            dropped = _queue.Count + _inFlight.Count + _deferredUntilMapped.Count;
             _queue.Clear();
             _inFlight = [];
             _coalescible.Clear();
+            _deferredUntilMapped.Clear();
             waiters = [.. _waiters.Select(w => w.Done)];
             _waiters.Clear();
         }
@@ -380,26 +389,99 @@ internal sealed class ObservationSink : IObservationSink, IAsyncDisposable
 
     private Guid NewId() => Guid.CreateVersion7(_time.GetUtcNow());
 
-    private bool TryDevice(DeviceKey device, out DeviceId id)
+    private bool TryDevice(DeviceKey device, Action retry, out DeviceId id)
     {
         if (_map.Snapshot.Ids.TryGetValue(device, out id))
         {
             return true;
         }
 
+        if (Defer(retry))
+        {
+            return false;
+        }
+
         Unknown();
         return false;
     }
 
-    private bool TryServer(string nativeId, out MappedServer server)
+    private bool TryServer(string nativeId, Action retry, out MappedServer server)
     {
         if (_map.Snapshot.Servers.TryGetValue(nativeId, out server!))
         {
             return true;
         }
 
+        if (Defer(retry))
+        {
+            return false;
+        }
+
         Unknown();
         return false;
+    }
+
+    /// <summary>
+    /// Buffers <paramref name="retry"/> (a replay of the original <c>Report*</c> call) instead of counting its target
+    /// unknown, while the connection's device map has never been rebuilt since connect (<see cref="DeviceMap.Ready"/>);
+    /// bounded by the sink's own capacity, oldest dropped first. Once rebuilt, <see cref="OnMapReady"/> replays every
+    /// deferred call, which by then either resolves or is genuinely unknown.
+    /// </summary>
+    private bool Defer(Action retry)
+    {
+        bool deferred;
+        var evicted = false;
+        lock (_lock)
+        {
+            deferred = !_closed && !_map.Ready;
+            if (deferred)
+            {
+                _lastReport = _time.GetTimestamp();
+                if (_deferredUntilMapped.Count >= _capacity)
+                {
+                    _deferredUntilMapped.RemoveAt(0);
+                    evicted = true;
+                }
+
+                _deferredUntilMapped.Add(retry);
+            }
+        }
+
+        if (evicted)
+        {
+            // Rare (the race window is short): capacity-bounded, like the main buffer's overflow; no log per item.
+            _counters.AddRejected(1);
+        }
+
+        return deferred;
+    }
+
+    /// <summary>Replays every report deferred by <see cref="Defer"/> once the device map has been rebuilt.</summary>
+    private void OnMapReady()
+    {
+        List<Action> deferred;
+        lock (_lock)
+        {
+            if (_closed || _deferredUntilMapped.Count == 0)
+            {
+                return;
+            }
+
+            deferred = [.. _deferredUntilMapped];
+            _deferredUntilMapped.Clear();
+        }
+
+        foreach (var retry in deferred)
+        {
+            try
+            {
+                retry();
+            }
+            catch (Exception ex)
+            {
+                IntegrationLog.RuntimeOperationFailed(_logger, ex, _connection.Value, "deferred observation");
+            }
+        }
     }
 
     private bool TryPath(string text, out PropertyPath path)
