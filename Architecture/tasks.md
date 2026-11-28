@@ -209,7 +209,7 @@ spec that must exist and pass.
 | ID | Task | Spec | Deps | Tests | Issue | Owner | Status |
 |---|---|---|---|---|---|---|---|
 | T3.01 | Configuration: drafts, change sets, validation framework (plain-language problems) | CFG §4–§6 | T1.07 | CFG-U-001…CFG-U-030 | [#54](https://github.com/Moshizza/Watchpoint/issues/54) | claude-orion/T3.01-configuration-drafts-validation | done |
-| T3.02 | Configuration: publish, versions, rollback, propagation through the log | CFG §7–§8 | T3.01, T1.09 | CFG-U-031…CFG-U-050, CFG-I-001 (REG), CFG-I-002…CFG-I-006, CFG-I-008 (CFG-I-007 in T3.02b) | [#55](https://github.com/Moshizza/Watchpoint/issues/55) | claude-maia/T3.02-configuration-publish | in review |
+| T3.02 | Configuration: publish, versions, rollback, propagation through the log | CFG §7–§8 | T3.01, T1.09 | CFG-U-031…CFG-U-050, CFG-I-001 (REG), CFG-I-002…CFG-I-006, CFG-I-008 (CFG-I-007 in T3.02b) | [#55](https://github.com/Moshizza/Watchpoint/issues/55) | claude-maia/T3.02-configuration-publish | done |
 | T3.02b | Configuration: live documents and `IConfigApplier` of IRT, SCH, IDN, HIS (their write paths into the publish transaction); quick edits through the module endpoints (`PATCH /devices/{id}` → `IQuickEdit`) | CFG §4, §6.4, §7.1 | T3.02, T1.19 | CFG-I-007, CFG-I-001 (IRT part) | — | — | todo |
 | T3.02c | Configuration: ALM object types (`alarms.rule`, `override`, `procedure`, `settings`): live documents and applier | CFG §4, ALM §14 | T3.02, T2.11 | CFG-I-001 (ALM part), CFG-I-005 (rule part) | — | — | todo |
 | T3.03 | Configuration: import/export (JSON, CSV/XLSX), soft locks, optimistic merge | CFG §9–§10 | T3.02 | CFG-U-051…CFG-U-070 | [#56](https://github.com/Moshizza/Watchpoint/issues/56) | — | todo |
