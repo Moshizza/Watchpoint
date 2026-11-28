@@ -553,7 +553,7 @@ Metrics (`Watchpoint.Host`):
 - **Development is refused on a production install** (the repository is public, so every development
   relaxation is known: unauthenticated POSTs, `devtoken`, `Log:AllowInsecureRemote`, development keys,
   seed passwords). With `Node:Environment = Development` the host stops at settings validation (exit 78)
-  when it runs as a service (Windows service, or systemd: `NOTIFY_SOCKET` / `INVOCATION_ID` set) or when
+  when it runs as a service (Windows service, or systemd: `INVOCATION_ID` set — systemd sets it for every unit; `NOTIFY_SOCKET` alone is what notify tests use, HST-I-004) or when
   `Paths:Data` is the production default of the OS (§4). Every start in Development logs event 1102 at
   **Warning** instead of Information. Installers write `Node:Environment = Production` and the setup
   wizard never offers Development (DEP §4, §7). Implemented in T1.19 (HST-U-048); security test S-031.
@@ -621,7 +621,7 @@ Added by T1.02 (state machine and platform behaviour in detail):
 | HST-U-044 | U | Development seed and credentials refused outside Development | Production: seed task applies nothing (1140), users step returns `host.seed.not_development`; `watchpoint.dev.json` with `Node:Environment=Production` → `Nats:Token` invalid, `PasswordDev` rejected by storage (exit 78) before any connection |
 | HST-U-046 | U | Site id generated once, persisted and validated | First start: `Site:Id` generated (v7) and written back next to `Node:Id`; second start reads it; a non-v7 id fails validation |
 | HST-U-047 | U | Module with invalid settings stops the start | `IdentityModule.BindSettings` with a valid context → settings; an invalid or unknown `Identity:*` key, or no `Site:Id` → `InvalidSettingsException` naming the key and code, never the value |
-| HST-U-048 | U | Development refused on a production install | `Node:Environment=Development` + service host (Windows service / `NOTIFY_SOCKET`) → exit 78; + `Paths:Data` = OS default → exit 78; console run with a custom data path → starts, 1102 at Warning |
+| HST-U-048 | U | Development refused on a production install | `Node:Environment=Development` + service host (Windows service / `INVOCATION_ID`) → exit 78; + `Paths:Data` = OS default → exit 78; console run with a custom data path → starts, 1102 at Warning |
 | HST-U-049 | U | Configured lists replace the defaults | `Http:Urls`, `Management:Urls`, `Node:Roles` set in configuration → exactly the configured items (no default URL or role kept); not set → the defaults |
 | HST-U-045 | U | Ready line printed at once is not missed | Child whose stdout already holds the `StdoutLine` text when it starts → Running (the probe is registered before the output is read), 50 rounds |
 | HST-I-009 | I | Real child process (Linux) | Own process group; 20,000 lines drained; environment, working directory, stderr; child ignoring SIGTERM with a descendant → both killed after the grace period; exit code reported |

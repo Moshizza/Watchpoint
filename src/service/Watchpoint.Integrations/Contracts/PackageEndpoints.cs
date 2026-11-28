@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.DependencyInjection;
+using Watchpoint.Api.Contracts;
 using Watchpoint.Integrations.Internal.Packages;
 using Watchpoint.Kernel.Ids;
 using Watchpoint.Kernel.Results;
@@ -14,20 +14,23 @@ namespace Watchpoint.Integrations.Contracts;
 /// <summary>The package endpoints owned by the integration runtime (spec IRT §10).</summary>
 public static class PackageEndpoints
 {
-    private const long MaxUploadBytes = 500L * 1024 * 1024;
+
+    /// <summary>Permission of install, enable and disable (IRT §10).</summary>
+    public const string InstallPermission = "config.integrations.install";
+
+    /// <summary>The package upload limit (API §4.1): 500 MB.</summary>
+    public const long MaxUploadBytes = 500L * 1024 * 1024;
 
     /// <summary>
-    /// Maps <c>/api/v1/packages</c>. The read endpoints are always mapped. The endpoints that change the node (install,
-    /// enable, disable) need the permission <c>config.integrations.install</c>: until the permission filter of the API
-    /// framework exists (T1.19) they are mapped only when the node runs in Development.
+    /// Maps <c>/api/v1/packages</c>: reads need <c>config.integrations.view</c>; install, enable and disable need
+    /// <c>config.integrations.install</c> and the desktop client.
     /// </summary>
     /// <param name="endpoints">The route builder.</param>
     /// <returns><paramref name="endpoints"/>.</returns>
     public static IEndpointRouteBuilder MapPackageEndpoints(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
-        var options = endpoints.ServiceProvider.GetRequiredService<IntegrationsOptions>();
-        var group = endpoints.MapGroup("/api/v1/packages");
+        var group = endpoints.MapGroup("/api/v1/packages").WithTags("Packages").RequirePermission(ConnectionEndpoints.ViewPermission);
 
         group.MapGet(string.Empty, (IPackageCatalog catalog) => Json(StatusCodes.Status200OK, writer =>
         {
@@ -41,40 +44,38 @@ public static class PackageEndpoints
             writer.WriteEndArray();
             writer.WriteNull("nextCursor");
             writer.WriteEndObject();
-        }));
+        })).WithName("Packages_ListPackages");
 
         group.MapGet("{id}/versions/{version}", (string id, string version, PackageCatalog catalog) =>
             Parse(id, version, out var packageId, out var semVersion) is { } invalid ? invalid
             : catalog.Get(packageId, semVersion).TryGetValue(out var package, out var error)
                 ? Json(StatusCodes.Status200OK, writer => WriteDetails(writer, package, catalog.ListDocumentation(packageId, semVersion)))
-                : Problem(error));
+                : Problem(error)).WithName("Packages_GetPackageVersion");
 
         group.MapGet("{id}/versions/{version}/docs/{**path}", (string id, string version, string path, PackageCatalog catalog) =>
             Parse(id, version, out var packageId, out var semVersion) is { } invalid ? invalid
             : catalog.GetDocumentationFile(packageId, semVersion, path).TryGetValue(out var file, out var error)
                 ? Results.File(file, "text/markdown; charset=utf-8")
-                : Problem(error));
+                : Problem(error)).WithName("Packages_GetPackageDocument");
 
         group.MapGet("{id}/versions/{version}/connectors/{serverType}/settings-schema", (string id, string version, string serverType, IPackageCatalog catalog) =>
             Parse(id, version, out var packageId, out var semVersion) is { } invalid ? invalid
             : catalog.GetSettingsSchema(packageId, semVersion, serverType).TryGetValue(out var schema, out var error)
                 ? Json(StatusCodes.Status200OK, writer => PackageJson.Write(writer, schema))
-                : Problem(error));
+                : Problem(error)).WithName("Packages_GetSettingsSchema");
 
-        if (!options.IsDevelopment)
-        {
-            return endpoints;
-        }
-
-        // Until the API's permission filter (T1.19): Development only, and only from a loopback address (IRT §10).
-        var changes = endpoints.MapGroup("/api/v1/packages").AddEndpointFilter(EndpointResults.LoopbackOnlyAsync);
-        changes.MapPost(string.Empty, InstallAsync);
-        changes.MapPost("{id}/versions/{version}/enable", (string id, string version, IPackageCatalog catalog, CancellationToken ct) => SetEnabledAsync(catalog, id, version, true, ct));
-        changes.MapPost("{id}/versions/{version}/disable", (string id, string version, IPackageCatalog catalog, CancellationToken ct) => SetEnabledAsync(catalog, id, version, false, ct));
+        // Install, enable, disable (IRT §10): config.integrations.install, desktop client only; upload ≤ 500 MB (API §4.1).
+        var changes = endpoints.MapGroup("/api/v1/packages").WithTags("Packages").RequirePermission(InstallPermission).ConfigurationEndpoint();
+        changes.MapPost(string.Empty, InstallAsync).WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(MaxUploadBytes + (1024 * 1024)))
+            .DisableAntiforgery().WithName("Packages_InstallPackage");
+        changes.MapPost("{id}/versions/{version}/enable", (string id, string version, IPackageCatalog catalog, CancellationToken ct) => SetEnabledAsync(catalog, id, version, true, ct))
+            .WithName("Packages_EnablePackageVersion");
+        changes.MapPost("{id}/versions/{version}/disable", (string id, string version, IPackageCatalog catalog, CancellationToken ct) => SetEnabledAsync(catalog, id, version, false, ct))
+            .WithName("Packages_DisablePackageVersion");
         return endpoints;
     }
 
-    private static async Task<IResult> InstallAsync(HttpRequest request, IPackageCatalog catalog, CancellationToken ct)
+    private static async Task<IResult> InstallAsync(HttpRequest request, [Microsoft.AspNetCore.Mvc.FromServices] IPackageCatalog catalog, CancellationToken ct)
     {
         if (!request.HasFormContentType)
         {
@@ -93,7 +94,8 @@ public static class PackageEndpoints
         }
         catch (Exception ex) when (ex is InvalidDataException or BadHttpRequestException)
         {
-            return Problem(IntegrationErrors.UnsafeArchive("tooLarge"));
+            // Over the upload limit (API §4.1): 413.
+            return Problem(ApiErrors.RequestTooLarge(MaxUploadBytes));
         }
 
         if (form.Files.Count != 1)
@@ -106,8 +108,7 @@ public static class PackageEndpoints
         var stream = file.OpenReadStream();
         await using (stream.ConfigureAwait(false))
         {
-            // No authenticated user before the API framework (T1.19): the actor is the empty id.
-            installed = await catalog.InstallAsync(stream, file.FileName, default, ct).ConfigureAwait(false);
+            installed = await catalog.InstallAsync(stream, file.FileName, request.HttpContext.CurrentUser().UserId, ct).ConfigureAwait(false);
         }
 
         if (!installed.TryGetValue(out var package, out var error))
