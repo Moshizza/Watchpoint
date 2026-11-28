@@ -165,7 +165,13 @@ internal sealed class GroupCommandCoordinator : ICommandGroupSink, IAsyncDisposa
                 return;
             }
 
+            var before = group.Counters();
             group.Children[target] = child;
+            if (group.Counters() == before)
+            {
+                return; // e.g. queued or dispatched: the counters did not change
+            }
+
             group.Dirty = true;
             if (group.Children.Count == group.Request.Targets.Count && group.Children.Values.All(c => c.Terminal))
             {
