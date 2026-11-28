@@ -393,6 +393,24 @@
           "Watchpoint.Storage": "[1.0.0, )"
         }
       },
+      "watchpoint.audit": {
+        "type": "Project",
+        "dependencies": {
+          "NSec.Cryptography": "[26.4.0, )",
+          "Watchpoint.Api": "[1.0.0, )",
+          "Watchpoint.Audit.Contracts": "[1.0.0, )",
+          "Watchpoint.Identity": "[1.0.0, )",
+          "Watchpoint.Kernel": "[1.0.0, )",
+          "Watchpoint.Secrets": "[1.0.0, )",
+          "Watchpoint.Storage": "[1.0.0, )"
+        }
+      },
+      "watchpoint.audit.contracts": {
+        "type": "Project",
+        "dependencies": {
+          "Watchpoint.Kernel": "[1.0.0, )"
+        }
+      },
       "watchpoint.commands": {
         "type": "Project",
         "dependencies": {

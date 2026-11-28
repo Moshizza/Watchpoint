@@ -15,6 +15,7 @@
     <ProjectReference Include="../Watchpoint.Audit.Contracts/Watchpoint.Audit.Contracts.csproj" />
     <ProjectReference Include="../Watchpoint.Api/Watchpoint.Api.csproj" />
     <ProjectReference Include="../Watchpoint.Secrets/Watchpoint.Secrets.csproj" />
+    <ProjectReference Include="../Watchpoint.Identity/Watchpoint.Identity.csproj" />
     <ProjectReference Include="../Watchpoint.Storage/Watchpoint.Storage.csproj" />
   </ItemGroup>
 

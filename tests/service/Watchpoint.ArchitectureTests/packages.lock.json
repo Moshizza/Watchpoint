@@ -688,6 +688,26 @@
           "Watchpoint.Storage": "[1.0.0, )"
         }
       },
+      "watchpoint.audit": {
+        "type": "Project",
+        "dependencies": {
+          "NSec.Cryptography": "[26.4.0, )",
+          "Watchpoint.Api": "[1.0.0, )",
+          "Watchpoint.Audit.Contracts": "[1.0.0, )",
+          "Watchpoint.Identity": "[1.0.0, )",
+          "Watchpoint.Kernel": "[1.0.0, )",
+          "Watchpoint.Secrets": "[1.0.0, )",
+          "Watchpoint.Storage": "[1.0.0, )"
+        }
+      },
+      "watchpoint.audit.contracts": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.14, )",
+          "Microsoft.Extensions.Logging.Abstractions": "[10.0.14, )",
+          "Watchpoint.Kernel": "[1.0.0, )"
+        }
+      },
       "watchpoint.commands": {
         "type": "Project",
         "dependencies": {
@@ -760,6 +780,7 @@
           "Serilog.Sinks.Console": "[6.1.1, )",
           "Serilog.Sinks.File": "[7.0.0, )",
           "Watchpoint.Api": "[1.0.0, )",
+          "Watchpoint.Audit": "[1.0.0, )",
           "Watchpoint.Commands": "[1.0.0, )",
           "Watchpoint.History": "[1.0.0, )",
           "Watchpoint.Hosting": "[1.0.0, )",
