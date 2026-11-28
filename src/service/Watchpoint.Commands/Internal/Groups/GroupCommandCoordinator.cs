@@ -197,10 +197,20 @@ internal sealed class GroupCommandCoordinator : ICommandGroupSink, IAsyncDisposa
         {
             group.Timer?.Dispose();
             group.Timer = null;
-            if (group.Dirty && group.CompletedAt is null)
+            if (!group.Dirty || group.CompletedAt is not null)
             {
-                Publish(group, CommandGroupRecordKinds.Progress, _time.GetUtcNow());
+                return;
             }
+
+            // A timer that fires a little early, or late after another publish, keeps the 500 ms spacing.
+            var now = _time.GetUtcNow();
+            if (group.LastProgress is { } last && now - last < ProgressInterval)
+            {
+                group.Timer = _time.CreateTimer(_ => Flush(group), null, last + ProgressInterval - now, Timeout.InfiniteTimeSpan);
+                return;
+            }
+
+            Publish(group, CommandGroupRecordKinds.Progress, now);
         }
     }
 
@@ -218,6 +228,9 @@ internal sealed class GroupCommandCoordinator : ICommandGroupSink, IAsyncDisposa
     /// <summary>Appends a progress or completion record (in the background; called under the group's lock).</summary>
     private void Publish(GroupState group, string kind, DateTimeOffset now)
     {
+        // A pending flush would publish again right after this record.
+        group.Timer?.Dispose();
+        group.Timer = null;
         group.LastProgress = now;
         group.Dirty = false;
         var envelope = Envelope(kind, group.Request.Request, group.Request.Id, new CommandGroupProgressBody(group.Request.Id, group.Counters()), now);
