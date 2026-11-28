@@ -1,6 +1,7 @@
 using Watchpoint.Kernel.Ids;
 using Watchpoint.Kernel.Paging;
 using Watchpoint.Kernel.Results;
+using Watchpoint.Model.Contracts;
 using Watchpoint.Registry.Contracts;
 
 namespace Watchpoint.Registry.Internal;
@@ -10,9 +11,11 @@ internal sealed class RegistryReader : IRegistryReader
     private readonly Func<RegistrySnapshot> _snapshotProvider;
     private readonly DeviceEnrichmentCache? _enrichmentCache;
     private readonly RegistryChangeFeed? _feed;
+    private readonly ITypeCatalog? _catalog;
 
-    public RegistryReader(Func<RegistrySnapshot> snapshotProvider, DeviceEnrichmentCache? enrichmentCache = null, RegistryChangeFeed? feed = null)
+    public RegistryReader(Func<RegistrySnapshot> snapshotProvider, DeviceEnrichmentCache? enrichmentCache = null, RegistryChangeFeed? feed = null, ITypeCatalog? catalog = null)
     {
+        _catalog = catalog;
         _snapshotProvider = snapshotProvider;
         _enrichmentCache = enrichmentCache;
         _feed = feed;
@@ -118,34 +121,48 @@ internal sealed class RegistryReader : IRegistryReader
 
     public Page<Device> QueryDevices(DeviceQuery query, PageRequest page)
     {
-        var items = Snapshot.Devices.Values.AsEnumerable();
+        ArgumentNullException.ThrowIfNull(query);
+        ArgumentNullException.ThrowIfNull(page);
+        var snapshot = Snapshot;
+        var items = snapshot.Devices.Values.AsEnumerable();
 
-        if (query.ServerId != null)
-            items = items.Where(d => d.ServerId == query.ServerId);
+        if (query.Within != null)
+            items = items.Where(d => query.Within.Contains(d.Id));
 
-        if (query.LocationId != null)
+        if (query.Servers is { Count: > 0 } servers)
+            items = items.Where(d => servers.Contains(d.ServerId));
+
+        if (query.LocationsSubtree is { Count: > 0 } roots)
         {
-            var loc = Snapshot.Locations.GetValueOrDefault(query.LocationId.Value);
-            if (loc != null)
-            {
-                var prefix = loc.Path;
-                items = items.Where(d =>
-                {
-                    var dLoc = Snapshot.Locations.GetValueOrDefault(d.LocationId);
-                    return dLoc != null && (dLoc.Id == loc.Id || dLoc.Path.StartsWith(prefix + "/", StringComparison.Ordinal));
-                });
-            }
-            else
-            {
-                items = items.Where(d => d.LocationId == query.LocationId);
-            }
+            // Subtree membership by materialised path (REG §7.3); an unknown root matches its own id only.
+            var prefixes = roots
+                .Select(r => snapshot.Locations.GetValueOrDefault(r))
+                .Where(l => l != null)
+                .Select(l => l!.Path)
+                .ToList();
+            items = items.Where(d =>
+                roots.Contains(d.LocationId)
+                || (snapshot.Locations.TryGetValue(d.LocationId, out var loc)
+                    && prefixes.Any(p => loc.Path.StartsWith(p + "/", StringComparison.Ordinal))));
         }
 
-        if (query.TypeId != null)
-            items = items.Where(d => d.Type.Id == query.TypeId);
+        if (query.Types is { Count: > 0 } types)
+        {
+            items = items.Where(d => types.Contains(d.Type.Id)
+                || (_catalog != null && _catalog.Get(d.Type).TryGetValue(out var def, out _) && types.Any(def.IsA)));
+        }
 
-        if (query.Tags != null && query.Tags.Count > 0)
-            items = items.Where(d => query.Tags.All(t => d.Tags.Contains(t)));
+        if (query.Categories is { Count: > 0 } categories)
+            items = items.Where(d => _catalog != null && _catalog.Get(d.Type).TryGetValue(out var def, out _) && categories.Contains(def.Category));
+
+        if (query.Capabilities is { Count: > 0 } capabilities)
+            items = items.Where(d => _catalog != null && _catalog.Get(d.Type).TryGetValue(out var def, out _) && capabilities.Any(def.Has));
+
+        if (query.TagsAll is { Count: > 0 } tagsAll)
+            items = items.Where(d => tagsAll.All(d.Tags.Contains));
+
+        if (query.TagsAny is { Count: > 0 } tagsAny)
+            items = items.Where(d => tagsAny.Any(d.Tags.Contains));
 
         if (query.Enabled != null)
             items = items.Where(d => d.Enabled == query.Enabled);
@@ -156,9 +173,15 @@ internal sealed class RegistryReader : IRegistryReader
         if (query.Orphaned != null)
             items = items.Where(d => d.Orphaned == query.Orphaned);
 
-        if (!string.IsNullOrWhiteSpace(query.SearchText))
+        if (query.Parent != null)
+            items = items.Where(d => d.ParentId == query.Parent);
+
+        if (query.RootsOnly)
+            items = items.Where(d => d.ParentId == null);
+
+        if (!string.IsNullOrWhiteSpace(query.Text))
         {
-            var norm = TextSearchNormalizer.Normalize(query.SearchText);
+            var norm = TextSearchNormalizer.Normalize(query.Text);
             items = items.Where(d =>
                 TextSearchNormalizer.Normalize(d.VendorName).Contains(norm, StringComparison.Ordinal)
                 || (d.DisplayName != null && (TextSearchNormalizer.Normalize(d.DisplayName.Default).Contains(norm, StringComparison.Ordinal)
@@ -166,8 +189,31 @@ internal sealed class RegistryReader : IRegistryReader
                 || TextSearchNormalizer.Normalize(d.NativeId).Contains(norm, StringComparison.Ordinal));
         }
 
-        var ordered = items.OrderBy(d => d.DisplayName?.Default ?? d.VendorName, StringComparer.OrdinalIgnoreCase).ThenBy(d => d.Id).ToList();
+        var ordered = Order(items, query.Sort ?? DeviceQuery.DefaultSort, snapshot);
         return Paginate(ordered, page, d => d.Id.Value.ToString());
+    }
+
+    private static List<Device> Order(IEnumerable<Device> items, SortSpec sort, RegistrySnapshot snapshot)
+    {
+        IOrderedEnumerable<Device>? ordered = null;
+        foreach (var field in sort.Fields)
+        {
+            Func<Device, object> key = field.Name switch
+            {
+                "type" => d => d.Type.Id.Value,
+                "location" => d => snapshot.Locations.TryGetValue(d.LocationId, out var loc) ? loc.Path : string.Empty,
+                "createdAt" => d => d.CreatedAt,
+                _ => d => d.DisplayName?.Default ?? d.VendorName,
+            };
+            IComparer<object> comparer = Comparer<object>.Create((a, b) => a is string sa && b is string sb
+                ? StringComparer.OrdinalIgnoreCase.Compare(sa, sb)
+                : Comparer<object>.Default.Compare(a, b));
+            ordered = ordered == null
+                ? (field.Descending ? items.OrderByDescending(key, comparer) : items.OrderBy(key, comparer))
+                : (field.Descending ? ordered.ThenByDescending(key, comparer) : ordered.ThenBy(key, comparer));
+        }
+
+        return (ordered ?? items.OrderBy(d => d.Id)).ThenBy(d => d.Id).ToList();
     }
 
     public IReadOnlyList<Tag> GetTags() =>

@@ -48,6 +48,15 @@ Watchpoint.Api/
 └── ApiLog.cs                          event ids 2000–2199
 ```
 
+As built (T1.19): the host module is `Watchpoint.Host/Modules/ApiModule.cs`; `Internal/System` is
+`Internal/Platform` (a `System` namespace segment shadows `System.*`). The API references IDN (token validation), so
+the IDN endpoints (§7) are in `Internal/Accounts/AuthEndpoints.cs`. Every other module references the API and maps
+its own endpoints with these helpers (`RegistryEndpoints`, `StateEndpoints`, `ModelEndpoints`, `PackageEndpoints`,
+`ConnectionEndpoints` in each module's `Contracts/`); the API never references a domain module, so the live topics
+over REG/STA (§8.5, T1.20) belong to the module that owns the data (e.g. `DevicesTopic` in STA) or to a project above both.
+Idempotency records use the configuration store (`ApiStorage.AddApiStorage`, schema `wp_api`); without storage
+(unit tests) they are held in node memory.
+
 ## 4. HTTP pipeline (in order)
 
 | # | Middleware | Behaviour |
@@ -57,10 +66,10 @@ Watchpoint.Api/
 | 3 | Exception handler | Unhandled exception → 500 problem details `common.internal` with `traceId`; exception logged (2001 Error) |
 | 4 | Request logging | One structured line per request at Information for mutating methods, Debug for GET: method, route template (not raw path), status, duration, user id, session id, client kind; **never** query strings containing `access_token`, bodies or headers |
 | 5 | Response compression | Brotli/gzip for JSON and SVG responses ≥ 1 KB; never for already compressed content (images, archives) |
-| 6 | Rate limiting | §4.2 |
+| 6 | Rate limiting | §4.2 — runs **after** rows 7–8 (as built, T1.19): the authenticated partition key is the session |
 | 7 | Authentication | JWT bearer (`Authorization: Bearer`), or `access_token` query parameter **only** for `/hub/v1` negotiate/connect; validation by IDN (§6.2 of IDN), session revocation check |
 | 8 | Session touch | `ISessionRegistry.Touch` for authenticated requests |
-| 9 | Endpoint filters | Permission, client kind, idempotency, ETag (per endpoint conventions) |
+| 9 | Endpoint filters | Permission, client kind, idempotency, ETag (per endpoint conventions); before them a body-limit check (§4.1: a declared `Content-Length` over the endpoint's limit → 413 `api.request.too_large`) |
 | 10 | CORS | No CORS policy (same origin only); the web client is served by the node |
 
 ### 4.1 Limits
@@ -94,6 +103,7 @@ g.MapPatch("/{id}", PatchDevice).RequirePermission(Permissions.RegistryEdit).Con
 | Convention | Meaning |
 |---|---|
 | `.RequirePermission(code)` | Permission filter (§5.2); `.AllowAnonymous()` must be explicit for anonymous endpoints |
+| `.RequireAuthentication()` | Authenticated user, no specific permission (e.g. `/auth/me`, own jobs and sessions, MOD reads) → 401 when anonymous |
 | `.ConfigurationEndpoint()` | Requires client kind `desktop` (§5.3) and marks the operation `x-wp-config` in OpenAPI |
 | `.RequireClientKind(params ClientKind[])` | Explicit client kind restriction |
 | `.Versioned()` | Requires `If-Match` on PATCH/PUT/DELETE (428 `common.version.required` if missing) and writes `ETag` on responses |
@@ -102,7 +112,8 @@ g.MapPatch("/{id}", PatchDevice).RequirePermission(Permissions.RegistryEdit).Con
 | `.Heavy()` | Applies the `heavy` rate limit policy |
 
 An architecture test (API-U-030) asserts every endpoint has exactly one of
-`RequirePermission`/`AllowAnonymous`.
+`RequirePermission`/`RequireAuthentication`/`AllowAnonymous`, and a unique operation id (`WithName`); the host runs
+the same check (`ApiConventions.Validate`) before it listens, and a host-wide test composes every module.
 
 ### 5.2 Permission filter
 
@@ -146,6 +157,8 @@ clients" on the server, independent of UI bundles.
 ```
 
 `title` is the code (clients translate via `messageKey`); `DeveloperDetail` never serialised.
+`common.version.conflict` always maps to 412 (whatever kind a module gave it), `common.version.required` to 428 and
+`api.request.too_large` to 413.
 
 ### 5.5 Idempotency
 
@@ -193,8 +206,9 @@ cancelled`, progress (0–100 + message key), result (JSON or file id), errors; 
 | IRT | packages, connections and their actions | Packages only (T1.15, `PackageEndpoints`, without the permission filter; the POSTs in Development only, IRT §10); connections with T1.16 |
 | API | system, jobs | No (host health endpoints `/health/*`, `/metrics` are HST §6) |
 
-Until T1.19, endpoints mapped early write their own JSON responses; T1.19 moves them onto the permission filter
-and problem details.
+T1.19 moved the early endpoints onto the permission filter and problem details. As built for IDN: sign-in, refresh,
+sign-out, change-password, me, MFA verify and TOTP enrolment, sessions (list, revoke) and user reads; user changes,
+self-service MFA, step-up and lockout endpoints come with their IDN tasks.
 
 ## 8. Live hub (T1.20)
 
@@ -340,6 +354,9 @@ public interface ILiveSink
 | `api.client_kind.not_allowed` | Forbidden |
 | `common.version.required` | PreconditionFailed (428) |
 | `api.idempotency.mismatch` / `in_progress` | Unprocessable / Conflict |
+| `api.idempotency.key_invalid` | Validation (key not 1–64 of `[A-Za-z0-9_-]`) |
+| `api.request.invalid` | Validation (malformed body, JSON depth > 32, wrong parameter type) |
+| `api.request.too_large` | 413 (args `max`) |
 | `api.job.not_found` | NotFound |
 | `api.live.protocol_unsupported` / `topic_unknown` / `filter_invalid` / `too_many_connections` / `too_many_subscriptions` / `too_many_devices` | Validation / Conflict |
 
@@ -358,7 +375,9 @@ Metrics (`Watchpoint.Api`): `watchpoint.api.requests` (counter by `route`, `stat
 `watchpoint.api.live.messages` (counter by `topic`, `kind`), `watchpoint.api.live.queue`
 (histogram of queue length), `watchpoint.api.live.resyncs` (counter by `reason`).
 
-Security: tokens never logged (query string scrubbing tested); no CORS; strict JSON parsing;
+Security: tokens never logged (query string scrubbing tested; the host keeps the ASP.NET Core categories
+`Microsoft.AspNetCore.Hosting.Diagnostics` and `Microsoft.AspNetCore.Routing`, which log raw paths and query strings, at
+Warning); no CORS; strict JSON parsing;
 per-object authorisation responsibility documented per endpoint; problem details never contain
 stack traces.
 

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Watchpoint.Pipeline.Contracts;
 using Watchpoint.State.Contracts;
 using Watchpoint.State.Internal;
@@ -14,8 +15,10 @@ public static class StateModule
     /// Adds the live state store: the per-partition maps (<see cref="IStateReader"/>), the overall-state aggregates
     /// (<see cref="IAggregateReader"/>), the change feed (<see cref="IStateChangeFeed"/>), the partition subscriber
     /// (registered as <see cref="IPartitionSubscriber"/>, applying event log records at order 100) and the registry
-    /// change listener that creates, updates and removes entities (spec STA §6.3). Settings come from the
-    /// <c>State</c> section.
+    /// change listener that creates, updates and removes entities (spec STA §6.3), the snapshotter and the recovery
+    /// (<see cref="IStateLifecycle"/>, spec STA §8; needs an <c>IStateStore</c>), the last value source of the
+    /// pipeline (<see cref="ILastValueSource"/>) and the health check <c>ready</c> of the recovery. Settings come from
+    /// the <c>State</c> section.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configuration">The configuration root.</param>
@@ -44,6 +47,16 @@ public static class StateModule
         services.AddSingleton<ServerAvailabilityCascade>();
         services.AddSingleton<StateSubscriber>();
         services.AddSingleton<IPartitionSubscriber>(sp => sp.GetRequiredService<StateSubscriber>());
+        services.AddSingleton<ILastValueSource>(sp => sp.GetRequiredService<StateStore>());
+        services.AddSingleton<Snapshotter>();
+        services.AddSingleton<StateMetrics>();
+        services.AddSingleton<StateRecovery>();
+        services.AddSingleton<IStateLifecycle>(sp =>
+        {
+            _ = sp.GetRequiredService<StateMetrics>();
+            return sp.GetRequiredService<StateRecovery>();
+        });
+        services.AddHealthChecks().AddCheck<StateRecoveryHealthCheck>(StateRecoveryHealthCheck.Name, HealthStatus.Unhealthy, ["ready"]);
         services.AddSingleton<MembershipTracker>();
         services.AddHostedService(sp => sp.GetRequiredService<MembershipTracker>());
         services.AddHostedService<AggregateConsistencyService>();

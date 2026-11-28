@@ -311,9 +311,10 @@ public sealed class OutboxPublisherTests : IDisposable
         _harness.Broker.Messages(CfgStream).ShouldBeEmpty();
 
         // Exactly at the limit: stored, with the traceparent header the measure accounts for.
+        // The limit is raised before the record is added: Add signals the running publisher, which may read the options at once.
+        _harness.Options.MaxMessageSize = size;
         var second = _outbox.Add(2, changes: 200);
         limit.Measure(second).ShouldBe(size);
-        _harness.Options.MaxMessageSize = size;
         await _harness.PumpUntilAsync(() => _outbox.SentRevisions.Count == 2);
         var stored = _harness.Broker.Messages(CfgStream).ShouldHaveSingleItem();
         stored.Headers.ShouldContainKey("traceparent");

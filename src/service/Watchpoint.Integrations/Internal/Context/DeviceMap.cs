@@ -48,7 +48,7 @@ internal sealed class DeviceMapSnapshot
             string? cursor = null;
             do
             {
-                var page = reader.QueryDevices(new DeviceQuery(ServerId: server.Id), new PageRequest(PageRequest.MaxLimit, cursor));
+                var page = reader.QueryDevices(new DeviceQuery(Servers: [server.Id]), new PageRequest(PageRequest.MaxLimit, cursor));
                 devices.AddRange(page.Items.Select(d => (d, server.NativeId)));
                 cursor = page.NextCursor;
             }
@@ -66,14 +66,44 @@ internal sealed class DeviceMapSnapshot
 internal sealed class DeviceMap(ILogger logger, Guid connectionId) : IDeviceMap
 {
     private DeviceMapSnapshot _snapshot = DeviceMapSnapshot.Empty;
+    private int _ready;
 
     public event EventHandler<DeviceMapChangedEventArgs>? Changed;
+
+    /// <summary>
+    /// Raised once, the first time <see cref="MarkReady"/> is called (IRT §7.2, §7.4): a connector that reports
+    /// observations right after <c>Connected</c> (INT §9) can otherwise race the reconcile and map rebuild the same
+    /// report triggers (<see cref="ObservationSink"/> defers until then instead of counting them unknown).
+    /// </summary>
+    public event Action? BecameReady;
 
     public DeviceMapSnapshot Snapshot => Volatile.Read(ref _snapshot);
 
     public IReadOnlyCollection<DeviceHandle> All => Snapshot.Handles.Values;
 
+    /// <summary>Gets a value indicating whether this instance's map has been rebuilt from the registry at least once
+    /// since connect. <see langword="false"/> right after launch even though the context factory preloads the
+    /// snapshot eagerly (<c>Create</c>, before the connector starts) — only <see cref="MarkReady"/> flips it.</summary>
+    public bool Ready => Volatile.Read(ref _ready) != 0;
+
     public bool TryGet(DeviceKey key, [NotNullWhen(true)] out DeviceHandle? handle) => Snapshot.Handles.TryGetValue(key, out handle);
+
+    /// <summary>Marks the map ready (idempotent); raises <see cref="BecameReady"/> the first time only.</summary>
+    public void MarkReady()
+    {
+        if (Interlocked.Exchange(ref _ready, 1) == 0)
+        {
+            try
+            {
+                BecameReady?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                // A handler's failure must not break the map rebuild itself.
+                IntegrationLog.DeviceMapFailed(logger, ex, connectionId);
+            }
+        }
+    }
 
     /// <summary>Swaps the snapshot and raises <see cref="Changed"/> when the connector's view changed.</summary>
     public void Update(DeviceMapSnapshot next)

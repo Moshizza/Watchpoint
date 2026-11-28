@@ -219,6 +219,11 @@
           "Microsoft.IdentityModel.Logging": "8.23.0"
         }
       },
+      "Microsoft.OpenApi": {
+        "type": "Transitive",
+        "resolved": "2.13.0",
+        "contentHash": "wavlgBYnn7uU/ZGhFHNl0UlDOlwz+6KRduKkqdCCbfxxANaQ1rmBpETVGdwXanAM6twQOxsvI3CBEGF4OScbeQ=="
+      },
       "Microsoft.Testing.Extensions.Telemetry": {
         "type": "Transitive",
         "resolved": "2.5.1",
@@ -419,6 +424,18 @@
           "xunit.v3.runner.common": "[4.0.2]"
         }
       },
+      "watchpoint.api": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.AspNetCore.OpenApi": "[10.0.15, )",
+          "Microsoft.EntityFrameworkCore.Relational": "[10.0.14, )",
+          "Watchpoint.Hosting": "[1.0.0, )",
+          "Watchpoint.Identity": "[1.0.0, )",
+          "Watchpoint.Kernel": "[1.0.0, )",
+          "Watchpoint.Secrets": "[1.0.0, )",
+          "Watchpoint.Storage": "[1.0.0, )"
+        }
+      },
       "watchpoint.commands": {
         "type": "Project",
         "dependencies": {
@@ -433,6 +450,7 @@
           "Watchpoint.Model": "[1.0.0, )",
           "Watchpoint.Pipeline": "[1.0.0, )",
           "Watchpoint.Registry": "[1.0.0, )",
+          "Watchpoint.State": "[1.0.0, )",
           "Watchpoint.Storage": "[1.0.0, )"
         }
       },
@@ -477,6 +495,7 @@
         "dependencies": {
           "Microsoft.EntityFrameworkCore.Relational": "[10.0.14, )",
           "NSec.Cryptography": "[26.4.0, )",
+          "Watchpoint.Api": "[1.0.0, )",
           "Watchpoint.Integration.Abstractions": "[1.0.0, )",
           "Watchpoint.Integration.Sdk": "[1.0.0, )",
           "Watchpoint.Kernel": "[1.0.0, )",
@@ -506,9 +525,7 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.EntityFrameworkCore.Relational": "[10.0.14, )",
-          "Microsoft.Extensions.Diagnostics": "[10.0.14, )",
-          "Microsoft.Extensions.Hosting.Abstractions": "[10.0.14, )",
-          "Microsoft.Extensions.Logging.Abstractions": "[10.0.14, )",
+          "Watchpoint.Api": "[1.0.0, )",
           "Watchpoint.Kernel": "[1.0.0, )",
           "Watchpoint.Model.Documents": "[1.0.0, )",
           "Watchpoint.Storage": "[1.0.0, )"
@@ -541,6 +558,7 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.EntityFrameworkCore.Relational": "[10.0.14, )",
+          "Watchpoint.Api": "[1.0.0, )",
           "Watchpoint.Hosting": "[1.0.0, )",
           "Watchpoint.Kernel": "[1.0.0, )",
           "Watchpoint.Model": "[1.0.0, )",
@@ -557,6 +575,17 @@
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.14, )",
           "System.Security.Cryptography.ProtectedData": "[10.0.14, )",
           "Watchpoint.Kernel": "[1.0.0, )",
+          "Watchpoint.Storage": "[1.0.0, )"
+        }
+      },
+      "watchpoint.state": {
+        "type": "Project",
+        "dependencies": {
+          "Watchpoint.Api": "[1.0.0, )",
+          "Watchpoint.Kernel": "[1.0.0, )",
+          "Watchpoint.Model": "[1.0.0, )",
+          "Watchpoint.Pipeline": "[1.0.0, )",
+          "Watchpoint.Registry": "[1.0.0, )",
           "Watchpoint.Storage": "[1.0.0, )"
         }
       },
@@ -623,6 +652,15 @@
         "contentHash": "T+OAGwzYYXftahpOxO7J4xA5K6urxwGnWQf3M+Jpi+76Azv/0T3M5SuN+h7/QvXuiqNw3ZEZ5QqVLI5ygDAylw==",
         "dependencies": {
           "Konscious.Security.Cryptography.Blake2": "1.1.1"
+        }
+      },
+      "Microsoft.AspNetCore.OpenApi": {
+        "type": "CentralTransitive",
+        "requested": "[10.0.15, )",
+        "resolved": "10.0.15",
+        "contentHash": "pptFDPMWyPDDtt68s/HsvLYeHJ0WQtntjyve6ztp/5MrLOEzdZvafYIyWSeErtexIGaB8XGYCnnUK8T/Vn4MwQ==",
+        "dependencies": {
+          "Microsoft.OpenApi": "[2.13.0, 3.0.0)"
         }
       },
       "Microsoft.EntityFrameworkCore.Relational": {

@@ -10,7 +10,8 @@
   "common": {
     "network_error": "Network request failed. Please check your connection.",
     "version": {
-      "conflict": "The resource was modified concurrently."
+      "conflict": "The resource was modified concurrently.",
+      "required": "The version of the item is missing; reload it and try again."
     },
     "value": {
       "out_of_range": "Value must be between {min} and {max}.",
@@ -21,7 +22,24 @@
       "too_short": "This value is too short (at least {min}).",
       "duplicate": "This value is already used."
     },
-    "forbidden": "You are not allowed to do this."
+    "forbidden": "You are not allowed to do this.",
+    "cursor": {
+      "invalid": "The page position is no longer valid; reload the list."
+    },
+    "internal": "An unexpected error occurred.",
+    "not_found": "The item was not found.",
+    "rate_limited": "Too many requests; try again in {retryAfterSeconds} s.",
+    "sort": {
+      "invalid_field": "The list cannot be sorted by {field}."
+    },
+    "time": {
+      "invalid_local": "The local time {local} does not exist or is ambiguous ({reason})."
+    },
+    "unauthenticated": "Please sign in.",
+    "unavailable": "A service is unavailable ({dependency}); try again later.",
+    "validation": {
+      "failed": "Some values are not valid."
+    }
   },
   "irt": {
     "package": {
@@ -128,6 +146,18 @@
   "api": {
     "client_kind": {
       "not_allowed": "Configuration can only be changed from the desktop application."
+    },
+    "idempotency": {
+      "in_progress": "The same request is still being processed.",
+      "key_invalid": "The idempotency key is invalid (1 to 64 letters, digits, - or _).",
+      "mismatch": "This idempotency key was already used for another request."
+    },
+    "job": {
+      "not_found": "The operation {id} was not found."
+    },
+    "request": {
+      "invalid": "The request could not be read.",
+      "too_large": "The request is too large (at most {max} bytes)."
     }
   }
 }

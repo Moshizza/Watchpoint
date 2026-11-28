@@ -85,8 +85,8 @@ public static partial class HostingLog
     [LoggerMessage(EventId = 1101, Level = LogLevel.Critical, Message = "Invalid node settings: {Problems}")]
     public static partial void LogInvalidNodeSettings(ILogger logger, string problems);
 
-    [LoggerMessage(EventId = 1102, Level = LogLevel.Information, Message = "Node {NodeId} ({NodeName}) starting, version {Version}, environment {Environment}")]
-    public static partial void LogNodeStarting(ILogger logger, Guid nodeId, string nodeName, string version, NodeEnvironment environment);
+    [LoggerMessage(EventId = 1102, Message = "Node {NodeId} ({NodeName}) starting, version {Version}, environment {Environment}")]
+    public static partial void LogNodeStarting(ILogger logger, LogLevel level, Guid nodeId, string nodeName, string version, NodeEnvironment environment);
 
     [LoggerMessage(EventId = 1103, Level = LogLevel.Critical, Message = "Refusing to start as a privileged process (root/Administrator) in Production without --allow-elevated")]
     public static partial void LogElevatedRefused(ILogger logger);

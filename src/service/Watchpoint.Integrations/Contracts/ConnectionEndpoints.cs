@@ -4,7 +4,7 @@ using System.Xml;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.DependencyInjection;
+using Watchpoint.Api.Contracts;
 using Watchpoint.Integration.Abstractions.Model;
 using Watchpoint.Integrations.Internal.Context;
 using Watchpoint.Integrations.Internal.Storage;
@@ -17,9 +17,8 @@ using Watchpoint.Registry.Contracts;
 namespace Watchpoint.Integrations.Contracts;
 
 /// <summary>
-/// The connection endpoints (spec IRT §10) and the connectors' inbound HTTP route. Until the API framework and its
-/// permission filter (T1.19), the endpoints that change the node are mapped only in Development and answer only
-/// loopback requests; the <c>GET</c> endpoints are always mapped.
+/// The connection endpoints (spec IRT §10) on the API framework (permission filter, desktop-only changes, If-Match,
+/// discovery as a job) and the connectors' inbound HTTP route.
 /// </summary>
 public static class ConnectionEndpoints
 {
@@ -29,14 +28,13 @@ public static class ConnectionEndpoints
     public static IEndpointRouteBuilder MapConnectionEndpoints(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
-        var options = endpoints.ServiceProvider.GetRequiredService<IntegrationsOptions>();
-
         // Inbound connector routes: authenticated by the connector's declared scheme before its handler runs.
         endpoints.Map(InboundRouter.RoutePrefix + "/{connectionId:guid}/{**path}", (HttpContext http, Guid connectionId, string? path, InboundRouter router) =>
             router.HandleAsync(http, connectionId, path));
 
-        var group = endpoints.MapGroup("/api/v1/connections");
-        group.MapGet(string.Empty, (IConnectionManager manager) => EndpointResults.Json(StatusCodes.Status200OK, writer =>
+        var group = endpoints.MapGroup("/api/v1/connections").WithTags("Connections");
+        var view = group.MapGroup(string.Empty).RequirePermission(ViewPermission);
+        view.MapGet(string.Empty, (IConnectionManager manager) => EndpointResults.Json(StatusCodes.Status200OK, writer =>
         {
             writer.WriteStartObject();
             writer.WriteStartArray("items");
@@ -48,12 +46,12 @@ public static class ConnectionEndpoints
             writer.WriteEndArray();
             writer.WriteNull("nextCursor");
             writer.WriteEndObject();
-        }));
-        group.MapGet("{id:guid}", (Guid id, IConnectionManager manager) =>
+        })).WithName("Connections_ListConnections").WithSummary("Connections with status");
+        view.MapGet("{id:guid}", (Guid id, IConnectionManager manager) =>
             manager.Get(ConnectionId.From(id)).TryGetValue(out var connection, out var error)
                 ? EndpointResults.Json(StatusCodes.Status200OK, writer => Write(writer, connection, manager.GetStatus(connection.Id)))
-                : EndpointResults.Problem(error));
-        group.MapGet("{id:guid}/events", async (Guid id, string? from, string? to, IConnectionManager manager, TimeProvider time, CancellationToken ct) =>
+                : EndpointResults.Problem(error)).WithName("Connections_GetConnection").WithSummary("Connection and status");
+        view.MapGet("{id:guid}/events", async (Guid id, string? from, string? to, IConnectionManager manager, TimeProvider time, CancellationToken ct) =>
         {
             var until = Time(to) ?? time.GetUtcNow().AddSeconds(1);
             var since = Time(from) ?? until.AddDays(-1);
@@ -79,41 +77,50 @@ public static class ConnectionEndpoints
                 writer.WriteEndArray();
                 writer.WriteEndObject();
             });
-        });
+        }).WithName("Connections_ListConnectionEvents").WithSummary("Connection state timeline");
 
-        if (!options.IsDevelopment)
+        // Changes (IRT §10): configuration permissions, desktop client only (API §5.3).
+        var edit = group.MapGroup(string.Empty).RequirePermission(EditPermission).ConfigurationEndpoint();
+        var operate = group.MapGroup(string.Empty).RequirePermission(OperatePermission).ConfigurationEndpoint();
+        edit.MapPost(string.Empty, CreateAsync).WithName("Connections_CreateConnection").WithSummary("Create a connection");
+        edit.MapPatch("{id:guid}", UpdateAsync).Versioned().WithName("Connections_UpdateConnection").WithSummary("Update a connection (If-Match)");
+        edit.MapDelete("{id:guid}", async (Guid id, bool? deleteDevices, IConnectionManager manager, CancellationToken ct) =>
+            Done(await manager.DeleteAsync(ConnectionId.From(id), deleteDevices ?? false, Context(), ct).ConfigureAwait(false), StatusCodes.Status204NoContent))
+            .WithName("Connections_DeleteConnection").WithSummary("Delete a connection");
+        operate.MapPost("{id:guid}/start", async (Guid id, IConnectionManager manager, CancellationToken ct) =>
+            Status(manager, id, await manager.StartAsync(ConnectionId.From(id), ct).ConfigureAwait(false))).WithName("Connections_StartConnection");
+        operate.MapPost("{id:guid}/stop", async (Guid id, IConnectionManager manager, CancellationToken ct) =>
+            Status(manager, id, await manager.StopAsync(ConnectionId.From(id), ct).ConfigureAwait(false))).WithName("Connections_StopConnection");
+        operate.MapPost("{id:guid}/restart", async (Guid id, IConnectionManager manager, CancellationToken ct) =>
+            Status(manager, id, await manager.RestartAsync(ConnectionId.From(id), ct).ConfigureAwait(false))).WithName("Connections_RestartConnection");
+        edit.MapPost("test", TestAsync).WithName("Connections_TestConnection").WithSummary("Test unsaved settings");
+        edit.MapPost("{id:guid}/discover", (Guid id, HttpContext http, IConnectionManager manager, IJobRegistry jobs) =>
         {
-            return endpoints;
-        }
+            var connection = ConnectionId.From(id);
+            if (!manager.Get(connection).IsSuccess)
+            {
+                return EndpointResults.Problem(IntegrationErrors.ConnectionNotFoundError(connection));
+            }
 
-        var changes = endpoints.MapGroup("/api/v1/connections").AddEndpointFilter(EndpointResults.LoopbackOnlyAsync);
-        changes.MapPost(string.Empty, CreateAsync);
-        changes.MapPatch("{id:guid}", UpdateAsync);
-        changes.MapDelete("{id:guid}", async (Guid id, bool? deleteDevices, IConnectionManager manager, CancellationToken ct) =>
-            Done(await manager.DeleteAsync(ConnectionId.From(id), deleteDevices ?? false, Context(), ct).ConfigureAwait(false), StatusCodes.Status204NoContent));
-        changes.MapPost("{id:guid}/start", async (Guid id, IConnectionManager manager, CancellationToken ct) =>
-            Status(manager, id, await manager.StartAsync(ConnectionId.From(id), ct).ConfigureAwait(false)));
-        changes.MapPost("{id:guid}/stop", async (Guid id, IConnectionManager manager, CancellationToken ct) =>
-            Status(manager, id, await manager.StopAsync(ConnectionId.From(id), ct).ConfigureAwait(false)));
-        changes.MapPost("{id:guid}/restart", async (Guid id, IConnectionManager manager, CancellationToken ct) =>
-            Status(manager, id, await manager.RestartAsync(ConnectionId.From(id), ct).ConfigureAwait(false)));
-        changes.MapPost("test", TestAsync);
-        changes.MapPost("{id:guid}/discover", async (Guid id, IConnectionManager manager, CancellationToken ct) =>
-        {
-            // M1: the discovery runs within the request (the job system with progress on the live topic comes with the API).
-            var discovered = await manager.DiscoverAsync(ConnectionId.From(id), null, ct).ConfigureAwait(false);
-            return discovered.TryGetValue(out var snapshot, out var error)
-                ? EndpointResults.Json(StatusCodes.Status200OK, writer => WriteInventory(writer, snapshot))
-                : EndpointResults.Problem(error);
-        });
-        changes.MapPost("{id:guid}/rediscover", async (Guid id, IConnectionManager manager, CancellationToken ct) =>
+            // API §5.6: 202 + job; the inventory is the job result.
+            var job = jobs.Start("irt.discovery", http.CurrentUser().UserId, async (progress, ct) =>
+            {
+                progress.Report(0, "jobs.irt.discovery.running");
+                var discovered = await manager.DiscoverAsync(connection, null, ct).ConfigureAwait(false);
+                return discovered.TryGetValue(out var snapshot, out var error)
+                    ? Result.Success<JsonElement?>(ToElement(writer => WriteInventory(writer, snapshot)))
+                    : (Result<JsonElement?>)error;
+            });
+            return ApiResults.Accepted(job);
+        }).WithName("Connections_DiscoverConnection").WithSummary("Start a discovery job (202)");
+        edit.MapPost("{id:guid}/rediscover", async (Guid id, IConnectionManager manager, CancellationToken ct) =>
         {
             var reconciled = await manager.DescribeAndReconcileAsync(ConnectionId.From(id), ct).ConfigureAwait(false);
             return reconciled.TryGetValue(out var result, out var error)
                 ? EndpointResults.Json(StatusCodes.Status200OK, writer => WriteReconciliation(writer, result))
                 : EndpointResults.Problem(error);
-        });
-        changes.MapPost("{id:guid}/protocol-trace", async (Guid id, HttpRequest request, IConnectionManager manager, CancellationToken ct) =>
+        }).WithName("Connections_RediscoverConnection").WithSummary("Describe and reconcile now");
+        operate.MapPost("{id:guid}/protocol-trace", async (Guid id, HttpRequest request, IConnectionManager manager, CancellationToken ct) =>
         {
             using var body = await JsonDocument.ParseAsync(request.Body, cancellationToken: ct).ConfigureAwait(false);
             if (!body.RootElement.TryGetProperty("duration", out var duration) || Duration(duration.GetString()) is not { } value)
@@ -122,7 +129,7 @@ public static class ConnectionEndpoints
             }
 
             return Status(manager, id, await manager.SetProtocolTraceAsync(ConnectionId.From(id), value, ct).ConfigureAwait(false));
-        });
+        }).WithName("Connections_StartProtocolTrace").WithSummary("Enable the protocol trace for a duration");
         return endpoints;
     }
 
@@ -262,6 +269,27 @@ public static class ConnectionEndpoints
     }
 
     private static ChangeContext Context() => new(null, "api");
+
+    /// <summary>Permission of the connection reads (IRT §10).</summary>
+    public const string ViewPermission = "config.integrations.view";
+
+    /// <summary>Permission of the connection changes.</summary>
+    public const string EditPermission = "config.integrations.edit";
+
+    /// <summary>Permission of start, stop, restart and protocol trace.</summary>
+    public const string OperatePermission = "config.integrations.operate";
+
+    private static JsonElement ToElement(Action<Utf8JsonWriter> write)
+    {
+        var buffer = new System.Buffers.ArrayBufferWriter<byte>();
+        using (var writer = new Utf8JsonWriter(buffer))
+        {
+            write(writer);
+        }
+
+        using var document = JsonDocument.Parse(buffer.WrittenMemory);
+        return document.RootElement.Clone();
+    }
 
     private static IResult InvalidBody() =>
         EndpointResults.Problem(CommonErrors.ValidationFailed([CommonErrors.InvalidFormatAt(string.Empty, "JSON object")]));

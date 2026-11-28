@@ -1,6 +1,7 @@
 using Watchpoint.Hosting;
 using Watchpoint.Kernel.Ids;
 using Watchpoint.Registry;
+using Watchpoint.Registry.Contracts;
 
 namespace Watchpoint.Host.Modules;
 
@@ -23,4 +24,7 @@ public sealed class RegistryModule : IWatchpointModule
 
         services.AddWatchpointRegistry(SiteId.From(context.Node.Site.Id));
     }
+
+    /// <inheritdoc />
+    public void MapEndpoints(IEndpointRouteBuilder endpoints) => endpoints.MapRegistryEndpoints();
 }

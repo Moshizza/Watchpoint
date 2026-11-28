@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Logging;
 using Watchpoint.Kernel.Json;
 using Watchpoint.Kernel.Time;
 using Watchpoint.Pipeline.Contracts;
@@ -72,6 +73,10 @@ public static class PipelineModule
         services.AddSingleton<PartitionRouter>();
         services.AddSingleton<IPartitionDispatcher>(sp => sp.GetRequiredService<PartitionRouter>());
         services.AddSingleton<IPipelineLifecycle>(sp => sp.GetRequiredService<PartitionRouter>());
+        services.AddSingleton(sp => new DeletedTargetPurge(
+            sp.GetService<IRegistryReader>(), sp.GetRequiredService<PartitionRouter>(), sp.GetRequiredService<IIngestDirectory>(),
+            sp.GetRequiredService<ILogger<DeletedTargetPurge>>()));
+        services.AddHostedService(sp => sp.GetRequiredService<DeletedTargetPurge>());
         services.AddSingleton<IngestService>();
         services.AddSingleton<IObservationIngest>(sp => sp.GetRequiredService<IngestService>());
         return services;

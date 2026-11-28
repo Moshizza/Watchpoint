@@ -1,5 +1,6 @@
 using Watchpoint.Hosting;
 using Watchpoint.Model;
+using Watchpoint.Model.Contracts;
 
 namespace Watchpoint.Host.Modules;
 
@@ -15,4 +16,7 @@ public sealed class ModelModule : IWatchpointModule
         ArgumentNullException.ThrowIfNull(services);
         services.AddWatchpointModel();
     }
+
+    /// <inheritdoc />
+    public void MapEndpoints(IEndpointRouteBuilder endpoints) => endpoints.MapModelEndpoints();
 }

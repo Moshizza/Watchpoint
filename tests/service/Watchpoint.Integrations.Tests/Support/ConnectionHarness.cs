@@ -485,7 +485,7 @@ internal sealed class FakeRegistry : IRegistryReader, IRegistryWriter, IInventor
     {
         lock (_lock)
         {
-            return new Page<Device>([.. _devices.Where(d => query.ServerId is null || d.ServerId == query.ServerId)], null);
+            return new Page<Device>([.. _devices.Where(d => query.Servers is null || query.Servers.Contains(d.ServerId))], null);
         }
     }
 

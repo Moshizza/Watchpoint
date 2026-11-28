@@ -27,6 +27,8 @@ internal sealed class PartitionStateStore(int partition)
     private readonly ConcurrentDictionary<Guid, DeviceState> _entities = new();
     private readonly Dictionary<Guid, EntityMeta> _meta = [];
     private readonly Dictionary<(Guid Entity, PropertyPath Path), Quality> _preStaleQuality = [];
+    private HashSet<Guid> _dirty = [];
+    private HashSet<Guid> _deleted = [];
 
     /// <summary>Gets the partition number.</summary>
     public int Partition { get; } = partition;
@@ -44,14 +46,78 @@ internal sealed class PartitionStateStore(int partition)
     public bool TryGet(Guid id, out DeviceState state) => _entities.TryGetValue(id, out state!);
 
     /// <summary>Replaces the state of an entity (the only mutation readers can observe).</summary>
-    public void Set(Guid id, DeviceState state) => _entities[id] = state;
+    public void Set(Guid id, DeviceState state)
+    {
+        _entities[id] = state;
+        _dirty.Add(id);
+        _deleted.Remove(id);
+    }
 
     /// <summary>Removes an entity and its bookkeeping; returns its last state, if any.</summary>
     public bool Remove(Guid id, out DeviceState state)
     {
         _meta.Remove(id);
-        return _entities.TryRemove(id, out state!);
+        foreach (var key in _preStaleQuality.Keys.Where(k => k.Entity == id).ToList())
+        {
+            _preStaleQuality.Remove(key);
+        }
+
+        if (!_entities.TryRemove(id, out state!))
+        {
+            return false;
+        }
+
+        _dirty.Remove(id);
+        _deleted.Add(id);
+        return true;
     }
+
+    /// <summary>
+    /// Takes the ids changed and removed since the previous call (spec STA §8.1, the dirty set), leaving both sets
+    /// empty. Called on the partition worker by the snapshotter.
+    /// </summary>
+    public (HashSet<Guid> Changed, HashSet<Guid> Deleted) TakeDirty()
+    {
+        var result = (_dirty, _deleted);
+        _dirty = [];
+        _deleted = [];
+        return result;
+    }
+
+    /// <summary>
+    /// Puts back ids whose snapshot write failed (spec STA §8.1, log 1720): a removed id is put back only if the entity
+    /// was not recreated meanwhile, a changed id only if it was not removed meanwhile.
+    /// </summary>
+    public void MergeBackDirty(IEnumerable<Guid> changed, IEnumerable<Guid> deleted)
+    {
+        foreach (var id in changed)
+        {
+            if (_entities.ContainsKey(id))
+            {
+                _dirty.Add(id);
+            }
+        }
+
+        foreach (var id in deleted)
+        {
+            if (!_entities.ContainsKey(id))
+            {
+                _deleted.Add(id);
+            }
+        }
+    }
+
+    /// <summary>Marks ids to delete from the snapshot without having held them (recovery: items of entities no longer in the registry).</summary>
+    public void MarkDeleted(IEnumerable<Guid> ids)
+    {
+        foreach (var id in ids)
+        {
+            _deleted.Add(id);
+        }
+    }
+
+    /// <summary>Forgets the changes recorded so far (recovery: the restored entities equal what is persisted).</summary>
+    public void ClearDirty() => _dirty.Clear();
 
     /// <summary>Gets the bookkeeping of an entity, or <see langword="null"/> when it has none (not tracked).</summary>
     public EntityMeta? GetMeta(Guid id) => _meta.GetValueOrDefault(id);
@@ -67,6 +133,9 @@ internal sealed class PartitionStateStore(int partition)
 
     /// <summary>Takes back the quality remembered by <see cref="MarkStale"/>, if any.</summary>
     public bool TryTakePreStaleQuality(Guid id, PropertyPath path, out Quality quality) => _preStaleQuality.Remove((id, path), out quality);
+
+    /// <summary>Reads the quality remembered by <see cref="MarkStale"/> without taking it (the snapshot persists the stored quality, spec STA §8.1).</summary>
+    public bool TryPeekPreStaleQuality(Guid id, PropertyPath path, out Quality quality) => _preStaleQuality.TryGetValue((id, path), out quality);
 
     /// <summary>Returns a weakly-consistent snapshot of every entity currently held, for queries and sweeps.</summary>
     public IEnumerable<DeviceState> Snapshot() => _entities.Values;
