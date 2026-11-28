@@ -1,10 +1,52 @@
 {
   "registry": {
     "device": {
-      "not_found": "L'appareil {deviceId} est introuvable."
+      "not_found": "L'appareil {id} est introuvable.",
+      "duplicate_native_id": "Un autre équipement utilise déjà l'identifiant {nativeId}.",
+      "has_children": "Cet équipement a encore {count} équipements enfants.",
+      "parent_invalid": "Cet équipement parent n'est pas autorisé ({reason})."
     },
     "server": {
-      "not_found": "Le serveur {serverId} est introuvable."
+      "not_found": "Le serveur {id} est introuvable.",
+      "duplicate_native_id": "Un autre serveur utilise déjà l'identifiant {nativeId}.",
+      "not_empty": "Ce serveur a encore {devices} équipements.",
+      "parent_invalid": "Ce serveur parent n'est pas autorisé ({reason})."
+    },
+    "batch": {
+      "too_large": "Trop de modifications à la fois ({max} au plus)."
+    },
+    "custom_field": {
+      "not_found": "Le champ personnalisé {id} est introuvable."
+    },
+    "link": {
+      "invalid": "Ce lien n'est pas valide ({reason}).",
+      "not_found": "Le lien {id} est introuvable."
+    },
+    "location": {
+      "cycle": "Un emplacement ne peut pas être déplacé sous lui-même ou sous l'un de ses enfants.",
+      "duplicate_name": "Un emplacement nommé {name} existe déjà ici.",
+      "not_empty": "Cet emplacement contient encore {children} emplacements et {objects} objets.",
+      "not_found": "L'emplacement {id} est introuvable.",
+      "root_immutable": "L'emplacement racine ne peut être ni déplacé ni supprimé.",
+      "too_deep": "Les emplacements ne peuvent pas être imbriqués sur plus de {max} niveaux."
+    },
+    "reconcile": {
+      "link_unresolved": "Un lien de l'équipement {nativeId} n'a pas pu être résolu.",
+      "type_major_change": "L'équipement {nativeId} a changé de type, de {from} à {to} ; le changement doit être confirmé."
+    },
+    "site": {
+      "not_initialised": "Le site n'est pas encore configuré."
+    },
+    "tag": {
+      "duplicate_key": "Une étiquette avec la clé {key} existe déjà.",
+      "family_exclusive": "Une seule étiquette de la famille {family} peut être appliquée.",
+      "not_found": "L'étiquette {id} est introuvable."
+    },
+    "tag_family": {
+      "not_found": "La famille d'étiquettes {id} est introuvable."
+    },
+    "type": {
+      "invalid_role": "Le type {typeId} ne peut pas être utilisé ici (attendu : {expectedRole})."
     }
   },
   "common": {
@@ -61,6 +103,26 @@
       "file_missing": "Le fichier du paquet {file} est manquant ; des connexions utilisent encore cette version.",
       "reserved_id": "L'identifiant de paquet {package} est réservé aux paquets Watchpoint.",
       "file_name_invalid": "Le nom de fichier {fileName} n'est pas autorisé ; utilisez nom.wpkg."
+    },
+    "connection": {
+      "isolation_required": "Ce paquet doit s'exécuter dans un processus isolé ({package}).",
+      "location_unknown": "L'emplacement {locationId} n'existe pas.",
+      "not_found": "La connexion {connection} est introuvable.",
+      "not_running": "La connexion {connection} n'est pas active ({state}).",
+      "not_supported": "Le connecteur ne prend pas cela en charge ({feature}).",
+      "secret_required": "Ce secret est requis.",
+      "secret_unknown": "Le connecteur n'utilise pas ce secret.",
+      "server_type_unknown": "Le type de serveur {serverType} n'existe pas."
+    },
+    "host": {
+      "unavailable": "Les connexions ne peuvent pas s'exécuter en mode {hostMode} sur cette installation."
+    },
+    "inventory": {
+      "invalid": "L'inventaire signalé par le système n'est pas valide.",
+      "type_unknown": "Un équipement a un type inconnu ({typeId} {typeVersion})."
+    },
+    "store": {
+      "limit": "La limite de stockage du connecteur est atteinte ({limit} : {max} au plus)."
     }
   },
   "commands": {
@@ -76,7 +138,8 @@
       "required": "Un motif est obligatoire pour cette commande."
     },
     "connection": {
-      "missing": "L'équipement {deviceId} n'a aucune connexion pour exécuter des commandes."
+      "missing": "L'équipement {deviceId} n'a aucune connexion pour exécuter des commandes.",
+      "down": "La connexion de cet équipement n'est pas active ({state})."
     },
     "not_before": {
       "too_far": "Une commande peut être planifiée au plus {maxHours} heures à l'avance."
@@ -95,7 +158,11 @@
     },
     "command": {
       "not_found": "La commande {commandId} est introuvable."
-    }
+    },
+    "connector": {
+      "failed": "Le système a refusé ou n'a pas pu exécuter la commande."
+    },
+    "outcome_unknown": "La commande a été envoyée mais son résultat est inconnu ; vérifiez l'équipement avant de réessayer."
   },
   "config": {
     "draft": {
@@ -159,5 +226,257 @@
       "invalid": "La requête n'a pas pu être lue.",
       "too_large": "La requête est trop volumineuse (au plus {max} octets)."
     }
+  },
+  "expr": {
+    "calendar": {
+      "unknown": "Ce calendrier n'existe pas."
+    },
+    "enum": {
+      "unknown_value": "Cette valeur ne fait pas partie des valeurs permises de la propriété."
+    },
+    "eval": {
+      "division_by_zero": "Division par zéro.",
+      "error": "L'expression n'a pas pu être évaluée.",
+      "index_out_of_range": "La liste ne contient aucun élément à cette position.",
+      "limit_exceeded": "L'expression demande trop d'étapes pour être évaluée.",
+      "regex_timeout": "L'expression régulière a mis trop de temps à s'appliquer."
+    },
+    "function": {
+      "arguments": "La fonction est appelée avec de mauvais arguments.",
+      "unknown": "Cette fonction n'existe pas."
+    },
+    "list": {
+      "too_large": "La liste est trop grande (1 000 éléments au plus)."
+    },
+    "member": {
+      "not_common": "Cette propriété n'existe pas sur tous les types d'équipement de la règle ; protégez-la avec has(...).",
+      "unknown": "Cette propriété n'existe pas."
+    },
+    "null": {
+      "comparison": "Cette valeur peut être vide ; la comparaison est alors fausse."
+    },
+    "regex": {
+      "unsupported": "Cette expression régulière utilise une fonction non prise en charge."
+    },
+    "result": {
+      "not_bool": "Une condition doit donner vrai ou faux."
+    },
+    "syntax": {
+      "chained_comparison": "Les comparaisons ne peuvent pas être enchaînées ; utilisez and.",
+      "unexpected_token": "Texte inattendu à cet endroit.",
+      "unterminated_string": "Le texte n'est pas fermé par un guillemet."
+    },
+    "too_complex": "L'expression est trop complexe (500 éléments au plus).",
+    "too_deep": "L'expression est trop imbriquée (32 niveaux au plus).",
+    "too_long": "L'expression est trop longue (2 000 caractères au plus).",
+    "type": {
+      "mismatch": "Ces valeurs ne peuvent pas être combinées ni comparées (types incompatibles)."
+    }
+  },
+  "history": {
+    "query": {
+      "invalid": "La requête d'historique n'est pas valide ({field} : {reason}).",
+      "range_too_large": "La période est trop longue ({maxDays} jours au plus).",
+      "timeout": "La requête d'historique a pris trop de temps ; réduisez la période ou la sélection.",
+      "too_many_points": "La requête renvoie trop de points ({max} au plus) ; réduisez-la ou utilisez un intervalle plus grand."
+    }
+  },
+  "host": {
+    "nats": {
+      "version_unsupported": "La version {found} du courtier de messages n'est pas prise en charge (au moins {minimum})."
+    },
+    "process": {
+      "executable_missing": "Le programme du processus {name} est introuvable ({path}).",
+      "failed": "Le processus {name} a échoué.",
+      "not_found": "Le processus {name} est introuvable."
+    }
+  },
+  "identity": {
+    "breakglass": {
+      "exists": "Un compte de secours existe déjà.",
+      "invalid": "Le code d'accès de secours n'est pas valide."
+    },
+    "mfa": {
+      "already_enrolled": "La vérification en deux étapes est déjà configurée pour ce compte.",
+      "code_invalid": "Le code de vérification n'est pas valide.",
+      "not_enrolled": "La vérification en deux étapes n'est pas configurée pour ce compte.",
+      "vault_unavailable": "La vérification en deux étapes est indisponible pour le moment ; réessayez plus tard."
+    },
+    "password": {
+      "breached": "Ce mot de passe figure dans une liste de mots de passe divulgués ; choisissez-en un autre.",
+      "contains_login": "Le mot de passe ne doit pas contenir l'identifiant.",
+      "incorrect": "Le mot de passe actuel est incorrect.",
+      "invalid_characters": "Le mot de passe contient des caractères non autorisés.",
+      "reused": "Ce mot de passe a été utilisé récemment ; choisissez-en un qui ne fait pas partie de vos {historyCount} derniers.",
+      "too_long": "Le mot de passe est trop long ({max} caractères au plus).",
+      "too_short": "Le mot de passe est trop court (au moins {min} caractères).",
+      "too_simple": "Le mot de passe est trop facile à deviner."
+    },
+    "refresh": {
+      "invalid": "Votre session est terminée ; reconnectez-vous.",
+      "reused": "Votre session a été fermée pour des raisons de sécurité ; reconnectez-vous."
+    },
+    "session": {
+      "forbidden": "Vous n'avez pas le droit de gérer cette session.",
+      "limit_reached": "Vous avez atteint le maximum de {max} sessions ouvertes ; fermez-en une d'abord.",
+      "not_found": "La session {sessionId} est introuvable."
+    },
+    "signin": {
+      "client_not_allowed": "Ce compte ne peut pas se connecter depuis cette application.",
+      "disabled": "Ce compte est désactivé.",
+      "expired": "Ce compte n'est plus valide.",
+      "invalid_credentials": "L'identifiant ou le mot de passe est incorrect.",
+      "locked": "Ce compte est verrouillé jusqu'au {until}.",
+      "mfa_invalid": "La vérification a échoué ou a expiré ; reconnectez-vous.",
+      "reason_required": "Un motif est requis pour se connecter avec ce compte.",
+      "workstation_not_allowed": "Ce compte ne peut pas se connecter depuis ce poste.",
+      "workstation_not_verified": "Ce poste n'a pas pu être vérifié."
+    },
+    "stepup": {
+      "invalid": "La confirmation a échoué ; réessayez.",
+      "required": "Confirmez votre identité pour faire cela."
+    },
+    "token": {
+      "expired": "Votre session a expiré ; reconnectez-vous.",
+      "invalid": "Veuillez vous connecter.",
+      "revoked": "Votre session a été fermée ; reconnectez-vous."
+    },
+    "user": {
+      "admin_required": "Seul un administrateur peut créer ou promouvoir des administrateurs.",
+      "last_administrator": "Au moins un administrateur actif doit rester.",
+      "login_taken": "L'identifiant {login} est déjà utilisé.",
+      "not_found": "L'utilisateur {userId} est introuvable.",
+      "self_change_forbidden": "Vous ne pouvez pas modifier vos propres réglages administrateur, activé ou type."
+    },
+    "webauthn": {
+      "not_configured": "Les clés de sécurité ne sont pas configurées sur ce site."
+    }
+  },
+  "model": {
+    "capability": {
+      "not_found": "La capacité {capabilityId} {version} est introuvable."
+    },
+    "command": {
+      "not_found": "La commande {path} n'existe pas pour le type {typeId}."
+    },
+    "document": {
+      "conflict": "Le document {id} {version} est en conflit avec un autre : {message}",
+      "invalid": "Le document n'est pas valide."
+    },
+    "event": {
+      "not_found": "L'événement {event} n'existe pas."
+    },
+    "package": {
+      "reserved_namespace": "Cet espace de noms est réservé aux paquets Watchpoint."
+    },
+    "property": {
+      "not_found": "La propriété {property} n'existe pas."
+    },
+    "symbol": {
+      "not_found": "Aucun symbole {symbolId} n'existe pour l'état {state}."
+    },
+    "type": {
+      "exclude_default": "Un membre par défaut ne peut pas être exclu.",
+      "not_found": "Le type {typeId} {version} est introuvable."
+    },
+    "value": {
+      "enum_unknown": "Cette valeur ne fait pas partie des valeurs permises.",
+      "out_of_range": "Cette valeur est hors de la plage permise.",
+      "too_long": "Cette valeur est trop longue.",
+      "type_mismatch": "Cette valeur n'a pas le bon type.",
+      "unit_incompatible": "Cette unité n'est pas compatible avec la propriété."
+    }
+  },
+  "pipeline": {
+    "batch": {
+      "too_large": "Le lot est trop grand ({count} enregistrements, {max} au plus)."
+    },
+    "log": {
+      "unavailable": "Le journal de données est indisponible ; réessayez plus tard."
+    },
+    "observation": {
+      "malformed": "L'observation est mal formée."
+    },
+    "record": {
+      "invalid": "L'enregistrement {recordId} n'est pas valide.",
+      "too_large": "L'enregistrement {recordId} est trop grand ({size} octets, {max} au plus)."
+    },
+    "stream": {
+      "incompatible": "Le flux de données {stream} n'est pas compatible avec cette version."
+    },
+    "target": {
+      "foreign": "La cible {target} n'appartient pas à cette connexion.",
+      "unknown": "La cible {target} est inconnue."
+    }
+  },
+  "scheduling": {
+    "calendar": {
+      "in_use": "Le calendrier {id} est encore utilisé ({references}).",
+      "key_taken": "Un calendrier avec la clé {key} existe déjà.",
+      "not_found": "Le calendrier {calendar} est introuvable."
+    },
+    "cron": {
+      "invalid": "La planification {expression} n'est pas valide ({reason})."
+    },
+    "ics": {
+      "invalid": "Le fichier de calendrier n'est pas valide ({reason})."
+    },
+    "range": {
+      "invalid": "La fin ({end}) doit être après le début ({start}).",
+      "overlap": "Les périodes {first} et {second} se chevauchent."
+    },
+    "timezone": {
+      "invalid": "Le fuseau horaire {timezone} n'est pas valide."
+    }
+  },
+  "secrets": {
+    "access": {
+      "denied": "Vous n'avez pas le droit d'utiliser le secret {secret}."
+    },
+    "integrity": {
+      "failed": "Le secret {secret} est endommagé et ne peut pas être lu."
+    },
+    "master_key": {
+      "unavailable": "La clé maîtresse est indisponible ({provider} : {reason})."
+    },
+    "not_found": "Le secret {secret} est introuvable.",
+    "ref": {
+      "invalid": "Cette référence de secret n'est pas valide (attendu : {expected})."
+    },
+    "value": {
+      "too_large": "Le secret est trop grand ({max} octets au plus)."
+    }
+  },
+  "state": {
+    "entity": {
+      "not_found": "Aucun état n'est connu pour {id}."
+    },
+    "query": {
+      "invalid_condition": "La condition sur {path} n'est pas valide.",
+      "too_many_ids": "Trop d'éléments demandés à la fois ({max} au plus)."
+    }
+  },
+  "storage": {
+    "concurrency": {
+      "conflict": "L'élément {entity} a été modifié en même temps ; rechargez-le et réessayez."
+    },
+    "migration": {
+      "failed": "La mise à jour {migration} de la base de données du module {module} a échoué.",
+      "lock_timeout": "La base de données {database} est mise à jour par un autre processus ; réessayez plus tard."
+    },
+    "module": {
+      "context_missing": "Le module {module} n'a pas de stockage pour la base de données {provider}."
+    },
+    "provider": {
+      "unknown": "Le type de base de données {provider} n'est pas pris en charge.",
+      "unsupported_version": "La version {actual} de la base de données n'est pas prise en charge (au moins {minimum})."
+    },
+    "settings": {
+      "invalid": "Les réglages de la base de données ne sont pas valides."
+    },
+    "state": {
+      "batch_too_large": "Trop de changements d'état à la fois ({count}, {max} au plus)."
+    },
+    "unavailable": "La base de données est indisponible ({store}) ; réessayez plus tard."
   }
 }

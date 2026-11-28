@@ -1,10 +1,52 @@
 {
   "registry": {
     "device": {
-      "not_found": "Device {deviceId} was not found."
+      "not_found": "Device {id} was not found.",
+      "duplicate_native_id": "Another device already uses the identifier {nativeId}.",
+      "has_children": "This device still has {count} child devices.",
+      "parent_invalid": "This parent device is not allowed ({reason})."
     },
     "server": {
-      "not_found": "Server {serverId} was not found."
+      "not_found": "Server {id} was not found.",
+      "duplicate_native_id": "Another server already uses the identifier {nativeId}.",
+      "not_empty": "This server still has {devices} devices.",
+      "parent_invalid": "This parent server is not allowed ({reason})."
+    },
+    "batch": {
+      "too_large": "Too many changes at once (at most {max})."
+    },
+    "custom_field": {
+      "not_found": "Custom field {id} was not found."
+    },
+    "link": {
+      "invalid": "This link is not valid ({reason}).",
+      "not_found": "Link {id} was not found."
+    },
+    "location": {
+      "cycle": "A location cannot be moved under itself or one of its children.",
+      "duplicate_name": "A location named {name} already exists here.",
+      "not_empty": "This location still holds {children} locations and {objects} objects.",
+      "not_found": "Location {id} was not found.",
+      "root_immutable": "The root location cannot be moved or deleted.",
+      "too_deep": "Locations cannot be nested more than {max} levels deep."
+    },
+    "reconcile": {
+      "link_unresolved": "A link of device {nativeId} could not be resolved.",
+      "type_major_change": "Device {nativeId} changed type from {from} to {to}; the change must be confirmed."
+    },
+    "site": {
+      "not_initialised": "The site is not set up yet."
+    },
+    "tag": {
+      "duplicate_key": "A tag with the key {key} already exists.",
+      "family_exclusive": "Only one tag of the family {family} can be applied.",
+      "not_found": "Tag {id} was not found."
+    },
+    "tag_family": {
+      "not_found": "Tag family {id} was not found."
+    },
+    "type": {
+      "invalid_role": "The type {typeId} cannot be used here (expected: {expectedRole})."
     }
   },
   "common": {
@@ -61,6 +103,26 @@
       "file_missing": "The package file {file} is missing; connections still use this version.",
       "reserved_id": "The package id {package} is reserved for Watchpoint packages.",
       "file_name_invalid": "The file name {fileName} is not allowed; use name.wpkg."
+    },
+    "connection": {
+      "isolation_required": "This package must run in an isolated process ({package}).",
+      "location_unknown": "The location {locationId} does not exist.",
+      "not_found": "Connection {connection} was not found.",
+      "not_running": "Connection {connection} is not running ({state}).",
+      "not_supported": "The connector does not support this ({feature}).",
+      "secret_required": "This secret is required.",
+      "secret_unknown": "The connector does not use this secret.",
+      "server_type_unknown": "The server type {serverType} does not exist."
+    },
+    "host": {
+      "unavailable": "Connections cannot run in mode {hostMode} on this installation."
+    },
+    "inventory": {
+      "invalid": "The inventory reported by the system is not valid.",
+      "type_unknown": "A device has an unknown type ({typeId} {typeVersion})."
+    },
+    "store": {
+      "limit": "The connector storage limit is reached ({limit}: at most {max})."
     }
   },
   "commands": {
@@ -76,7 +138,8 @@
       "required": "A reason is required for this command."
     },
     "connection": {
-      "missing": "Device {deviceId} has no connection to run commands."
+      "missing": "Device {deviceId} has no connection to run commands.",
+      "down": "The connection of this device is not running ({state})."
     },
     "not_before": {
       "too_far": "A command can be scheduled at most {maxHours} hours ahead."
@@ -95,7 +158,11 @@
     },
     "command": {
       "not_found": "Command {commandId} was not found."
-    }
+    },
+    "connector": {
+      "failed": "The system refused or failed to run the command."
+    },
+    "outcome_unknown": "The command was sent but its outcome is unknown; check the device before retrying."
   },
   "config": {
     "draft": {
@@ -159,5 +226,257 @@
       "invalid": "The request could not be read.",
       "too_large": "The request is too large (at most {max} bytes)."
     }
+  },
+  "expr": {
+    "calendar": {
+      "unknown": "This calendar does not exist."
+    },
+    "enum": {
+      "unknown_value": "This value is not one of the allowed values of the property."
+    },
+    "eval": {
+      "division_by_zero": "Division by zero.",
+      "error": "The expression could not be evaluated.",
+      "index_out_of_range": "The list has no item at this position.",
+      "limit_exceeded": "The expression takes too many steps to evaluate.",
+      "regex_timeout": "The regular expression took too long to match."
+    },
+    "function": {
+      "arguments": "The function is called with wrong arguments.",
+      "unknown": "This function does not exist."
+    },
+    "list": {
+      "too_large": "The list is too large (at most 1,000 items)."
+    },
+    "member": {
+      "not_common": "This property does not exist on every device type of the rule; guard it with has(...).",
+      "unknown": "This property does not exist."
+    },
+    "null": {
+      "comparison": "This value may be empty; the comparison is then false."
+    },
+    "regex": {
+      "unsupported": "This regular expression uses a feature that is not supported."
+    },
+    "result": {
+      "not_bool": "A condition must give true or false."
+    },
+    "syntax": {
+      "chained_comparison": "Comparisons cannot be chained; use and.",
+      "unexpected_token": "Unexpected text here.",
+      "unterminated_string": "The text is not closed with a quote."
+    },
+    "too_complex": "The expression is too complex (at most 500 elements).",
+    "too_deep": "The expression is nested too deeply (at most 32 levels).",
+    "too_long": "The expression is too long (at most 2,000 characters).",
+    "type": {
+      "mismatch": "These values cannot be combined or compared (wrong types)."
+    }
+  },
+  "history": {
+    "query": {
+      "invalid": "The history query is not valid ({field}: {reason}).",
+      "range_too_large": "The period is too long (at most {maxDays} days).",
+      "timeout": "The history query took too long; narrow the period or the selection.",
+      "too_many_points": "The query returns too many points (at most {max}); narrow it or use a larger interval."
+    }
+  },
+  "host": {
+    "nats": {
+      "version_unsupported": "The message broker version {found} is not supported (at least {minimum})."
+    },
+    "process": {
+      "executable_missing": "The program of process {name} is missing ({path}).",
+      "failed": "The process {name} has failed.",
+      "not_found": "The process {name} was not found."
+    }
+  },
+  "identity": {
+    "breakglass": {
+      "exists": "An emergency account already exists.",
+      "invalid": "The emergency access code is not valid."
+    },
+    "mfa": {
+      "already_enrolled": "Two-step verification is already set up for this account.",
+      "code_invalid": "The verification code is not valid.",
+      "not_enrolled": "Two-step verification is not set up for this account.",
+      "vault_unavailable": "Two-step verification is unavailable right now; try again later."
+    },
+    "password": {
+      "breached": "This password appears in a list of leaked passwords; choose another one.",
+      "contains_login": "The password must not contain the login name.",
+      "incorrect": "The current password is incorrect.",
+      "invalid_characters": "The password contains characters that are not allowed.",
+      "reused": "This password was used recently; choose one not among your last {historyCount}.",
+      "too_long": "The password is too long (at most {max} characters).",
+      "too_short": "The password is too short (at least {min} characters).",
+      "too_simple": "The password is too easy to guess."
+    },
+    "refresh": {
+      "invalid": "Your session has ended; please sign in again.",
+      "reused": "Your session was closed for security reasons; please sign in again."
+    },
+    "session": {
+      "forbidden": "You are not allowed to manage this session.",
+      "limit_reached": "You have reached the maximum of {max} open sessions; close one first.",
+      "not_found": "The session {sessionId} was not found."
+    },
+    "signin": {
+      "client_not_allowed": "This account cannot sign in from this application.",
+      "disabled": "This account is disabled.",
+      "expired": "This account is no longer valid.",
+      "invalid_credentials": "The login name or password is incorrect.",
+      "locked": "This account is locked until {until}.",
+      "mfa_invalid": "The verification failed or has expired; sign in again.",
+      "reason_required": "A reason is required to sign in with this account.",
+      "workstation_not_allowed": "This account cannot sign in from this workstation.",
+      "workstation_not_verified": "This workstation could not be verified."
+    },
+    "stepup": {
+      "invalid": "The confirmation failed; try again.",
+      "required": "Confirm your identity to do this."
+    },
+    "token": {
+      "expired": "Your session has expired; please sign in again.",
+      "invalid": "Please sign in.",
+      "revoked": "Your session was closed; please sign in again."
+    },
+    "user": {
+      "admin_required": "Only an administrator can create or promote administrators.",
+      "last_administrator": "At least one active administrator must remain.",
+      "login_taken": "The login name {login} is already used.",
+      "not_found": "User {userId} was not found.",
+      "self_change_forbidden": "You cannot change your own administrator, enabled or kind settings."
+    },
+    "webauthn": {
+      "not_configured": "Security keys are not configured on this site."
+    }
+  },
+  "model": {
+    "capability": {
+      "not_found": "Capability {capabilityId} {version} was not found."
+    },
+    "command": {
+      "not_found": "The command {path} does not exist for type {typeId}."
+    },
+    "document": {
+      "conflict": "Document {id} {version} conflicts with another one: {message}",
+      "invalid": "The document is not valid."
+    },
+    "event": {
+      "not_found": "The event {event} does not exist."
+    },
+    "package": {
+      "reserved_namespace": "This namespace is reserved for Watchpoint packages."
+    },
+    "property": {
+      "not_found": "The property {property} does not exist."
+    },
+    "symbol": {
+      "not_found": "No symbol {symbolId} exists for state {state}."
+    },
+    "type": {
+      "exclude_default": "A default member cannot be excluded.",
+      "not_found": "Type {typeId} {version} was not found."
+    },
+    "value": {
+      "enum_unknown": "This value is not one of the allowed values.",
+      "out_of_range": "This value is out of the allowed range.",
+      "too_long": "This value is too long.",
+      "type_mismatch": "This value has the wrong type.",
+      "unit_incompatible": "This unit is not compatible with the property."
+    }
+  },
+  "pipeline": {
+    "batch": {
+      "too_large": "The batch is too large ({count} records, at most {max})."
+    },
+    "log": {
+      "unavailable": "The data log is unavailable; try again later."
+    },
+    "observation": {
+      "malformed": "The observation is malformed."
+    },
+    "record": {
+      "invalid": "The record {recordId} is not valid.",
+      "too_large": "The record {recordId} is too large ({size} bytes, at most {max})."
+    },
+    "stream": {
+      "incompatible": "The data stream {stream} is not compatible with this version."
+    },
+    "target": {
+      "foreign": "The target {target} does not belong to this connection.",
+      "unknown": "The target {target} is unknown."
+    }
+  },
+  "scheduling": {
+    "calendar": {
+      "in_use": "Calendar {id} is still used ({references}).",
+      "key_taken": "A calendar with the key {key} already exists.",
+      "not_found": "Calendar {calendar} was not found."
+    },
+    "cron": {
+      "invalid": "The schedule {expression} is not valid ({reason})."
+    },
+    "ics": {
+      "invalid": "The calendar file is not valid ({reason})."
+    },
+    "range": {
+      "invalid": "The end ({end}) must be after the start ({start}).",
+      "overlap": "The periods {first} and {second} overlap."
+    },
+    "timezone": {
+      "invalid": "The time zone {timezone} is not valid."
+    }
+  },
+  "secrets": {
+    "access": {
+      "denied": "You are not allowed to use the secret {secret}."
+    },
+    "integrity": {
+      "failed": "The secret {secret} is damaged and cannot be read."
+    },
+    "master_key": {
+      "unavailable": "The master key is unavailable ({provider}: {reason})."
+    },
+    "not_found": "The secret {secret} was not found.",
+    "ref": {
+      "invalid": "This secret reference is not valid (expected {expected})."
+    },
+    "value": {
+      "too_large": "The secret is too large (at most {max} bytes)."
+    }
+  },
+  "state": {
+    "entity": {
+      "not_found": "No state is known for {id}."
+    },
+    "query": {
+      "invalid_condition": "The condition on {path} is not valid.",
+      "too_many_ids": "Too many items requested at once (at most {max})."
+    }
+  },
+  "storage": {
+    "concurrency": {
+      "conflict": "The {entity} was modified concurrently; reload it and try again."
+    },
+    "migration": {
+      "failed": "The database update {migration} of module {module} failed.",
+      "lock_timeout": "The database {database} is being updated by another process; try again later."
+    },
+    "module": {
+      "context_missing": "The module {module} has no storage for the database {provider}."
+    },
+    "provider": {
+      "unknown": "The database type {provider} is not supported.",
+      "unsupported_version": "The database version {actual} is not supported (at least {minimum})."
+    },
+    "settings": {
+      "invalid": "The database settings are not valid."
+    },
+    "state": {
+      "batch_too_large": "Too many state changes at once ({count}, at most {max})."
+    },
+    "unavailable": "The database is unavailable ({store}); try again later."
   }
 }

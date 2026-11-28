@@ -103,7 +103,7 @@ describe('i18n tests', () => {
       status: 404,
       code: 'registry.device.not_found',
       messageKey: 'errors.registry.device.not_found',
-      args: { deviceId: 'dev-101' },
+      args: { id: 'dev-101' },
       fieldErrors: {
         '/settings/port': 'common.value.out_of_range',
       },

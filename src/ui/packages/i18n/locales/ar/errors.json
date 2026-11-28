@@ -1,10 +1,52 @@
 {
   "registry": {
     "device": {
-      "not_found": "تعذر العثور على الجهاز {deviceId}."
+      "not_found": "تعذر العثور على الجهاز {id}.",
+      "duplicate_native_id": "يستخدم جهاز آخر المعرّف {nativeId} بالفعل.",
+      "has_children": "لا يزال لهذا الجهاز {count} أجهزة فرعية.",
+      "parent_invalid": "هذا الجهاز الأصل غير مسموح به ({reason})."
     },
     "server": {
-      "not_found": "تعذر العثور على الخادم {serverId}."
+      "not_found": "تعذر العثور على الخادم {id}.",
+      "duplicate_native_id": "يستخدم خادم آخر المعرّف {nativeId} بالفعل.",
+      "not_empty": "لا يزال لهذا الخادم {devices} أجهزة.",
+      "parent_invalid": "هذا الخادم الأصل غير مسموح به ({reason})."
+    },
+    "batch": {
+      "too_large": "تغييرات كثيرة جدًا دفعة واحدة ({max} كحد أقصى)."
+    },
+    "custom_field": {
+      "not_found": "تعذر العثور على الحقل المخصص {id}."
+    },
+    "link": {
+      "invalid": "هذا الرابط غير صالح ({reason}).",
+      "not_found": "تعذر العثور على الرابط {id}."
+    },
+    "location": {
+      "cycle": "لا يمكن نقل موقع تحت نفسه أو تحت أحد مواقعه الفرعية.",
+      "duplicate_name": "يوجد بالفعل موقع باسم {name} هنا.",
+      "not_empty": "لا يزال هذا الموقع يحتوي على {children} مواقع و{objects} كائنات.",
+      "not_found": "تعذر العثور على الموقع {id}.",
+      "root_immutable": "لا يمكن نقل الموقع الجذر أو حذفه.",
+      "too_deep": "لا يمكن تداخل المواقع بأكثر من {max} مستويات."
+    },
+    "reconcile": {
+      "link_unresolved": "تعذر تحديد رابط للجهاز {nativeId}.",
+      "type_major_change": "غيّر الجهاز {nativeId} نوعه من {from} إلى {to}؛ يجب تأكيد التغيير."
+    },
+    "site": {
+      "not_initialised": "لم يتم إعداد الموقع بعد."
+    },
+    "tag": {
+      "duplicate_key": "توجد بالفعل علامة بالمفتاح {key}.",
+      "family_exclusive": "لا يمكن تطبيق إلا علامة واحدة من العائلة {family}.",
+      "not_found": "تعذر العثور على العلامة {id}."
+    },
+    "tag_family": {
+      "not_found": "تعذر العثور على عائلة العلامات {id}."
+    },
+    "type": {
+      "invalid_role": "لا يمكن استخدام النوع {typeId} هنا (المتوقع: {expectedRole})."
     }
   },
   "common": {
@@ -61,6 +103,26 @@
       "file_missing": "ملف الحزمة {file} مفقود؛ لا تزال بعض الاتصالات تستخدم هذه النسخة.",
       "reserved_id": "معرّف الحزمة {package} محجوز لحزم Watchpoint.",
       "file_name_invalid": "اسم الملف {fileName} غير مسموح؛ استخدم name.wpkg."
+    },
+    "connection": {
+      "isolation_required": "يجب تشغيل هذه الحزمة في عملية معزولة ({package}).",
+      "location_unknown": "الموقع {locationId} غير موجود.",
+      "not_found": "تعذر العثور على الاتصال {connection}.",
+      "not_running": "الاتصال {connection} غير نشط ({state}).",
+      "not_supported": "لا يدعم الموصل ذلك ({feature}).",
+      "secret_required": "هذا السر مطلوب.",
+      "secret_unknown": "لا يستخدم الموصل هذا السر.",
+      "server_type_unknown": "نوع الخادم {serverType} غير موجود."
+    },
+    "host": {
+      "unavailable": "لا يمكن تشغيل الاتصالات بالوضع {hostMode} في هذا التثبيت."
+    },
+    "inventory": {
+      "invalid": "الجرد الذي أبلغ عنه النظام غير صالح.",
+      "type_unknown": "جهاز من نوع غير معروف ({typeId} {typeVersion})."
+    },
+    "store": {
+      "limit": "تم بلوغ حد تخزين الموصل ({limit}: {max} كحد أقصى)."
     }
   },
   "commands": {
@@ -76,7 +138,8 @@
       "required": "يلزم ذكر سبب لهذا الأمر."
     },
     "connection": {
-      "missing": "لا يوجد اتصال للجهاز {deviceId} لتنفيذ الأوامر."
+      "missing": "لا يوجد اتصال للجهاز {deviceId} لتنفيذ الأوامر.",
+      "down": "اتصال هذا الجهاز غير نشط ({state})."
     },
     "not_before": {
       "too_far": "يمكن جدولة الأمر قبل {maxHours} ساعة كحد أقصى."
@@ -95,7 +158,11 @@
     },
     "command": {
       "not_found": "لم يتم العثور على الأمر {commandId}."
-    }
+    },
+    "connector": {
+      "failed": "رفض النظام تنفيذ الأمر أو فشل في تنفيذه."
+    },
+    "outcome_unknown": "أُرسل الأمر لكن نتيجته غير معروفة؛ تحقق من الجهاز قبل إعادة المحاولة."
   },
   "config": {
     "draft": {
@@ -159,5 +226,257 @@
       "invalid": "تعذرت قراءة الطلب.",
       "too_large": "الطلب كبير جدًا (بحد أقصى {max} بايت)."
     }
+  },
+  "expr": {
+    "calendar": {
+      "unknown": "هذا التقويم غير موجود."
+    },
+    "enum": {
+      "unknown_value": "هذه القيمة ليست من القيم المسموح بها لهذه الخاصية."
+    },
+    "eval": {
+      "division_by_zero": "قسمة على صفر.",
+      "error": "تعذر تقييم التعبير.",
+      "index_out_of_range": "لا يوجد عنصر في القائمة في هذا الموضع.",
+      "limit_exceeded": "يتطلب تقييم التعبير عددًا كبيرًا جدًا من الخطوات.",
+      "regex_timeout": "استغرقت مطابقة التعبير النمطي وقتًا طويلًا جدًا."
+    },
+    "function": {
+      "arguments": "استُدعيت الدالة بوسائط غير صحيحة.",
+      "unknown": "هذه الدالة غير موجودة."
+    },
+    "list": {
+      "too_large": "القائمة كبيرة جدًا (1000 عنصر كحد أقصى)."
+    },
+    "member": {
+      "not_common": "هذه الخاصية غير موجودة في كل أنواع الأجهزة في القاعدة؛ احمها باستخدام has(...).",
+      "unknown": "هذه الخاصية غير موجودة."
+    },
+    "null": {
+      "comparison": "قد تكون هذه القيمة فارغة؛ وعندها تكون المقارنة خاطئة."
+    },
+    "regex": {
+      "unsupported": "يستخدم هذا التعبير النمطي ميزة غير مدعومة."
+    },
+    "result": {
+      "not_bool": "يجب أن ينتج الشرط صح أو خطأ."
+    },
+    "syntax": {
+      "chained_comparison": "لا يمكن تسلسل المقارنات؛ استخدم and.",
+      "unexpected_token": "نص غير متوقع هنا.",
+      "unterminated_string": "النص غير مغلق بعلامة اقتباس."
+    },
+    "too_complex": "التعبير معقد جدًا (500 عنصر كحد أقصى).",
+    "too_deep": "التعبير متداخل بعمق كبير جدًا (32 مستوى كحد أقصى).",
+    "too_long": "التعبير طويل جدًا (2000 حرف كحد أقصى).",
+    "type": {
+      "mismatch": "لا يمكن جمع هذه القيم أو مقارنتها (أنواع غير متوافقة)."
+    }
+  },
+  "history": {
+    "query": {
+      "invalid": "استعلام السجل غير صالح ({field}: {reason}).",
+      "range_too_large": "الفترة طويلة جدًا ({maxDays} يومًا كحد أقصى).",
+      "timeout": "استغرق استعلام السجل وقتًا طويلًا؛ قلّص الفترة أو التحديد.",
+      "too_many_points": "يُرجع الاستعلام نقاطًا كثيرة جدًا ({max} كحد أقصى)؛ ضيّقه أو استخدم فاصلًا أكبر."
+    }
+  },
+  "host": {
+    "nats": {
+      "version_unsupported": "إصدار وسيط الرسائل {found} غير مدعوم (الحد الأدنى {minimum})."
+    },
+    "process": {
+      "executable_missing": "برنامج العملية {name} مفقود ({path}).",
+      "failed": "فشلت العملية {name}.",
+      "not_found": "تعذر العثور على العملية {name}."
+    }
+  },
+  "identity": {
+    "breakglass": {
+      "exists": "يوجد حساب طوارئ بالفعل.",
+      "invalid": "رمز الوصول في حالات الطوارئ غير صالح."
+    },
+    "mfa": {
+      "already_enrolled": "التحقق بخطوتين مُعد بالفعل لهذا الحساب.",
+      "code_invalid": "رمز التحقق غير صالح.",
+      "not_enrolled": "التحقق بخطوتين غير مُعد لهذا الحساب.",
+      "vault_unavailable": "التحقق بخطوتين غير متاح حاليًا؛ حاول مرة أخرى لاحقًا."
+    },
+    "password": {
+      "breached": "كلمة المرور هذه موجودة في قائمة كلمات مرور مسربة؛ اختر كلمة أخرى.",
+      "contains_login": "يجب ألا تحتوي كلمة المرور على اسم تسجيل الدخول.",
+      "incorrect": "كلمة المرور الحالية غير صحيحة.",
+      "invalid_characters": "تحتوي كلمة المرور على أحرف غير مسموح بها.",
+      "reused": "استُخدمت كلمة المرور هذه مؤخرًا؛ اختر كلمة ليست من آخر {historyCount} كلمات مرور.",
+      "too_long": "كلمة المرور طويلة جدًا ({max} حرفًا كحد أقصى).",
+      "too_short": "كلمة المرور قصيرة جدًا ({min} حرفًا على الأقل).",
+      "too_simple": "كلمة المرور سهلة التخمين جدًا."
+    },
+    "refresh": {
+      "invalid": "انتهت جلستك؛ يرجى تسجيل الدخول مرة أخرى.",
+      "reused": "أُغلقت جلستك لأسباب أمنية؛ يرجى تسجيل الدخول مرة أخرى."
+    },
+    "session": {
+      "forbidden": "غير مسموح لك بإدارة هذه الجلسة.",
+      "limit_reached": "وصلت إلى الحد الأقصى وهو {max} جلسات مفتوحة؛ أغلق إحداها أولًا.",
+      "not_found": "تعذر العثور على الجلسة {sessionId}."
+    },
+    "signin": {
+      "client_not_allowed": "لا يمكن لهذا الحساب تسجيل الدخول من هذا التطبيق.",
+      "disabled": "هذا الحساب معطل.",
+      "expired": "هذا الحساب لم يعد صالحًا.",
+      "invalid_credentials": "اسم تسجيل الدخول أو كلمة المرور غير صحيحة.",
+      "locked": "هذا الحساب مقفل حتى {until}.",
+      "mfa_invalid": "فشل التحقق أو انتهت صلاحيته؛ سجّل الدخول مرة أخرى.",
+      "reason_required": "يلزم ذكر سبب لتسجيل الدخول بهذا الحساب.",
+      "workstation_not_allowed": "لا يمكن لهذا الحساب تسجيل الدخول من محطة العمل هذه.",
+      "workstation_not_verified": "تعذر التحقق من محطة العمل هذه."
+    },
+    "stepup": {
+      "invalid": "فشل التأكيد؛ حاول مرة أخرى.",
+      "required": "أكّد هويتك للقيام بذلك."
+    },
+    "token": {
+      "expired": "انتهت صلاحية جلستك؛ يرجى تسجيل الدخول مرة أخرى.",
+      "invalid": "يرجى تسجيل الدخول.",
+      "revoked": "أُغلقت جلستك؛ يرجى تسجيل الدخول مرة أخرى."
+    },
+    "user": {
+      "admin_required": "لا يمكن إلا للمسؤول إنشاء مسؤولين أو ترقيتهم.",
+      "last_administrator": "يجب أن يبقى مسؤول نشط واحد على الأقل.",
+      "login_taken": "اسم تسجيل الدخول {login} مستخدم بالفعل.",
+      "not_found": "تعذر العثور على المستخدم {userId}.",
+      "self_change_forbidden": "لا يمكنك تغيير إعدادات المسؤول أو التفعيل أو النوع الخاصة بك."
+    },
+    "webauthn": {
+      "not_configured": "مفاتيح الأمان غير مُعدة على هذا الموقع."
+    }
+  },
+  "model": {
+    "capability": {
+      "not_found": "تعذر العثور على القدرة {capabilityId} {version}."
+    },
+    "command": {
+      "not_found": "الأمر {path} غير موجود للنوع {typeId}."
+    },
+    "document": {
+      "conflict": "يتعارض المستند {id} {version} مع مستند آخر: {message}",
+      "invalid": "المستند غير صالح."
+    },
+    "event": {
+      "not_found": "الحدث {event} غير موجود."
+    },
+    "package": {
+      "reserved_namespace": "مساحة الأسماء هذه محجوزة لحزم Watchpoint."
+    },
+    "property": {
+      "not_found": "الخاصية {property} غير موجودة."
+    },
+    "symbol": {
+      "not_found": "لا يوجد رمز {symbolId} للحالة {state}."
+    },
+    "type": {
+      "exclude_default": "لا يمكن استبعاد عضو افتراضي.",
+      "not_found": "تعذر العثور على النوع {typeId} {version}."
+    },
+    "value": {
+      "enum_unknown": "هذه القيمة ليست من القيم المسموح بها.",
+      "out_of_range": "هذه القيمة خارج النطاق المسموح به.",
+      "too_long": "هذه القيمة طويلة جدًا.",
+      "type_mismatch": "نوع هذه القيمة غير صحيح.",
+      "unit_incompatible": "هذه الوحدة غير متوافقة مع الخاصية."
+    }
+  },
+  "pipeline": {
+    "batch": {
+      "too_large": "الدفعة كبيرة جدًا ({count} سجلًا، {max} كحد أقصى)."
+    },
+    "log": {
+      "unavailable": "سجل البيانات غير متاح؛ حاول مرة أخرى لاحقًا."
+    },
+    "observation": {
+      "malformed": "الملاحظة مشوهة."
+    },
+    "record": {
+      "invalid": "السجل {recordId} غير صالح.",
+      "too_large": "السجل {recordId} كبير جدًا ({size} بايت، {max} كحد أقصى)."
+    },
+    "stream": {
+      "incompatible": "تدفق البيانات {stream} غير متوافق مع هذا الإصدار."
+    },
+    "target": {
+      "foreign": "الهدف {target} لا ينتمي إلى هذا الاتصال.",
+      "unknown": "الهدف {target} غير معروف."
+    }
+  },
+  "scheduling": {
+    "calendar": {
+      "in_use": "التقويم {id} لا يزال مستخدمًا ({references}).",
+      "key_taken": "يوجد بالفعل تقويم بالمفتاح {key}.",
+      "not_found": "تعذر العثور على التقويم {calendar}."
+    },
+    "cron": {
+      "invalid": "الجدول {expression} غير صالح ({reason})."
+    },
+    "ics": {
+      "invalid": "ملف التقويم غير صالح ({reason})."
+    },
+    "range": {
+      "invalid": "يجب أن تكون النهاية ({end}) بعد البداية ({start}).",
+      "overlap": "تتداخل الفترتان {first} و{second}."
+    },
+    "timezone": {
+      "invalid": "المنطقة الزمنية {timezone} غير صالحة."
+    }
+  },
+  "secrets": {
+    "access": {
+      "denied": "غير مسموح لك باستخدام السر {secret}."
+    },
+    "integrity": {
+      "failed": "السر {secret} تالف ولا يمكن قراءته."
+    },
+    "master_key": {
+      "unavailable": "المفتاح الرئيسي غير متاح ({provider}: {reason})."
+    },
+    "not_found": "تعذر العثور على السر {secret}.",
+    "ref": {
+      "invalid": "مرجع السر هذا غير صالح (المتوقع {expected})."
+    },
+    "value": {
+      "too_large": "السر كبير جدًا ({max} بايت كحد أقصى)."
+    }
+  },
+  "state": {
+    "entity": {
+      "not_found": "لا توجد حالة معروفة لـ {id}."
+    },
+    "query": {
+      "invalid_condition": "الشرط على {path} غير صالح.",
+      "too_many_ids": "عناصر كثيرة جدًا مطلوبة دفعة واحدة ({max} كحد أقصى)."
+    }
+  },
+  "storage": {
+    "concurrency": {
+      "conflict": "عُدّل العنصر {entity} في الوقت نفسه؛ أعد تحميله وحاول مرة أخرى."
+    },
+    "migration": {
+      "failed": "فشل تحديث قاعدة البيانات {migration} للوحدة {module}.",
+      "lock_timeout": "يتم تحديث قاعدة البيانات {database} بواسطة عملية أخرى؛ حاول مرة أخرى لاحقًا."
+    },
+    "module": {
+      "context_missing": "لا يوجد تخزين للوحدة {module} لقاعدة البيانات {provider}."
+    },
+    "provider": {
+      "unknown": "نوع قاعدة البيانات {provider} غير مدعوم.",
+      "unsupported_version": "إصدار قاعدة البيانات {actual} غير مدعوم (الحد الأدنى {minimum})."
+    },
+    "settings": {
+      "invalid": "إعدادات قاعدة البيانات غير صالحة."
+    },
+    "state": {
+      "batch_too_large": "تغييرات حالة كثيرة جدًا دفعة واحدة ({count}، {max} كحد أقصى)."
+    },
+    "unavailable": "قاعدة البيانات غير متاحة ({store})؛ حاول مرة أخرى لاحقًا."
   }
 }
