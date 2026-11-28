@@ -46,7 +46,7 @@ Watchpoint.Storage/
 │   ├── IModuleStorageRegistration.cs
 │   ├── IStateStore.cs
 │   ├── IHistoryStore.cs, HistoryRows.cs, HistoryFilters.cs   (history store contract; see HIS)
-│   ├── IAuditStore.cs               (declared; see AUD)
+│   ├── IAuditStore.cs               audit rows, checkpoints, verification state (behaviour: AUD)
 │   ├── StorageErrors.cs             error codes + StorageStartupException (exit codes)
 │   ├── ConfigurationDbContextBase.cs, EntityConventions.cs (IVersioned, ITimestamped, StorageContextInfo)
 │   ├── IStorageStartup.cs           wait for databases + migrations (called by HST start-up tasks)
@@ -132,7 +132,7 @@ public interface IStorageProvider
     string Sanitize(string connectionString);           // password removed, for logs
     IStateStore CreateStateStore(DatabaseDefinition db);
     IHistoryStore CreateHistoryStore(DatabaseDefinition db);   // T2.13 (HIS §4–§7)
-    // The audit store factory is added by the AUD task (T3.06).
+    IAuditStore CreateAuditStore(DatabaseDefinition db);   // T3.06 (AUD)
 }
 
 public sealed record ProviderCapabilities(

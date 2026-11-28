@@ -29,11 +29,12 @@ security view of *who did what*, not the operational timeline.
 
 ### 2.1 Contracts project
 
-`Watchpoint.Audit.Contracts` depends **only on Kernel** and holds `IAuditSink`, `AuditRecord`,
-`AuditAction`, `AuditObjectRef`. It is created by the first task that writes audit records
-(SEC or IDN in M1) together with `LoggingAuditSink` (writes records as structured log
-events, EventId 2890). T3.06 adds `Watchpoint.Audit` with the real writer and replaces the
-registration; no caller changes.
+`Watchpoint.Audit.Contracts` depends **only on Kernel** (plus the logging and DI abstractions) and holds
+`IAuditSink`, `AuditRecord`, `AuditAction`, `AuditActor`, `AuditObjectRef` and `LoggingAuditSink` (writes records as
+structured log events, EventId 2890). The SEC and IDN tasks did not create it: they declared their own log-only sinks
+(`IIdentityAuditSink`, `ISecretsAuditSink`). T3.06 therefore creates the project, adds `Watchpoint.Audit` with the real
+writer, and registers **adapters** that replace the log-only sinks of IDN and SEC (`services.Replace`, whatever the module
+order); their callers do not change. Other modules write through `IAuditSink` directly.
 
 ## 3. Layout
 
@@ -42,7 +43,8 @@ Watchpoint.Audit.Contracts/
 ├── IAuditSink.cs, AuditRecord.cs, AuditAction.cs, AuditObjectRef.cs, AuditOutcome.cs
 └── LoggingAuditSink.cs
 Watchpoint.Audit/
-├── Contracts/IAuditQuery.cs, AuditQuery.cs, IAuditVerifier.cs, VerificationReport.cs
+├── Contracts/IAuditQuery.cs, AuditQuery.cs, AuditEntry.cs, IAuditVerifier.cs, VerificationReport.cs, IAuditExporter.cs,
+│              IAuditLabelResolver.cs, IAuditIntegrityPublisher.cs, AuditSettings.cs, AuditErrors.cs, AuditEndpoints.cs
 ├── Internal/
 │   ├── AuditWriter.cs              channel + single-writer batching
 │   ├── HashChain.cs                canonical serialisation + SHA-256 chaining
@@ -50,7 +52,8 @@ Watchpoint.Audit/
 │   ├── ContinuousVerifier.cs       background verification of new segments
 │   ├── AuditQueryService.cs
 │   ├── AuditRetention.cs
-│   └── Storage/AuditDbContext.cs, PostgresAuditStore.cs
+│   └── AuditExporter.cs, AuditAdapters.cs (IDN and SEC sinks), VaultAuditSigner.cs
+(the store itself, `IAuditStore`, is declared in `Watchpoint.Storage` and implemented by `Watchpoint.Storage.Postgres/Audit/PostgresAuditStore.cs`)
 ├── AuditModule.cs
 └── AuditLog.cs                     event ids 2850–2899
 ```
@@ -78,9 +81,9 @@ public sealed record AuditRecord(
 public readonly record struct AuditAction(string Value);   // "<module>.<verb>"; validated: ^[a-z]+(\.[a-zA-Z]+)+$
 
 public sealed record AuditActor(ActorKind Kind /* User | Script | Automation | Integration | System | Federation */,
-    Guid? Id, string DisplayName, ClientKind? Client, string? Workstation, string? IpAddress, string? Via /* "HQ via federation link" */);
+    Guid? Id, string DisplayName, AuditClientKind? Client /* Desktop | Web | Mobile | Api */, string? Workstation, string? IpAddress, string? Via /* "HQ via federation link" */);
 
-public sealed record AuditObjectRef(string Type /* device, user, rights.grants, connection… */, Guid? Id, string? Label);
+public sealed record AuditObjectRef(string Type /* device, user, rights.grants, connection… */, Guid? Id, string? Label = null /* log sink only, never stored (§13) */);
 public enum AuditOutcome { Success, Failure, Denied }
 public enum AuditSeverity { Normal, Sensitive, Critical }
 ```
@@ -109,8 +112,8 @@ Each action has a translation key `audit.action.<module>.<verb>` (en/fr/ar).
 ## 5. Writer
 
 1. `WriteAsync` validates (action format, details size — oversize details are replaced with
-   `{ "truncated": true, "sha256": … }`) and enqueues into a **bounded channel** (capacity
-   10,000). When full, the caller waits up to 2 s; on timeout the record is written to the
+   `{ "truncated": true, "sha256": … }`), redacts secrets (§13), drops object labels (§13) and enqueues into a
+   **bounded channel** (capacity 10,000). When full, the caller waits up to 2 s (`Audit:ChannelFullWait`); on timeout the record is written to the
    **fallback file** `<data>/audit/fallback-<date>.jsonl` (fsync per record) and EventId 2860
    is logged. Audit records are **never dropped**.
 2. A single writer task drains up to 500 records or 50 ms, assigns `Sequence` (monotonic per
@@ -118,7 +121,11 @@ Each action has a translation key `audit.action.<module>.<verb>` (en/fr/ar).
    PostgreSQL), then completes waiters.
 3. On start, the writer ingests any fallback files first (in order), then deletes them.
 4. Shutdown: drain within `Audit:ShutdownTimeout` (10 s), remainder to fallback file.
-5. `Critical` records are flushed immediately (no 50 ms wait) and also logged at Warning.
+5. `Critical` records are flushed immediately (no 50 ms wait) and also logged at Warning; `WriteAsync` returns once such a
+   record is stored (or after the channel wait, when the store is down — the record stays queued).
+6. A failed batch is retried with back-off (1 s doubling to 30 s); after a failure the writer re-reads the chain head, and a
+   batch that had in fact committed is not written twice, so sequences never have gaps or duplicates. A crash between
+   ingesting a fallback file and deleting it can ingest its records twice (at-least-once; the chain stays valid).
 
 ## 6. Hash chain
 
@@ -127,6 +134,8 @@ Each action has a translation key `audit.action.<module>.<verb>` (en/fr/ar).
   details (RFC 8785 JCS canonical JSON), correlationId), no insignificant whitespace.
 - `Hash(r) = SHA-256(PrevHash || C(r))`; the first record of a chain has
   `PrevHash = SHA-256("watchpoint-audit:" + chainId)`.
+- Timestamps are truncated to microseconds before hashing (the storage precision). Nested objects (actor, objects) are
+  canonicalised like details.
 - `ChainId` = node id (each cluster node writes its own chain; M9 replicates chains between
   nodes for storage, never merges them).
 - **Checkpoints**: every hour and at shutdown, `CheckpointService` writes
@@ -152,6 +161,9 @@ public sealed record VerificationIssue(VerificationIssueKind Kind /* HashMismatc
   the full chain weekly (streamed, 5,000 records per batch). Any issue → Critical audit
   `audit.chainVerificationFailed`, system event `audit.integrityFailed` (alarm-able), health
   check AUD degraded.
+- `VaultAuditSigner` keeps the Ed25519 audit key in the secret vault (owner module `audit`, kind `PrivateKey`, created on
+  first use); a checkpoint made with another key id cannot be verified (key rotation is a later task).
+- A checkpoint is also written as the audit record `audit.checkpointCreated`.
 - Retention purges whole segments **up to a checkpoint** and records `audit.retentionPurged`
   with the checkpoint as the new genesis (`PrevHash` of the first remaining record is the
   checkpoint's hash — verification starts from the latest purge checkpoint).
@@ -161,7 +173,7 @@ public sealed record VerificationIssue(VerificationIssueKind Kind /* HashMismatc
 ```csharp
 public interface IAuditQuery
 {
-    Task<Page<AuditEntry>> QueryAsync(AuditQuery query, PageRequest page, CancellationToken ct);
+    Task<Result<Page<AuditEntry>>> QueryAsync(AuditQuery query, PageRequest page, CancellationToken ct);   // errors: audit.query.range_too_large, bad cursor
     Task<AuditEntry?> GetAsync(long id, CancellationToken ct);
 }
 public sealed record AuditQuery(DateTimeOffset From, DateTimeOffset To, IReadOnlyList<Guid>? Actors, IReadOnlyList<string>? ActionPrefixes,
@@ -172,18 +184,20 @@ public sealed record AuditEntry(long Id, string ChainId, long Sequence, DateTime
     IReadOnlyList<AuditObjectRef> Objects, string? Reason, JsonElement? Details, Guid? CorrelationId);
 ```
 
-Range limit 366 days per query (`audit.query.range_too_large`). Keyset paging on
-`(occurred_at, id)`.
+Range limit 366 days per query (`audit.query.range_too_large`; an empty or inverted range gives the same error). Keyset
+paging on `(occurred_at, id)`; the cursor is opaque. `Text` matches the reason and the object types (labels are not stored).
+Object labels and `ActionLabel` come from `IAuditLabelResolver` (default: no object labels, the action value as label; the
+modules that own the objects supply real resolvers).
 
 ## 8. Data (`wp_audit`)
 
 | Table | Columns / notes |
 |---|---|
-| `records` | id bigserial, chain_id text, sequence bigint, occurred_at, recorded_at, action text, outcome smallint, severity smallint, actor jsonb, actor_id uuid null, objects jsonb, object_ids uuid[], reason text, details jsonb, correlation_id uuid, prev_hash bytea(32), hash bytea(32) — unique (chain_id, sequence); indexes (occurred_at), (actor_id, occurred_at), GIN object_ids, (action text_pattern_ops), correlation_id. TimescaleDB hypertable on occurred_at (30-day chunks, compression after 90 days) when available |
+| `records` | id bigserial, chain_id text, sequence bigint, occurred_at, recorded_at, action text, outcome smallint, severity smallint, actor jsonb, actor_id uuid null, objects jsonb, object_ids uuid[], reason text, details jsonb, correlation_id uuid, prev_hash bytea(32), hash bytea(32) — unique (chain_id, sequence); indexes (occurred_at), (actor_id, occurred_at), GIN object_ids, (action text_pattern_ops), correlation_id. TimescaleDB hypertable on occurred_at (30-day chunks, compression after 90 days) when available (**not yet**: plain table; a hypertable needs the unique key to include the time column, a follow-up) |
 | `checkpoints` | chain_id, sequence, hash, at, signature bytea, key_id — PK (chain_id, sequence) |
 | `verification_state` | chain_id PK, last_verified_sequence, last_full_verification_at, last_result jsonb |
 
-- The database role used by the service for `wp_audit.records` has `INSERT, SELECT` only; a
+- `EnsureSchemaAsync` creates the schema, both NOLOGIN roles (`wp_audit_writer`, `wp_audit_maint`) when it may, and the guards. The database role used by the service for `wp_audit.records` has `INSERT, SELECT` only; a
   separate maintenance role (retention job) has `DELETE`. `UPDATE` is revoked; a trigger
   rejects updates (defence in depth). Migrations create both roles (STO §roles).
 - Retention: `Audit:RetentionDays` (default 1,825 = 5 years, minimum 365), configured separately
@@ -195,11 +209,13 @@ Range limit 366 days per query (`audit.query.range_too_large`). Keyset paging on
 |---|---|---|
 | `GET /api/v1/audit?from=&to=&actor=&action=&objectType=&objectId=&outcome=&minSeverity=&correlationId=&text=&limit=&cursor=` | `admin.audit.view` | Query |
 | `GET /api/v1/audit/{id}` | `admin.audit.view` | One entry with details |
-| `GET /api/v1/audit/export?…&format=csv` | `admin.audit.view` | Streamed CSV (PDF via RPT, M5); itself audited (`audit.exported`) |
+| `GET /api/v1/audit/export?…&format=csv` (`sort=asc|desc` on both lists) | `admin.audit.view` | Streamed CSV (PDF via RPT, M5); itself audited (`audit.exported`) |
 | `GET /api/v1/audit/verification` | `admin.audit.view` | Latest reports per chain |
 | `POST /api/v1/audit/verification` | `admin.audit.view` | `{ chainId?, from?, to? }` → job (JobRef) |
 
-Live: `system` topic carries `auditIntegrity { ok, lastCheckedAt }` for health banners.
+Live: `system` topic carries `auditIntegrity { ok, lastCheckedAt }` for health banners. T3.06 provides the hook
+(`IAuditIntegrityPublisher`, default no-op, plus the AUD health check); the live and system-event bridge comes with the
+API live channel.
 
 ## 10. Settings
 
@@ -211,6 +227,8 @@ Live: `system` topic carries `auditIntegrity { ok, lastCheckedAt }` for health b
 | `Audit:CheckpointInterval` | 1 h | |
 | `Audit:VerifyInterval` / `FullVerifyInterval` | 5 min / 7 days | |
 | `Audit:ShutdownTimeout` | 10 s | |
+| `Audit:ChannelFullWait` | 2 s | Programmatic only (`AuditSettings`), not bound from configuration |
+| `Audit:VerifyBatchSize` / `MaxDetailsBytes` | 5,000 / 64 KB | Programmatic only |
 
 ## 11. Errors
 
@@ -227,6 +245,11 @@ Release), `audit.verification.chain_not_found`.
 | 2860 | Warning | Audit channel full; record written to fallback file |
 | 2870 | Information | Checkpoint {ChainId}:{Sequence} created |
 | 2871 | Critical | Audit chain {ChainId} verification failed at {Sequence}: {Kind} |
+| 2861 | Error | Audit batch write failed ({Error}); retrying |
+| 2862 | Warning | Audit fallback file {File} line {Line} is not readable and was skipped |
+| 2863 | Warning | Critical audit record {Action} by {Actor} |
+| 2864 | Error | Audit action '{Action}' is not valid and was recorded as unknown.invalid |
+| 2872 | Warning | Audit checkpoint or verification run failed ({Error}); retrying at the next interval |
 | 2880 | Information | Audit retention purged {Count} records up to {Sequence} |
 | 2890 | Information | (LoggingAuditSink) {Action} by {Actor} {Outcome} |
 

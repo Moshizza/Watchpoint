@@ -98,6 +98,7 @@ Every AI agent working on the project has a unique name, used as its branch pref
 | `claude-pollux` | Mohcine (Moshizza) | 2026-11-26 |
 | `claude-pavo` | Mohcine (Moshizza) | 2026-11-27 |
 | `claude-corvus` | Mohcine (Moshizza) | 2026-11-27 |
+| `claude-canopus` | Mohcine (Moshizza) | 2026-11-28 |
 | `claude-vesta` | Mohcine (Moshizza) | 2026-11-28 |
 
 Owners of merged tasks keep the branch name actually used. Early Jules sessions pushed
@@ -213,7 +214,7 @@ spec that must exist and pass.
 | T3.03 | Configuration: import/export (JSON, CSV/XLSX), soft locks, optimistic merge | CFG §9–§10 | T3.02 | CFG-U-051…CFG-U-070 | [#56](https://github.com/Moshizza/Watchpoint/issues/56) | — | todo |
 | T3.04 | Rights: permission catalogue, grants, scopes, schedules, constraints, evaluator, visible-set cache, API filtering | RGT §4–§7 | T1.18, T1.07, T2.08, T3.01 | RGT-U-001…RGT-U-050, RGT-I-001…RGT-I-004, RGT-I-008 | [#57](https://github.com/Moshizza/Watchpoint/issues/57) | — | todo |
 | T3.05 | Rights: user groups, template users, rights-copy (preview, apply, undo, re-apply), drift indicator, escalation protection | RGT §8–§10 | T3.04, T3.02 | RGT-U-051…RGT-U-090, RGT-I-005…RGT-I-007 | [#58](https://github.com/Moshizza/Watchpoint/issues/58) | — | todo |
-| T3.06 | Audit trail: writer, hash chain, verification, query API | AUD | T2.13 | AUD-U-001…AUD-U-020, AUD-I-001…AUD-I-005 | [#59](https://github.com/Moshizza/Watchpoint/issues/59) | — | todo |
+| T3.06 | Audit trail: writer, hash chain, verification, query API | AUD | T2.13 | AUD-U-001…AUD-U-020, AUD-I-001…AUD-I-005 | [#59](https://github.com/Moshizza/Watchpoint/issues/59) | claude-canopus/T3.06-audit-trail | done |
 | T3.07 | Identity: LDAP/AD, OIDC sign-in, directory group → template mapping | IDN §8–§9 | T3.05 | IDN-U-031…IDN-U-050, IDN-I-007…IDN-I-012 | [#60](https://github.com/Moshizza/Watchpoint/issues/60) | — | todo |
 | T3.08 | Identity: MFA (TOTP, WebAuthn), lockout, session management, break-glass, client kind binding | IDN §10–§12 | T1.18, T1.18s | IDN-U-051…IDN-U-080, IDN-U-130…IDN-U-134 | [#61](https://github.com/Moshizza/Watchpoint/issues/61) | claude-polaris/T3.08-identity-mfa-lockout | done |
 | T3.09 | Maintenance mode (site and location scope, session gate, auto-end, notifications hook) | MNT | T3.08, T3.04 | MNT-U-001…MNT-U-020, MNT-I-001…MNT-I-004 | [#62](https://github.com/Moshizza/Watchpoint/issues/62) | — | todo |

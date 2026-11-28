@@ -159,5 +159,19 @@
       "invalid": "The request could not be read.",
       "too_large": "The request is too large (at most {max} bytes)."
     }
+  },
+  "audit": {
+    "query": {
+      "range_too_large": "The audit query range must not exceed {maxDays} days."
+    },
+    "entry": {
+      "not_found": "Audit entry {id} was not found."
+    },
+    "verification": {
+      "chain_not_found": "Audit chain {chainId} was not found."
+    },
+    "action": {
+      "invalid": "The audit action is not valid."
+    }
   }
 }

@@ -74,5 +74,90 @@
     "traceId": "معرف التتبع",
     "copyTraceId": "نسخ معرف التتبع",
     "copied": "تم النسخ إلى الحافظة"
+  },
+  "audit": {
+    "action": {
+      "identity": {
+        "signedIn": "تسجيل الدخول",
+        "signInFailed": "فشل تسجيل الدخول",
+        "signedOut": "تسجيل الخروج",
+        "sessionRevoked": "إلغاء الجلسة",
+        "accountLocked": "قفل الحساب",
+        "accountUnlocked": "فتح قفل الحساب",
+        "passwordChanged": "تغيير كلمة المرور",
+        "passwordReset": "إعادة تعيين كلمة المرور",
+        "mfaEnrolled": "تفعيل المصادقة متعددة العوامل",
+        "mfaReset": "إعادة تعيين المصادقة متعددة العوامل",
+        "breakGlassUsed": "استخدام حساب الطوارئ",
+        "tokenTheftDetected": "اكتشاف سرقة الرمز",
+        "userCreated": "إنشاء مستخدم",
+        "userUpdated": "تحديث مستخدم",
+        "userDisabled": "تعطيل مستخدم",
+        "userDeleted": "حذف مستخدم"
+      },
+      "config": {
+        "published": "نشر الإعدادات",
+        "rolledBack": "استرجاع الإعدادات",
+        "approvalRequested": "طلب الموافقة",
+        "approved": "الموافقة على الإعدادات",
+        "rejected": "رفض الإعدادات",
+        "lockBroken": "كسر القفل",
+        "imported": "استيراد الإعدادات",
+        "exported": "تصدير الإعدادات"
+      },
+      "rights": {
+        "grantsChanged": "تغيير الصلاحيات",
+        "copyApplied": "تطبيق نسخ الصلاحيات",
+        "copyUndone": "التراجع عن نسخ الصلاحيات",
+        "groupChanged": "تغيير مجموعة",
+        "escalationDenied": "رفض رفع الصلاحيات"
+      },
+      "commands": {
+        "requested": "طلب أمر",
+        "rejected": "رفض أمر",
+        "approved": "الموافقة على أمر",
+        "cancelled": "إلغاء أمر"
+      },
+      "alarms": {
+        "acknowledged": "إقرار إنذار",
+        "closed": "إغلاق إنذار",
+        "closedWithoutReport": "إغلاق إنذار بدون تقرير",
+        "shelved": "تأجيل إنذار",
+        "transferred": "نقل إنذار",
+        "muted": "كتم إنذار"
+      },
+      "secrets": {
+        "created": "إنشاء سر",
+        "replaced": "استبدال سر",
+        "deleted": "حذف سر",
+        "readDenied": "رفض قراءة سر",
+        "readAggregate": "قراءات الأسرار"
+      },
+      "maintenance": {
+        "started": "بدء الصيانة",
+        "extended": "تمديد الصيانة",
+        "ended": "انتهاء الصيانة",
+        "autoEnded": "انتهاء الصيانة تلقائيًا"
+      },
+      "integrations": {
+        "packageInstalled": "تثبيت حزمة",
+        "packageRemoved": "إزالة حزمة",
+        "connectionEnabled": "تفعيل اتصال",
+        "connectionDisabled": "تعطيل اتصال",
+        "hostPaired": "إقران مضيف"
+      },
+      "privacy": {
+        "personalDataViewed": "عرض بيانات شخصية",
+        "subjectExported": "تصدير بيانات شخص",
+        "subjectErased": "محو بيانات شخص",
+        "eventsExported": "تصدير الأحداث"
+      },
+      "audit": {
+        "chainVerificationFailed": "فشل التحقق من سلسلة التدقيق",
+        "checkpointCreated": "إنشاء نقطة تحقق للتدقيق",
+        "retentionPurged": "تطهير سجلات التدقيق",
+        "exported": "تصدير سجل التدقيق"
+      }
+    }
   }
 }

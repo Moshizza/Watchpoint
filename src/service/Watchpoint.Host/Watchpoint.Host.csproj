@@ -16,6 +16,7 @@
     <ProjectReference Include="../Watchpoint.Secrets/Watchpoint.Secrets.csproj" />
     <ProjectReference Include="../Watchpoint.Registry/Watchpoint.Registry.csproj" />
     <ProjectReference Include="../Watchpoint.History/Watchpoint.History.csproj" />
+    <ProjectReference Include="../Watchpoint.Audit/Watchpoint.Audit.csproj" />
     <ProjectReference Include="../Watchpoint.Pipeline/Watchpoint.Pipeline.csproj" />
     <ProjectReference Include="../Watchpoint.State/Watchpoint.State.csproj" />
     <ProjectReference Include="../Watchpoint.Commands/Watchpoint.Commands.csproj" />

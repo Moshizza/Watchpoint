@@ -75,7 +75,10 @@ public interface IStorageProvider
     /// <returns>The store.</returns>
     IHistoryStore CreateHistoryStore(DatabaseDefinition db);
 
-    // The audit store factory is added by T3.06 (AUD).
+    /// <summary>Creates the audit store on <paramref name="db"/> (spec AUD §8).</summary>
+    /// <param name="db">The database of the audit store.</param>
+    /// <returns>The store.</returns>
+    IAuditStore CreateAuditStore(DatabaseDefinition db);
 }
 
 /// <summary>Connection pool statistics.</summary>

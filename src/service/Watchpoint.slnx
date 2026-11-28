@@ -7,6 +7,8 @@
   </Folder>
   <Folder Name="/src/">
     <Project Path="Watchpoint.Api/Watchpoint.Api.csproj" />
+    <Project Path="Watchpoint.Audit.Contracts/Watchpoint.Audit.Contracts.csproj" />
+    <Project Path="Watchpoint.Audit/Watchpoint.Audit.csproj" />
     <Project Path="Watchpoint.Configuration/Watchpoint.Configuration.csproj" />
     <Project Path="Watchpoint.Expressions/Watchpoint.Expressions.csproj" />
     <Project Path="Watchpoint.History/Watchpoint.History.csproj" />
@@ -44,6 +46,7 @@
     <Project Path="../../tests/integrations/Watchpoint.Integration.Sdk.Tests/Watchpoint.Integration.Sdk.Tests.csproj" />
     <Project Path="../../tests/integrations/Watchpoint.Integration.Simulator.Tests/Watchpoint.Integration.Simulator.Tests.csproj" />
     <Project Path="../../tests/integrations/Watchpoint.Integration.Modbus.Tests/Watchpoint.Integration.Modbus.Tests.csproj" />
+    <Project Path="../../tests/service/Watchpoint.Audit.Tests/Watchpoint.Audit.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.History.Tests/Watchpoint.History.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Api.Tests/Watchpoint.Api.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Hosting.Tests/Watchpoint.Hosting.Tests.csproj" />

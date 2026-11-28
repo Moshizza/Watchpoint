@@ -49,6 +49,8 @@ internal sealed class FakeStorageProvider(string id = "postgres", bool schemas =
 
     public IHistoryStore CreateHistoryStore(DatabaseDefinition db) => throw new NotSupportedException();
 
+    public IAuditStore CreateAuditStore(DatabaseDefinition db) => throw new NotSupportedException();
+
     public IMigrationLock CreateMigrationLock(DatabaseDefinition db) => new Lock(this, db.Key);
 
     public Task BootstrapAsync(DatabaseDefinition db, IReadOnlyCollection<string> schemas, IReadOnlyCollection<StoreKind> stores, CancellationToken ct)
