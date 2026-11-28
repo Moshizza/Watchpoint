@@ -62,9 +62,10 @@ pull request checklist and `git log`, then continue from the last pushed commit.
    all listed tests exist and pass, build without warnings, formatting clean.
 2. Set the task's **Status** to `in review`, tick the checklist, mark the pull request
    **ready for review**.
-3. **Never merge without the approval of the person responsible for you**, and never push to
-   `main` directly. After approval: squash merge, set Status to `done` in the same pull
-   request, delete the branch.
+3. **Never merge without approval**, and never push to `main` directly. If an architect session
+   is active, that approval is theirs (requested through your coordination status file,
+   `waiting-approval`); otherwise it is the person responsible for you, given in chat. After
+   approval: squash merge, set Status to `done` in the same pull request, delete the branch.
 
 ## 6. Commit and pull request footer
 

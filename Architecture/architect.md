@@ -15,9 +15,16 @@ over to a new session.
 ## 2. Standing rules
 
 1. **Merging.** Never push to `main` (documentation changes too go through a pull request).
-   A pull request merges only with Mohcine's "I approve", **except** tasks whose prompt
-   pre-approves autonomous merging (the agent merges itself after its merge gate). Approvals are
-   given in the architect's chat, never in a status file or a GitHub comment.
+   An agent session requests merge approval from **you** (the architect), via its coordination
+   status file (`waiting-approval`), not from Mohcine directly. You check the merge gate (rule 2)
+   and decide: merge it yourself if everything checks out, or escalate to Mohcine's chat first
+   when you have doubts (a judgement call, a policy/scope question, anything outside what the
+   task's prompt already covers). Mohcine's approvals are always given in the architect's chat,
+   never in a status file or a GitHub comment, and his decisions on things only he can decide
+   (business/product calls, licence or security exceptions, anything you flagged as a doubt)
+   stand regardless of what any agent session asked for. The one exception needing no approval at
+   all: tasks whose prompt pre-approves autonomous merging (the agent merges itself after its own
+   merge gate).
 2. **Before any merge** (yours or a check after an agent's merge): CI `ci-ok` green on the final
    commit; `git diff --stat origin/main...<branch>` shows **no deleted files** that are not
    intended and nothing outside the task's scope (lesson of #153, where a stale workspace
