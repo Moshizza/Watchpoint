@@ -51,6 +51,8 @@ internal static class ConfigJson
 [JsonSerializable(typeof(ApprovalInfo))]
 [JsonSerializable(typeof(List<DraftEntry>))]
 [JsonSerializable(typeof(List<DiffEntry>))]
+[JsonSerializable(typeof(IReadOnlyList<DraftEntry>))]
+[JsonSerializable(typeof(IReadOnlyList<DiffEntry>))]
 [JsonSerializable(typeof(Dictionary<string, int>))]
 [JsonSerializable(typeof(IReadOnlyDictionary<string, int>))]
 [JsonSerializable(typeof(Dictionary<string, JsonElement>))]
