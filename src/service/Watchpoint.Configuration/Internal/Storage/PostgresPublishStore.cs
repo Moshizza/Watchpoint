@@ -139,7 +139,7 @@ internal sealed class PostgresPublishStore(IStoreConnectionFactory connections, 
     {
         var command = connection.CreateCommand();
         command.Transaction = transaction;
-        command.CommandText = sql;
+        command.CommandText = sql; // nosemgrep: csharp.lang.security.sqli.csharp-sqli -- only schema-derived table names (EF model) are interpolated; values are parameters
         foreach (var (name, value) in parameters)
         {
             var parameter = command.CreateParameter();
@@ -159,7 +159,8 @@ internal sealed class PostgresPublishStore(IStoreConnectionFactory connections, 
 
         public async Task<long> NextVersionAsync(CancellationToken ct)
         {
-            await using var command = Command(connection, transaction, $"SELECT COALESCE(MAX(version), 0) + 1 FROM {versions}");
+            // {versions} is the EF model's table name, not request input.
+            await using var command = Command(connection, transaction, $"SELECT COALESCE(MAX(version), 0) + 1 FROM {versions}"); // nosemgrep: csharp.lang.security.sqli.csharp-sqli -- only schema-derived table names (EF model) are interpolated; values are parameters
             return Convert.ToInt64(await command.ExecuteScalarAsync(ct).ConfigureAwait(false), System.Globalization.CultureInfo.InvariantCulture);
         }
 
@@ -167,7 +168,8 @@ internal sealed class PostgresPublishStore(IStoreConnectionFactory connections, 
         {
             ArgumentNullException.ThrowIfNull(record);
             var v = record.Version;
-            await using (var command = Command(connection, transaction,
+            // {versions} / {entries}: the EF model's table names, not request input.
+            await using (var command = Command(connection, transaction, // nosemgrep: csharp.lang.security.sqli.csharp-sqli -- only schema-derived table names (EF model) are interpolated; values are parameters
                 $"INSERT INTO {versions} (version, published_at, author, comment, draft_id, change_set_id, summary, inverse, diff) " +
                 "VALUES (@version, @at, @author, @comment, @draft, @changeSet, CAST(@summary AS jsonb), CAST(@inverse AS jsonb), CAST(@diff AS jsonb))",
                 ("version", v.Version), ("at", v.PublishedAt), ("author", v.Author.Value), ("comment", v.Comment), ("draft", v.Draft.Value),
@@ -180,7 +182,7 @@ internal sealed class PostgresPublishStore(IStoreConnectionFactory connections, 
             for (var i = 0; i < record.Entries.Count; i++)
             {
                 var e = record.Entries[i];
-                await using var command = Command(connection, transaction,
+                await using var command = Command(connection, transaction, // nosemgrep: csharp.lang.security.sqli.csharp-sqli -- only schema-derived table names (EF model) are interpolated; values are parameters
                     $"INSERT INTO {entries} (version, position, type, object_id, operation, new_version, before, after) " +
                     "VALUES (@version, @position, @type, @id, @operation, @newVersion, CAST(@before AS jsonb), CAST(@after AS jsonb))",
                     ("version", v.Version), ("position", i), ("type", e.Ref.Type), ("id", e.Ref.Id), ("operation", e.Operation.ToString()),
