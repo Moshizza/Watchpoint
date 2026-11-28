@@ -104,19 +104,19 @@ internal sealed class PostgresAuditStore(NpgsqlDataSource source) : IAuditStore
     {
         ArgumentNullException.ThrowIfNull(filter);
         var sql = new StringBuilder($"SELECT {Columns} FROM wp_audit.records WHERE occurred_at >= @from AND occurred_at < @to");
-        await using var command = source.CreateCommand(string.Empty);
-        command.Parameters.AddWithValue("from", NpgsqlDbType.TimestampTz, filter.From.UtcDateTime);
-        command.Parameters.AddWithValue("to", NpgsqlDbType.TimestampTz, filter.To.UtcDateTime);
+        List<NpgsqlParameter> parameters = [];
+        parameters.Add(new NpgsqlParameter("from", NpgsqlDbType.TimestampTz) { Value = filter.From.UtcDateTime });
+        parameters.Add(new NpgsqlParameter("to", NpgsqlDbType.TimestampTz) { Value = filter.To.UtcDateTime });
         if (filter.Actors is { Count: > 0 })
         {
             sql.Append(" AND actor_id = ANY(@actors)");
-            command.Parameters.AddWithValue("actors", NpgsqlDbType.Array | NpgsqlDbType.Uuid, filter.Actors.ToArray());
+            parameters.Add(new NpgsqlParameter("actors", NpgsqlDbType.Array | NpgsqlDbType.Uuid) { Value = filter.Actors.ToArray() });
         }
 
         if (filter.ActionPrefixes is { Count: > 0 })
         {
             sql.Append(" AND action LIKE ANY(@prefixes)");
-            command.Parameters.AddWithValue("prefixes", NpgsqlDbType.Array | NpgsqlDbType.Text, filter.ActionPrefixes.Select(p => EscapeLike(p) + "%").ToArray());
+            parameters.Add(new NpgsqlParameter("prefixes", NpgsqlDbType.Array | NpgsqlDbType.Text) { Value = filter.ActionPrefixes.Select(p => EscapeLike(p) + "%").ToArray() });
         }
 
         if (filter.ObjectType is not null || filter.ObjectId is not null)
@@ -134,45 +134,47 @@ internal sealed class PostgresAuditStore(NpgsqlDataSource source) : IAuditStore
 
             element.Append('}');
             sql.Append(" AND objects @> @object::jsonb");
-            command.Parameters.AddWithValue("object", NpgsqlDbType.Text, "[" + element + "]");
+            parameters.Add(new NpgsqlParameter("object", NpgsqlDbType.Text) { Value = "[" + element + "]" });
         }
 
         if (filter.Outcome is { } outcome)
         {
             sql.Append(" AND outcome = @outcome");
-            command.Parameters.AddWithValue("outcome", NpgsqlDbType.Smallint, outcome);
+            parameters.Add(new NpgsqlParameter("outcome", NpgsqlDbType.Smallint) { Value = outcome });
         }
 
         if (filter.MinSeverity is { } severity)
         {
             sql.Append(" AND severity >= @severity");
-            command.Parameters.AddWithValue("severity", NpgsqlDbType.Smallint, severity);
+            parameters.Add(new NpgsqlParameter("severity", NpgsqlDbType.Smallint) { Value = severity });
         }
 
         if (filter.CorrelationId is { } correlation)
         {
             sql.Append(" AND correlation_id = @correlation");
-            command.Parameters.AddWithValue("correlation", NpgsqlDbType.Uuid, correlation);
+            parameters.Add(new NpgsqlParameter("correlation", NpgsqlDbType.Uuid) { Value = correlation });
         }
 
         if (!string.IsNullOrWhiteSpace(filter.Text))
         {
             sql.Append(" AND (reason ILIKE @text OR objects::text ILIKE @text)");
-            command.Parameters.AddWithValue("text", NpgsqlDbType.Text, "%" + EscapeLike(filter.Text) + "%");
+            parameters.Add(new NpgsqlParameter("text", NpgsqlDbType.Text) { Value = "%" + EscapeLike(filter.Text) + "%" });
         }
 
         var comparison = filter.Descending ? "<" : ">";
         if (after is not null)
         {
             sql.Append(System.Globalization.CultureInfo.InvariantCulture, $" AND (occurred_at, id) {comparison} (@afterAt, @afterId)");
-            command.Parameters.AddWithValue("afterAt", NpgsqlDbType.TimestampTz, after.OccurredAt.UtcDateTime);
-            command.Parameters.AddWithValue("afterId", NpgsqlDbType.Bigint, after.Id);
+            parameters.Add(new NpgsqlParameter("afterAt", NpgsqlDbType.TimestampTz) { Value = after.OccurredAt.UtcDateTime });
+            parameters.Add(new NpgsqlParameter("afterId", NpgsqlDbType.Bigint) { Value = after.Id });
         }
 
         var direction = filter.Descending ? "DESC" : "ASC";
         sql.Append(System.Globalization.CultureInfo.InvariantCulture, $" ORDER BY occurred_at {direction}, id {direction} LIMIT @limit");
-        command.Parameters.AddWithValue("limit", NpgsqlDbType.Integer, limit);
-        command.CommandText = sql.ToString();
+        parameters.Add(new NpgsqlParameter("limit", NpgsqlDbType.Integer) { Value = limit });
+        var text = sql.ToString();
+        await using var command = source.CreateCommand(text);
+        command.Parameters.AddRange(parameters.ToArray());
         return await ReadRowsAsync(command, ct).ConfigureAwait(false);
     }
 
