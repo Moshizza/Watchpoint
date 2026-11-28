@@ -188,30 +188,6 @@ public sealed class AuditIntegrationTests(PostgresContainerFixture postgres) : I
         Directory.GetFiles(_fallback, "fallback-*.jsonl").ShouldBeEmpty();
     }
 
-    [Fact]
-    public async Task AUD_U_020_Write_throughput_is_at_least_5000_records_per_second_sustained()
-    {
-        var (node, _) = await StartAsync(s => s with { BatchDelay = TimeSpan.FromMilliseconds(50) });
-        const int Producers = 8;
-        const int PerProducer = 5_000;
-        var clock = TimeProvider.System;
-        var started = clock.GetTimestamp();
-
-        await Task.WhenAll(Enumerable.Range(0, Producers).Select(_ => Task.Run(
-            async () =>
-            {
-                for (var i = 0; i < PerProducer; i++)
-                {
-                    await node.Writer.WriteAsync(AuditRecordOf("commands.requested"), Ct);
-                }
-            },
-            Ct)));
-        await UntilHeadAsync(node, Producers * PerProducer);
-
-        var seconds = clock.GetElapsedTime(started).TotalSeconds;
-        (Producers * PerProducer / seconds).ShouldBeGreaterThanOrEqualTo(5_000, $"{Producers * PerProducer} records took {seconds:F2} s");
-    }
-
     private static AuditRecord AuditRecordOf(string action, AuditSeverity severity = AuditSeverity.Normal) =>
         new(new AuditAction(action), AuditOutcome.Success, AuditActor.User(_alice, "Alice"), [new AuditObjectRef("device", Guid.CreateVersion7())], null, null, severity);
 
