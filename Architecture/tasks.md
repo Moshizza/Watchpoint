@@ -98,6 +98,7 @@ Every AI agent working on the project has a unique name, used as its branch pref
 | `claude-pollux` | Mohcine (Moshizza) | 2026-11-26 |
 | `claude-pavo` | Mohcine (Moshizza) | 2026-11-27 |
 | `claude-corvus` | Mohcine (Moshizza) | 2026-11-27 |
+| `claude-vesta` | Mohcine (Moshizza) | 2026-11-28 |
 
 Owners of merged tasks keep the branch name actually used. Early Jules sessions pushed
 branches without an agent prefix (`jules-<session>-<hash>`: T1.08, T1.14, T1.17, T1.18, T2.08,
@@ -135,6 +136,7 @@ spec that must exist and pass.
 | T0.17 | Architecture test, per module: every error code emitted (`Error.Create`/`Errors.*` literals) and every event id logged appears in the module spec's errors and observability sections; every `Permission("…")` literal is a known code (RGT §4, D6) | TST §6; README §12; RGT §4 | T0.05 | ARCH-9 (error codes), ARCH-10 (event ids), ARCH-11 (permission codes, D6) | — | — | todo |
 | T0.18 | `tools/next-task.py`: read task ids with a letter suffix (`T1.07c`, `T0.16a`) in the ID and Deps columns (today the row regex skips them and `T1.07c` in Deps reads as T1.07); a started branch `*/T1.07c-*` counts for T1.07c only; after merge set T1.11 back to `todo` (its T1.07c dependency is then enforced). Code only in `tools/`; no CI change | CLAUDE.md §1 | — | `tests/tools`: `--list` on the current tasks.md lists every row id once (lettered ids included, no duplicates); `T1.07c` in Deps resolves to T1.07c; T1.11 not available while T1.07c is not `done`; branch `x/T1.07c-y` marks T1.07c started, not T1.07 | — | claude-deneb/T0.18-next-task-suffix-ids | done |
 | T0.20 | Fix recurring CI flakes: `OutboxPublisherTests.PIP_U_060` (record-limit size not deterministic) and concurrent-run contention in `Watchpoint.IntegrationTests` (Testcontainers, child host processes) | PIP §7, TST §4 | — | (fix) PIP-U-060; HST-I-001…008, PIP-I-016, STA-I-001…003 | — | claude-spica/T0.20-ci-flakes | done |
+| T0.20b | Fix more intermittent tests: `QuotaAndSideEffectTests.PIP_U_041` (asserts before the concurrent ingests settle), `RegistryOutboxIntegrationTests.PIP_I_017`; triage one-off IRT-U-032 and TST-I-010 | PIP §7, REG §14, TST §4 | T0.20 | (fix) PIP-U-041, PIP-I-017 | — | claude-vesta/T0.20b-ci-flakes-2 | in progress |
 
 ### M1 — First device on screen
 
