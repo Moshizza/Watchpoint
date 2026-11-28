@@ -13,7 +13,6 @@ using Watchpoint.Rights.Contracts;
 using Watchpoint.Rights.Internal.Catalogue;
 using Watchpoint.Rights.Internal.Evaluation;
 using Watchpoint.Rights.Internal.Storage;
-using Watchpoint.Scheduling;
 
 namespace Watchpoint.Rights.Tests;
 
@@ -154,24 +153,24 @@ internal sealed class FakeUsers : IRightsUserLookup
 }
 
 /// <summary>Calendars that are active daily between two hours (UTC).</summary>
-internal sealed class FakeCalendars : ICalendarService
+internal sealed class FakeCalendars : IRightsCalendars
 {
     private readonly Dictionary<string, (int From, int To)> _hours = [];
 
-    public event EventHandler<CalendarChangedEventArgs>? Changed;
+    public event EventHandler? Changed;
 
     public void Daily(string key, int fromHour, int toHour)
     {
         _hours[key] = (fromHour, toHour);
-        Changed?.Invoke(this, new CalendarChangedEventArgs(key, CalendarId.New()));
+        Changed?.Invoke(this, EventArgs.Empty);
     }
+
+    public bool Exists(string calendarKey) => _hours.ContainsKey(calendarKey);
 
     public bool IsActive(string calendarKey, DateTimeOffset instant) =>
         _hours.TryGetValue(calendarKey, out var h) && instant.Hour >= h.From && instant.Hour < h.To;
 
-    public Result<bool> IsActiveStrict(CalendarId id, DateTimeOffset instant) => throw new NotSupportedException();
-
-    public DateTimeOffset? NextTransition(string calendarKey, DateTimeOffset after, int maxDaysAhead = 400)
+    public DateTimeOffset? NextTransition(string calendarKey, DateTimeOffset after)
     {
         if (!_hours.TryGetValue(calendarKey, out var h))
         {
@@ -195,10 +194,6 @@ internal sealed class FakeCalendars : ICalendarService
 
         return best;
     }
-
-    public IReadOnlyList<ActivePeriod> GetPeriods(string calendarKey, DateTimeOffset from, DateTimeOffset to) => throw new NotSupportedException();
-
-    public Result<Calendar> Get(string key) => throw new NotSupportedException();
 }
 
 internal sealed class FakeTypes : ITypeCatalog

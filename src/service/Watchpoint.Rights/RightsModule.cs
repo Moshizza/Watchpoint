@@ -20,6 +20,9 @@ namespace Watchpoint.Rights;
 /// <summary>Registration of the rights module (spec RGT).</summary>
 public static class RightsModule
 {
+    /// <summary>The calendars used when the scheduling module is not installed.</summary>
+    public static IRightsCalendars NoCalendarsInstance { get; } = new NoCalendars();
+
     /// <summary>
     /// Registers the catalogue, the grant store, the evaluator, user groups and the adapters that replace the M1–M2 fallbacks
     /// (<see cref="IPermissionEvaluator"/>, <see cref="ICommandAuthorizer"/>). Needs identity, registry, model, scheduling and storage.
@@ -36,10 +39,10 @@ public static class RightsModule
         services.TryAddSingleton<GrantStore>();
         services.TryAddSingleton<IGrantStore>(sp => sp.GetRequiredService<GrantStore>());
         services.TryAddSingleton<IRightsUserLookup, DirectoryUserLookup>();
-        services.TryAddSingleton<Watchpoint.Scheduling.ICalendarService, NoCalendars>();
+        services.TryAddSingleton<IRightsCalendars, NoCalendars>();
         services.TryAddSingleton(sp => new RightsEvaluator(sp.GetRequiredService<IGrantStore>(), sp.GetRequiredService<IRightsUserLookup>(),
             sp.GetRequiredService<IPermissionCatalogue>(), sp.GetRequiredService<Watchpoint.Registry.Contracts.IRegistryReader>(),
-            sp.GetService<Watchpoint.Model.Contracts.ITypeCatalog>(), sp.GetRequiredService<Watchpoint.Scheduling.ICalendarService>(),
+            sp.GetService<Watchpoint.Model.Contracts.ITypeCatalog>(), sp.GetRequiredService<IRightsCalendars>(),
             sp.GetRequiredService<TimeProvider>(), sp.GetServices<IVisibleScopePostFilter>(), sp.GetService<IRightsChangedSink>() ?? (sp.GetService<Watchpoint.Identity.Contracts.ISystemEventSink>() is { } events
                 ? new SystemEventRightsChangedSink(events, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<SystemEventRightsChangedSink>>())
                 : null),
@@ -50,7 +53,7 @@ public static class RightsModule
         services.TryAddSingleton<IUserGroupService>(sp => sp.GetRequiredService<UserGroupService>());
         services.TryAddSingleton<CommandPermissionGenerator>();
         services.TryAddSingleton(sp => new GrantsObjectType(sp.GetRequiredService<IGrantStore>(), sp.GetRequiredService<IPermissionCatalogue>(),
-            key => sp.GetRequiredService<Watchpoint.Scheduling.ICalendarService>().Get(key).IsSuccess,
+            key => sp.GetRequiredService<IRightsCalendars>().Exists(key),
             id => sp.GetRequiredService<IUserGroupService>().Get(UserGroupId.From(id)).IsSuccess));
         services.AddHostedService<RightsStartup>();
 

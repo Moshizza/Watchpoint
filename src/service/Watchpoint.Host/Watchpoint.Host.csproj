@@ -20,6 +20,7 @@
     <ProjectReference Include="../Watchpoint.State/Watchpoint.State.csproj" />
     <ProjectReference Include="../Watchpoint.Commands/Watchpoint.Commands.csproj" />
     <ProjectReference Include="../Watchpoint.Rights/Watchpoint.Rights.csproj" />
+    <ProjectReference Include="../Watchpoint.Scheduling/Watchpoint.Scheduling.csproj" />
   </ItemGroup>
 
   <ItemGroup>

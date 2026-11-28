@@ -6,7 +6,6 @@ using Watchpoint.Kernel.Ids;
 using Watchpoint.Model.Contracts;
 using Watchpoint.Registry.Contracts;
 using Watchpoint.Rights.Contracts;
-using Watchpoint.Scheduling;
 
 namespace Watchpoint.Rights.Internal.Evaluation;
 
@@ -22,7 +21,7 @@ internal sealed class RightsEvaluator : IRightsEvaluator, IDisposable
     private readonly IPermissionCatalogue _catalogue;
     private readonly IRegistryReader _registry;
     private readonly ITypeCatalog? _types;
-    private readonly ICalendarService _calendars;
+    private readonly IRightsCalendars _calendars;
     private readonly TimeProvider _time;
     private readonly IReadOnlyList<IVisibleScopePostFilter> _filters;
     private readonly IRightsChangedSink? _sink;
@@ -33,7 +32,7 @@ internal sealed class RightsEvaluator : IRightsEvaluator, IDisposable
     private long _version;
 
     public RightsEvaluator(IGrantStore grants, IRightsUserLookup users, IPermissionCatalogue catalogue, IRegistryReader registry, ITypeCatalog? types,
-        ICalendarService calendars, TimeProvider time, IEnumerable<IVisibleScopePostFilter> filters, IRightsChangedSink? sink, ILogger<RightsEvaluator> logger)
+        IRightsCalendars calendars, TimeProvider time, IEnumerable<IVisibleScopePostFilter> filters, IRightsChangedSink? sink, ILogger<RightsEvaluator> logger)
     {
         _grants = grants;
         _users = users;
@@ -428,7 +427,7 @@ internal sealed class RightsEvaluator : IRightsEvaluator, IDisposable
         Refresh(_ => true);
     }
 
-    private void OnCalendarChanged(object? sender, CalendarChangedEventArgs e) => Refresh(_ => true);
+    private void OnCalendarChanged(object? sender, EventArgs e) => Refresh(_ => true);
 
     private void OnUserChanged(object? sender, UserId user) => Refresh(k => k.User == user);
 

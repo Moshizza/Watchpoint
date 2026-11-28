@@ -9,7 +9,6 @@ using Watchpoint.Api.Contracts;
 using Watchpoint.Commands.Contracts;
 using Watchpoint.Identity.Contracts;
 using Watchpoint.Kernel.Ids;
-using Watchpoint.Kernel.Results;
 using Watchpoint.Kernel.Text;
 using Watchpoint.Kernel.Values;
 using Watchpoint.Model;
@@ -22,7 +21,6 @@ using Watchpoint.Rights.Contracts;
 using Watchpoint.Rights.Internal.Adapters;
 using Watchpoint.Rights.Internal.Evaluation;
 using Watchpoint.Rights.Internal.Storage;
-using Watchpoint.Scheduling;
 using Watchpoint.Storage.Contracts;
 using Watchpoint.Storage.Postgres;
 using Watchpoint.Testing.Containers;
@@ -224,7 +222,7 @@ public sealed class RightsIntegrationTests(PostgresContainerFixture postgres) : 
         services.AddWatchpointRegistry(SiteId.New());
         services.AddSingleton<IRightsUserLookup>(users);
         services.AddSingleton<IRightsChangedSink>(sink);
-        services.AddSingleton<ICalendarService, OfficeHours>();
+        services.AddSingleton<IRightsCalendars, OfficeHours>();
         services.AddWatchpointRights();
         var provider = services.BuildServiceProvider();
         await provider.GetRequiredService<IStorageStartup>().MigrateAsync(Ct);
@@ -315,24 +313,20 @@ public sealed class RightsIntegrationTests(PostgresContainerFixture postgres) : 
         public override DateTimeOffset GetUtcNow() => now;
     }
 
-    private sealed class OfficeHours : ICalendarService
+    private sealed class OfficeHours : IRightsCalendars
     {
-        public event EventHandler<CalendarChangedEventArgs>? Changed
+        public event EventHandler? Changed
         {
             add { }
             remove { }
         }
 
+        public bool Exists(string calendarKey) => true;
+
         public bool IsActive(string calendarKey, DateTimeOffset instant) => instant.Hour is >= 8 and < 18;
 
-        public Result<bool> IsActiveStrict(CalendarId id, DateTimeOffset instant) => throw new NotSupportedException();
-
-        public DateTimeOffset? NextTransition(string calendarKey, DateTimeOffset after, int maxDaysAhead = 400) =>
+        public DateTimeOffset? NextTransition(string calendarKey, DateTimeOffset after) =>
             after.Hour < 8 ? after.Date.AddHours(8) : after.Hour < 18 ? after.Date.AddHours(18) : after.Date.AddDays(1).AddHours(8);
-
-        public IReadOnlyList<ActivePeriod> GetPeriods(string calendarKey, DateTimeOffset from, DateTimeOffset to) => [];
-
-        public Result<Watchpoint.Scheduling.Calendar> Get(string key) => throw new NotSupportedException();
     }
 
     private sealed class Principal(UserId id, bool admin) : ICurrentUser

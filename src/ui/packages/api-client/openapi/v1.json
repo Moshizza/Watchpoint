@@ -2513,6 +2513,577 @@
         "x-wp-config": true
       }
     },
+    "/api/v1/permissions": {
+      "get": {
+        "tags": [
+          "Rights"
+        ],
+        "summary": "Permission catalogue with label keys",
+        "operationId": "Rights_ListPermissions",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/permissions": {
+      "get": {
+        "tags": [
+          "Rights"
+        ],
+        "summary": "Permissions held somewhere, for UI gating",
+        "operationId": "Rights_MyPermissions",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{id}/grants": {
+      "get": {
+        "tags": [
+          "Rights"
+        ],
+        "summary": "Grants of a user (config.rights.view or self)",
+        "operationId": "Rights_GetGrants",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Rights"
+        ],
+        "summary": "Full replacement of a user's grants",
+        "operationId": "Rights_PutGrants",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrantsDocument"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "config.rights.edit",
+        "x-wp-config": true
+      }
+    },
+    "/api/v1/users/{id}/effective": {
+      "get": {
+        "tags": [
+          "Rights"
+        ],
+        "summary": "Decision and explanation for a user",
+        "operationId": "Rights_Effective",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "permission",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "device",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user-groups": {
+      "get": {
+        "tags": [
+          "Rights"
+        ],
+        "operationId": "UserGroups_List",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "config.users.view"
+      },
+      "post": {
+        "tags": [
+          "Rights"
+        ],
+        "operationId": "UserGroups_Create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user-groups/{id}": {
+      "get": {
+        "tags": [
+          "Rights"
+        ],
+        "operationId": "UserGroups_Get",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "config.users.view"
+      },
+      "patch": {
+        "tags": [
+          "Rights"
+        ],
+        "operationId": "UserGroups_Patch",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "412": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "428": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Rights"
+        ],
+        "operationId": "UserGroups_Delete",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user-groups/{id}/bulk": {
+      "post": {
+        "tags": [
+          "Rights"
+        ],
+        "operationId": "UserGroups_Bulk",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/system/info": {
       "get": {
         "tags": [
@@ -3284,6 +3855,21 @@
           }
         }
       },
+      "BulkBody": {
+        "required": [
+          "action",
+          "validUntil"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/GroupBulkAction"
+          },
+          "validUntil": {
+            "format": "date-time"
+          }
+        }
+      },
       "ChangePasswordBody": {
         "required": [
           "current",
@@ -3309,6 +3895,60 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "ConstraintsDto": {
+        "type": "object",
+        "properties": {
+          "requireReason": {
+            "type": "boolean",
+            "default": false
+          },
+          "requireFourEyes": {
+            "type": "boolean",
+            "default": false
+          },
+          "requireStepUp": {
+            "type": "boolean",
+            "default": false
+          },
+          "maxDurationSeconds": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "priorityMin": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "priorityMax": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "clientKinds": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "maxLookbackSeconds": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
           }
         }
       },
@@ -3346,6 +3986,132 @@
             ]
           }
         }
+      },
+      "GrantDto": {
+        "required": [
+          "id",
+          "permission",
+          "scope",
+          "schedule",
+          "constraints",
+          "sourceJson",
+          "createdAt",
+          "createdBy"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "permission": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ScopeDto"
+          },
+          "schedule": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "constraints": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ConstraintsDto"
+              }
+            ]
+          },
+          "sourceJson": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "createdAt": {
+            "format": "date-time"
+          },
+          "createdBy": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "GrantsDocument": {
+        "required": [
+          "grants"
+        ],
+        "type": "object",
+        "properties": {
+          "grants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GrantDto"
+            }
+          }
+        }
+      },
+      "GroupBody": {
+        "required": [
+          "name",
+          "description",
+          "members",
+          "managers"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "members": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "managers": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      "GroupBulkAction": {
+        "enum": [
+          "disable",
+          "extendValidity",
+          "signOut",
+          "forcePasswordChange",
+          "resetMfa"
+        ]
       },
       "IgnoreBody": {
         "required": [
@@ -3567,6 +4333,95 @@
           }
         }
       },
+      "ScopeDto": {
+        "required": [
+          "everything"
+        ],
+        "type": "object",
+        "properties": {
+          "everything": {
+            "type": "boolean"
+          },
+          "locations": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "servers": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "categories": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "types": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "tagsAny": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "tagsExclude": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "devices": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "sites": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
       "SignInBody": {
         "required": [
           "login",
@@ -3644,6 +4499,9 @@
     },
     {
       "name": "Connections"
+    },
+    {
+      "name": "Rights"
     },
     {
       "name": "System"

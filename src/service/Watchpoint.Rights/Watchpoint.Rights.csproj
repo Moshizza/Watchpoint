@@ -19,7 +19,6 @@
     <ProjectReference Include="../Watchpoint.Identity/Watchpoint.Identity.csproj" />
     <ProjectReference Include="../Watchpoint.Model/Watchpoint.Model.csproj" />
     <ProjectReference Include="../Watchpoint.Registry/Watchpoint.Registry.csproj" />
-    <ProjectReference Include="../Watchpoint.Scheduling/Watchpoint.Scheduling.csproj" />
     <ProjectReference Include="../Watchpoint.Storage/Watchpoint.Storage.csproj" />
   </ItemGroup>
 
