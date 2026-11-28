@@ -44,7 +44,7 @@ public sealed class CommandIntegrationTests(PostgresContainerFixture postgres)
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task CMD_I_001_Open_door_on_the_simulator_succeeds_with_its_records_in_the_log()
+    public async Task CMD_I_001_Open_door_on_the_simulator_succeeds_then_verifies_with_its_records_in_the_log()
     {
         await using var node = await StartAsync("i001");
         await Diagnosed(node, async () =>
@@ -54,14 +54,13 @@ public sealed class CommandIntegrationTests(PostgresContainerFixture postgres)
 
             var id = await RequestAsync(node, door);
 
-            var done = await UntilAsync(node, id, c => c.State == CommandState.Succeeded);
+            // The door really opened in the simulator: its position reached the log and verified the expected effect (CMD §9).
+            var done = await UntilAsync(node, id, c => c.State == CommandState.Verified);
             done.Attempt.ShouldBe(1);
-            var kinds = (await node.ReadLogAsync(Ct)).Where(r => r.Envelope.Corr.Command == id).Select(r => r.Envelope.Kind).ToList();
-            kinds.ShouldBe([CommandRecordKinds.Requested, CommandRecordKinds.Queued, CommandRecordKinds.Dispatched, CommandRecordKinds.Succeeded]);
-
-            // The door really opened in the simulator: its position reached the log (verification itself is T2.03).
-            await PollAsync(async () => (await node.ReadLogAsync(Ct)).Any(r => r.Envelope.Kind == RecordKinds.Property && r.Envelope.Dev == door
-                && r.Envelope.Body.ToString().Contains("\"open\"", StringComparison.Ordinal)), "door position open");
+            var records = (await node.ReadLogAsync(Ct)).Where(r => r.Envelope.Corr.Command == id).ToList();
+            records.Select(r => r.Envelope.Kind).ShouldBe([CommandRecordKinds.Requested, CommandRecordKinds.Queued, CommandRecordKinds.Dispatched,
+                CommandRecordKinds.Succeeded, CommandRecordKinds.Verified]);
+            records[^1].BodyAs<CommandVerificationBody>(node.Services.GetRequiredService<ILogRecordTypeRegistry>()).Observed.ShouldBe(WpValue.Enum("open"));
         });
     }
 
@@ -123,14 +122,71 @@ public sealed class CommandIntegrationTests(PostgresContainerFixture postgres)
             await node.RestartAsync(Ct);
 
             // openable.open is idempotent and this was attempt 1: requeued as attempt 2 and dispatched again (CMD §8).
-            var done = await UntilAsync(node, id, c => c.State == CommandState.Succeeded);
+            var done = await UntilAsync(node, id, c => c.State == CommandState.Verified);
             done.Attempt.ShouldBe(2);
             var records = (await node.ReadLogAsync(Ct)).Where(r => r.Envelope.Corr.Command == id).ToList();
             records.Select(r => r.Envelope.Kind).ShouldBe([CommandRecordKinds.Requested, CommandRecordKinds.Queued, CommandRecordKinds.Dispatched,
-                CommandRecordKinds.Queued, CommandRecordKinds.Dispatched, CommandRecordKinds.Succeeded]);
+                CommandRecordKinds.Queued, CommandRecordKinds.Dispatched, CommandRecordKinds.Succeeded, CommandRecordKinds.Verified]);
             var codec = node.Services.GetRequiredService<ILogRecordTypeRegistry>();
             records[3].BodyAs<CommandQueuedBody>(codec).Attempt.ShouldBe(2);
             records[4].BodyAs<CommandDispatchedBody>(codec).Attempt.ShouldBe(2);
+        });
+    }
+
+    [Fact]
+    public async Task CMD_I_005_Thousand_door_group_batched_all_verified_with_progress_records()
+    {
+        var batches = new BatchCounter();
+        await using var node = await StartAsync("i005", batches);
+        await Diagnosed(node, async () =>
+        {
+            // The campus profile has 400 doors; a custom site gives the 1,000 doors of the test.
+            var (connection, doors) = await SimulatorAsync(node, new
+            {
+                profile = "custom",
+                doors = 1_000,
+                readersPerDoor = 0,
+                areas = 1,
+                zonesPerArea = 1,
+                inputs = 0,
+                outputs = 0,
+                analogs = 0,
+                seed = 5,
+                activity = "calm",
+                commandLatency = "PT0S",
+            }, expectedDoors: 1_000);
+            doors.Count.ShouldBe(1_000);
+
+            // Queued while the connection is stopped (an automation's children wait), dispatched in batches once it is up.
+            (await node.Connections.StopAsync(connection, Ct)).IsSuccess.ShouldBeTrue();
+            var service = node.Services.GetRequiredService<ICommandService>();
+            var issuer = new CommandIssuer.Automation(AutomationId.From(Guid.CreateVersion7()), AutomationRunId.From(Guid.CreateVersion7()),
+                UserId.From(Guid.CreateVersion7()));
+            var request = new CommandRequest(new CommandTargetSpec.Devices(doors), _open, JsonDocument.Parse("{}").RootElement.Clone(), issuer,
+                "campus drill", null, null, null, null, TimeSpan.FromSeconds(60), null);
+            var accepted = await service.RequestAsync(request, Ct);
+            accepted.IsSuccess.ShouldBeTrue(accepted.IsSuccess ? null : accepted.Error.Code.Value);
+            var group = accepted.Value;
+            group.IsGroup.ShouldBeTrue();
+            group.TargetCount.ShouldBe(1_000);
+            (await node.Connections.StartAsync(connection, Ct)).IsSuccess.ShouldBeTrue();
+
+            var done = await Eventually.UntilAsync(() => service.GetGroup(group.Id).Value is { CompletedAt: not null } g ? g : null,
+                TimeSpan.FromSeconds(120), "group completed", ct: Ct);
+            done.Counters.ShouldBe(new CommandGroupCounters(1_000, 1_000, 0, 0, 1_000, 0, 0, 0));
+            batches.Sizes.Sum().ShouldBe(1_000, "every child went in a batch");
+            batches.Sizes.ShouldAllBe(n => n <= 100, "chunks of Commands:BatchSize");
+
+            // WP_SYS: requested, then progress records (throttled), then completed.
+            var sys = await ReadSysAsync(node, group.Id);
+            sys[0].Envelope.Kind.ShouldBe(CommandGroupRecordKinds.Requested);
+            sys[^1].Envelope.Kind.ShouldBe(CommandGroupRecordKinds.Completed);
+            var progress = sys.Where(r => r.Envelope.Kind == CommandGroupRecordKinds.Progress).ToList();
+            progress.ShouldNotBeEmpty();
+            for (var i = 1; i < progress.Count; i++)
+            {
+                (progress[i].Envelope.Ts - progress[i - 1].Envelope.Ts).ShouldBeGreaterThanOrEqualTo(TimeSpan.FromMilliseconds(499));
+            }
         });
     }
 
@@ -171,7 +227,7 @@ public sealed class CommandIntegrationTests(PostgresContainerFixture postgres)
 
             var critical = await RequestAsync(node, reserved, CommandPriority.Critical);
 
-            await UntilAsync(node, critical, c => c.State == CommandState.Succeeded);
+            await UntilAsync(node, critical, c => c.State is CommandState.Succeeded or CommandState.Verified);
             var log = await node.ReadLogAsync(Ct);
             var criticalRequested = log.First(r => r.Envelope.Corr.Command == critical).Sequence;
             var criticalDispatched = log.Single(r => r.Envelope.Corr.Command == critical && r.Envelope.Kind == CommandRecordKinds.Dispatched);
@@ -184,7 +240,9 @@ public sealed class CommandIntegrationTests(PostgresContainerFixture postgres)
         });
     }
 
-    private Task<ConnectionNode> StartAsync(string name, params IWatchpointModule[] before) =>
+    private Task<ConnectionNode> StartAsync(string name, params IWatchpointModule[] before) => StartAsync(name, null, before);
+
+    private Task<ConnectionNode> StartAsync(string name, BatchCounter? batches, params IWatchpointModule[] before) =>
         ConnectionNode.StartAsync(postgres, "cmd-" + name, new NodeOptions(
             [.. before, new CommandsModule()],
             new Dictionary<string, string?>(),
@@ -192,7 +250,30 @@ public sealed class CommandIntegrationTests(PostgresContainerFixture postgres)
             {
                 services.TryAddSingleton<ICommandAuthorizer, AllowAll>();
                 services.TryAddSingleton<IStepUpValidator, NoStepUp>();
+            },
+            batches is null ? null : services =>
+            {
+                // Counts the batches the dispatch sends; the runtime's channel does the work.
+                services.AddSingleton<IConnectionCommandChannel>(sp => batches.Wrap(sp.GetRequiredService<IConnectionManager>() as IConnectionCommandChannel
+                    ?? throw new InvalidOperationException("The connection manager is the command channel.")));
             }), Ct);
+
+    private static async Task<List<LogRecord>> ReadSysAsync(ConnectionNode node, CommandId group)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+        timeout.CancelAfter(TimeSpan.FromSeconds(30));
+        var records = new List<LogRecord>();
+        var reader = node.Services.GetRequiredService<IEventLogReader>();
+        await foreach (var record in reader.ReadGlobalAsync(LogStream.Sys, 1, timeout.Token))
+        {
+            if (record.Envelope.Corr.Command == group)
+            {
+                records.Add(record);
+            }
+        }
+
+        return records;
+    }
 
     private static async Task Diagnosed(ConnectionNode node, Func<Task> test)
     {
@@ -206,7 +287,7 @@ public sealed class CommandIntegrationTests(PostgresContainerFixture postgres)
         }
     }
 
-    private static async Task<(ConnectionId Connection, List<DeviceId> Doors)> SimulatorAsync(ConnectionNode node, object settings)
+    private static async Task<(ConnectionId Connection, List<DeviceId> Doors)> SimulatorAsync(ConnectionNode node, object settings, int expectedDoors = 1)
     {
         using var http = node.Http();
         var created = await http.PostAsJsonAsync("api/v1/connections", new
@@ -222,10 +303,24 @@ public sealed class CommandIntegrationTests(PostgresContainerFixture postgres)
         created.StatusCode.ShouldBe(HttpStatusCode.Created, await created.Content.ReadAsStringAsync(Ct));
         var id = ConnectionId.From(Guid.Parse(JsonNode.Parse(await created.Content.ReadAsStringAsync(Ct))!["id"]!.GetValue<string>()));
         await Eventually.UntilAsync(() => node.Connections.GetStatus(id).State == ConnectionState.Connected, _wait, "connected", ct: Ct);
-        var doors = await Eventually.UntilAsync(() =>
-            node.Registry.QueryDevices(new DeviceQuery(), new PageRequest(PageRequest.MaxLimit)).Items.Where(d => d.Type.Id.Value == "ac.door")
-                .Select(d => d.Id).ToList() is { Count: > 0 } found ? found : null, _wait, "doors imported", ct: Ct);
+        var doors = await Eventually.UntilAsync(() => Doors(node) is { } found && found.Count >= expectedDoors ? found : null, _wait, "doors imported", ct: Ct);
         return (id, doors);
+    }
+
+    /// <summary>Every imported door (all registry pages).</summary>
+    private static List<DeviceId> Doors(ConnectionNode node)
+    {
+        var doors = new List<DeviceId>();
+        string? cursor = null;
+        do
+        {
+            var page = node.Registry.QueryDevices(new DeviceQuery(), new PageRequest(PageRequest.MaxLimit, cursor));
+            doors.AddRange(page.Items.Where(d => d.Type.Id.Value == "ac.door").Select(d => d.Id));
+            cursor = page.NextCursor;
+        }
+        while (cursor is not null);
+
+        return doors;
     }
 
     private static async Task<CommandId> RequestAsync(ConnectionNode node, DeviceId door, CommandPriority? priority = null, TimeSpan? timeout = null)
@@ -257,6 +352,30 @@ public sealed class CommandIntegrationTests(PostgresContainerFixture postgres)
             }
 
             await Task.Delay(TimeSpan.FromMilliseconds(100), TimeProvider.System, Ct);
+        }
+    }
+
+    /// <summary>Wraps the command channel and records the size of every batch.</summary>
+    private sealed class BatchCounter
+    {
+        private readonly System.Collections.Concurrent.ConcurrentQueue<int> _sizes = new();
+
+        public IReadOnlyList<int> Sizes => [.. _sizes];
+
+        public IConnectionCommandChannel Wrap(IConnectionCommandChannel inner) => new Counting(inner, _sizes);
+
+        private sealed class Counting(IConnectionCommandChannel inner, System.Collections.Concurrent.ConcurrentQueue<int> sizes) : IConnectionCommandChannel
+        {
+            public ValueTask<ConnectorCommandResult> ExecuteAsync(ConnectionId connection, ConnectorCommand command, CancellationToken ct) =>
+                inner.ExecuteAsync(connection, command, ct);
+
+            public ValueTask<IReadOnlyList<ConnectorCommandResult>> ExecuteBatchAsync(ConnectionId connection, IReadOnlyList<ConnectorCommand> commands, CancellationToken ct)
+            {
+                sizes.Enqueue(commands.Count);
+                return inner.ExecuteBatchAsync(connection, commands, ct);
+            }
+
+            public bool SupportsBatch(ConnectionId connection) => inner.SupportsBatch(connection);
         }
     }
 

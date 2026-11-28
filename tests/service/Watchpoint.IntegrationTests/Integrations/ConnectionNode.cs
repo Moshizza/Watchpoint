@@ -188,6 +188,7 @@ internal sealed class ConnectionNode : IAsyncDisposable
         }
 
         builder.Services.AddTestApi(builder.Configuration);
+        _options.After?.Invoke(builder.Services);
         _app = builder.Build();
         _app.UseWatchpointApi();
         foreach (var module in modules)
@@ -247,7 +248,9 @@ internal sealed class ConnectionNode : IAsyncDisposable
 /// <param name="Modules">More host modules, configured after the runtime's.</param>
 /// <param name="Settings">More configuration.</param>
 /// <param name="Services">Services registered before the modules (their <c>TryAdd</c> defaults then yield).</param>
-internal sealed record NodeOptions(IReadOnlyList<IWatchpointModule> Modules, IReadOnlyDictionary<string, string?> Settings, Action<IServiceCollection>? Services)
+/// <param name="After">Services registered after the modules (decorators; the last registration wins).</param>
+internal sealed record NodeOptions(IReadOnlyList<IWatchpointModule> Modules, IReadOnlyDictionary<string, string?> Settings, Action<IServiceCollection>? Services,
+    Action<IServiceCollection>? After = null)
 {
     public NodeOptions()
         : this([], new Dictionary<string, string?>(), null)
