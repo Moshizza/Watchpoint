@@ -28,6 +28,9 @@
     <ProjectReference Include="../../../src/service/Watchpoint.Pipeline/Watchpoint.Pipeline.csproj" />
     <ProjectReference Include="../../../src/service/Watchpoint.Storage.Postgres/Watchpoint.Storage.Postgres.csproj" />
     <ProjectReference Include="../../../src/service/Watchpoint.Integrations/Watchpoint.Integrations.csproj" />
+    <ProjectReference Include="../../../src/service/Watchpoint.Configuration/Watchpoint.Configuration.csproj" />
+    <ProjectReference Include="../../../src/service/Watchpoint.Expressions/Watchpoint.Expressions.csproj" />
+    <ProjectReference Include="../../../src/service/Watchpoint.Scheduling/Watchpoint.Scheduling.csproj" />
     <ProjectReference Include="../../../src/integrations/Watchpoint.Integration.Simulator/Watchpoint.Integration.Simulator.csproj" />
     <ProjectReference Include="../Watchpoint.Integrations.Testing/Watchpoint.Integrations.Testing.csproj" />
     <ProjectReference Include="../Watchpoint.Storage.Certification/Watchpoint.Storage.Certification.csproj" />
