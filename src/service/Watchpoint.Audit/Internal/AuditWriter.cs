@@ -136,7 +136,16 @@ internal sealed class AuditWriter : IAuditSink, IHostedService, IAsyncDisposable
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token, ct);
         try
         {
-            return await _channel.Writer.WaitToWriteAsync(linked.Token).ConfigureAwait(false) && _channel.Writer.TryWrite(pending);
+            while (await _channel.Writer.WaitToWriteAsync(linked.Token).ConfigureAwait(false))
+            {
+                // Several writers are woken for one free slot: only one wins, the others wait again.
+                if (_channel.Writer.TryWrite(pending))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
