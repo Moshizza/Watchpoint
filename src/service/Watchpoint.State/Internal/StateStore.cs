@@ -230,12 +230,25 @@ internal sealed class StateStore : IStateReader, IAggregateReader, ILastValueSou
             summary = _unknownSummary;
         }
 
-        var state = new DeviceState(info.Id, info.Kind, info.Type, properties, HealthState.Unknown, summary, false, _emptyLastEvents, 0, now);
+        var state = new DeviceState(info.Id, info.Kind, info.Type, properties, HealthState.Unknown, summary, IsInitiallyServerUnavailable(info), _emptyLastEvents, 0, now);
         store.Set(info.Id, state);
         var scopes = MembershipScopes.Compute(_registry, info);
         store.SetMeta(info.Id, new EntityMeta(scopes, flags, info.Attributes));
         AdjustAggregates(null, null, scopes, summary.State);
     }
+
+    /// <summary>
+    /// The <c>ServerUnavailable</c> a newly created device starts with (spec STA §4, §6.3): the current classification
+    /// of its hosting server's chain, exactly as <see cref="IsServerChainUnavailable"/> computes it at recovery (§8.2) —
+    /// offline, or unknown <em>after it was heard from</em>. A server never heard from at all (no health record ever
+    /// applied — the common case right after import, before its first health check) is not unavailable: the plain
+    /// "offline or unknown" of §4 only becomes true once a health record is actually processed, which is also true of
+    /// the runtime cascade (§6.1): the record that would make a server's own classification "unknown" is the same
+    /// record that sets its <c>LastContact</c>. A server entity itself has no "hosting server" in this sense and
+    /// always starts available.
+    /// </summary>
+    private bool IsInitiallyServerUnavailable(EntityInfo info) =>
+        info.Kind == EntityKind.Device && IsServerChainUnavailable(info.ServerId);
 
     /// <summary>Removes the state of a deleted device or server and its aggregate contribution (spec STA §6.3).</summary>
     public void RemoveEntity(Guid id, DateTimeOffset now)
@@ -622,17 +635,16 @@ internal sealed class StateStore : IStateReader, IAggregateReader, ILastValueSou
             case RecordKinds.Health:
                 {
                     var body = record.BodyAs<HealthRecordBody>(_recordTypes);
-                    var wasUnavailable = IsUnavailable(current.Health.Connectivity);
                     var since = body.Connectivity != current.Health.Connectivity ? envelope.Ts : current.Health.Since;
                     health = new HealthState(body.Connectivity, body.Faults, body.Reason, envelope.Ts, since);
                     healthChanged = true;
                     if (envelope.Srv is not null && envelope.Dev is null && !isRecovering)
                     {
-                        var isUnavailable = IsUnavailable(body.Connectivity);
-                        if (isUnavailable != wasUnavailable)
-                        {
-                            transition = (ServerId.From(target), isUnavailable);
-                        }
+                        // Every server health record recomputes ServerUnavailable for its devices (spec STA §6.1), not
+                        // only when connectivity crosses the online/unavailable boundary: SetServerUnavailable is itself
+                        // idempotent, so a cascade that finds nothing to change is cheap, and a server that goes
+                        // Unknown -> Offline (or stays Unknown) still needs its devices recomputed.
+                        transition = (ServerId.From(target), IsUnavailable(body.Connectivity));
                     }
 
                     break;
