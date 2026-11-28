@@ -23,6 +23,7 @@
     <Project Path="Watchpoint.Commands/Watchpoint.Commands.csproj" />
     <Project Path="Watchpoint.Pipeline/Watchpoint.Pipeline.csproj" />
     <Project Path="Watchpoint.Registry/Watchpoint.Registry.csproj" />
+    <Project Path="Watchpoint.Rights/Watchpoint.Rights.csproj" />
     <Project Path="Watchpoint.Scheduling/Watchpoint.Scheduling.csproj" />
     <Project Path="Watchpoint.Secrets/Watchpoint.Secrets.csproj" />
     <Project Path="Watchpoint.State/Watchpoint.State.csproj" />

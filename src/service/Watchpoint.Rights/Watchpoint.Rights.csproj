@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Watchpoint.Rights</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Description>Rights: permission catalogue, grants, evaluator, visible-set cache, user groups (spec RGT).</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Watchpoint.Kernel/Watchpoint.Kernel.csproj" />
+    <ProjectReference Include="../Watchpoint.Api/Watchpoint.Api.csproj" />
+    <ProjectReference Include="../Watchpoint.Commands/Watchpoint.Commands.csproj" />
+    <ProjectReference Include="../Watchpoint.Configuration/Watchpoint.Configuration.csproj" />
+    <ProjectReference Include="../Watchpoint.Identity/Watchpoint.Identity.csproj" />
+    <ProjectReference Include="../Watchpoint.Model/Watchpoint.Model.csproj" />
+    <ProjectReference Include="../Watchpoint.Registry/Watchpoint.Registry.csproj" />
+    <ProjectReference Include="../Watchpoint.Scheduling/Watchpoint.Scheduling.csproj" />
+    <ProjectReference Include="../Watchpoint.Storage/Watchpoint.Storage.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Watchpoint.Rights.Tests" />
+    <InternalsVisibleTo Include="Watchpoint.IntegrationTests" />
+  </ItemGroup>
+
+</Project>
