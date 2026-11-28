@@ -1,6 +1,7 @@
 using Shouldly;
 using Watchpoint.Kernel.Ids;
 using Watchpoint.Kernel.Values;
+using Watchpoint.Pipeline.Contracts;
 using Watchpoint.State.Tests.Support;
 using Xunit;
 
@@ -85,6 +86,72 @@ public sealed class HealthTests
         {
             fixture.Store.Get(device.Id.Value).Value.ServerUnavailable.ShouldBeFalse();
         }
+    }
+
+    [Fact]
+    public void STA_U_050_New_device_initialised_unavailable_when_its_server_already_lost_contact()
+    {
+        var fixture = new StateFixture();
+        var (server, _) = SeedServerWithDevices(fixture, count: 1);
+        fixture.Apply(fixture.Records.Health(null, server.Id, Connectivity.Online));
+        fixture.Apply(fixture.Records.Health(null, server.Id, Connectivity.Offline));
+
+        var lateDevice = TestEntities.Door(serverId: server.Id);
+        fixture.Registry.CreateDevice(lateDevice);
+
+        fixture.Store.Get(lateDevice.Id.Value).Value.ServerUnavailable.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void STA_U_053_New_device_initialised_available_when_its_server_was_never_heard_from()
+    {
+        var fixture = new StateFixture();
+        fixture.Types.Add(TestTypes.Server());
+        fixture.Types.Add(TestTypes.Door());
+        var server = TestEntities.Server();
+        fixture.Registry.CreateServer(server);
+
+        // The server never reported anything: default Health.Unknown with no LastContact, not yet classified
+        // unavailable (spec STA §8.2: "unknown after it was heard from") — STA-I-006's premise, but a device added
+        // at this point must not be stamped Stale before the server has even attempted its first health check.
+        var device = TestEntities.Door(serverId: server.Id);
+        fixture.Registry.CreateDevice(device);
+
+        fixture.Store.Get(device.Id.Value).Value.ServerUnavailable.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void STA_U_051_New_device_initialised_available_when_its_server_is_already_online()
+    {
+        var fixture = new StateFixture();
+        var (server, _) = SeedServerWithDevices(fixture, count: 1);
+        fixture.Apply(fixture.Records.Health(null, server.Id, Connectivity.Online));
+
+        var lateDevice = TestEntities.Door(serverId: server.Id);
+        fixture.Registry.CreateDevice(lateDevice);
+
+        fixture.Store.Get(lateDevice.Id.Value).Value.ServerUnavailable.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void STA_U_052_Server_health_record_recomputes_ServerUnavailable_even_without_a_crossing()
+    {
+        var fixture = new StateFixture();
+        var (server, devices) = SeedServerWithDevices(fixture, count: 1);
+        var device = devices[0];
+        fixture.Apply(fixture.Records.Health(null, server.Id, Connectivity.Online));
+        fixture.Store.Get(device.Id.Value).Value.ServerUnavailable.ShouldBeFalse();
+
+        // Force the flag out of sync with the server's actual connectivity, as the pre-fix bug could leave it.
+        var partition = Partitioning.Of(device.Id.Value);
+        fixture.Store.SetServerUnavailable(partition, device.Id.Value, true, fixture.Time.GetUtcNow());
+        fixture.Store.Get(device.Id.Value).Value.ServerUnavailable.ShouldBeTrue();
+
+        // Another Online record for the same server: connectivity does not cross the online/unavailable boundary
+        // (Online -> Online), but STA §6.1 still recomputes ServerUnavailable for every server health record.
+        fixture.Apply(fixture.Records.Health(null, server.Id, Connectivity.Online));
+
+        fixture.Store.Get(device.Id.Value).Value.ServerUnavailable.ShouldBeFalse();
     }
 
     private static (Watchpoint.Registry.Contracts.Server Server, List<Watchpoint.Registry.Contracts.Device> Devices) SeedServerWithDevices(StateFixture fixture, int count)

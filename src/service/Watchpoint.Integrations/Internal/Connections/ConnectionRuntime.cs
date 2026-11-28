@@ -1060,6 +1060,7 @@ internal sealed class ConnectionRuntime : IAsyncDisposable
                 try
                 {
                     instance.Services!.Map.Update(DeviceMapSnapshot.Load(_services.Registry, _connection.Id));
+                    instance.Services.Map.MarkReady();
                 }
                 catch (Exception ex)
                 {

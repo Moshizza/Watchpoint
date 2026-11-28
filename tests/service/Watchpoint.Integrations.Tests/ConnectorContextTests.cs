@@ -41,8 +41,12 @@ public sealed class ConnectorContextTests
         var device = h.Registry.AddDevice(server, "d1");
         await h.Manager.ActivateAsync(Ct);
         await h.WaitForAsync(id, ConnectionState.Connected);
-        var sink = h.Host.Created.Single().Context.Sink;
+        var connector = h.Host.Created.Single();
+        var sink = connector.Context.Sink;
         var command = Guid.CreateVersion7();
+
+        // Past the connect-time race (IRT-U-067…069): the first reconcile's map rebuild has completed.
+        await Eventually.UntilAsync(() => ((DeviceMap)connector.Context.Devices).Ready, because: "the map is rebuilt after the first reconcile", ct: Ct);
 
         sink.ReportProperty(_d1, "doorPosition.position", WpValue.Enum("open"), sourceTime: h.Clock.GetUtcNow(), causedByCommand: command);
         sink.ReportEvent(_d1, "doorPosition.forced");
@@ -403,8 +407,23 @@ public sealed class ConnectorContextTests
         h.Registry.AddDevice(server, "d1");
         var map = new DeviceMap(h.Logger, id.Value);
         map.Update(DeviceMapSnapshot.Load(h.Registry, id));
+        map.MarkReady(); // a fully set-up map, not the pre-connect race window IRT_U_067…069 exercise.
         counters = new ConnectionCounterSource();
         return new ObservationSink(id, h.Ingest, map, counters, _ => { }, h.Options.SinkBuffer, h.Clock, h.Logger);
+    }
+
+    /// <summary>
+    /// A sink whose map starts empty, like a freshly launched instance before its first connect: the eager, pre-connect
+    /// preload (<see cref="ConnectorContextFactory.Create"/>) finds nothing to load and does not mark the map ready.
+    /// </summary>
+    private static (ObservationSink Sink, DeviceMap Map, ConnectionCounterSource Counters) SinkWithEmptyMap(ConnectionHarness h, out ConnectionId id)
+    {
+        id = ConnectionId.New();
+        var map = new DeviceMap(h.Logger, id.Value);
+        map.Update(DeviceMapSnapshot.Load(h.Registry, id));
+        var counters = new ConnectionCounterSource();
+        var sink = new ObservationSink(id, h.Ingest, map, counters, _ => { }, h.Options.SinkBuffer, h.Clock, h.Logger);
+        return (sink, map, counters);
     }
 
     private static Task<int> SendAsync(ConnectionHarness h, ConnectionId id, string path, params (string Name, string Value)[] headers) =>
@@ -478,5 +497,82 @@ public sealed class ConnectorContextTests
         ConnectorContextFactory.ResolveMaxConcurrency(json("""{"maxConcurrency":0}"""), 9).ShouldBe(9);
         ConnectorContextFactory.ResolveMaxConcurrency(json("""{"maxConcurrency":"many"}"""), null).ShouldBe(ConnectorContextFactory.DefaultMaxConcurrency);
         h.Manager.GetStatus(fromManifest).State.ShouldBe(ConnectionState.Connected);
+    }
+
+    [Fact]
+    public async Task IRT_U_067_Report_before_the_first_map_rebuild_is_deferred_not_unknown()
+    {
+        await using var h = new ConnectionHarness();
+        var (sink, map, counters) = SinkWithEmptyMap(h, out var id);
+        await using var disposableSink = sink;
+        map.Ready.ShouldBeFalse("the eager pre-connect preload does not mark it ready");
+
+        // Simulates ConnectorBase (INT §9): reports observations right after Connected, racing the reconcile + first
+        // DeviceMap rebuild that same report triggers (IRT §7.2, §7.4).
+        sink.ReportProperty(_d1, "doorPosition.position", WpValue.Enum("open"));
+        sink.ReportEvent(_d1, "doorPosition.forced");
+        sink.ReportServerHealth("root", Connectivity.Online);
+        (await sink.FlushAsync(Ct)).ShouldBe(new SinkFlushResult(0, 0, 0), "deferred, not counted unknown yet");
+        counters.Unknown.ShouldBe(0);
+        sink.Buffered.ShouldBe(3);
+
+        // The reconcile imports the server/device; ConnectionRuntime.RebuildMap rebuilds and marks the map ready.
+        var server = h.Registry.AddServer(id, "root");
+        h.Registry.AddDevice(server, "d1");
+        map.Update(DeviceMapSnapshot.Load(h.Registry, id));
+        map.MarkReady();
+        map.Ready.ShouldBeTrue();
+
+        (await sink.FlushAsync(Ct)).ShouldBe(new SinkFlushResult(3, 0, 0), "every deferred report resolves once the map is rebuilt");
+        counters.Unknown.ShouldBe(0);
+        sink.Buffered.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task IRT_U_068_Report_for_a_device_never_imported_is_unknown_once_the_map_is_ready()
+    {
+        await using var h = new ConnectionHarness();
+        var (sink, map, counters) = SinkWithEmptyMap(h, out var id);
+        await using var disposableSink = sink;
+
+        // The first rebuild happened (reconcile completed), but this device was never imported: genuinely unknown.
+        h.Registry.AddServer(id, "root");
+        map.Update(DeviceMapSnapshot.Load(h.Registry, id));
+        map.MarkReady();
+
+        sink.ReportProperty(_d1, "doorPosition.position", WpValue.Enum("open"));
+        sink.ReportServerHealth("other-root", Connectivity.Online);
+
+        counters.Unknown.ShouldBe(2, "resolved against a ready map: dropped as unknown, not deferred");
+        sink.Buffered.ShouldBe(0, "nothing is held back once the map is ready");
+    }
+
+    [Fact]
+    public async Task IRT_U_069_Deferred_buffer_is_bounded_oldest_dropped_first()
+    {
+        await using var h = new ConnectionHarness(o => o.SinkBuffer = 2);
+        var (sink, map, counters) = SinkWithEmptyMap(h, out var id);
+        await using var disposableSink = sink;
+
+        for (var i = 0; i < 6; i++)
+        {
+            sink.ReportProperty(new DeviceKey("root", "d" + i), "doorPosition.position", WpValue.Int(i));
+        }
+
+        sink.Buffered.ShouldBe(4, "bounded by the sink's own capacity (SinkBuffer * 2), like the main buffer's overflow");
+        counters.Rejected.ShouldBe(2, "the 2 oldest deferred reports, dropped to make room");
+
+        // The map rebuilds with every device imported: only the 4 kept deferred reports resolve.
+        var server = h.Registry.AddServer(id, "root");
+        for (var i = 0; i < 6; i++)
+        {
+            h.Registry.AddDevice(server, "d" + i);
+        }
+
+        map.Update(DeviceMapSnapshot.Load(h.Registry, id));
+        map.MarkReady();
+
+        // FlushAsync reports deltas since the last call: the 2 overflow drops (not reported yet) and the 4 accepted.
+        (await sink.FlushAsync(Ct)).ShouldBe(new SinkFlushResult(4, 2, 0));
     }
 }
