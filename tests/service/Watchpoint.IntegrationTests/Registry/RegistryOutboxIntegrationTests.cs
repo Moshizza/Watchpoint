@@ -106,11 +106,21 @@ public sealed class RegistryOutboxIntegrationTests(PostgresContainerFixture post
 
         // The log is back: everything is published in revision order, once, and marked sent.
         await server.StartAsync(Ct);
-        await UntilAsync(async () => (await node.Outbox.ReadUnsentAsync(1, Ct)).Count == 0, "the outbox was not drained after the restart", TimeSpan.FromSeconds(60));
-        var revisions = await node.ReadRevisionsAsync("pip-i-017", 6);
-        revisions.ShouldBe([1L, 2L, 3L, 4L, 5L, 6L]);
-        node.Logs.WithEventId(1612).ShouldNotBeEmpty();
-        (await ScalarAsync<long>(db.ConnectionString, "SELECT count(*) FROM wp_registry.outbox WHERE sent_at IS NOT NULL;")).ShouldBe(6);
+        try
+        {
+            await UntilAsync(async () => (await node.Outbox.ReadUnsentAsync(1, Ct)).Count == 0, "the outbox was not drained after the restart", TimeSpan.FromSeconds(60));
+            var revisions = await node.ReadRevisionsAsync("pip-i-017", 6);
+            revisions.ShouldBe([1L, 2L, 3L, 4L, 5L, 6L]);
+            node.Logs.WithEventId(1612).ShouldNotBeEmpty();
+            (await ScalarAsync<long>(db.ConnectionString, "SELECT count(*) FROM wp_registry.outbox WHERE sent_at IS NOT NULL;")).ShouldBe(6);
+        }
+        catch (Exception ex)
+        {
+            // The failure of this test was seen only in CI, without a cause: say what the publisher logged and what is unsent.
+            var unsent = string.Join(",", (await node.Outbox.ReadUnsentAsync(10, CancellationToken.None)).Select(r => r.Revision));
+            var logs = string.Join("\n", node.Logs.Entries.Where(e => e.Level >= LogLevel.Warning || e.EventId is 1611 or 1612).Select(e => $"  {e.EventId} {e.Level}: {e.RenderedMessage} {e.Exception?.GetType().Name}"));
+            throw new InvalidOperationException($"PIP-I-017 failed after the log came back (unsent revisions: [{unsent}]); publisher log:\n{logs}", ex);
+        }
     }
 
     [Fact]

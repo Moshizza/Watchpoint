@@ -119,6 +119,9 @@ public sealed class ConnectionRuntimeTests
         await using var h = new ConnectionHarness();
         h.Host.Configure = c => c.OnStart = (_, _) => ValueTask.CompletedTask;
         var id = await h.StartedAsync(ConnectionState.Starting);
+
+        // The state is Starting before the host has created the connector.
+        await Eventually.UntilAsync(() => h.Host.Created.Count == 1, because: "the connector is created", ct: Ct);
         var connector = h.Host.Created.Single();
         await Eventually.UntilAsync(() => connector.Context is not null, because: "the connector is initialised", ct: Ct);
 

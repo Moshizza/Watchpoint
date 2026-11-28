@@ -91,8 +91,11 @@ public sealed class QuotaAndSideEffectTests
         var calls = Enumerable.Range(0, 3)
             .Select(_ => harness.IngestAsync([.. Enumerable.Range(0, 10).Select(_ => harness.Event(harness.Door))]))
             .ToList();
+
+        // The calls run on their own threads when the machine is busy: wait until the quota exists and all 29 events wait
+        // (the fake clock does not move, so nothing leaves the buffer meanwhile) before looking at it.
+        await IngestHarness.UntilAsync(() => harness.Ingest.QuotaOf(harness.Connection)?.PendingEvents == 29, "the 29 events did not reach the buffer");
         var quota = harness.Ingest.QuotaOf(harness.Connection)!;
-        quota.PendingEvents.ShouldBe(29);
         quota.Flooding.ShouldBeTrue();
         harness.Flooding.Signals.ShouldBe([(harness.Connection, true, 21)]);
         harness.Logs.WithEventId(1631).ShouldHaveSingleItem();
