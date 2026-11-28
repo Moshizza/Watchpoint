@@ -36,6 +36,12 @@ public interface IConfigApplier
     /// <returns>A task.</returns>
     ValueTask CompleteApplyAsync(IReadOnlyList<AppliedEntry> applied, ConfigApplyContext context, CancellationToken ct);
 
+    /// <summary>The publish transaction was rolled back after <see cref="PrepareApplyAsync"/> succeeded: forget what was prepared.</summary>
+    /// <param name="context">The publish.</param>
+    /// <param name="ct">Cancels the operation.</param>
+    /// <returns>A task.</returns>
+    ValueTask AbortApplyAsync(ConfigApplyContext context, CancellationToken ct) => ValueTask.CompletedTask;
+
     /// <summary>Reloads the listed objects from the database into memory (other nodes, M9; self-healing after a failed complete).</summary>
     /// <param name="objects">The objects.</param>
     /// <param name="ct">Cancels the reload.</param>

@@ -122,6 +122,9 @@ internal sealed class PublishOrchestrator : IPublishService, IDisposable
         }
 
         IPublishTransaction? transaction = null;
+        ConfigApplyContext? prepared = null;
+        var appliedSoFar = new List<(IConfigApplier Applier, IReadOnlyList<AppliedEntry> Entries)>();
+        var committed = false;
         try
         {
             // Step 1 (cont.): one publish at a time per site.
@@ -148,13 +151,15 @@ internal sealed class PublishOrchestrator : IPublishService, IDisposable
             // Steps 4–5: every module in catalogue order, then the version row, in one transaction.
             var version = await transaction.NextVersionAsync(ct).ConfigureAwait(false);
             var context = new ConfigApplyContext(actor, changeSet.Id, version, comment);
-            var applied = new List<(IConfigApplier Applier, IReadOnlyList<AppliedEntry> Entries)>();
+            var applied = appliedSoFar;
             foreach (var (module, entries) in ByModule(changeSet.Entries))
             {
                 var applier = _appliers[module];
+                prepared = context;
                 if (!(await applier.PrepareApplyAsync(entries, transaction.Connection, transaction.Transaction, context, ct).ConfigureAwait(false))
                     .TryGetValue(out var done, out var refused))
                 {
+                    await AbortAsync(applied, context).ConfigureAwait(false);
                     return await FailAsync(publishing, transaction, refused.Code.Value, null, ct).ConfigureAwait(false);
                 }
 
@@ -166,6 +171,7 @@ internal sealed class PublishOrchestrator : IPublishService, IDisposable
             var row = new ConfigVersion(version, now, actor, comment, draft.Id, Summary(all));
             await transaction.WriteAsync(new VersionRecord(row, changeSet.Id, all, Inverse(all), Diff(all)), ct).ConfigureAwait(false);
             await transaction.CommitAsync(ct).ConfigureAwait(false);
+            committed = true;
             await transaction.DisposeAsync().ConfigureAwait(false);
             transaction = null;
 
@@ -181,13 +187,23 @@ internal sealed class PublishOrchestrator : IPublishService, IDisposable
             }
             return version;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+        catch (Exception ex) when (!committed && (ex is not OperationCanceledException || !ct.IsCancellationRequested))
         {
             // Step 7: rolled back, nothing applied.
+            if (prepared is not null)
+            {
+                await AbortAsync(appliedSoFar, prepared).ConfigureAwait(false);
+            }
+
             return await FailAsync(publishing, transaction, ex.GetType().Name, ex, ct).ConfigureAwait(false);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (!committed)
         {
+            if (prepared is not null)
+            {
+                await AbortAsync(appliedSoFar, prepared).ConfigureAwait(false);
+            }
+
             await FailAsync(publishing, transaction, "cancelled", null, CancellationToken.None).ConfigureAwait(false);
             throw;
         }
@@ -223,6 +239,24 @@ internal sealed class PublishOrchestrator : IPublishService, IDisposable
         }
 
         return conflicts;
+    }
+
+    /// <summary>The transaction is (or will be) rolled back: the modules that prepared forget their entries.</summary>
+    private async Task AbortAsync(List<(IConfigApplier Applier, IReadOnlyList<AppliedEntry> Entries)> applied, ConfigApplyContext context)
+    {
+        foreach (var (applier, _) in applied)
+        {
+            try
+            {
+                await applier.AbortApplyAsync(context, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                ConfigurationLog.Failed(_logger, ex, Guid.Empty, "abort " + applier.Module);
+            }
+        }
+
+        applied.Clear();
     }
 
     private async Task CompleteAsync(List<(IConfigApplier Applier, IReadOnlyList<AppliedEntry> Entries)> applied, ConfigApplyContext context, CancellationToken ct)

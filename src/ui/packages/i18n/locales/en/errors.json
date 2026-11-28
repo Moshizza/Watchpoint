@@ -114,11 +114,14 @@
     "publish": {
       "invalid": "The draft has {errors} errors and cannot be published.",
       "conflict": "Other changes were published since you started; resolve the conflicts first.",
-      "in_progress": "Another publish is in progress; try again in a moment."
+      "in_progress": "Another publish is in progress; try again in a moment.",
+      "not_supported": "Objects of type {type} cannot be published yet.",
+      "failed": "The publish failed and nothing was changed ({reason})."
     },
     "approval": {
       "required": "These changes need approval before they are published.",
-      "self_forbidden": "You cannot approve your own changes."
+      "self_forbidden": "You cannot approve your own changes.",
+      "rejected": "The approval was refused: {reason}"
     },
     "lock": {
       "held_by": "This object is being edited by {user}.",

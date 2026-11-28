@@ -1,3 +1,4 @@
+using System.Data.Common;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -11,7 +12,7 @@ using Watchpoint.Registry.Internal.Storage;
 
 namespace Watchpoint.Registry.Internal;
 
-internal sealed class RegistryWriter : IRegistryWriter, IDisposable
+internal sealed class RegistryWriter : IRegistryWriter, IRegistryTransactionalWriter, IDisposable
 {
     /// <summary>Maximum number of changes per batch (REG §6); the record byte size is checked against <see cref="IRegistryRecordLimit"/>.</summary>
     internal const int MaxBatchChanges = 10_000;
@@ -104,134 +105,229 @@ internal sealed class RegistryWriter : IRegistryWriter, IDisposable
         }
 
         await _gate.WaitAsync(ct);
-        var startTimestamp = _clock.GetTimestamp();
         try
         {
-            var currentSnapshot = _snapshotProvider();
-
-            // 1. Stage in-memory copy of current snapshot to apply mutations
-            var site = currentSnapshot.Site;
-            var locations = new Dictionary<LocationId, Location>(currentSnapshot.Locations);
-            var tagFamilies = new Dictionary<TagFamilyId, TagFamily>(currentSnapshot.TagFamilies);
-            var tags = new Dictionary<TagId, Tag>(currentSnapshot.Tags);
-            var servers = new Dictionary<ServerId, Server>(currentSnapshot.Servers);
-            var devices = new Dictionary<DeviceId, Device>(currentSnapshot.Devices);
-            var links = new List<DeviceLink>(currentSnapshot.Links);
-            var customFields = new Dictionary<CustomFieldId, CustomFieldDefinition>(currentSnapshot.CustomFields);
-
-            var touchedLocationPaths = new Dictionary<LocationId, (string OldPath, string NewPath)>();
-            var touchedServers = new Dictionary<ServerId, Server>();
-            var touchedDevices = new Dictionary<DeviceId, Device>();
-
-            // 2. Validate optimistic concurrency and apply to staged dictionaries
-            foreach (var change in batch.Changes)
-            {
-                var stepResult = ApplyChangeStaged(
-                    change,
-                    ref site,
-                    locations,
-                    tagFamilies,
-                    tags,
-                    servers,
-                    devices,
-                    links,
-                    customFields,
-                    touchedLocationPaths,
-                    touchedServers,
-                    touchedDevices);
-
-                if (!stepResult.IsSuccess)
-                {
-                    RegistryMetrics.OptimisticConflicts.Add(1);
-                    RegistryLog.ConcurrencyConflict(_logger, stepResult.Error.Code.Value);
-                    return stepResult;
-                }
-            }
-
-            // 3. Validate business invariants R1-R10
-            var invariantResult = ValidateInvariants(
-                site,
-                locations,
-                tagFamilies,
-                tags,
-                servers,
-                devices,
-                links,
-                customFields);
-
-            if (!invariantResult.IsSuccess)
-            {
-                RegistryLog.InvariantViolation(_logger, invariantResult.Error.Code.Value, invariantResult.Error.DeveloperDetail ?? string.Empty);
-                return invariantResult;
-            }
-
             // 4. Persist to database in a single transaction
             await using var db = await _dbFactory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-
-            // The revision and the registry.changed record are committed with the batch (transactional outbox, REG §6 step 3):
-            // a node stop or a log outage after this point loses nothing, and the revision never restarts or repeats.
-            var revision = await NextRevisionAsync(db, ct);
-            var changes = DescribeChanges(batch, currentSnapshot);
-            var record = new RegistryOutboxRecord(revision, _clock.UtcNowMs(), context, changes);
-
-            // The record must fit the log (REG §6, T1.09c): measured exactly, with the publisher's serialiser and envelope,
-            // before anything is written; the transaction is rolled back, so the batch takes no revision.
-            if (_recordLimit != null)
+            var staged = await StageAndPersistAsync(db, batch, context, ct);
+            if (!staged.TryGetValue(out var done, out var error))
             {
-                var bytes = _recordLimit.Measure(record);
-                if (bytes > _recordLimit.MaxBytes)
-                {
-                    var tooLarge = RegistryErrors.BatchRecordTooLarge(_recordLimit.MaxBytes, bytes);
-                    RegistryLog.InvariantViolation(_logger, tooLarge.Code.Value, $"registry.changed record of {bytes} bytes exceeds {_recordLimit.MaxBytes}");
-                    return tooLarge;
-                }
+                return error;
             }
 
-            await PersistChangesAsync(db, batch, currentSnapshot, site, locations, tagFamilies, tags, servers, devices, links, customFields, touchedLocationPaths, touchedServers, touchedDevices, ct);
-            RegistryOutbox.Add(db, record.Revision, record.CreatedAt, record.Context, record.Changes);
-
-            await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
-
-            // 5. Build new immutable snapshot and atomic swap
-            var newSnapshot = new RegistrySnapshot(
-                revision,
-                site,
-                locations,
-                tagFamilies,
-                tags,
-                servers,
-                devices,
-                links,
-                customFields);
-
-            var swapStart = _clock.GetTimestamp();
-            _snapshotUpdater(newSnapshot);
-            var swapDuration = _clock.GetElapsedTime(swapStart);
-            RegistryMetrics.SnapshotSwapDuration.Record(swapDuration.TotalSeconds);
-
-            // 5b. Invalidate the enrichment cache of every device the batch could have affected: the entities it
-            // named directly, plus every device located in the subtree of a touched location (REG §7.2).
-            InvalidateEnrichment(changes, touchedLocationPaths.Keys, newSnapshot);
-
-            // 6. Metrics & Logging
-            var duration = _clock.GetElapsedTime(startTimestamp);
-            RegistryMetrics.BatchesCommitted.Add(1);
-            RegistryMetrics.ChangesApplied.Add(batch.Changes.Count);
-            RegistryMetrics.BatchApplyDuration.Record(duration.TotalSeconds);
-            RegistryMetrics.RevisionCommitted(revision);
-            RegistryLog.BatchApplied(_logger, context.Origin, batch.Changes.Count, duration.TotalMilliseconds, revision);
-
-            // 7. Wake the outbox publisher and fire the in-process Changed event (reader and writer share it)
-            _outbox.Signal();
-            _feed?.Raise(this, new RegistryChangedEventArgs(batch, context));
-
+            Publish(done, batch, context);
             return Result.Success();
         }
         finally
         {
             _gate.Release();
+        }
+    }
+
+    /// <summary>
+    /// Stages and persists a batch in a transaction of the configuration database owned by the caller (CFG §7.1, publish):
+    /// nothing is visible in memory until <see cref="IPreparedRegistryBatch.Complete"/> after the commit. Other writes wait
+    /// until the batch is completed or aborted.
+    /// </summary>
+    public async Task<Result<IPreparedRegistryBatch>> PrepareAsync(RegistryChangeBatch batch, ChangeContext context, DbConnection connection, DbTransaction transaction,
+        CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+        ArgumentNullException.ThrowIfNull(connection);
+        ArgumentNullException.ThrowIfNull(transaction);
+        if (batch.Changes.Count > MaxBatchChanges)
+        {
+            return RegistryErrors.BatchTooLarge(MaxBatchChanges);
+        }
+
+        await _gate.WaitAsync(ct);
+        try
+        {
+            Result<Staged> staged;
+            await using (var db = await _dbFactory.CreateDbContextAsync(ct))
+            {
+                db.Database.SetDbConnection(connection, contextOwnsConnection: false);
+                await db.Database.UseTransactionAsync(transaction, ct);
+                staged = await StageAndPersistAsync(db, batch, context, ct);
+            }
+
+            if (!staged.TryGetValue(out var done, out var error))
+            {
+                _gate.Release();
+                return error;
+            }
+
+            return new PreparedBatch(this, done, batch, context);
+        }
+        catch
+        {
+            _gate.Release();
+            throw;
+        }
+    }
+
+    /// <summary>Steps 1–4 without the commit: stage, check the invariants, persist with the revision and the outbox record.</summary>
+    private async Task<Result<Staged>> StageAndPersistAsync(RegistryDbContext db, RegistryChangeBatch batch, ChangeContext context, CancellationToken ct)
+    {
+        var startTimestamp = _clock.GetTimestamp();
+        var currentSnapshot = _snapshotProvider();
+
+        // 1. Stage in-memory copy of current snapshot to apply mutations
+        var site = currentSnapshot.Site;
+        var locations = new Dictionary<LocationId, Location>(currentSnapshot.Locations);
+        var tagFamilies = new Dictionary<TagFamilyId, TagFamily>(currentSnapshot.TagFamilies);
+        var tags = new Dictionary<TagId, Tag>(currentSnapshot.Tags);
+        var servers = new Dictionary<ServerId, Server>(currentSnapshot.Servers);
+        var devices = new Dictionary<DeviceId, Device>(currentSnapshot.Devices);
+        var links = new List<DeviceLink>(currentSnapshot.Links);
+        var customFields = new Dictionary<CustomFieldId, CustomFieldDefinition>(currentSnapshot.CustomFields);
+
+        var touchedLocationPaths = new Dictionary<LocationId, (string OldPath, string NewPath)>();
+        var touchedServers = new Dictionary<ServerId, Server>();
+        var touchedDevices = new Dictionary<DeviceId, Device>();
+
+        // 2. Validate optimistic concurrency and apply to staged dictionaries
+        foreach (var change in batch.Changes)
+        {
+            var stepResult = ApplyChangeStaged(
+                change,
+                ref site,
+                locations,
+                tagFamilies,
+                tags,
+                servers,
+                devices,
+                links,
+                customFields,
+                touchedLocationPaths,
+                touchedServers,
+                touchedDevices);
+
+            if (!stepResult.IsSuccess)
+            {
+                RegistryMetrics.OptimisticConflicts.Add(1);
+                RegistryLog.ConcurrencyConflict(_logger, stepResult.Error.Code.Value);
+                return stepResult.Error;
+            }
+        }
+
+        // 3. Validate business invariants R1-R10
+        var invariantResult = ValidateInvariants(
+            site,
+            locations,
+            tagFamilies,
+            tags,
+            servers,
+            devices,
+            links,
+            customFields);
+
+        if (!invariantResult.IsSuccess)
+        {
+            RegistryLog.InvariantViolation(_logger, invariantResult.Error.Code.Value, invariantResult.Error.DeveloperDetail ?? string.Empty);
+            return invariantResult.Error;
+        }
+
+        // The revision and the registry.changed record are committed with the batch (transactional outbox, REG §6 step 3):
+        // a node stop or a log outage after this point loses nothing, and the revision never restarts or repeats.
+        var revision = await NextRevisionAsync(db, ct);
+        var changes = DescribeChanges(batch, currentSnapshot);
+        var record = new RegistryOutboxRecord(revision, _clock.UtcNowMs(), context, changes);
+
+        // The record must fit the log (REG §6, T1.09c): measured exactly, with the publisher's serialiser and envelope,
+        // before anything is written; the transaction is rolled back, so the batch takes no revision.
+        if (_recordLimit != null)
+        {
+            var bytes = _recordLimit.Measure(record);
+            if (bytes > _recordLimit.MaxBytes)
+            {
+                var tooLarge = RegistryErrors.BatchRecordTooLarge(_recordLimit.MaxBytes, bytes);
+                RegistryLog.InvariantViolation(_logger, tooLarge.Code.Value, $"registry.changed record of {bytes} bytes exceeds {_recordLimit.MaxBytes}");
+                return tooLarge;
+            }
+        }
+
+        await PersistChangesAsync(db, batch, currentSnapshot, site, locations, tagFamilies, tags, servers, devices, links, customFields, touchedLocationPaths, touchedServers, touchedDevices, ct);
+        RegistryOutbox.Add(db, record.Revision, record.CreatedAt, record.Context, record.Changes);
+
+        await db.SaveChangesAsync(ct);
+        var newSnapshot = new RegistrySnapshot(
+            revision,
+            site,
+            locations,
+            tagFamilies,
+            tags,
+            servers,
+            devices,
+            links,
+            customFields);
+        return new Staged(newSnapshot, changes, [.. touchedLocationPaths.Keys], revision, startTimestamp);
+    }
+
+    /// <summary>Steps 5–7 after the commit: swap the snapshot, invalidate the enrichment, metrics, outbox and event.</summary>
+    private void Publish(Staged staged, RegistryChangeBatch batch, ChangeContext context)
+    {
+        var newSnapshot = staged.Snapshot;
+        var revision = staged.Revision;
+        var startTimestamp = staged.StartTimestamp;
+        var changes = staged.Changes;
+        // 5. Atomic swap of the new immutable snapshot
+        var swapStart = _clock.GetTimestamp();
+        _snapshotUpdater(newSnapshot);
+        var swapDuration = _clock.GetElapsedTime(swapStart);
+        RegistryMetrics.SnapshotSwapDuration.Record(swapDuration.TotalSeconds);
+
+        // 5b. Invalidate the enrichment cache of every device the batch could have affected: the entities it
+        // named directly, plus every device located in the subtree of a touched location (REG §7.2).
+        InvalidateEnrichment(changes, staged.TouchedLocations, newSnapshot);
+
+        // 6. Metrics & Logging
+        var duration = _clock.GetElapsedTime(startTimestamp);
+        RegistryMetrics.BatchesCommitted.Add(1);
+        RegistryMetrics.ChangesApplied.Add(batch.Changes.Count);
+        RegistryMetrics.BatchApplyDuration.Record(duration.TotalSeconds);
+        RegistryMetrics.RevisionCommitted(revision);
+        RegistryLog.BatchApplied(_logger, context.Origin, batch.Changes.Count, duration.TotalMilliseconds, revision);
+
+        // 7. Wake the outbox publisher and fire the in-process Changed event (reader and writer share it)
+        _outbox.Signal();
+        _feed?.Raise(this, new RegistryChangedEventArgs(batch, context));
+
+    }
+
+    private sealed record Staged(RegistrySnapshot Snapshot, IReadOnlyList<EntityChange> Changes, IReadOnlyList<LocationId> TouchedLocations, long Revision,
+        long StartTimestamp);
+
+    /// <summary>A batch persisted in a caller's transaction, holding the writer's gate until it is completed or aborted.</summary>
+    private sealed class PreparedBatch(RegistryWriter writer, Staged staged, RegistryChangeBatch batch, ChangeContext context) : IPreparedRegistryBatch
+    {
+        private int _done;
+
+        public IRegistryReader Staged { get; } = new RegistryReader(() => staged.Snapshot);
+
+        public void Complete()
+        {
+            if (Interlocked.Exchange(ref _done, 1) == 0)
+            {
+                try
+                {
+                    writer.Publish(staged, batch, context);
+                }
+                finally
+                {
+                    writer._gate.Release();
+                }
+            }
+        }
+
+        public void Abort()
+        {
+            if (Interlocked.Exchange(ref _done, 1) == 0)
+            {
+                writer._gate.Release();
+            }
         }
     }
 
