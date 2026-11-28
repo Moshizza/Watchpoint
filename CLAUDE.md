@@ -42,7 +42,12 @@ People working without an agent follow the same pattern with their GitHub userna
   ends.
 - **Update the pull request checklist only three times**: when opening the draft, at about
   half way, and when ready for review. Commit titles are the detailed progress record.
-- No separate progress files.
+- No separate progress files, except your **coordination status file** (next item).
+- **Keep your coordination status file** on the `coordination` branch, as described in
+  [`Architecture/coordination.md`](Architecture/coordination.md): create it when you claim,
+  rename it when your state changes (`ongoing`, `needs-help`, `blocked`, `waiting-approval`,
+  `done`), and check it for the architect's answers (`architect-replied`) at every push and at
+  least every 30 minutes while you wait. Ask the architect there instead of stopping silently.
 - If a spec is wrong or incomplete, fix the spec in the same pull request and say so in the
   description (label `docs-mismatch` on the issue).
 
@@ -57,9 +62,10 @@ pull request checklist and `git log`, then continue from the last pushed commit.
    all listed tests exist and pass, build without warnings, formatting clean.
 2. Set the task's **Status** to `in review`, tick the checklist, mark the pull request
    **ready for review**.
-3. **Never merge without the approval of the person responsible for you**, and never push to
-   `main` directly. After approval: squash merge, set Status to `done` in the same pull
-   request, delete the branch.
+3. **Never merge without approval**, and never push to `main` directly. If an architect session
+   is active, that approval is theirs (requested through your coordination status file,
+   `waiting-approval`); otherwise it is the person responsible for you, given in chat. After
+   approval: squash merge, set Status to `done` in the same pull request, delete the branch.
 
 ## 6. Commit and pull request footer
 
