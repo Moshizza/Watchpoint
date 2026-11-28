@@ -45,10 +45,4 @@ internal sealed class PermissionCatalogue : IPermissionCatalogue
         ArgumentNullException.ThrowIfNull(definition);
         _byCode[definition.Code.Value] = definition;
     }
-
-    /// <summary>Whether <paramref name="pattern"/> is <c>*</c>, <c>prefix.*</c> or an exact code.</summary>
-    /// <param name="pattern">The pattern.</param>
-    /// <returns>The permissions it covers (empty when it is not a known code or pattern).</returns>
-    public IReadOnlyList<PermissionDefinition> Expand(PermissionCode pattern) =>
-        [.. _byCode.Values.Where(d => Matches(pattern, d.Code))];
 }
