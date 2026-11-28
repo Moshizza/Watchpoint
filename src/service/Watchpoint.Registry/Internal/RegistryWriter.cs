@@ -107,6 +107,9 @@ internal sealed class RegistryWriter : IRegistryWriter, IRegistryTransactionalWr
         await _gate.WaitAsync(ct);
         try
         {
+            // The snapshot loads lazily on first use, on its own connection: before this write's transaction holds one.
+            _ = _snapshotProvider();
+
             // 4. Persist to database in a single transaction
             await using var db = await _dbFactory.CreateDbContextAsync(ct);
             await using var tx = await db.Database.BeginTransactionAsync(ct);
@@ -145,6 +148,7 @@ internal sealed class RegistryWriter : IRegistryWriter, IRegistryTransactionalWr
         await _gate.WaitAsync(ct);
         try
         {
+            _ = _snapshotProvider(); // loaded before the caller's transaction is used (see ApplyAsync)
             Result<Staged> staged;
             await using (var db = await _dbFactory.CreateDbContextAsync(ct))
             {
