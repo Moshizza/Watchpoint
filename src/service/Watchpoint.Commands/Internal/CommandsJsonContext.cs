@@ -15,6 +15,8 @@ namespace Watchpoint.Commands.Internal;
 [JsonSerializable(typeof(CommandIdBody))]
 [JsonSerializable(typeof(CommandByBody))]
 [JsonSerializable(typeof(CommandVerificationBody))]
+[JsonSerializable(typeof(CommandGroupRequestedBody))]
+[JsonSerializable(typeof(CommandGroupProgressBody))]
 internal sealed partial class CommandsJsonContext : JsonSerializerContext;
 
 /// <summary>The serialised form of an expected effect (CMD §9): the property path as text.</summary>

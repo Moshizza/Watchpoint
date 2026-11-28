@@ -14,6 +14,7 @@ internal sealed class FakeChannel : IConnectionCommandChannel
 {
     private readonly ConcurrentDictionary<Guid, TaskCompletionSource<ConnectorCommandResult>> _pending = new();
     private readonly List<ConnectorCommand> _calls = [];
+    private readonly List<IReadOnlyList<ConnectorCommand>> _batches = [];
     private int _inFlight;
 
     /// <summary>Answers calls directly instead of waiting for <see cref="Complete"/>.</summary>
@@ -66,10 +67,35 @@ internal sealed class FakeChannel : IConnectionCommandChannel
         }
     }
 
-    public ValueTask<IReadOnlyList<ConnectorCommandResult>> ExecuteBatchAsync(ConnectionId connection, IReadOnlyList<ConnectorCommand> commands, CancellationToken ct) =>
-        throw new NotSupportedException("T2.03");
+    /// <summary>Whether the connector executes batches.</summary>
+    public bool Batches { get; set; }
 
-    public bool SupportsBatch(ConnectionId connection) => false;
+    /// <summary>The batches executed, in order.</summary>
+    public IReadOnlyList<IReadOnlyList<ConnectorCommand>> BatchCalls
+    {
+        get
+        {
+            lock (_batches)
+            {
+                return [.. _batches];
+            }
+        }
+    }
+
+    /// <summary>Answers each command of a batch (default: success).</summary>
+    public Func<ConnectorCommand, ConnectorCommandResult> BatchHandler { get; set; } = _ => ConnectorCommandResult.Succeeded();
+
+    public ValueTask<IReadOnlyList<ConnectorCommandResult>> ExecuteBatchAsync(ConnectionId connection, IReadOnlyList<ConnectorCommand> commands, CancellationToken ct)
+    {
+        lock (_batches)
+        {
+            _batches.Add(commands);
+        }
+
+        return ValueTask.FromResult<IReadOnlyList<ConnectorCommandResult>>([.. commands.Select(BatchHandler)]);
+    }
+
+    public bool SupportsBatch(ConnectionId connection) => Batches;
 
     /// <summary>Completes the waiting call of a command.</summary>
     public void Complete(Guid commandId, ConnectorCommandResult result)

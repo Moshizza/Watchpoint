@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Watchpoint.Commands.Contracts;
+using Watchpoint.Commands.Internal.Verification;
 using Watchpoint.Integration.Abstractions.Model;
 using Watchpoint.Kernel.Ids;
 using Watchpoint.Pipeline.Contracts;
@@ -18,9 +19,12 @@ internal sealed class CommandProcessor
     private readonly CommandWaiters _waiters;
     private readonly CommandMetrics _metrics;
     private readonly ILogger<CommandProcessor> _logger;
+    private readonly ICommandStateView? _state;
 
-    public CommandProcessor(CommandDirectory directory, CommandRecordCodec codec, CommandWaiters waiters, CommandMetrics metrics, ILogger<CommandProcessor> logger)
+    public CommandProcessor(CommandDirectory directory, CommandRecordCodec codec, CommandWaiters waiters, CommandMetrics metrics, ILogger<CommandProcessor> logger,
+        ICommandStateView? state = null)
     {
+        _state = state;
         _directory = directory;
         _codec = codec;
         _waiters = waiters;
@@ -37,12 +41,24 @@ internal sealed class CommandProcessor
     /// <summary>Receives the commands that become <c>Queued</c> outside a recovery replay (the dispatch, CMD §7).</summary>
     public Dispatch.ICommandQueueSink? Sink { get; set; }
 
+    /// <summary>Receives every change of a group's child and refused children (the group coordinator, CMD §10).</summary>
+    public Groups.ICommandGroupSink? GroupSink { get; set; }
+
+    /// <summary>The verification watchers (CMD §9).</summary>
+    public Verifier Verifier { get; } = new();
+
     /// <summary>The command in its partition's store (call on that partition's worker).</summary>
     public Command? Find(int partition, CommandId id) => _stores[partition].Find(id);
 
-    public void OnRecords(int partition, IReadOnlyList<LogRecord> records, bool recovering = false)
+    /// <summary>
+    /// Applies the records of a batch. <paramref name="emitter"/> takes the verification records (CMD §9); without one
+    /// (or while recovering) watchers are registered but nothing is emitted: the deadline tick and the end of the recovery
+    /// settle them.
+    /// </summary>
+    public void OnRecords(int partition, IReadOnlyList<LogRecord> records, bool recovering = false, ICommandEmitter? emitter = null)
     {
         var store = _stores[partition];
+        var live = recovering ? null : emitter;
         foreach (var record in records)
         {
             store.Sequence = record.Sequence;
@@ -50,9 +66,24 @@ internal sealed class CommandProcessor
             {
                 if (record.Envelope.Kind.StartsWith("command.", StringComparison.Ordinal) && _codec.Registry.CanRead(record))
                 {
-                    if (Apply(store, record) is { State: CommandState.Queued } queued && !recovering)
+                    var changed = Apply(store, record);
+                    if (changed is { State: CommandState.Queued } queued && !recovering)
                     {
                         Sink?.Queued(queued);
+                    }
+
+                    if (changed is not null)
+                    {
+                        Track(partition, changed, record.Envelope.Ts, live);
+                    }
+                }
+                else if (record.Envelope.Kind == RecordKinds.Property && live is not null && record.Envelope.Dev is { } device
+                    && Verifier.Watches(partition, device) && _codec.Registry.CanRead(record))
+                {
+                    var body = record.BodyAs<PropertyRecordBody>(_codec.Registry);
+                    foreach (var watch in Verifier.TakeMatching(partition, device, body.Path, body.Value))
+                    {
+                        EmitVerification(store, watch, CommandRecordKinds.Verified, body.Value, live);
                     }
                 }
             }
@@ -79,13 +110,20 @@ internal sealed class CommandProcessor
             }
         }
 
+        foreach (var watch in Verifier.TakeExpired(emitter.Partition, now))
+        {
+            EmitVerification(store, watch, CommandRecordKinds.Unverified, _state?.Current(watch.Device, watch.Effect.Property), emitter);
+        }
+
         foreach (var finished in store.FinishedBefore(now - CommandsOptions.TerminalRetention))
         {
             store.Remove(finished.Id);
+            Verifier.Remove(emitter.Partition, finished.Id, finished.Target);
             _directory.Retire(finished, now);
         }
 
         _directory.Prune(now);
+        GroupSink?.Prune(now - CommandsOptions.ReadCacheRetention);
     }
 
     /// <summary>Loads the commands of a snapshot (recovery, before the replay).</summary>
@@ -97,9 +135,69 @@ internal sealed class CommandProcessor
             store.Put(command, command.VerifiedAt ?? command.CompletedAt ?? now);
             _directory.Publish(command);
             Remember(command);
+            if (command is { State: CommandState.Succeeded, Verification: not null })
+            {
+                Verifier.Register(partition, command, command.CompletedAt ?? now);
+            }
         }
 
         store.TakeChanges();
+    }
+
+    /// <summary>
+    /// After a recovery (CMD §8–§9): the effect of a watched command may have become visible while the node was down or
+    /// during the replay, when no verification record is emitted; checks every watcher against the current state.
+    /// </summary>
+    public void CheckWatchers(ICommandEmitter emitter)
+    {
+        ArgumentNullException.ThrowIfNull(emitter);
+        var store = _stores[emitter.Partition];
+        foreach (var watch in Verifier.All(emitter.Partition))
+        {
+            var current = _state?.Current(watch.Device, watch.Effect.Property);
+            if (Verifier.Matches(watch.Effect, current))
+            {
+                Verifier.Remove(emitter.Partition, watch.Id, watch.Device);
+                EmitVerification(store, watch, CommandRecordKinds.Verified, current, emitter);
+            }
+        }
+    }
+
+    /// <summary>Verification watchers and group progress after a command changed (CMD §9–§10).</summary>
+    private void Track(int partition, Command changed, DateTimeOffset at, ICommandEmitter? live)
+    {
+        if (changed is { State: CommandState.Succeeded, Verification: not null })
+        {
+            var watch = Verifier.Register(partition, changed, at)!;
+
+            // The effect may already be visible before the result arrived.
+            var current = live is null ? null : _state?.Current(changed.Target, watch.Effect.Property);
+            if (live is not null && Verifier.Matches(watch.Effect, current))
+            {
+                Verifier.Remove(partition, changed.Id, changed.Target);
+                EmitVerification(_stores[partition], watch, CommandRecordKinds.Verified, current, live);
+            }
+        }
+        else if (CommandStateMachine.IsTerminal(changed))
+        {
+            Verifier.Remove(partition, changed.Id, changed.Target);
+        }
+
+        if (changed.GroupId is not null)
+        {
+            GroupSink?.Changed(changed);
+        }
+    }
+
+    private void EmitVerification(PendingCommandStore store, Verifier.Watch watch, string kind, Kernel.Values.WpValue? observed, ICommandEmitter emitter)
+    {
+        if (store.Find(watch.Id) is not { State: CommandState.Succeeded } command)
+        {
+            return;
+        }
+
+        var after = (long)Math.Max(0, (emitter.Now - watch.SucceededAt).TotalMilliseconds);
+        emitter.Emit(_codec.Envelope(kind, command, new CommandVerificationBody(command.Id, observed, after), emitter.Now));
     }
 
     /// <summary>Applies one record; returns the command it changed, if any.</summary>
@@ -131,6 +229,10 @@ internal sealed class CommandProcessor
             {
                 // A request refused by validation: there is no command to update.
                 CommandsLog.Transition(_logger, refused.Id.Value, path.Value, envelope.Dev?.Value ?? Guid.Empty, new IssuerText(refused.Issuer), CommandState.Rejected);
+                if (refused.GroupId is { } group)
+                {
+                    GroupSink?.ChildRefused(group, refused.Id, envelope.Dev);
+                }
 
                 return null;
             }

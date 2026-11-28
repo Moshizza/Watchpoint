@@ -43,6 +43,15 @@ internal sealed class CommandRecordCodec
         registry.Register(CommandRecordKinds.Unverified, 1, Info<CommandVerificationBody>());
     }
 
+    /// <summary>Registers the group kinds of <c>WP_SYS</c> (schema 1, CMD §10); registering again is harmless.</summary>
+    public static void RegisterGroups(ILogRecordTypeRegistry registry)
+    {
+        ArgumentNullException.ThrowIfNull(registry);
+        registry.Register(CommandGroupRecordKinds.Requested, 1, Info<CommandGroupRequestedBody>());
+        registry.Register(CommandGroupRecordKinds.Progress, 1, Info<CommandGroupProgressBody>());
+        registry.Register(CommandGroupRecordKinds.Completed, 1, Info<CommandGroupProgressBody>());
+    }
+
     public static JsonTypeInfo<T> Info<T>() => (JsonTypeInfo<T>)Json.GetTypeInfo(typeof(T));
 
     /// <summary>A record of <paramref name="command"/>: in the target's partition, origin from the issuer, correlation of the command.</summary>

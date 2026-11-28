@@ -31,6 +31,14 @@ public interface ICommandAuthorizer
     /// <param name="now">The decision time.</param>
     /// <returns><see langword="true"/> when allowed.</returns>
     bool CanApprove(UserId approver, Command command, DateTimeOffset now);
+
+    /// <summary>
+    /// The devices <paramref name="issuer"/> may see: a group selector is resolved within them (spec CMD §10).
+    /// <see langword="null"/> = every device (the M2 fallback; RGT narrows it in M3).
+    /// </summary>
+    /// <param name="issuer">The issuer.</param>
+    /// <returns>The visible devices, or <see langword="null"/> for all.</returns>
+    IReadOnlySet<DeviceId>? VisibleDevices(CommandIssuer issuer) => null;
 }
 
 /// <summary>An authorisation decision (spec CMD §5 step 6).</summary>

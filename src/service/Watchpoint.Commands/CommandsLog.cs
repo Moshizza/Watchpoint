@@ -20,6 +20,12 @@ internal static partial class CommandsLog
     [LoggerMessage(EventId = 2413, Level = LogLevel.Warning, Message = "Command {CommandId}: the connector threw instead of returning a result")]
     public static partial void ConnectorThrew(ILogger logger, Exception exception, Guid commandId);
 
+    [LoggerMessage(EventId = 2430, Level = LogLevel.Information, Message = "Group {GroupId} completed: {Counters}")]
+    public static partial void GroupCompleted(ILogger logger, Guid groupId, Contracts.CommandGroupCounters counters);
+
+    [LoggerMessage(EventId = 2441, Level = LogLevel.Warning, Message = "Group {GroupId}: a group record could not be appended")]
+    public static partial void GroupRecordFailed(ILogger logger, Exception exception, Guid groupId);
+
     [LoggerMessage(EventId = 2440, Level = LogLevel.Error, Message = "Command dispatch of connection {ConnectionId} failed")]
     public static partial void DispatchFailed(ILogger logger, Exception exception, Guid connectionId);
 
