@@ -240,13 +240,13 @@ internal sealed class DraftPublisher(
             return;
         }
 
-        var handle = scheduler.At("draft:" + id.Value.ToString("D"), at, ct => FireAsync(id, ct));
-        if (_schedules.TryGetValue(id, out var previous))
+        // The previous schedule (same key) goes first: disposing it after registering would cancel the new one.
+        if (_schedules.TryRemove(id, out var previous))
         {
             previous.Dispose();
         }
 
-        _schedules[id] = handle;
+        _schedules[id] = scheduler.At("draft:" + id.Value.ToString("D"), at, ct => FireAsync(id, ct));
     }
 
     private async Task<Result<Draft>> OpenAsync(DraftId id, UserId actor, long expectedVersion, CancellationToken ct)
