@@ -43,14 +43,33 @@ internal sealed class HostProcess : IAsyncDisposable
 
     public int ExitCode => _process.ExitCode;
 
+    private static readonly object _portLock = new();
+    private static readonly HashSet<int> _issuedPorts = [];
+
+    /// <summary>
+    /// A free loopback port, never handed out twice by this process: the port is released before the caller binds it, so
+    /// without the memory two concurrent callers (a host's Kestrel and another host's NATS) could be given the same one.
+    /// </summary>
     public static int GetFreePort()
     {
-        using var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-        listener.Stop();
-        return port;
+        lock (_portLock)
+        {
+            while (true)
+            {
+                using var listener = new TcpListener(IPAddress.Loopback, 0);
+                listener.Start();
+                var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+                listener.Stop();
+                if (_issuedPorts.Add(port))
+                {
+                    return port;
+                }
+            }
+        }
     }
+
+    /// <summary>Why a host that stopped is worth reading: its exit code and the last lines it wrote.</summary>
+    public string StoppedDescription() => $"the host stopped (exit code {(HasExited ? ExitCode.ToString(CultureInfo.InvariantCulture) : "running")}). Host output (tail):{Environment.NewLine}{Output}";
 
     /// <summary>The <c>Database</c> section in the <c>StorageSettings.Bind</c> format for one PostgreSQL database.</summary>
     public static JsonObject DatabaseSection(string connectionString, string startupWait = "PT30S")

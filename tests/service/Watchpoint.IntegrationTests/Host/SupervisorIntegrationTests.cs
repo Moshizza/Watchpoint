@@ -23,6 +23,7 @@ namespace Watchpoint.IntegrationTests.Host;
 /// </summary>
 [Trait("layer", "I")]
 [Trait("spec", "HST")]
+[Collection(SerialHostProcesses.Name)]
 public sealed class SupervisorIntegrationTests
 {
     private static readonly TimeSpan _limit = TimeSpan.FromSeconds(30);
@@ -315,7 +316,7 @@ public sealed class SupervisorIntegrationTests
         await Eventually.UntilAsync(
             () =>
             {
-                host.HasExited.ShouldBeFalse("the host must keep running");
+                host.HasExited.ShouldBeFalse(host.StoppedDescription());
                 return TryReadPid(pidFile, out pid) && pid != differentFrom && IsRunning(pid) && CanConnect(natsPort);
             },
             _limit,

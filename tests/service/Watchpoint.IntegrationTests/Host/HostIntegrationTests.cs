@@ -13,6 +13,7 @@ namespace Watchpoint.IntegrationTests.Host;
 
 [Trait("layer", "I")]
 [Trait("spec", "HST")]
+[Collection(SerialHostProcesses.Name)]
 public sealed class HostIntegrationTests(PostgresContainerFixture postgres)
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -31,7 +32,7 @@ public sealed class HostIntegrationTests(PostgresContainerFixture postgres)
             return resp.StatusCode == HttpStatusCode.OK && (await resp.Content.ReadAsStringAsync(Ct)).Contains("\"ready\"", StringComparison.Ordinal);
         });
 
-        ready.ShouldBeTrue();
+        ready.ShouldBeTrue(host.StoppedDescription());
     }
 
     [Fact]
@@ -60,7 +61,7 @@ public sealed class HostIntegrationTests(PostgresContainerFixture postgres)
         });
 
         await host.WaitForExitAsync(Ct).WaitAsync(TimeSpan.FromSeconds(60), Ct);
-        reportedDatabase.ShouldBeTrue();
+        reportedDatabase.ShouldBeTrue(host.StoppedDescription());
         host.ExitCode.ShouldBe(75);
     }
 
@@ -78,7 +79,7 @@ public sealed class HostIntegrationTests(PostgresContainerFixture postgres)
             return resp.StatusCode == HttpStatusCode.OK;
         });
 
-        managementResponded.ShouldBeTrue();
+        managementResponded.ShouldBeTrue(host.StoppedDescription());
         using var main = await http.GetAsync($"http://127.0.0.1:{host.MainPort}/metrics", Ct);
         main.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
@@ -97,7 +98,7 @@ public sealed class HostIntegrationTests(PostgresContainerFixture postgres)
         await Eventually.UntilAsync(
             () =>
             {
-                host.HasExited.ShouldBeFalse("the host stopped during start-up");
+                host.HasExited.ShouldBeFalse(host.StoppedDescription());
                 try
                 {
                     using var response = http.Send(new HttpRequestMessage(HttpMethod.Get, $"http://127.0.0.1:{host.MainPort}/health/ready"), Ct);

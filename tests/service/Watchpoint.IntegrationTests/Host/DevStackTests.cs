@@ -26,6 +26,7 @@ namespace Watchpoint.IntegrationTests.Host;
 /// <summary>The development stack and seed (spec HST §8, §9).</summary>
 [Trait("layer", "I")]
 [Trait("spec", "HST")]
+[Collection(SerialHostProcesses.Name)]
 public sealed partial class DevStackTests(PostgresContainerFixture postgres)
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -95,7 +96,7 @@ public sealed partial class DevStackTests(PostgresContainerFixture postgres)
         await Eventually.UntilAsync(
             () =>
             {
-                host.HasExited.ShouldBeFalse();
+                host.HasExited.ShouldBeFalse(host.StoppedDescription());
                 try
                 {
                     using var response = http.Send(new HttpRequestMessage(HttpMethod.Get, $"http://127.0.0.1:{host.MainPort}/health/ready"), Ct);
@@ -115,7 +116,7 @@ public sealed partial class DevStackTests(PostgresContainerFixture postgres)
         await Eventually.UntilAsync(
             () =>
             {
-                host.HasExited.ShouldBeFalse();
+                host.HasExited.ShouldBeFalse(host.StoppedDescription());
                 using var connection = new NpgsqlConnection(db);
                 connection.Open();
                 using var command = new NpgsqlCommand("SELECT count(*) FROM wp_registry.devices", connection);
