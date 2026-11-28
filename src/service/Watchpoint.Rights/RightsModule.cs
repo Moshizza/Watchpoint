@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using Watchpoint.Api.Contracts;
 using Watchpoint.Commands.Contracts;
 using Watchpoint.Configuration.Contracts;
+using Watchpoint.Kernel.Ids;
 using Watchpoint.Rights.Contracts;
 using Watchpoint.Rights.Internal.Adapters;
 using Watchpoint.Rights.Internal.Catalogue;
@@ -42,7 +43,8 @@ public static class RightsModule
         services.TryAddSingleton<IUserGroupService>(sp => sp.GetRequiredService<UserGroupService>());
         services.TryAddSingleton<CommandPermissionGenerator>();
         services.TryAddSingleton(sp => new GrantsObjectType(sp.GetRequiredService<IGrantStore>(), sp.GetRequiredService<IPermissionCatalogue>(),
-            key => sp.GetRequiredService<Watchpoint.Scheduling.ICalendarService>().Get(key).IsSuccess));
+            key => sp.GetRequiredService<Watchpoint.Scheduling.ICalendarService>().Get(key).IsSuccess,
+            id => sp.GetRequiredService<IUserGroupService>().Get(UserGroupId.From(id)).IsSuccess));
         services.AddHostedService<RightsStartup>();
 
         // These replace the fallbacks the API and CMD register with TryAdd.

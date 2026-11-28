@@ -13,7 +13,7 @@ namespace Watchpoint.Rights.Internal.Configuration;
 /// <see cref="ValidateAsync"/> reports problems in plain language keys; <see cref="ApplyAsync"/> is what the CFG module adapter
 /// calls on publish (after T3.02: <c>PrepareApply</c>/<c>CompleteApply</c>).
 /// </summary>
-internal sealed class GrantsObjectType(IGrantStore store, IPermissionCatalogue catalogue, Func<string, bool> calendarExists) : IConfigurableObjectType
+internal sealed class GrantsObjectType(IGrantStore store, IPermissionCatalogue catalogue, Func<string, bool> calendarExists, Func<Guid, bool> isGroup) : IConfigurableObjectType
 {
     public const string TypeName = "rights.grants";
 
@@ -50,6 +50,12 @@ internal sealed class GrantsObjectType(IGrantStore store, IPermissionCatalogue c
     {
         ArgumentNullException.ThrowIfNull(entry);
         var problems = new List<Problem>();
+        if (isGroup(entry.Ref.Id))
+        {
+            problems.Add(Fail("rights.grant.group_target", entry));
+            return ValueTask.FromResult<IReadOnlyList<Problem>>(problems);
+        }
+
         if (entry.Content is not { } content || !TryParse(content, UserId.From(entry.Ref.Id), out var grants, out var parseError))
         {
             problems.Add(Fail("rights.grant.invalid_document", entry, ("reason", entry.Content is null ? "missing" : "unreadable")));

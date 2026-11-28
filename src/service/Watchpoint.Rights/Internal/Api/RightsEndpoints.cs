@@ -32,8 +32,7 @@ public static class RightsEndpoints
         {
             var user = http.CurrentUser();
             var now = time.GetUtcNow();
-            var held = c.All.Where(p => user.IsAdministrator || e.HasPermission(user.UserId, p.Code, now)).Select(p => p.Code.Value).ToList();
-            return ApiResults.Ok(new { permissions = held });
+            return ApiResults.Ok(new { permissions = MyPermissions.Of(c, e, user.UserId, user.IsAdministrator, now) });
         }).RequireAuthentication().WithName("Rights_MyPermissions").WithSummary("Permissions held somewhere, for UI gating");
 
         api.MapGet("/users/{id:guid}/grants", async (Guid id, HttpContext http, [FromServices] IGrantStore store, [FromServices] IPermissionEvaluator p) =>
@@ -43,8 +42,13 @@ public static class RightsEndpoints
             .RequireAuthentication().WithName("Rights_GetGrants").WithSummary("Grants of a user (config.rights.view or self)");
 
         api.MapPut("/users/{id:guid}/grants", async (Guid id, GrantsDocument body, [FromServices] IGrantStore store, [FromServices] IPermissionCatalogue c,
-            [FromServices] TimeProvider time, HttpContext http) =>
+            [FromServices] IUserGroupService groups, [FromServices] TimeProvider time, HttpContext http) =>
         {
+            if (groups.Get(UserGroupId.From(id)).IsSuccess)
+            {
+                return HttpResults.Problem(Error.Create(ErrorKind.Unprocessable, "rights.grant.group_target"));
+            }
+
             var user = UserId.From(id);
             var now = time.GetUtcNow();
             var grants = body.Grants.Select(g => g.ToGrant(user) with { CreatedAt = g.CreatedAt ?? now, CreatedBy = g.CreatedBy is { } cb ? UserId.From(cb) : http.CurrentUser().UserId }).ToList();
@@ -78,26 +82,26 @@ public static class RightsEndpoints
             return ApiResults.Ok(new { decision.Allowed, constraints = decision.EffectiveConstraints, decision.DenialCode, explanation = why });
         }).RequireAuthentication().WithName("Rights_Effective").WithSummary("Decision and explanation for a user");
 
-        var groups = api.MapGroup("/user-groups");
-        groups.MapGet("/", ([FromServices] IUserGroupService g) => ApiResults.Page(g.List().Select(GroupDto.Of).ToList(), null)).RequirePermission("config.users.view").WithName("UserGroups_List");
-        groups.MapGet("/{id:guid}", (Guid id, [FromServices] IUserGroupService g) => HttpResults.From(g.Get(UserGroupId.From(id)), x => HttpResults.Versioned(GroupDto.Of(x), x.Version)))
+        var groupRoutes = api.MapGroup("/user-groups");
+        groupRoutes.MapGet("/", ([FromServices] IUserGroupService g) => ApiResults.Page(g.List().Select(GroupDto.Of).ToList(), null)).RequirePermission("config.users.view").WithName("UserGroups_List");
+        groupRoutes.MapGet("/{id:guid}", (Guid id, [FromServices] IUserGroupService g) => HttpResults.From(g.Get(UserGroupId.From(id)), x => HttpResults.Versioned(GroupDto.Of(x), x.Version)))
             .RequirePermission("config.users.view").WithName("UserGroups_Get");
-        groups.MapPost("/", async (GroupBody body, HttpContext http, [FromServices] IUserGroupService g) =>
+        groupRoutes.MapPost("/", async (GroupBody body, HttpContext http, [FromServices] IUserGroupService g) =>
             HttpResults.From(await g.CreateAsync(new LocalizedName(body.Name ?? string.Empty, new Dictionary<string, string>()), body.Description, [.. (body.Members ?? []).Select(UserId.From)],
                 [.. (body.Managers ?? []).Select(UserId.From)], http.CurrentUser().UserId, http.RequestAborted).ConfigureAwait(false),
                 x => HttpResults.CreatedVersioned("/api/v1/user-groups/" + x.Id.Value, GroupDto.Of(x), x.Version)))
             .RequireAuthentication().WithName("UserGroups_Create");
-        groups.MapPatch("/{id:guid}", async (Guid id, GroupBody body, HttpContext http, [FromServices] IUserGroupService g) =>
+        groupRoutes.MapPatch("/{id:guid}", async (Guid id, GroupBody body, HttpContext http, [FromServices] IUserGroupService g) =>
             HttpResults.From(await g.UpdateAsync(UserGroupId.From(id),
                 new UserGroupUpdate(body.Name is null ? null : new LocalizedName(body.Name, new Dictionary<string, string>()), body.Description,
                     body.Members?.Select(UserId.From).ToList(), body.Managers?.Select(UserId.From).ToList()),
                 http.ExpectedVersion() ?? -1, http.CurrentUser().UserId, http.RequestAborted).ConfigureAwait(false),
                 x => HttpResults.Versioned(GroupDto.Of(x), x.Version)))
             .RequireAuthentication().Versioned().WithName("UserGroups_Patch");
-        groups.MapDelete("/{id:guid}", async (Guid id, HttpContext http, [FromServices] IUserGroupService g) =>
+        groupRoutes.MapDelete("/{id:guid}", async (Guid id, HttpContext http, [FromServices] IUserGroupService g) =>
             HttpResults.From(await g.DeleteAsync(UserGroupId.From(id), http.CurrentUser().UserId, http.RequestAborted).ConfigureAwait(false)))
             .RequireAuthentication().WithName("UserGroups_Delete");
-        groups.MapPost("/{id:guid}/bulk", async (Guid id, BulkBody body, HttpContext http, [FromServices] IUserGroupService g) =>
+        groupRoutes.MapPost("/{id:guid}/bulk", async (Guid id, BulkBody body, HttpContext http, [FromServices] IUserGroupService g) =>
             HttpResults.From(await g.BulkAsync(UserGroupId.From(id), body.Action, body.ValidUntil, http.CurrentUser().UserId, http.RequestAborted).ConfigureAwait(false),
                 failed => ApiResults.Ok(new { failed = failed.Select(u => u.Value) })))
             .RequireAuthentication().WithName("UserGroups_Bulk");

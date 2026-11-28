@@ -13,8 +13,10 @@ internal static class ScopeContainment
     /// <param name="actor">The actor's matching grant scopes.</param>
     /// <param name="granted">The scope to grant.</param>
     /// <param name="deviceInScope">Whether a device belongs to an actor scope (registry resolution); <see langword="null"/> = explicit device lists only.</param>
+    /// <param name="locationWithin">Whether the first location is the second or inside it; <see langword="null"/> = equality.</param>
     /// <returns><see langword="true"/> when contained.</returns>
-    public static bool Contains(IReadOnlyList<GrantScope> actor, GrantScope granted, Func<GrantScope, DeviceId, bool>? deviceInScope = null)
+    public static bool Contains(IReadOnlyList<GrantScope> actor, GrantScope granted, Func<GrantScope, DeviceId, bool>? deviceInScope = null,
+        Func<LocationId, LocationId, bool>? locationWithin = null)
     {
         ArgumentNullException.ThrowIfNull(actor);
         ArgumentNullException.ThrowIfNull(granted);
@@ -44,7 +46,7 @@ internal static class ScopeContainment
         var pieces = filter.LocationsSubtree is { Count: > 1 } locations
             ? locations.Select(l => filter with { LocationsSubtree = [l] })
             : [filter];
-        return pieces.All(p => actor.Any(a => FilterWithin(a with { Devices = null }, p)));
+        return pieces.All(p => actor.Any(a => FilterWithin(a with { Devices = null }, p, locationWithin)));
     }
 
     /// <summary>Whether every object of <paramref name="inner"/> is in <paramref name="outer"/> (filter parts only).</summary>

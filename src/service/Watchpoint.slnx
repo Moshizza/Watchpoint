@@ -62,6 +62,7 @@
     <Project Path="../../tests/service/Watchpoint.Commands.Tests/Watchpoint.Commands.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Pipeline.Tests/Watchpoint.Pipeline.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Registry.Tests/Watchpoint.Registry.Tests.csproj" />
+    <Project Path="../../tests/service/Watchpoint.Rights.Tests/Watchpoint.Rights.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Scheduling.Tests/Watchpoint.Scheduling.Tests.csproj" />
     <Project Path="../../tests/service/Watchpoint.Testing/Watchpoint.Testing.csproj" />
     <Project Path="../../tests/service/Watchpoint.Secrets.Tests/Watchpoint.Secrets.Tests.csproj" />
