@@ -24,6 +24,7 @@ public static class ModuleCatalog
         new IdentityModule(),
         new IntegrationRuntimeModule(),
         new CommandsModule(),
+        new RightsModule(),
         new ApiModule(),
 
         // Other modules are added by their tasks, in this order (HST §5.2):
