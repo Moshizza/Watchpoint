@@ -99,6 +99,7 @@ Every AI agent working on the project has a unique name, used as its branch pref
 | `claude-pavo` | Mohcine (Moshizza) | 2026-11-27 |
 | `claude-corvus` | Mohcine (Moshizza) | 2026-11-27 |
 | `claude-vesta` | Mohcine (Moshizza) | 2026-11-28 |
+| `claude-antares` | Mohcine (Moshizza) | 2026-11-28 |
 
 Owners of merged tasks keep the branch name actually used. Early Jules sessions pushed
 branches without an agent prefix (`jules-<session>-<hash>`: T1.08, T1.14, T1.17, T1.18, T2.08,
@@ -211,7 +212,7 @@ spec that must exist and pass.
 | T3.01 | Configuration: drafts, change sets, validation framework (plain-language problems) | CFG §4–§6 | T1.07 | CFG-U-001…CFG-U-030 | [#54](https://github.com/Moshizza/Watchpoint/issues/54) | claude-orion/T3.01-configuration-drafts-validation | done |
 | T3.02 | Configuration: publish, versions, rollback, propagation through the log | CFG §7–§8 | T3.01, T1.09 | CFG-U-031…CFG-U-050, CFG-I-001…CFG-I-008 | [#55](https://github.com/Moshizza/Watchpoint/issues/55) | — | todo |
 | T3.03 | Configuration: import/export (JSON, CSV/XLSX), soft locks, optimistic merge | CFG §9–§10 | T3.02 | CFG-U-051…CFG-U-070 | [#56](https://github.com/Moshizza/Watchpoint/issues/56) | — | todo |
-| T3.04 | Rights: permission catalogue, grants, scopes, schedules, constraints, evaluator, visible-set cache, API filtering | RGT §4–§7 | T1.18, T1.07, T2.08, T3.01 | RGT-U-001…RGT-U-050, RGT-I-001…RGT-I-004, RGT-I-008 | [#57](https://github.com/Moshizza/Watchpoint/issues/57) | — | todo |
+| T3.04 | Rights: permission catalogue, grants, scopes, schedules, constraints, evaluator, visible-set cache, API filtering | RGT §4–§7 | T1.18, T1.07, T2.08, T3.01 | RGT-U-001…RGT-U-050, RGT-I-001…RGT-I-004, RGT-I-008 | [#57](https://github.com/Moshizza/Watchpoint/issues/57) | claude-antares/T3.04-rights-catalogue-evaluator | in progress |
 | T3.05 | Rights: user groups, template users, rights-copy (preview, apply, undo, re-apply), drift indicator, escalation protection | RGT §8–§10 | T3.04, T3.02 | RGT-U-051…RGT-U-090, RGT-I-005…RGT-I-007 | [#58](https://github.com/Moshizza/Watchpoint/issues/58) | — | todo |
 | T3.06 | Audit trail: writer, hash chain, verification, query API | AUD | T2.13 | AUD-U-001…AUD-U-020, AUD-I-001…AUD-I-005 | [#59](https://github.com/Moshizza/Watchpoint/issues/59) | — | todo |
 | T3.07 | Identity: LDAP/AD, OIDC sign-in, directory group → template mapping | IDN §8–§9 | T3.05 | IDN-U-031…IDN-U-050, IDN-I-007…IDN-I-012 | [#60](https://github.com/Moshizza/Watchpoint/issues/60) | — | todo |
