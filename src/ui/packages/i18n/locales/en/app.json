@@ -74,5 +74,90 @@
     "traceId": "Trace ID",
     "copyTraceId": "Copy trace ID",
     "copied": "Copied to clipboard"
+  },
+  "audit": {
+    "action": {
+      "identity": {
+        "signedIn": "Signed in",
+        "signInFailed": "Sign-in failed",
+        "signedOut": "Signed out",
+        "sessionRevoked": "Session revoked",
+        "accountLocked": "Account locked",
+        "accountUnlocked": "Account unlocked",
+        "passwordChanged": "Password changed",
+        "passwordReset": "Password reset",
+        "mfaEnrolled": "MFA enrolled",
+        "mfaReset": "MFA reset",
+        "breakGlassUsed": "Break-glass account used",
+        "tokenTheftDetected": "Token theft detected",
+        "userCreated": "User created",
+        "userUpdated": "User updated",
+        "userDisabled": "User disabled",
+        "userDeleted": "User deleted"
+      },
+      "config": {
+        "published": "Configuration published",
+        "rolledBack": "Configuration rolled back",
+        "approvalRequested": "Approval requested",
+        "approved": "Configuration approved",
+        "rejected": "Configuration rejected",
+        "lockBroken": "Lock broken",
+        "imported": "Configuration imported",
+        "exported": "Configuration exported"
+      },
+      "rights": {
+        "grantsChanged": "Rights changed",
+        "copyApplied": "Rights copy applied",
+        "copyUndone": "Rights copy undone",
+        "groupChanged": "Group changed",
+        "escalationDenied": "Privilege escalation denied"
+      },
+      "commands": {
+        "requested": "Command requested",
+        "rejected": "Command rejected",
+        "approved": "Command approved",
+        "cancelled": "Command cancelled"
+      },
+      "alarms": {
+        "acknowledged": "Alarm acknowledged",
+        "closed": "Alarm closed",
+        "closedWithoutReport": "Alarm closed without report",
+        "shelved": "Alarm shelved",
+        "transferred": "Alarm transferred",
+        "muted": "Alarm muted"
+      },
+      "secrets": {
+        "created": "Secret created",
+        "replaced": "Secret replaced",
+        "deleted": "Secret deleted",
+        "readDenied": "Secret read denied",
+        "readAggregate": "Secret reads"
+      },
+      "maintenance": {
+        "started": "Maintenance started",
+        "extended": "Maintenance extended",
+        "ended": "Maintenance ended",
+        "autoEnded": "Maintenance ended automatically"
+      },
+      "integrations": {
+        "packageInstalled": "Package installed",
+        "packageRemoved": "Package removed",
+        "connectionEnabled": "Connection enabled",
+        "connectionDisabled": "Connection disabled",
+        "hostPaired": "Host paired"
+      },
+      "privacy": {
+        "personalDataViewed": "Personal data viewed",
+        "subjectExported": "Subject data exported",
+        "subjectErased": "Subject data erased",
+        "eventsExported": "Events exported"
+      },
+      "audit": {
+        "chainVerificationFailed": "Audit chain verification failed",
+        "checkpointCreated": "Audit checkpoint created",
+        "retentionPurged": "Audit records purged",
+        "exported": "Audit trail exported"
+      }
+    }
   }
 }

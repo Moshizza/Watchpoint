@@ -72,21 +72,23 @@ internal static partial class AuditRecordPreparer
                     return JsonValue.Create(Mask);
                 }
 
-                foreach (var key in obj.Select(p => p.Key).ToList())
+                var copy = new JsonObject();
+                foreach (var (key, value) in obj)
                 {
-                    obj[key] = SensitiveName().IsMatch(key) ? JsonValue.Create(Mask) : Redact(obj[key]);
+                    copy[key] = SensitiveName().IsMatch(key) ? JsonValue.Create(Mask) : Redact(value);
                 }
 
-                return obj;
+                return copy;
             case JsonArray array:
-                for (var i = 0; i < array.Count; i++)
+                var items = new JsonArray();
+                foreach (var item in array)
                 {
-                    array[i] = Redact(array[i]);
+                    items.Add(Redact(item));
                 }
 
-                return array;
+                return items;
             default:
-                return node;
+                return node?.DeepClone();
         }
     }
 

@@ -10,7 +10,7 @@ namespace Watchpoint.Audit.Internal;
 /// The audit writer (spec AUD §5): a bounded channel drained by one task that assigns sequences, chains hashes and stores
 /// batches in one transaction. A record is never dropped: when the channel stays full, or on shutdown, it goes to the fallback file.
 /// </summary>
-internal sealed class AuditWriter : IAuditSink, IHostedService, IAsyncDisposable
+internal sealed class AuditWriter : IAuditSink, IHostedService, IAsyncDisposable, IDisposable
 {
     private readonly IAuditStore _store;
     private readonly AuditSettings _settings;
@@ -23,6 +23,7 @@ internal sealed class AuditWriter : IAuditSink, IHostedService, IAsyncDisposable
     private readonly TaskCompletionSource _started = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private Task _loop = Task.CompletedTask;
     private AuditChainHead? _head;
+    private int _disposed;
 
     public AuditWriter(IAuditStore store, AuditSettings settings, TimeProvider clock, ILogger<AuditWriter> logger, AuditMetrics metrics)
     {
@@ -106,10 +107,22 @@ internal sealed class AuditWriter : IAuditSink, IHostedService, IAsyncDisposable
         }
     }
 
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) == 0)
+        {
+            _abort.Cancel();
+            _abort.Dispose();
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
-        await _abort.CancelAsync().ConfigureAwait(false);
-        _abort.Dispose();
+        if (Interlocked.Exchange(ref _disposed, 1) == 0)
+        {
+            await _abort.CancelAsync().ConfigureAwait(false);
+            _abort.Dispose();
+        }
     }
 
     private async ValueTask<bool> TryEnqueueAsync(Pending pending, CancellationToken ct)

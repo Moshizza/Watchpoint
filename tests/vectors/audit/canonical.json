@@ -1,0 +1,79 @@
+{
+  "rows": [
+    {
+      "name": "minimal system record",
+      "row": {
+        "chainId": "node-1",
+        "sequence": 1,
+        "occurredAt": "2026-01-15T09:00:00.000000Z",
+        "recordedAt": "2026-01-15T09:00:01.000000Z",
+        "action": "audit.checkpointCreated",
+        "outcome": 0,
+        "severity": 0,
+        "actor": {
+          "kind": "System",
+          "displayName": "audit"
+        },
+        "objects": []
+      },
+      "canonical": "{\"sequence\":1,\"chainId\":\"node-1\",\"occurredAt\":\"2026-01-15T09:00:00.000000Z\",\"recordedAt\":\"2026-01-15T09:00:01.000000Z\",\"action\":\"audit.checkpointCreated\",\"outcome\":0,\"severity\":0,\"actor\":{\"displayName\":\"audit\",\"kind\":\"System\"},\"objects\":[],\"reason\":null,\"details\":null,\"correlationId\":null}",
+      "prevHash": "3bca92d15138ab33c46f80d681e26ead1723b0e7f4dbb40758e561db3f59f643",
+      "hash": "77bd210f89b485e3678c3b1c9b2a23b60abef6d93def1c0a0ca16ffb199f7315"
+    },
+    {
+      "name": "full record chained after the first",
+      "row": {
+        "chainId": "node-1",
+        "sequence": 2,
+        "occurredAt": "2026-01-15T09:00:02.123456Z",
+        "recordedAt": "2026-01-15T09:00:02.500000Z",
+        "action": "rights.copyApplied",
+        "outcome": 2,
+        "severity": 1,
+        "actor": {
+          "kind": "User",
+          "id": "00000000-0000-7000-8000-0000000000a1",
+          "displayName": "Alice",
+          "client": "Desktop",
+          "ipAddress": "10.0.0.5"
+        },
+        "objects": [
+          {
+            "type": "user",
+            "id": "00000000-0000-7000-8000-0000000000b2"
+          }
+        ],
+        "reason": "Quarterly review \"A\"\n",
+        "details": {
+          "z": [
+            1,
+            2.5,
+            "é"
+          ],
+          "a": {
+            "y": true,
+            "x": null
+          }
+        },
+        "correlationId": "00000000-0000-7000-8000-0000000000c3"
+      },
+      "canonical": "{\"sequence\":2,\"chainId\":\"node-1\",\"occurredAt\":\"2026-01-15T09:00:02.123456Z\",\"recordedAt\":\"2026-01-15T09:00:02.500000Z\",\"action\":\"rights.copyApplied\",\"outcome\":2,\"severity\":1,\"actor\":{\"client\":\"Desktop\",\"displayName\":\"Alice\",\"id\":\"00000000-0000-7000-8000-0000000000a1\",\"ipAddress\":\"10.0.0.5\",\"kind\":\"User\"},\"objects\":[{\"id\":\"00000000-0000-7000-8000-0000000000b2\",\"type\":\"user\"}],\"reason\":\"Quarterly review \\\"A\\\"\\n\",\"details\":{\"a\":{\"x\":null,\"y\":true},\"z\":[1,2.5,\"é\"]},\"correlationId\":\"00000000-0000-7000-8000-0000000000c3\"}",
+      "prevHash": "77bd210f89b485e3678c3b1c9b2a23b60abef6d93def1c0a0ca16ffb199f7315",
+      "hash": "a3c122ca66e1645fede32697fc6abeb88b18ebf065fb00583aa56ab0ebe3a635"
+    }
+  ],
+  "jcs": [
+    {
+      "input": "{\"b\":1,\"a\":[true,null,1.5e30,\"é\\n\"]}",
+      "output": "{\"a\":[true,null,1.5e+30,\"é\\n\"],\"b\":1}"
+    },
+    {
+      "input": "{\"n\":[1.0,4.50,1e30,1e-7,0.002,333333333.33333329,-0,100,1E2,123456789012345680000,1e21]}",
+      "output": "{\"n\":[1,4.5,1e+30,1e-7,0.002,333333333.3333333,0,100,100,123456789012345680000,1e+21]}"
+    },
+    {
+      "input": "{\"\\u0041\":\"\\u0001\\u001f\\u007f\\\"\\\\/\"}",
+      "output": "{\"A\":\"\\u0001\\u001f\\\"\\\\/\"}"
+    }
+  ]
+}

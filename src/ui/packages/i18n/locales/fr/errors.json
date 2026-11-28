@@ -159,5 +159,19 @@
       "invalid": "La requête n'a pas pu être lue.",
       "too_large": "La requête est trop volumineuse (au plus {max} octets)."
     }
+  },
+  "audit": {
+    "query": {
+      "range_too_large": "La période de la requête d’audit ne doit pas dépasser {maxDays} jours."
+    },
+    "entry": {
+      "not_found": "L’entrée d’audit {id} est introuvable."
+    },
+    "verification": {
+      "chain_not_found": "La chaîne d’audit {chainId} est introuvable."
+    },
+    "action": {
+      "invalid": "L’action d’audit n’est pas valide."
+    }
   }
 }

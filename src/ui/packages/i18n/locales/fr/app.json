@@ -74,5 +74,90 @@
     "traceId": "ID de suivi",
     "copyTraceId": "Copier l'identifiant de suivi",
     "copied": "Copié dans le presse-papiers"
+  },
+  "audit": {
+    "action": {
+      "identity": {
+        "signedIn": "Connexion",
+        "signInFailed": "Échec de connexion",
+        "signedOut": "Déconnexion",
+        "sessionRevoked": "Session révoquée",
+        "accountLocked": "Compte verrouillé",
+        "accountUnlocked": "Compte déverrouillé",
+        "passwordChanged": "Mot de passe modifié",
+        "passwordReset": "Mot de passe réinitialisé",
+        "mfaEnrolled": "Authentification multifacteur activée",
+        "mfaReset": "Authentification multifacteur réinitialisée",
+        "breakGlassUsed": "Compte de secours utilisé",
+        "tokenTheftDetected": "Vol de jeton détecté",
+        "userCreated": "Utilisateur créé",
+        "userUpdated": "Utilisateur modifié",
+        "userDisabled": "Utilisateur désactivé",
+        "userDeleted": "Utilisateur supprimé"
+      },
+      "config": {
+        "published": "Configuration publiée",
+        "rolledBack": "Configuration restaurée",
+        "approvalRequested": "Approbation demandée",
+        "approved": "Configuration approuvée",
+        "rejected": "Configuration rejetée",
+        "lockBroken": "Verrou forcé",
+        "imported": "Configuration importée",
+        "exported": "Configuration exportée"
+      },
+      "rights": {
+        "grantsChanged": "Droits modifiés",
+        "copyApplied": "Copie de droits appliquée",
+        "copyUndone": "Copie de droits annulée",
+        "groupChanged": "Groupe modifié",
+        "escalationDenied": "Élévation de privilèges refusée"
+      },
+      "commands": {
+        "requested": "Commande demandée",
+        "rejected": "Commande rejetée",
+        "approved": "Commande approuvée",
+        "cancelled": "Commande annulée"
+      },
+      "alarms": {
+        "acknowledged": "Alarme acquittée",
+        "closed": "Alarme clôturée",
+        "closedWithoutReport": "Alarme clôturée sans rapport",
+        "shelved": "Alarme mise en attente",
+        "transferred": "Alarme transférée",
+        "muted": "Alarme coupée"
+      },
+      "secrets": {
+        "created": "Secret créé",
+        "replaced": "Secret remplacé",
+        "deleted": "Secret supprimé",
+        "readDenied": "Lecture de secret refusée",
+        "readAggregate": "Lectures de secret"
+      },
+      "maintenance": {
+        "started": "Maintenance démarrée",
+        "extended": "Maintenance prolongée",
+        "ended": "Maintenance terminée",
+        "autoEnded": "Maintenance terminée automatiquement"
+      },
+      "integrations": {
+        "packageInstalled": "Paquet installé",
+        "packageRemoved": "Paquet retiré",
+        "connectionEnabled": "Connexion activée",
+        "connectionDisabled": "Connexion désactivée",
+        "hostPaired": "Hôte appairé"
+      },
+      "privacy": {
+        "personalDataViewed": "Données personnelles consultées",
+        "subjectExported": "Données d’une personne exportées",
+        "subjectErased": "Données d’une personne effacées",
+        "eventsExported": "Événements exportés"
+      },
+      "audit": {
+        "chainVerificationFailed": "Échec de la vérification de la chaîne d’audit",
+        "checkpointCreated": "Point de contrôle d’audit créé",
+        "retentionPurged": "Enregistrements d’audit purgés",
+        "exported": "Journal d’audit exporté"
+      }
+    }
   }
 }
