@@ -65,6 +65,8 @@ public static class RegistryModule
 
         services.TryAddSingleton<IRegistryReader, RegistryReader>();
         services.TryAddSingleton<IRegistryWriter, RegistryWriter>();
+        services.TryAddSingleton(sp => sp.GetRequiredService<IRegistryWriter>() as IRegistryTransactionalWriter
+            ?? throw new InvalidOperationException("The registry writer does not write in a caller's transaction."));
         services.TryAddSingleton<IInventoryReconciler, InventoryReconciler>();
 
         return services;

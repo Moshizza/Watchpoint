@@ -75,5 +75,13 @@ internal sealed class InMemoryDraftRepository : IDraftRepository
         }
     }
 
+    public Task<IReadOnlyList<Draft>> ListByStatusAsync(DraftStatus status, CancellationToken ct)
+    {
+        lock (_gate)
+        {
+            return Task.FromResult<IReadOnlyList<Draft>>([.. _drafts.Values.Select(d => d.Draft).Where(d => d.Status == status)]);
+        }
+    }
+
     private sealed record Stored(Draft Draft, bool Hidden, IReadOnlyList<DraftSecretRef> Secrets);
 }

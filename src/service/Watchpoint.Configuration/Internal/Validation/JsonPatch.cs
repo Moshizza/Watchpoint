@@ -19,7 +19,7 @@ internal static class JsonPatch
             operation["value"] = value?.DeepClone();
         }
 
-        return JsonSerializer.SerializeToElement(new JsonArray(operation));
+        return NodeJson.ToElement(new JsonArray(operation));
     }
 
     /// <summary>Applies a patch to a document.</summary>
@@ -43,7 +43,7 @@ internal static class JsonPatch
             root = ApplyOne(root, op, path, value);
         }
 
-        return JsonSerializer.SerializeToElement(root);
+        return NodeJson.ToElement(root);
     }
 
     private static JsonNode? ApplyOne(JsonNode? root, string? op, string path, JsonNode? value)

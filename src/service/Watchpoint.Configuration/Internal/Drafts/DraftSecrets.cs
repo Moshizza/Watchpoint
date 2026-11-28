@@ -31,7 +31,7 @@ internal sealed class DraftSecrets(ISecretVault vault)
             return failure;
         }
 
-        return (JsonSerializer.SerializeToElement(root), created);
+        return (NodeJson.ToElement(root), created);
     }
 
     /// <summary>The secret references a document holds.</summary>

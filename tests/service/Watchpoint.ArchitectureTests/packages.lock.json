@@ -709,12 +709,16 @@
       "watchpoint.configuration": {
         "type": "Project",
         "dependencies": {
+          "Microsoft.EntityFrameworkCore.Relational": "[10.0.14, )",
           "Microsoft.Extensions.DependencyInjection.Abstractions": "[10.0.14, )",
+          "Microsoft.Extensions.Diagnostics": "[10.0.14, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.14, )",
           "Watchpoint.Identity": "[1.0.0, )",
           "Watchpoint.Kernel": "[1.0.0, )",
+          "Watchpoint.Pipeline": "[1.0.0, )",
           "Watchpoint.Registry": "[1.0.0, )",
-          "Watchpoint.Secrets": "[1.0.0, )"
+          "Watchpoint.Secrets": "[1.0.0, )",
+          "Watchpoint.Storage": "[1.0.0, )"
         }
       },
       "watchpoint.expressions": {
@@ -761,6 +765,7 @@
           "Serilog.Sinks.File": "[7.0.0, )",
           "Watchpoint.Api": "[1.0.0, )",
           "Watchpoint.Commands": "[1.0.0, )",
+          "Watchpoint.Configuration": "[1.0.0, )",
           "Watchpoint.History": "[1.0.0, )",
           "Watchpoint.Hosting": "[1.0.0, )",
           "Watchpoint.Identity": "[1.0.0, )",
@@ -768,6 +773,7 @@
           "Watchpoint.Model": "[1.0.0, )",
           "Watchpoint.Pipeline": "[1.0.0, )",
           "Watchpoint.Registry": "[1.0.0, )",
+          "Watchpoint.Scheduling": "[1.0.0, )",
           "Watchpoint.Secrets": "[1.0.0, )",
           "Watchpoint.State": "[1.0.0, )",
           "Watchpoint.Storage": "[1.0.0, )",

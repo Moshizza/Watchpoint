@@ -114,11 +114,14 @@
     "publish": {
       "invalid": "Le brouillon contient {errors} erreurs et ne peut pas être publié.",
       "conflict": "D'autres modifications ont été publiées depuis votre début ; résolvez d'abord les conflits.",
-      "in_progress": "Une autre publication est en cours ; réessayez dans un instant."
+      "in_progress": "Une autre publication est en cours ; réessayez dans un instant.",
+      "not_supported": "Les objets de type {type} ne peuvent pas encore être publiés.",
+      "failed": "La publication a échoué et rien n'a été modifié ({reason})."
     },
     "approval": {
       "required": "Ces modifications doivent être approuvées avant d'être publiées.",
-      "self_forbidden": "Vous ne pouvez pas approuver vos propres modifications."
+      "self_forbidden": "Vous ne pouvez pas approuver vos propres modifications.",
+      "rejected": "L'approbation a été refusée : {reason}"
     },
     "lock": {
       "held_by": "Cet objet est en cours de modification par {user}.",
