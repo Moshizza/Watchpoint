@@ -9,4 +9,7 @@ internal static partial class RightsLog
 
     [LoggerMessage(EventId = 2820, Level = LogLevel.Warning, Message = "Escalation denied for {Actor}: {Permission} ({Reason})")]
     public static partial void EscalationDenied(ILogger logger, Guid actor, string permission, string reason);
+
+    [LoggerMessage(EventId = 2802, Level = LogLevel.Warning, Message = "Could not publish rights.changed")]
+    public static partial void PublishFailed(ILogger logger, Exception exception);
 }

@@ -532,6 +532,15 @@
           "Watchpoint.Storage": "[1.0.0, )"
         }
       },
+      "watchpoint.configuration": {
+        "type": "Project",
+        "dependencies": {
+          "Watchpoint.Identity": "[1.0.0, )",
+          "Watchpoint.Kernel": "[1.0.0, )",
+          "Watchpoint.Registry": "[1.0.0, )",
+          "Watchpoint.Secrets": "[1.0.0, )"
+        }
+      },
       "watchpoint.history": {
         "type": "Project",
         "dependencies": {
@@ -568,6 +577,7 @@
           "Watchpoint.Model": "[1.0.0, )",
           "Watchpoint.Pipeline": "[1.0.0, )",
           "Watchpoint.Registry": "[1.0.0, )",
+          "Watchpoint.Rights": "[1.0.0, )",
           "Watchpoint.Secrets": "[1.0.0, )",
           "Watchpoint.State": "[1.0.0, )",
           "Watchpoint.Storage": "[1.0.0, )",
@@ -696,6 +706,30 @@
           "Watchpoint.Storage": "[1.0.0, )"
         }
       },
+      "watchpoint.rights": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore.Relational": "[10.0.14, )",
+          "Watchpoint.Api": "[1.0.0, )",
+          "Watchpoint.Commands": "[1.0.0, )",
+          "Watchpoint.Configuration": "[1.0.0, )",
+          "Watchpoint.Identity": "[1.0.0, )",
+          "Watchpoint.Kernel": "[1.0.0, )",
+          "Watchpoint.Model": "[1.0.0, )",
+          "Watchpoint.Registry": "[1.0.0, )",
+          "Watchpoint.Scheduling": "[1.0.0, )",
+          "Watchpoint.Storage": "[1.0.0, )"
+        }
+      },
+      "watchpoint.scheduling": {
+        "type": "Project",
+        "dependencies": {
+          "Cronos": "[0.13.0, )",
+          "Microsoft.EntityFrameworkCore.Relational": "[10.0.14, )",
+          "Watchpoint.Kernel": "[1.0.0, )",
+          "Watchpoint.Storage": "[1.0.0, )"
+        }
+      },
       "watchpoint.secrets": {
         "type": "Project",
         "dependencies": {
@@ -759,6 +793,12 @@
           "xunit.v3.assert": "[4.0.2, )",
           "xunit.v3.extensibility.core": "[4.0.2, )"
         }
+      },
+      "Cronos": {
+        "type": "CentralTransitive",
+        "requested": "[0.13.0, )",
+        "resolved": "0.13.0",
+        "contentHash": "Nkve+Yi0+ol3ntSBRHeW0ka9cJQ8vndSUvvkXqF9LVqwpoqWueyxu/HS275r98RDOmF7/mzRnZW5XXUBXob+TA=="
       },
       "EFCore.NamingConventions": {
         "type": "CentralTransitive",

@@ -36,7 +36,14 @@ public static class RightsModule
         services.TryAddSingleton<GrantStore>();
         services.TryAddSingleton<IGrantStore>(sp => sp.GetRequiredService<GrantStore>());
         services.TryAddSingleton<IRightsUserLookup, DirectoryUserLookup>();
-        services.TryAddSingleton<RightsEvaluator>();
+        services.TryAddSingleton<Watchpoint.Scheduling.ICalendarService, NoCalendars>();
+        services.TryAddSingleton(sp => new RightsEvaluator(sp.GetRequiredService<IGrantStore>(), sp.GetRequiredService<IRightsUserLookup>(),
+            sp.GetRequiredService<IPermissionCatalogue>(), sp.GetRequiredService<Watchpoint.Registry.Contracts.IRegistryReader>(),
+            sp.GetService<Watchpoint.Model.Contracts.ITypeCatalog>(), sp.GetRequiredService<Watchpoint.Scheduling.ICalendarService>(),
+            sp.GetRequiredService<TimeProvider>(), sp.GetServices<IVisibleScopePostFilter>(), sp.GetService<IRightsChangedSink>() ?? (sp.GetService<Watchpoint.Identity.Contracts.ISystemEventSink>() is { } events
+                ? new SystemEventRightsChangedSink(events, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<SystemEventRightsChangedSink>>())
+                : null),
+            sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<RightsEvaluator>>()));
         services.TryAddSingleton<IRightsEvaluator>(sp => sp.GetRequiredService<RightsEvaluator>());
         services.TryAddSingleton<IUserBulkActions, IdentityBulkActions>();
         services.TryAddSingleton<UserGroupService>();
