@@ -17,6 +17,12 @@ internal static partial class CommandsLog
     [LoggerMessage(EventId = 2412, Level = LogLevel.Warning, Message = "Command {CommandId} not verified")]
     public static partial void NotVerified(ILogger logger, Guid commandId);
 
+    [LoggerMessage(EventId = 2413, Level = LogLevel.Warning, Message = "Command {CommandId}: the connector threw instead of returning a result")]
+    public static partial void ConnectorThrew(ILogger logger, Exception exception, Guid commandId);
+
+    [LoggerMessage(EventId = 2440, Level = LogLevel.Error, Message = "Command dispatch of connection {ConnectionId} failed")]
+    public static partial void DispatchFailed(ILogger logger, Exception exception, Guid connectionId);
+
     [LoggerMessage(EventId = 2420, Level = LogLevel.Debug, Message = "Ignored late transition {Kind} for command {CommandId} in state {State}")]
     public static partial void IgnoredTransition(ILogger logger, string kind, Guid commandId, string state);
 }

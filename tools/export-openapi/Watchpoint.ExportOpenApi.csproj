@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>export-openapi</AssemblyName>
+    <RootNamespace>Watchpoint.ExportOpenApi</RootNamespace>
+    <Description>Writes the OpenAPI document of the REST API (spec API §5.7) to src/ui/packages/api-client/openapi/v1.json.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/service/Watchpoint.Host/Watchpoint.Host.csproj" />
+  </ItemGroup>
+
+</Project>

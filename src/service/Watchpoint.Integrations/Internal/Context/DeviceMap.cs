@@ -48,7 +48,7 @@ internal sealed class DeviceMapSnapshot
             string? cursor = null;
             do
             {
-                var page = reader.QueryDevices(new DeviceQuery(ServerId: server.Id), new PageRequest(PageRequest.MaxLimit, cursor));
+                var page = reader.QueryDevices(new DeviceQuery(Servers: [server.Id]), new PageRequest(PageRequest.MaxLimit, cursor));
                 devices.AddRange(page.Items.Select(d => (d, server.NativeId)));
                 cursor = page.NextCursor;
             }

@@ -10,7 +10,8 @@
   "common": {
     "network_error": "Échec de la requête réseau. Veuillez vérifier votre connexion.",
     "version": {
-      "conflict": "La ressource a été modifiée simultanément."
+      "conflict": "La ressource a été modifiée simultanément.",
+      "required": "La version de l'élément manque ; rechargez-le et réessayez."
     },
     "value": {
       "out_of_range": "La valeur doit être comprise entre {min} et {max}.",
@@ -21,7 +22,24 @@
       "too_short": "Cette valeur est trop courte (au moins {min}).",
       "duplicate": "Cette valeur est déjà utilisée."
     },
-    "forbidden": "Vous n'avez pas le droit de faire cela."
+    "forbidden": "Vous n'avez pas le droit de faire cela.",
+    "cursor": {
+      "invalid": "La position dans la liste n'est plus valide ; rechargez la liste."
+    },
+    "internal": "Une erreur inattendue s'est produite.",
+    "not_found": "L'élément est introuvable.",
+    "rate_limited": "Trop de requêtes ; réessayez dans {retryAfterSeconds} s.",
+    "sort": {
+      "invalid_field": "La liste ne peut pas être triée par {field}."
+    },
+    "time": {
+      "invalid_local": "L'heure locale {local} n'existe pas ou est ambiguë ({reason})."
+    },
+    "unauthenticated": "Veuillez vous connecter.",
+    "unavailable": "Un service est indisponible ({dependency}) ; réessayez plus tard.",
+    "validation": {
+      "failed": "Certaines valeurs ne sont pas valides."
+    }
   },
   "irt": {
     "package": {
@@ -128,6 +146,18 @@
   "api": {
     "client_kind": {
       "not_allowed": "La configuration ne peut être modifiée que depuis l'application de bureau."
+    },
+    "idempotency": {
+      "in_progress": "La même requête est encore en cours de traitement.",
+      "key_invalid": "La clé d'idempotence est invalide (1 à 64 lettres, chiffres, - ou _).",
+      "mismatch": "Cette clé d'idempotence a déjà été utilisée pour une autre requête."
+    },
+    "job": {
+      "not_found": "L'opération {id} est introuvable."
+    },
+    "request": {
+      "invalid": "La requête n'a pas pu être lue.",
+      "too_large": "La requête est trop volumineuse (au plus {max} octets)."
     }
   }
 }

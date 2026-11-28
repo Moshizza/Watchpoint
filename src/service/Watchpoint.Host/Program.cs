@@ -1,19 +1,21 @@
 extern alias OtelRuntime;
-
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Net;
 using System.Reflection;
+using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting.Systemd;
 using Serilog;
+using Watchpoint.Api.Contracts;
 using Watchpoint.Host.Dev;
 using Watchpoint.Host.Nats;
 using Watchpoint.Hosting;
 using Watchpoint.Hosting.Supervision;
+using Watchpoint.Secrets.Contracts;
 using Watchpoint.Storage.Contracts;
 
 namespace Watchpoint.Host;
@@ -97,6 +99,12 @@ public static class Program
                 return elevatedExit;
             }
 
+            // Development is refused on a production install (spec HST §12, HST-U-048)
+            if (CheckDevelopmentInstall(settings, RunsAsService(System.Environment.GetEnvironmentVariable), NodePaths.Resolve().Data, bootstrap) is { } devExit)
+            {
+                return devExit;
+            }
+
             // Validate settings (spec HST §4, HST-U-003)
             var validationResults = settings.Validate(new ValidationContext(settings)).ToList();
             if (validationResults.Count > 0)
@@ -126,6 +134,10 @@ public static class Program
             .Enrich.WithProperty("NodeName", settings.Node.Name)
             .Enrich.With<ModuleEnricher>()
             .Enrich.With<RedactionEnricher>();
+
+        // ASP.NET Core's raw request lines carry query strings (hub access_token): only API event 2002 logs requests (API §10).
+        loggerConfig.MinimumLevel.Override(Api.Contracts.ApiServiceCollectionExtensions.HostingDiagnosticsCategory, Serilog.Events.LogEventLevel.Warning);
+        loggerConfig.MinimumLevel.Override(Api.Contracts.ApiServiceCollectionExtensions.RoutingCategory, Serilog.Events.LogEventLevel.Warning);
 
         foreach (var (category, levelStr) in settings.Logging.Overrides)
         {
@@ -180,7 +192,9 @@ public static class Program
                             listenOptions.Protocols = Microsoft.AspNetCore.Server.Kestrel.Core.HttpProtocols.Http1AndHttp2;
                             if (uri.Scheme == "https")
                             {
-                                listenOptions.UseHttps();
+                                // The site certificate of SEC (or Http:Certificate:Path), picked per handshake (API-I-011).
+                                var services = listenOptions.ApplicationServices;
+                                listenOptions.UseHttps(https => https.ServerCertificateSelector = (_, _) => ServerCertificate(settings, services));
                             }
                         });
                 }
@@ -304,11 +318,15 @@ public static class Program
             await next();
         });
 
+        // REST pipeline (spec API §4), after the readiness barrier
+        app.UseWatchpointApi();
+
         // Log node starting (HST1102)
         var loggerFactory = app.Services.GetRequiredService<Microsoft.Extensions.Logging.ILoggerFactory>();
         var logger = loggerFactory.CreateLogger("Watchpoint.Host");
         var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.0.0";
-        HostingLog.LogNodeStarting(logger, settings.Node.Id, settings.Node.Name, version, settings.Node.Environment);
+        var startingLevel = NodeStartingLevel(settings.Node.Environment);
+        HostingLog.LogNodeStarting(logger, startingLevel, settings.Node.Id, settings.Node.Name, version, settings.Node.Environment);
 
         // Management URLs set for routing filter
         var managementPorts = new HashSet<int>();
@@ -328,6 +346,9 @@ public static class Program
 
         // Map Health and Prometheus endpoints
         MapHostEndpoints(app, managementPorts);
+
+        // Every /api endpoint declares its guard and operation id (spec API §5.1, API-U-030)
+        ApiConventions.Validate(app);
 
         try
         {
@@ -385,6 +406,69 @@ public static class Program
         });
     }
 
+    /// <summary>
+    /// Composes every module as the host does (Development, nothing started, no database or NATS contacted) and maps their
+    /// endpoints: for the OpenAPI export (<c>tools/export-openapi</c>, API §5.7) and the endpoint convention tests.
+    /// </summary>
+    /// <returns>The application, not started; the caller disposes it.</returns>
+    public static WebApplication ComposeForInspection()
+    {
+        var builder = WebApplication.CreateSlimBuilder();
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Database:Databases:default:Host"] = "localhost",
+            ["Database:Databases:default:Name"] = "watchpoint",
+            ["Database:Databases:default:Username"] = "watchpoint",
+            ["Database:Databases:default:PasswordDev"] = "inspection",
+            ["Database:Databases:default:Tls"] = "Disable",
+        });
+        var node = new NodeSettings
+        {
+            Node = new NodeSection { Id = Guid.CreateVersion7(), Name = "inspection", Environment = NodeEnvironment.Development },
+            Site = new SiteSection { Id = Guid.CreateVersion7() },
+            Paths = new PathsSection { Data = Path.Combine(Path.GetTempPath(), "watchpoint-inspection") },
+        };
+        var paths = NodePaths.Resolve(node.Paths);
+        builder.Services.AddSingleton(node);
+        builder.Services.AddSingleton(paths);
+        builder.Services.AddSingleton(new NatsEndpoint("nats://127.0.0.1:4222", null));
+        var context = new ModuleContext { Node = node, Configuration = builder.Configuration, Paths = paths, IsDevelopment = true };
+        foreach (var module in ModuleCatalog.All)
+        {
+            module.ConfigureServices(builder.Services, context);
+        }
+
+        var app = builder.Build();
+        foreach (var module in ModuleCatalog.All)
+        {
+            module.MapEndpoints(app);
+        }
+
+        return app;
+    }
+
+    private static X509Certificate2? _fileCertificate;
+
+    /// <summary>
+    /// The TLS certificate of the main endpoint: the PKCS#12 file of <c>Http:Certificate:Path</c> when set (loaded once),
+    /// otherwise the site server certificate issued by the site CA (SEC §7, <see cref="ISiteCertificateService"/>).
+    /// </summary>
+    /// <param name="settings">The node settings.</param>
+    /// <param name="services">The application services.</param>
+    /// <returns>The certificate.</returns>
+    public static X509Certificate2 ServerCertificate(NodeSettings settings, IServiceProvider services)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(services);
+        if (!string.IsNullOrWhiteSpace(settings.Http.Certificate.Path))
+        {
+            return LazyInitializer.EnsureInitialized(ref _fileCertificate,
+                () => X509CertificateLoader.LoadPkcs12FromFile(settings.Http.Certificate.Path, settings.Http.Certificate.Password));
+        }
+
+        return services.GetRequiredService<ISiteCertificateService>().GetServerCertificate();
+    }
+
     /// <summary>Path of <c>watchpoint.json</c>: <c>--config</c> / <c>--config=</c> when given, else <c>&lt;Data&gt;/watchpoint.json</c>.</summary>
     /// <param name="args">Command-line arguments.</param>
     /// <returns>The path.</returns>
@@ -433,6 +517,67 @@ public static class Program
         HostingLog.LogElevatedAllowed(logger);
         return null;
     }
+
+    /// <summary>
+    /// Refuses <c>Node:Environment = Development</c> on a production install (spec HST §12, HST-U-048): when the host runs
+    /// as a service (Windows service, or systemd: <c>INVOCATION_ID</c>) or <c>Paths:Data</c> is the
+    /// OS default, logs <c>HST1101</c> and returns exit code 78; otherwise <see langword="null"/>.
+    /// </summary>
+    /// <param name="settings">The node settings.</param>
+    /// <param name="runsAsService">Whether the process runs as a service.</param>
+    /// <param name="defaultDataPath">The production default of <c>Paths:Data</c> on this OS.</param>
+    /// <param name="logger">The logger.</param>
+    /// <returns>The exit code to stop with, or <see langword="null"/> to continue.</returns>
+    public static int? CheckDevelopmentInstall(NodeSettings settings, bool runsAsService, string defaultDataPath, Microsoft.Extensions.Logging.ILogger logger)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(logger);
+        if (settings.Node.Environment != NodeEnvironment.Development)
+        {
+            return null;
+        }
+
+        string? problem = null;
+        if (runsAsService)
+        {
+            problem = "Node:Environment=Development is refused when running as a service (production install)";
+        }
+        else
+        {
+            var data = NodePaths.Resolve(settings.Paths).Data;
+            if (string.Equals(Path.GetFullPath(data).TrimEnd(Path.DirectorySeparatorChar), Path.GetFullPath(defaultDataPath).TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase))
+            {
+                problem = "Node:Environment=Development is refused with the production data path " + defaultDataPath + " (set Paths:Data)";
+            }
+        }
+
+        if (problem is null)
+        {
+            return null;
+        }
+
+        HostingLog.LogInvalidNodeSettings(logger, problem);
+        return ExitCodeConfig;
+    }
+
+    /// <summary>
+    /// Whether the process runs as a service: Windows service, or a systemd unit (<c>INVOCATION_ID</c>, which systemd sets
+    /// for every unit). <c>NOTIFY_SOCKET</c> alone is not a service: it is what <c>systemd-notify</c> tests use (HST-I-004).
+    /// </summary>
+    /// <param name="environment">Reads an environment variable.</param>
+    /// <returns><see langword="true"/> for a service.</returns>
+    public static bool RunsAsService(Func<string, string?> environment)
+    {
+        ArgumentNullException.ThrowIfNull(environment);
+        return Microsoft.Extensions.Hosting.WindowsServices.WindowsServiceHelpers.IsWindowsService()
+            || !string.IsNullOrEmpty(environment("INVOCATION_ID"));
+    }
+
+    /// <summary>Level of event 1102: Warning in Development (every relaxation is public, HST §12), else Information.</summary>
+    /// <param name="environment">The node environment.</param>
+    /// <returns>The level.</returns>
+    public static Microsoft.Extensions.Logging.LogLevel NodeStartingLevel(NodeEnvironment environment) =>
+        environment == NodeEnvironment.Development ? Microsoft.Extensions.Logging.LogLevel.Warning : Microsoft.Extensions.Logging.LogLevel.Information;
 
     /// <summary>
     /// Generates a v7 <c>Node:Id</c> when none is set and writes it to <paramref name="watchpointJsonPath"/> (spec HST §4);

@@ -59,6 +59,62 @@ public sealed class AggregateTests
     }
 
     [Fact]
+    public void STA_U_048_Aggregates_move_with_devices_reassigned_by_a_location_delete()
+    {
+        var fixture = new StateFixture();
+        fixture.Types.Add(TestTypes.Door());
+        var buildingA = TestEntities.Location(path: "/a/");
+        var buildingB = TestEntities.Location(path: "/b/");
+        fixture.Registry.SeedLocation(buildingA);
+        fixture.Registry.SeedLocation(buildingB);
+        var forced = TestEntities.Door(locationId: buildingA.Id);
+        var closed = TestEntities.Door(locationId: buildingA.Id);
+        var other = TestEntities.Door(locationId: buildingB.Id);
+        fixture.Registry.CreateDevice(forced);
+        fixture.Registry.CreateDevice(closed);
+        fixture.Registry.CreateDevice(other);
+        fixture.Apply(fixture.Records.Property(forced.Id, null, TestTypes.Position, WpValue.Enum("forced")));
+        var changesBefore = fixture.Fanout.GetChangesSince(0, int.MaxValue)!.Count;
+
+        // REG moves the devices of A to B; the batch names only the location.
+        fixture.Registry.DeleteLocation(buildingA.Id, reassignTo: buildingB.Id);
+
+        fixture.Store.Get(new AggregateScope(AggregateScopeKind.Location, buildingA.Id.Value)).Total.ShouldBe(0);
+        var b = fixture.Store.Get(new AggregateScope(AggregateScopeKind.Location, buildingB.Id.Value));
+        b.Total.ShouldBe(3);
+        b.ByState[OverallState.Alarm].ShouldBe(1);
+        fixture.Store.Get(new AggregateScope(AggregateScopeKind.Site, fixture.Registry.Site.Id.Value)).Total.ShouldBe(3);
+        fixture.Store.RunAggregateConsistencyCheck(Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance).ShouldBeFalse("no drift");
+
+        // Only the two moved devices produce a change; the device already in B is untouched.
+        fixture.Fanout.GetChangesSince(0, int.MaxValue)!.Skip(changesBefore).Select(c => c.EntityId)
+            .ShouldBe([forced.Id.Value, closed.Id.Value], ignoreOrder: true);
+    }
+
+    [Fact]
+    public void STA_U_049_Aggregates_move_with_a_location_subtree()
+    {
+        var fixture = new StateFixture();
+        fixture.Types.Add(TestTypes.Door());
+        var buildingA = TestEntities.Location(path: "/a/", depth: 1);
+        var buildingB = TestEntities.Location(path: "/b/", depth: 1);
+        var floor = TestEntities.Location(parentId: buildingA.Id, path: "/a/f/", depth: 2);
+        fixture.Registry.SeedLocation(buildingA);
+        fixture.Registry.SeedLocation(buildingB);
+        fixture.Registry.SeedLocation(floor);
+        var door = TestEntities.Door(locationId: floor.Id);
+        fixture.Registry.CreateDevice(door);
+        fixture.Store.Get(new AggregateScope(AggregateScopeKind.Location, buildingA.Id.Value)).Total.ShouldBe(1);
+
+        // The floor moves from building A to building B: its door changes ancestors without being named.
+        fixture.Registry.MoveLocation(floor, buildingB.Id);
+
+        fixture.Store.Get(new AggregateScope(AggregateScopeKind.Location, buildingA.Id.Value)).Total.ShouldBe(0);
+        fixture.Store.Get(new AggregateScope(AggregateScopeKind.Location, buildingB.Id.Value)).Total.ShouldBe(1);
+        fixture.Store.Get(new AggregateScope(AggregateScopeKind.Location, floor.Id.Value)).Total.ShouldBe(1);
+    }
+
+    [Fact]
     public void STA_U_021_Aggregates_per_tag_and_server()
     {
         var fixture = new StateFixture();

@@ -1,0 +1,3664 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "Watchpoint API",
+    "version": "1.0"
+  },
+  "paths": {
+    "/api/v1/types": {
+      "get": {
+        "tags": [
+          "Types"
+        ],
+        "summary": "Type summaries (role, category, capability, source filters)",
+        "operationId": "Types_ListTypes",
+        "parameters": [
+          {
+            "name": "role",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "capability",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/types/{id}/versions/{version}": {
+      "get": {
+        "tags": [
+          "Types"
+        ],
+        "summary": "Full flattened type definition",
+        "operationId": "Types_GetType",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/capabilities/{id}/versions/{version}": {
+      "get": {
+        "tags": [
+          "Types"
+        ],
+        "summary": "Capability definition",
+        "operationId": "Types_GetCapability",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/symbols/{symbolId}/{state}.svg": {
+      "get": {
+        "tags": [
+          "Types"
+        ],
+        "summary": "Symbol SVG for an overall state",
+        "operationId": "Types_GetSymbol",
+        "parameters": [
+          {
+            "name": "symbolId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/i18n/types/{culture}": {
+      "get": {
+        "tags": [
+          "Types"
+        ],
+        "summary": "Merged translation bundle (ETag, revalidate)",
+        "operationId": "Types_GetTranslations",
+        "parameters": [
+          {
+            "name": "culture",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/site": {
+      "get": {
+        "tags": [
+          "Site"
+        ],
+        "operationId": "Site_GetSite",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "operate.devices.view"
+      }
+    },
+    "/api/v1/locations": {
+      "get": {
+        "tags": [
+          "Locations"
+        ],
+        "summary": "Whole tree, flat, ordered by path",
+        "operationId": "Locations_ListLocations",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "operate.devices.view"
+      }
+    },
+    "/api/v1/locations/{id}": {
+      "get": {
+        "tags": [
+          "Locations"
+        ],
+        "summary": "One location with its ancestors",
+        "operationId": "Locations_GetLocation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "operate.devices.view"
+      }
+    },
+    "/api/v1/tags": {
+      "get": {
+        "tags": [
+          "Tags"
+        ],
+        "operationId": "Tags_ListTags",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "operate.devices.view"
+      }
+    },
+    "/api/v1/tag-families": {
+      "get": {
+        "tags": [
+          "Tags"
+        ],
+        "operationId": "Tags_ListTagFamilies",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "operate.devices.view"
+      }
+    },
+    "/api/v1/servers": {
+      "get": {
+        "tags": [
+          "Servers"
+        ],
+        "operationId": "Servers_ListServers",
+        "parameters": [
+          {
+            "name": "connection",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "location",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "text",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "operate.devices.view"
+      }
+    },
+    "/api/v1/servers/{id}": {
+      "get": {
+        "tags": [
+          "Servers"
+        ],
+        "operationId": "Servers_GetServer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "operate.devices.view"
+      }
+    },
+    "/api/v1/devices": {
+      "get": {
+        "tags": [
+          "Devices"
+        ],
+        "summary": "Devices matching the filters (location = subtree)",
+        "operationId": "Devices_ListDevices",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "operate.devices.view"
+      }
+    },
+    "/api/v1/devices/{id}": {
+      "get": {
+        "tags": [
+          "Devices"
+        ],
+        "summary": "One device, displayName in the caller's culture",
+        "operationId": "Devices_GetDevice",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "operate.devices.view"
+      },
+      "patch": {
+        "tags": [
+          "Devices"
+        ],
+        "summary": "JSON Merge Patch of name, locationId, tags, enabled, maintenance, attributes (If-Match)",
+        "operationId": "Devices_PatchDevice",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "412": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "428": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "config.registry.edit",
+        "x-wp-config": true
+      }
+    },
+    "/api/v1/devices/{id}/children": {
+      "get": {
+        "tags": [
+          "Devices"
+        ],
+        "operationId": "Devices_ListChildren",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "operate.devices.view"
+      }
+    },
+    "/api/v1/devices/{id}/links": {
+      "get": {
+        "tags": [
+          "Devices"
+        ],
+        "operationId": "Devices_ListLinks",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "operate.devices.view"
+      }
+    },
+    "/api/v1/connections/{id}/discovered": {
+      "get": {
+        "tags": [
+          "Discovered"
+        ],
+        "operationId": "Discovered_ListDiscovered",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "operate.devices.view"
+      }
+    },
+    "/api/v1/connections/{id}/discovered/import": {
+      "post": {
+        "tags": [
+          "Discovered"
+        ],
+        "operationId": "Discovered_ImportDiscovered",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "config.registry.edit",
+        "x-wp-config": true
+      }
+    },
+    "/api/v1/connections/{id}/discovered/ignore": {
+      "post": {
+        "tags": [
+          "Discovered"
+        ],
+        "operationId": "Discovered_IgnoreDiscovered",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IgnoreBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "config.registry.edit",
+        "x-wp-config": true
+      }
+    },
+    "/api/v1/registry/batch": {
+      "post": {
+        "tags": [
+          "Registry"
+        ],
+        "summary": "Apply a registry change batch",
+        "operationId": "Registry_ApplyBatch",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "config.registry.edit",
+        "x-wp-config": true
+      }
+    },
+    "/api/v1/devices/{id}/state": {
+      "get": {
+        "tags": [
+          "States"
+        ],
+        "summary": "Device state (STA §7.1)",
+        "operationId": "States_GetDeviceState",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "operate.devices.view"
+      }
+    },
+    "/api/v1/states/batch": {
+      "post": {
+        "tags": [
+          "States"
+        ],
+        "summary": "States of up to 1,000 devices",
+        "operationId": "States_GetStates",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "operate.devices.view"
+      }
+    },
+    "/api/v1/states": {
+      "get": {
+        "tags": [
+          "States"
+        ],
+        "summary": "Paged states: REG device filters, state=alarm,fault, where=path:value",
+        "operationId": "States_QueryStates",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "operate.devices.view"
+      }
+    },
+    "/api/v1/aggregates": {
+      "post": {
+        "tags": [
+          "States"
+        ],
+        "summary": "Counts by overall state for up to 500 scopes",
+        "operationId": "States_GetAggregates",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AggregatesBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "operate.devices.view"
+      }
+    },
+    "/api/v1/packages": {
+      "get": {
+        "tags": [
+          "Packages"
+        ],
+        "operationId": "Packages_ListPackages",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "config.integrations.view"
+      },
+      "post": {
+        "tags": [
+          "Packages"
+        ],
+        "operationId": "Packages_InstallPackage",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "config.integrations.install",
+        "x-wp-config": true
+      }
+    },
+    "/api/v1/packages/{id}/versions/{version}": {
+      "get": {
+        "tags": [
+          "Packages"
+        ],
+        "operationId": "Packages_GetPackageVersion",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "config.integrations.view"
+      }
+    },
+    "/api/v1/packages/{id}/versions/{version}/docs/{path}": {
+      "get": {
+        "tags": [
+          "Packages"
+        ],
+        "operationId": "Packages_GetPackageDocument",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "config.integrations.view"
+      }
+    },
+    "/api/v1/packages/{id}/versions/{version}/connectors/{serverType}/settings-schema": {
+      "get": {
+        "tags": [
+          "Packages"
+        ],
+        "operationId": "Packages_GetSettingsSchema",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "serverType",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "config.integrations.view"
+      }
+    },
+    "/api/v1/packages/{id}/versions/{version}/enable": {
+      "post": {
+        "tags": [
+          "Packages"
+        ],
+        "operationId": "Packages_EnablePackageVersion",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "config.integrations.install",
+        "x-wp-config": true
+      }
+    },
+    "/api/v1/packages/{id}/versions/{version}/disable": {
+      "post": {
+        "tags": [
+          "Packages"
+        ],
+        "operationId": "Packages_DisablePackageVersion",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "config.integrations.install",
+        "x-wp-config": true
+      }
+    },
+    "/api/v1/connections": {
+      "get": {
+        "tags": [
+          "Connections"
+        ],
+        "summary": "Connections with status",
+        "operationId": "Connections_ListConnections",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "config.integrations.view"
+      },
+      "post": {
+        "tags": [
+          "Connections"
+        ],
+        "summary": "Create a connection",
+        "operationId": "Connections_CreateConnection",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "config.integrations.edit",
+        "x-wp-config": true
+      }
+    },
+    "/api/v1/connections/{id}": {
+      "get": {
+        "tags": [
+          "Connections"
+        ],
+        "summary": "Connection and status",
+        "operationId": "Connections_GetConnection",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "config.integrations.view"
+      },
+      "patch": {
+        "tags": [
+          "Connections"
+        ],
+        "summary": "Update a connection (If-Match)",
+        "operationId": "Connections_UpdateConnection",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "412": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "428": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "config.integrations.edit",
+        "x-wp-config": true
+      },
+      "delete": {
+        "tags": [
+          "Connections"
+        ],
+        "summary": "Delete a connection",
+        "operationId": "Connections_DeleteConnection",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "deleteDevices",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "config.integrations.edit",
+        "x-wp-config": true
+      }
+    },
+    "/api/v1/connections/{id}/events": {
+      "get": {
+        "tags": [
+          "Connections"
+        ],
+        "summary": "Connection state timeline",
+        "operationId": "Connections_ListConnectionEvents",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "config.integrations.view"
+      }
+    },
+    "/api/v1/connections/test": {
+      "post": {
+        "tags": [
+          "Connections"
+        ],
+        "summary": "Test unsaved settings",
+        "operationId": "Connections_TestConnection",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "config.integrations.edit",
+        "x-wp-config": true
+      }
+    },
+    "/api/v1/connections/{id}/discover": {
+      "post": {
+        "tags": [
+          "Connections"
+        ],
+        "summary": "Start a discovery job (202)",
+        "operationId": "Connections_DiscoverConnection",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "config.integrations.edit",
+        "x-wp-config": true
+      }
+    },
+    "/api/v1/connections/{id}/rediscover": {
+      "post": {
+        "tags": [
+          "Connections"
+        ],
+        "summary": "Describe and reconcile now",
+        "operationId": "Connections_RediscoverConnection",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "config.integrations.edit",
+        "x-wp-config": true
+      }
+    },
+    "/api/v1/connections/{id}/start": {
+      "post": {
+        "tags": [
+          "Connections"
+        ],
+        "operationId": "Connections_StartConnection",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "config.integrations.operate",
+        "x-wp-config": true
+      }
+    },
+    "/api/v1/connections/{id}/stop": {
+      "post": {
+        "tags": [
+          "Connections"
+        ],
+        "operationId": "Connections_StopConnection",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "config.integrations.operate",
+        "x-wp-config": true
+      }
+    },
+    "/api/v1/connections/{id}/restart": {
+      "post": {
+        "tags": [
+          "Connections"
+        ],
+        "operationId": "Connections_RestartConnection",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "config.integrations.operate",
+        "x-wp-config": true
+      }
+    },
+    "/api/v1/connections/{id}/protocol-trace": {
+      "post": {
+        "tags": [
+          "Connections"
+        ],
+        "summary": "Enable the protocol trace for a duration",
+        "operationId": "Connections_StartProtocolTrace",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "config.integrations.operate",
+        "x-wp-config": true
+      }
+    },
+    "/api/v1/system/info": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Product, version and node facts",
+        "operationId": "System_GetInfo",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/system/ca": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Site CA certificate (PEM) and SHA-256 fingerprint",
+        "operationId": "System_GetCa",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/system/nodes": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Nodes of the site for client failover",
+        "operationId": "System_ListNodes",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jobs/{id}": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Job status, progress and result",
+        "operationId": "Jobs_GetJob",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Cancel a running job",
+        "operationId": "Jobs_CancelJob",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/sign-in": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Sign in with login and password",
+        "operationId": "Auth_SignIn",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignInBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Exchange a refresh token for a new pair",
+        "operationId": "Auth_RefreshTokens",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/sign-out": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Revoke the current session",
+        "operationId": "Auth_SignOut",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/change-password": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Change the password (access token with current password, or changeToken)",
+        "operationId": "Auth_ChangePassword",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Current user, session and permissions",
+        "operationId": "Auth_GetMe",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/mfa/verify": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Complete a sign-in with a second factor",
+        "operationId": "Auth_VerifyMfa",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaVerifyBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/mfa/enrol/totp": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Start the TOTP enrolment of a sign-in",
+        "operationId": "Auth_BeginTotpEnrolment",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnrolmentBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/mfa/enrol/totp/confirm": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Confirm the TOTP enrolment → tokens and recovery codes",
+        "operationId": "Auth_ConfirmTotpEnrolment",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnrolmentBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sessions": {
+      "get": {
+        "tags": [
+          "Sessions"
+        ],
+        "summary": "Active sessions (own; others with admin.sessions.view)",
+        "operationId": "Sessions_ListSessions",
+        "parameters": [
+          {
+            "name": "user",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sessions/{id}": {
+      "delete": {
+        "tags": [
+          "Sessions"
+        ],
+        "summary": "Revoke a session (own; others with admin.sessions.manage)",
+        "operationId": "Sessions_RevokeSession",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Users",
+        "operationId": "Users_ListUsers",
+        "parameters": [
+          {
+            "name": "text",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "config.users.view"
+      }
+    },
+    "/api/v1/users/{id}": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "One user",
+        "operationId": "Users_GetUser",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "403": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "400": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "429": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          },
+          "500": {
+            "description": "Problem details (RFC 9457)",
+            "content": {
+              "application/problem+json": { }
+            }
+          }
+        },
+        "x-wp-permission": "config.users.view"
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AggregatesBody": {
+        "required": [
+          "scopes"
+        ],
+        "type": "object",
+        "properties": {
+          "scopes": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ScopeBody"
+            }
+          }
+        }
+      },
+      "BatchBody": {
+        "required": [
+          "ids"
+        ],
+        "type": "object",
+        "properties": {
+          "ids": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      "ChangePasswordBody": {
+        "required": [
+          "current",
+          "new",
+          "changeToken"
+        ],
+        "type": "object",
+        "properties": {
+          "current": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "new": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "changeToken": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "EnrolmentBody": {
+        "required": [
+          "enrolmentToken",
+          "code",
+          "clientKind",
+          "clientInstanceId"
+        ],
+        "type": "object",
+        "properties": {
+          "enrolmentToken": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clientKind": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clientInstanceId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "IgnoreBody": {
+        "required": [
+          "nativeIds",
+          "ignored"
+        ],
+        "type": "object",
+        "properties": {
+          "nativeIds": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "ignored": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
+      },
+      "ImportBody": {
+        "required": [
+          "nativeIds",
+          "overrides",
+          "defaultLocation"
+        ],
+        "type": "object",
+        "properties": {
+          "nativeIds": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "overrides": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ImportOverridesBody"
+            }
+          },
+          "defaultLocation": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "ImportOverridesBody": {
+        "required": [
+          "name",
+          "locationId",
+          "tags"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LocalizedName"
+              }
+            ]
+          },
+          "locationId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "tags": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      "LocalizedName": {
+        "required": [
+          "default",
+          "translations"
+        ],
+        "type": "object",
+        "properties": {
+          "default": {
+            "type": "string",
+            "description": "Gets the text shown when no translation matches."
+          },
+          "translations": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Gets the translations by culture; never `null`."
+          }
+        },
+        "description": "User content with optional translations (spec K §8.2). JSON:\n`{ \"default\": \"Main entrance\", \"translations\": { \"fr\": \"Entrée principale\" } }`."
+      },
+      "MfaVerifyBody": {
+        "required": [
+          "mfaToken",
+          "method",
+          "clientKind",
+          "clientInstanceId",
+          "code",
+          "assertion"
+        ],
+        "type": "object",
+        "properties": {
+          "mfaToken": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "method": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clientKind": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clientInstanceId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "assertion": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "RefreshBody": {
+        "required": [
+          "refreshToken",
+          "clientKind",
+          "clientInstanceId",
+          "workstationId"
+        ],
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clientKind": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clientInstanceId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "workstationId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "ScopeBody": {
+        "required": [
+          "kind",
+          "id"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "SignInBody": {
+        "required": [
+          "login",
+          "password",
+          "clientKind",
+          "clientInstanceId",
+          "workstationId"
+        ],
+        "type": "object",
+        "properties": {
+          "login": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "password": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clientKind": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clientInstanceId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "workstationId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Types"
+    },
+    {
+      "name": "Site"
+    },
+    {
+      "name": "Locations"
+    },
+    {
+      "name": "Tags"
+    },
+    {
+      "name": "Servers"
+    },
+    {
+      "name": "Devices"
+    },
+    {
+      "name": "Discovered"
+    },
+    {
+      "name": "Registry"
+    },
+    {
+      "name": "States"
+    },
+    {
+      "name": "Packages"
+    },
+    {
+      "name": "Connections"
+    },
+    {
+      "name": "System"
+    },
+    {
+      "name": "Jobs"
+    },
+    {
+      "name": "Auth"
+    },
+    {
+      "name": "Sessions"
+    },
+    {
+      "name": "Users"
+    }
+  ]
+}

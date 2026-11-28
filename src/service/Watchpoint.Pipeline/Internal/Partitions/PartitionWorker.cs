@@ -19,7 +19,11 @@ internal sealed record PartitionServices(
     ISideEffectQueue SideEffects,
     TimeProvider Time,
     PipelineMetrics Metrics,
-    ILogger Logger);
+    ILogger Logger)
+{
+    /// <summary>The soft budget of subscriber calls, shared by every worker (spec PIP §7.3, log 1646).</summary>
+    public SubscriberBudget Budget { get; } = new(Options.SubscriberBudget, Time);
+}
 
 /// <summary>
 /// The worker of one partition (spec PIP §7.2, §7.3): reads validated observations from its bounded channel, detects
@@ -787,7 +791,12 @@ internal sealed class PartitionWorker : IAsyncDisposable
             _services.Metrics.SubscriberFailed(subscriber.Name);
         }
 
-        _services.Metrics.SubscriberCalled(subscriber.Name, _services.Time.GetElapsedTime(started));
+        var elapsed = _services.Time.GetElapsedTime(started);
+        _services.Metrics.SubscriberCalled(subscriber.Name, elapsed);
+        if (_services.Budget.ShouldLog(subscriber.Name, elapsed))
+        {
+            PipelineLog.SubscriberOverBudget(_services.Logger, subscriber.Name, elapsed.TotalMilliseconds, Partition, _services.Budget.Limit.TotalMilliseconds);
+        }
     }
 
     private LogRecord Record(long sequence, LogEnvelope envelope) =>

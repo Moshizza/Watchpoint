@@ -105,7 +105,7 @@ internal sealed class IngestHarness : IAsyncDisposable
     /// <summary>A door type: position (enum), temperature in °C, optional tamper capability, health faults, a forced event.</summary>
     public static DeviceTypeDefinition DoorType => _model.Value.Door;
 
-    private ILoggerFactory LoggerFactory => _loggerFactory ??=
+    public ILoggerFactory LoggerFactory => _loggerFactory ??=
         Microsoft.Extensions.Logging.LoggerFactory.Create(b => b.SetMinimumLevel(LogLevel.Trace).AddProvider(Logs));
 
     public Task StartAsync() => Router.StartAsync(TestContext.Current.CancellationToken);

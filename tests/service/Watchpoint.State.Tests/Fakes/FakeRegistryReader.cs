@@ -79,13 +79,13 @@ internal sealed class FakeRegistryReader : IRegistryReader
             _deviceIds,
             id => _devices[id],
             d => d.Id.Value,
-            d => (query.ServerId is not { } server || d.ServerId == server)
-                && (query.LocationId is not { } location || d.LocationId == location)
-                && (query.TypeId is not { } type || d.Type.Id == type)
+            d => (query.Servers is not { } servers || servers.Contains(d.ServerId))
+                && (query.LocationsSubtree is not { } locations || locations.Contains(d.LocationId))
+                && (query.Types is not { } types || types.Contains(d.Type.Id))
                 && (query.Enabled is not { } enabled || d.Enabled == enabled)
                 && (query.Maintenance is not { } maintenance || d.Maintenance == maintenance)
                 && (query.Orphaned is not { } orphaned || d.Orphaned == orphaned)
-                && (query.Tags is null || query.Tags.All(t => d.Tags.Contains(t))),
+                && (query.TagsAll is null || query.TagsAll.All(t => d.Tags.Contains(t))),
             page);
     }
 
@@ -139,6 +139,34 @@ internal sealed class FakeRegistryReader : IRegistryReader
         _servers.Remove(id.Value);
         _serverIds.Remove(id.Value);
         Raise([new RegistryChange.DeleteServer(id, deleteDevices)]);
+    }
+
+    /// <summary>
+    /// Deletes a location and moves its devices and servers to <paramref name="reassignTo"/>, as REG does for
+    /// <c>DeleteLocation(id, ReassignTo)</c>: the moved entities are not named in the batch.
+    /// </summary>
+    public void DeleteLocation(LocationId id, LocationId reassignTo)
+    {
+        foreach (var device in _devices.Values.Where(d => d.LocationId == id).ToList())
+        {
+            _devices[device.Id.Value] = device with { LocationId = reassignTo };
+        }
+
+        foreach (var server in _servers.Values.Where(sv => sv.LocationId == id).ToList())
+        {
+            _servers[server.Id.Value] = server with { LocationId = reassignTo };
+        }
+
+        _locations.Remove(id.Value);
+        Raise([new RegistryChange.DeleteLocation(id, reassignTo)]);
+    }
+
+    /// <summary>Moves a location under another parent: the entities of its subtree get new ancestors without being named.</summary>
+    public void MoveLocation(Location location, LocationId newParent)
+    {
+        var moved = location with { ParentId = newParent };
+        _locations[location.Id.Value] = moved;
+        Raise([new RegistryChange.UpsertLocation(moved)]);
     }
 
     /// <summary>Raises <see cref="Changed"/> directly, for batches the simple helpers above do not cover.</summary>

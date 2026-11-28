@@ -87,7 +87,7 @@ internal sealed class ServerAvailabilityCascade(IRegistryReader registry, IParti
         string? cursor = null;
         do
         {
-            var page = registry.QueryDevices(new DeviceQuery(ServerId: server), new Kernel.Paging.PageRequest(Kernel.Paging.PageRequest.MaxLimit, cursor));
+            var page = registry.QueryDevices(new DeviceQuery(Servers: [server]), new Kernel.Paging.PageRequest(Kernel.Paging.PageRequest.MaxLimit, cursor));
             foreach (var device in page.Items)
             {
                 yield return device.Id.Value;

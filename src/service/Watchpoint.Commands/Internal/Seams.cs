@@ -20,16 +20,44 @@ internal sealed class IdentityStepUpValidator(IAuthenticationService authenticat
     public Result Validate(string stepUpToken, SessionId session) => authentication.ValidateStepUp(stepUpToken, session);
 }
 
-/// <summary>Whether a connection exists (CMD §5 step 9; its state is checked at dispatch).</summary>
+/// <summary>The connections as commands see them: existence (CMD §5 step 9), state and package (CMD §7).</summary>
 internal interface ICommandConnections
 {
     bool Exists(ConnectionId connection);
+
+    /// <summary>The live state (an unknown connection reads as <see cref="ConnectionState.Disabled"/>).</summary>
+    ConnectionState State(ConnectionId connection);
+
+    /// <summary>The package of the connection's connector, which qualifies its messages (<c>packages.&lt;id&gt;.&lt;key&gt;</c>).</summary>
+    string? PackageOf(ConnectionId connection);
+
+    /// <summary>Raised after a state change of a connection.</summary>
+    event EventHandler<ConnectionId>? StateChanged;
 }
 
 /// <summary>The connections of the integration runtime.</summary>
-internal sealed class RuntimeCommandConnections(IConnectionManager connections) : ICommandConnections
+internal sealed class RuntimeCommandConnections : ICommandConnections, IDisposable
 {
-    public bool Exists(ConnectionId connection) => connections.Get(connection).IsSuccess;
+    private readonly IConnectionManager _connections;
+
+    public RuntimeCommandConnections(IConnectionManager connections)
+    {
+        _connections = connections;
+        _connections.StatusChanged += OnStatusChanged;
+    }
+
+    public event EventHandler<ConnectionId>? StateChanged;
+
+    public bool Exists(ConnectionId connection) => _connections.Get(connection).IsSuccess;
+
+    public ConnectionState State(ConnectionId connection) => _connections.GetStatus(connection).State;
+
+    public string? PackageOf(ConnectionId connection) =>
+        _connections.Get(connection).TryGetValue(out var found, out _) ? found.PackageId.Value : null;
+
+    public void Dispose() => _connections.StatusChanged -= OnStatusChanged;
+
+    private void OnStatusChanged(object? sender, ConnectionStatusChangedEventArgs e) => StateChanged?.Invoke(this, e.Status.Id);
 }
 
 /// <summary>
